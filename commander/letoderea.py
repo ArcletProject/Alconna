@@ -1,7 +1,7 @@
 from typing import List, Callable, Dict, Union, Type, Any
 from arclet.letoderea.utils import argument_analysis
 from arclet.letoderea.handler import await_exec_target
-from arclet.alconna. import Alconna, Arpamar, Default
+from arclet.alconna import Alconna, Arpamar, Default
 from arclet.alconna.types import AnyStr, Bool
 
 
