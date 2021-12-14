@@ -1,4 +1,4 @@
-from arclet.alconna.commander.letoderea import AlconnaCommander, Positional
+from commander.letoderea import AlconnaCommander, Positional
 from devtools import debug
 from asyncio import sleep
 from arclet.letoderea import EventSystem
