@@ -1,4 +1,8 @@
 # Alconna
+[![Licence](https://img.shields.io/github/license/ArcletProject/Alconna)](https://github.com/ArcletProject/Alconna/blob/master/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/arclet-alconna)](https://pypi.org/project/arclet-alconna)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/arclet-alconna)](https://www.python.org/)
+
 `Alconna` 隶属于`ArcletProject`， 在`Cesloi`内有内置
 
 `Alconna` 是 `Cesloi-CommandAnalysis` 的高级版，支持解析消息链
