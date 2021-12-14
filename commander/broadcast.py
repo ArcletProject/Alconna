@@ -1,8 +1,8 @@
 from typing import List, Callable, Dict, Union, Type, Any
 import re
-from .. import Alconna, Arpamar, Default, Option
-from ..types import AnyStr, Bool
-from ..util import split_once
+from arclet.alconna import Alconna, Arpamar, Default, Option
+from arclet.alconna.types import AnyStr, Bool
+from arclet.alconna.util import split_once
 from graia.broadcast.entities.decorator import Decorator
 from graia.broadcast.interfaces.decorator import DecoratorInterface
 from graia.broadcast.entities.dispatcher import BaseDispatcher
