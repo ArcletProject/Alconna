@@ -98,39 +98,56 @@ class Arpamar(BaseModel):
         self.need_marg: bool = False
         self.matched: bool = False
         self.head_matched: bool = False
+
+        self._options: Dict[str, Any] = {}
         self._args: Dict[str, Any] = {}
 
     @property
     def main_argument(self):
-        if 'main_argument' in self.results and self.need_marg:
-            return self.results['main_argument']
+        return self.results.get('main_argument')
 
     @property
     def header(self):
-        if self.results['header']:
+        if 'result' in self.results:
             return self.results['header']
         else:
             return self.head_matched
+
+    @property
+    def all_matched_args(self):
+        return {**self.results, **self._args}
 
     @property
     def option_args(self):
         return self._args
 
     def encapsulate_result(self) -> None:
+        if not self.results.get('header'):
+            del self.results['header']
         for k, v in self.results['options'].items():
-            self.__setattr__(k, v)
+            self._options.setdefault(k, v)
             if isinstance(v, dict):
                 for kk, vv in v.items():
                     if not isinstance(vv, dict):
                         self._args[kk] = vv
                     else:
                         self._args.update(vv)
+        del self.results['options']
 
-    def get(self, name: str) -> dict:
-        return self.__getattribute__(name)
+    def get(self, name: str) -> Union[Dict, str, NonTextElement]:
+        if name in self._options:
+            return self._options[name]
+        elif name in self._args:
+            return self._args[name]
 
     def has(self, name: str) -> bool:
-        return name in self.__dict__
+        return any([name in self._args, name in self._options])
+
+    def __getitem__(self, item: str):
+        if item in self._options:
+            return self._options[item]
+        elif item in self._args:
+            return self._args[item]
 
     def split_by(self, separate: str):
         _text: str = ""  # 重置
