@@ -360,10 +360,10 @@ class Alconna(CommandInterface):
             self.result.is_str = True
             self.result.raw_texts.append([message, 0])
         else:
-            for i, ele in enumerate(message):
-                if ele.__class__.__name__ not in ("Plain", "Source", "Quote", "File"):
+             for i, ele in enumerate(message):
+                if ele.__class__.__name__ not in ("Plain", "Source", "Quote", "File", "Text"):
                     self.result.elements[i] = ele
-                elif ele.__class__.__name__ == "Plain":
+                elif ele.__class__.__name__ in ("Plain", "Text"):
                     self.result.raw_texts.append([ele.text.lstrip(' '), i])
 
         if not self.result.raw_texts:
