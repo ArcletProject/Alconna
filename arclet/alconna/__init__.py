@@ -351,6 +351,8 @@ class Alconna(CommandInterface):
                 pass
 
     def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:
+        if hasattr(self, "result"):
+            del self.result
         self.result: Arpamar = Arpamar()
 
         if self.main_argument != "":
