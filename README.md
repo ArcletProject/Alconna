@@ -17,12 +17,12 @@
 ```python
 from arclet.alconna import Alconna
 from arclet.alconna.component import Option, Subcommand
-from arclet.alconna.types import AnyStr
+from arclet.alconna.types import AnyStr, Args
 
 cmd = Alconna(
     command="/pip",
     options=[
-        Subcommand("install", Option("--upgrade"), pak_name=AnyStr)
+        Subcommand("install", Option("--upgrade"), args=Args(pak_name=AnyStr))
         Option("list"),
     ]
 )
@@ -58,15 +58,15 @@ Alconna(
         ),
         Option("opt", opt_arg="opt_arg")
     ]
-    main_argument="main_argument"
+    main_args="main_args"
 )
 ```
 则它可以解析如下命令:
 ```
-/name sub_name sub_opt sub_arg sub_main_arg opt arg main_argument
+/name sub_name sub_opt sub_arg sub_main_arg opt arg main_args
 /name sub_name sub_main_arg opt arg main_argument
-/name main_argument opt arg
-/name main_argument
+/name main_args opt arg
+/name main_args
 ```
 解析成功的命令的参数会保存在analysis_message方法返回的`Arpamar`实例中
 
