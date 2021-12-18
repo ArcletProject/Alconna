@@ -1,26 +1,11 @@
 import re
-from typing import Union, Type, Optional, Dict, List, Any
+from typing import Union, Dict, List, Any, Optional
 from pydantic import BaseModel
+from pydantic.utils import Representation
 
 from . import split_once
 from .exceptions import NullName, InvalidOptionName
-from .types import NonTextElement
-
-
-class Default:
-    args: Union[str, Type[NonTextElement]]
-    default: Union[str, Type[NonTextElement]]
-
-    def __init__(
-            self,
-            args: Union[str, Type[NonTextElement]],
-            default: Optional[Union[str, NonTextElement]] = None
-    ):
-        self.args = args
-        self.default = default
-
-
-Argument_T = Union[str, Type[NonTextElement], Default]
+from .types import NonTextElement, Args
 
 
 class CommandInterface(BaseModel):
@@ -38,40 +23,56 @@ class CommandInterface(BaseModel):
 
 class OptionInterface(CommandInterface):
     type: str
-    args: Dict[str, Argument_T]
+    args: Args
 
 
 class Option(OptionInterface):
     type: str = "OPT"
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, args: Optional[Args] = None, **kwargs):
         if name == "":
             raise NullName
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidOptionName
         super().__init__(
             name=name,
-            args={k: v for k, v in kwargs.items() if k not in ('name', 'type')}
+            args=args or Args(**kwargs)
         )
+
+    def help(self, help_string: str):
+        setattr(self, "help_doc", f"# {help_string}\n"
+                                  f"  {self.name}{self.separator}{self.args.params(self.separator)}\n")
+        return self
 
 
 class Subcommand(OptionInterface):
     type: str = "SBC"
-    Options: List[Option]
+    options: List[Option]
 
-    def __init__(self, name: str, *options: Option, **kwargs):
+    def __init__(self, name: str, *option: Option, args: Optional[Args] = None, **kwargs):
         if name == "":
             raise NullName
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidOptionName
         super().__init__(
             name=name,
-            Options=list(options),
-            args={k: v for k, v in kwargs.items() if k not in ('name', 'type')}
+            options=list(option),
+            args=args or Args(**kwargs)
         )
 
+    def help(self, help_string: str):
+        option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""), self.options)))
+        option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
+        setattr(self, "help_doc", f"# {help_string}\n"
+                                  f"  {self.name}{self.separator}{self.args.params(self.separator)}\n"
+                                  f"{option_help}{option_string}")
+        return self
 
-class Arpamar(BaseModel):
+
+Options_T = List[OptionInterface]
+
+
+class Arpamar(Representation):
     """
     亚帕玛尔(Arpamar), Alconna的珍藏宝书
 
@@ -88,34 +89,37 @@ class Arpamar(BaseModel):
 
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self):
         self.current_index: int = 0  # 记录解析时当前字符串的index
         self.is_str: bool = False  # 是否解析的是string
-        self.results: Dict[str, Any] = {'options': {}}
+        self.results: Dict[str, Any] = {'options': {}, 'main_args': {}}
         self.elements: Dict[int, NonTextElement] = {}
         self.raw_texts: List[List[Union[int, str]]] = []
-        self.need_marg: bool = False
+        self.need_main_args: bool = False
         self.matched: bool = False
         self.head_matched: bool = False
 
         self._options: Dict[str, Any] = {}
         self._args: Dict[str, Any] = {}
 
+    __slots__ = ["current_index", "is_str", "results", "elements", "raw_texts", "need_main_args", "matched",
+                 "head_matched", "_options", "_args"]
+
     @property
-    def main_argument(self):
-        return self.results.get('main_argument')
+    def main_args(self):
+        if self.need_main_args:
+            return self.results.get('main_args')
 
     @property
     def header(self):
-        if 'result' in self.results:
+        if 'header' in self.results:
             return self.results['header']
         else:
             return self.head_matched
 
     @property
     def all_matched_args(self):
-        return {**self.results, **self._args}
+        return {**self.results['main_args'], **self._args}
 
     @property
     def option_args(self):
@@ -164,6 +168,3 @@ class Arpamar(BaseModel):
 
     class Config:
         extra = 'allow'
-
-
-Options_T = List[OptionInterface]
