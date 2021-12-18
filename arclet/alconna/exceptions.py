@@ -12,3 +12,7 @@ class NullName(Exception):
 
 class InvalidFormatMap(Exception):
     """错误的格式化参数串"""
+
+
+class NullTextMessage(Exception):
+    """传入了不含有text的消息"""
