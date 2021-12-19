@@ -9,46 +9,41 @@ Bool = r"(True|False)"
 
 NonTextElement = TypeVar("NonTextElement")
 MessageChain = TypeVar("MessageChain")
-Argument_T = Union[str, Type[NonTextElement]]
+TArgument = Union[str, Type[NonTextElement]]
 
 
 class Args:
-    args: Dict[str, Argument_T]
-    _default: Dict[str, Union[str, NonTextElement]]
-    empty: bool = False
+    argument: Dict[str, TArgument]
+    defaults: Dict[str, Union[str, NonTextElement]]
 
     def __init__(self, **kwargs):
-        self.args = {k: v for k, v in kwargs.items() if k not in ('name', 'type')}
-        self._default = {}
-        if not self.args:
-            self.empty = True
+        self.argument = {k: v for k, v in kwargs.items() if k not in ('name', 'type')}
+        self.defaults = {}
 
     def default(self, **kwargs):
-        self._default = {k: v for k, v in kwargs.items() if k not in ('name', 'type')}
+        self.defaults = {k: v for k, v in kwargs.items() if k not in ('name', 'type')}
         return self
 
     def check(self, keyword: str):
-        if keyword in self._default:
-            if self._default[keyword] is None:
+        if keyword in self.defaults:
+            if self.defaults[keyword] is None:
                 return inspect.Signature.empty
-            return self._default[keyword]
+            return self.defaults[keyword]
 
     def params(self, sep: str = " "):
         argument_string = ""
         i = 0
-        length = len(self.args)
-        for k, v in self.args.items():
+        length = len(self.argument)
+        for k, v in self.argument.items():
             arg = f"<{k}"
             if not isinstance(v, str):
                 arg += f": Type_{v.__name__}"
-            if k in self._default:
-                default = self._default[k]
+            if k in self.defaults:
+                default = self.defaults[k]
                 if default is None:
                     arg += " default: Empty"
-                elif isinstance(default, str):
-                    arg += f" default: {default}"
                 else:
-                    arg += f" default: Type_{default.__name__}"
+                    arg += f" default: {default}"
             argument_string += arg + ">"
             i += 1
             if i != length:
@@ -56,19 +51,20 @@ class Args:
         return argument_string
 
     def __iter__(self):
-        for k, v in self.args.items():
+        for k, v in self.argument.items():
             yield k, v
 
     def __len__(self):
-        return len(self.args)
+        return len(self.argument)
 
     def __repr__(self):
-        if self.empty:
+        if not self.argument:
             return "Empty"
-        repr_string = ""
-        for k, v in self.args.items():
-            text = f"'{k}': {v}"
-            if k in self._default:
-                text += f" default={self._default[k]}"
-            repr_string += text + ",\n"
-        return "\n" + repr_string + ""
+        repr_string = "Args({0})"
+        repr_args = ", ".join(
+            [
+                f"{name}: {argtype}" + (f" = {name}" if name in self.defaults else "")
+                for name, argtype in self.argument.items()
+            ]
+        )
+        return repr_string.format(repr_args)
