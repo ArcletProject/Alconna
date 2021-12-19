@@ -71,4 +71,4 @@ Alconna(
 解析成功的命令的参数会保存在analysis_message方法返回的`Arpamar`实例中
 
 ## 性能参考
-在 i5-10210U 处理器上, `Alconna` 的性能大约为 `36000~41000 msg/s`, 取决于 `Alconna` 的复杂程度
+在 i5-10210U 处理器上, `Alconna` 的性能大约为 `38000~61000 msg/s`, 取决于 `Alconna` 的复杂程度
