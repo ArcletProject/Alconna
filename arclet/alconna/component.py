@@ -1,43 +1,33 @@
 import re
 from typing import Union, Dict, List, Any, Optional
-from pydantic import BaseModel
-from pydantic.utils import Representation
-
+from dataclasses import dataclass
 from . import split_once
 from .exceptions import NullName, InvalidOptionName
 from .types import NonTextElement, Args
 
 
-class CommandInterface(BaseModel):
+@dataclass
+class CommandInterface:
     name: str
+    args: Args
     separator: str = " "
 
     def separate(self, sep: str):
         self.separator = sep
         return self
 
-    class Config:
-        arbitrary_types_allowed = True
-        extra = "allow"
 
+class Option(CommandInterface):
+    alias: str
 
-class OptionInterface(CommandInterface):
-    type: str
-    args: Args
-
-
-class Option(OptionInterface):
-    type: str = "OPT"
-
-    def __init__(self, name: str, args: Optional[Args] = None, **kwargs):
+    def __init__(self, name: str, args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
         if name == "":
             raise NullName
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidOptionName
-        super().__init__(
-            name=name,
-            args=args or Args(**kwargs)
-        )
+        self.name = name
+        self.alias = alias or name
+        self.args = args or Args(**kwargs)
 
     def help(self, help_string: str):
         setattr(self, "help_doc", f"# {help_string}\n"
@@ -45,20 +35,19 @@ class Option(OptionInterface):
         return self
 
 
-class Subcommand(OptionInterface):
-    type: str = "SBC"
+class Subcommand(CommandInterface):
     options: List[Option]
+    sub_params: Dict[str, Union[Args, Option]]
 
     def __init__(self, name: str, *option: Option, args: Optional[Args] = None, **kwargs):
         if name == "":
             raise NullName
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidOptionName
-        super().__init__(
-            name=name,
-            options=list(option),
-            args=args or Args(**kwargs)
-        )
+        self.name = name
+        self.options = list(option)
+        self.args = args or Args(**kwargs)
+        self.sub_params = {"sub_args": self.args}
 
     def help(self, help_string: str):
         option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""), self.options)))
@@ -69,15 +58,12 @@ class Subcommand(OptionInterface):
         return self
 
 
-Options_T = List[OptionInterface]
-
-
-class Arpamar(Representation):
+class Arpamar:
     """
     亚帕玛尔(Arpamar), Alconna的珍藏宝书
 
     Example:
-        1.`Arpamar.main_argument`: 当 Alconna 写入了 main_argument 时,该参数返回对应的解析出来的值
+        1.`Arpamar.main_args`: 当 Alconna 写入了 main_argument 时,该参数返回对应的解析出来的值
 
         2.`Arpamar.header`: 当 Alconna 的 command 内写有正则表达式时,该参数返回对应的匹配值
 
@@ -102,8 +88,8 @@ class Arpamar(Representation):
         self._options: Dict[str, Any] = {}
         self._args: Dict[str, Any] = {}
 
-    __slots__ = ["current_index", "is_str", "results", "elements", "raw_texts", "need_main_args", "matched",
-                 "head_matched", "_options", "_args"]
+    __slots__ = ("current_index", "is_str", "results", "elements", "raw_texts", "need_main_args", "matched",
+                 "head_matched", "_options", "_args")
 
     @property
     def main_args(self):
@@ -166,5 +152,6 @@ class Arpamar(Representation):
 
         return _text, _rest_text
 
-    class Config:
-        extra = 'allow'
+    def __repr__(self):
+        attrs = ((s, getattr(self, s)) for s in self.__slots__)
+        return " ".join([f"{a}={v}" for a, v in attrs if v is not None])
