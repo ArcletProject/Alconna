@@ -2,8 +2,8 @@ from typing import Dict, List, Optional, Union, Any, overload
 import re
 from .util import split_once, split
 from .component import Option, CommandInterface, Subcommand, Arpamar
-from .types import NonTextElement, MessageChain, TArgument, Args
-from .exceptions import ParamsUnmatched, NullName, InvalidOptionName, InvalidFormatMap, NullTextMessage
+from .types import NonTextElement, MessageChain, TAValue, Args
+from .exceptions import ParamsUnmatched, InvalidFormatMap, NullTextMessage, InvalidName
 
 _builtin_option = Option("-help")
 
@@ -54,11 +54,10 @@ class Alconna(CommandInterface):
             main_args: Optional[Args] = None,
             exception_in_time: bool = False,
             **kwargs
-
     ):
         # headers与command二者必须有其一
         if all([all([not headers, not command]), not options, not main_args]):
-            raise NullName
+            raise InvalidName
         self.headers = headers or [""]
         self.command = command or ""
         self.options = options or []
@@ -89,7 +88,7 @@ class Alconna(CommandInterface):
     def format(
             cls,
             format_string: str,
-            format_args: List[Union[TArgument, Args, Option, List[Option]]],
+            format_args: List[Union[TAValue, Args, Option, List[Option]]],
             reflect_map: Optional[Dict[str, str]] = None
     ) -> "Alconna":
         ...
@@ -99,7 +98,7 @@ class Alconna(CommandInterface):
     def format(
             cls,
             format_string: str,
-            format_args: Dict[str, Union[TArgument, Args, Option, List[Option]]],
+            format_args: Dict[str, Union[TAValue, Args, Option, List[Option]]],
             reflect_map: Optional[Dict[str, str]] = None
     ) -> "Alconna":
         ...
@@ -170,6 +169,11 @@ class Alconna(CommandInterface):
         alc = cls(command=command, options=options, main_args=main_args)
         return alc
 
+    def option(self, name: str, sep: str = " ", args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
+        self.options.append(Option(name, args=args, alias=alias, **kwargs).separate(sep))
+        self._initialise_arguments()
+        return self
+
     def add_options(self, options: List[Option]):
         self.options.extend(options)
         self._initialise_arguments()
@@ -200,28 +204,28 @@ class Alconna(CommandInterface):
 
         _option_dict: Dict[str, Any] = {}
         may_element_index = self.result.raw_texts[self.result.current_index][1] + 1
-        for k, v in opt_args:
-            if isinstance(v, str):
+        for key, value, default in opt_args:
+            if isinstance(value, str):
                 if sep != self.separator:
                     may_arg, may_args = split_once(may_args, sep)
                 else:
                     may_arg, rest_text = self.result.split_by(sep)
-                if not (_arg_find := re.findall('^' + v + '$', may_arg)):
-                    if (default := opt_args.check(k)) is not None:
+                if not (_arg_find := re.findall('^' + value + '$', may_arg)):
+                    if default is not None:
                         _arg_find = [default]
                     else:
                         raise ParamsUnmatched(f"param {may_arg} is incorrect")
-                if may_arg == v:
+                if may_arg == value:
                     _arg_find[0] = Ellipsis
-                _option_dict[k] = _arg_find[0]
+                _option_dict[key] = _arg_find[0]
                 if sep == self.separator:
                     self.result.raw_texts[self.result.current_index][0] = rest_text
             else:
-                if type(self.result.elements[may_element_index]) is v:
-                    _option_dict[k] = self.result.elements.pop(may_element_index)
+                if type(self.result.elements[may_element_index]) is value:
+                    _option_dict[key] = self.result.elements.pop(may_element_index)
                     may_element_index += 1
-                elif (default := opt_args.check(k)) is not None:
-                    _option_dict[k] = default
+                elif default is not None:
+                    _option_dict[key] = default
                     may_element_index += 1
                 else:
                     raise ParamsUnmatched(
@@ -312,7 +316,7 @@ class Alconna(CommandInterface):
         if not self.result.head_matched:
             raise ParamsUnmatched(f"{head_text} does not matched")
 
-    def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:
+    def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:  # TODO:cache功能, 即保存解析步骤
         if hasattr(self, "result"):
             del self.result
         self.result: Arpamar = Arpamar()
@@ -350,9 +354,9 @@ class Alconna(CommandInterface):
                 _param = self._params.get(_text)
                 if not _param:
                     _param = self._params['main_args']
-                    for p, v in self._params.items():
-                        if _text.startswith(p) or _text.startswith(getattr(v, 'alias', p)):
-                            _param = v
+                    for p, value in self._params.items():
+                        if _text.startswith(p) or _text.startswith(getattr(value, 'alias', p)):
+                            _param = value
                             break
                 if isinstance(_param, Option):
                     self.result.results['options'].update(self._analyse_option(_param, _text, _rest_text))
@@ -369,12 +373,12 @@ class Alconna(CommandInterface):
 
         try:
             may_element_index = self.result.raw_texts[self.result.current_index][1] + 1
-            for k, v in self.args:
-                if type(self.result.elements[may_element_index]) is v:
-                    self.result.results['main_args'][k] = self.result.elements.pop(may_element_index)
+            for key, value, default in self.args:
+                if type(self.result.elements[may_element_index]) is value:
+                    self.result.results['main_args'][key] = self.result.elements.pop(may_element_index)
                     may_element_index += 1
-                elif (default := self.args.check(k)) is not None:
-                    self.result.results['main_args'][k] = default
+                elif default is not None:
+                    self.result.results['main_args'][key] = default
                     may_element_index += 1
                 else:
                     raise ParamsUnmatched(
@@ -386,8 +390,9 @@ class Alconna(CommandInterface):
                 raise
             pass
 
-        if len(self.result.elements) == 0 and all([t[0] == "" for t in self.result.raw_texts]) \
-                and (not self.result.need_main_args or (
+        if len(self.result.elements) == 0 and all(
+                [t[0] == "" for t in self.result.raw_texts]
+        ) and (not self.result.need_main_args or (
                 self.result.need_main_args and not self.result.has('help') and self.result.results.get('main_args')
         )):
             self.result.matched = True
