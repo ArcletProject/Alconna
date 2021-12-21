@@ -17,12 +17,12 @@
 ```python
 from arclet.alconna import Alconna
 from arclet.alconna.component import Option, Subcommand
-from arclet.alconna.types import AnyStr, Args
+from arclet.alconna.types import Pattern, Args
 
 cmd = Alconna(
     command="/pip",
     options=[
-        Subcommand("install", Option("--upgrade"), args=Args(pak_name=AnyStr))
+        Subcommand("install", Option("--upgrade"), args=Args["pak_name": Pattern(str)])
         Option("list"),
     ]
 )
