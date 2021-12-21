@@ -2,7 +2,7 @@ import re
 from typing import Union, Dict, List, Any, Optional
 from dataclasses import dataclass
 from . import split_once
-from .exceptions import NullName, InvalidOptionName
+from .exceptions import InvalidName
 from .types import NonTextElement, Args
 
 
@@ -22,9 +22,9 @@ class Option(CommandInterface):
 
     def __init__(self, name: str, args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
         if name == "":
-            raise NullName
+            raise InvalidName
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
-            raise InvalidOptionName
+            raise InvalidName
         self.name = name
         self.alias = alias or name
         self.args = args or Args(**kwargs)
@@ -41,9 +41,9 @@ class Subcommand(CommandInterface):
 
     def __init__(self, name: str, *option: Option, args: Optional[Args] = None, **kwargs):
         if name == "":
-            raise NullName
+            raise InvalidName
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
-            raise InvalidOptionName
+            raise InvalidName
         self.name = name
         self.options = list(option)
         self.args = args or Args(**kwargs)
