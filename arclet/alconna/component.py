@@ -1,23 +1,36 @@
+"""Alconna 的组件相关"""
+
 import re
 from typing import Union, Dict, List, Any, Optional
 from dataclasses import dataclass
-from . import split_once
+from .util import split_once
 from .exceptions import InvalidName
 from .types import NonTextElement, Args
 
 
 @dataclass
 class CommandInterface:
+    """命令体基类, 规定基础命令的参数"""
     name: str
     args: Args
     separator: str = " "
 
     def separate(self, sep: str):
+        """设置命令头与命令参数的分隔符"""
         self.separator = sep
+        return self
+
+    def help(self, help_string: str):
+        """预处理 help 文档"""
+        setattr(
+            self, "help_doc",
+            f"# {help_string}\n  {self.name}{self.separator}{self.args.params(self.separator)}\n"
+        )
         return self
 
 
 class Option(CommandInterface):
+    """命令选项, 可以使用别名"""
     alias: str
 
     def __init__(self, name: str, args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
@@ -25,17 +38,23 @@ class Option(CommandInterface):
             raise InvalidName
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidName
+        if "|" in name:
+            name, alias = name.replace(' ', '').split('|')
         self.name = name
         self.alias = alias or name
         self.args = args or Args(**kwargs)
 
     def help(self, help_string: str):
-        setattr(self, "help_doc", f"# {help_string}\n"
-                                  f"  {self.name}{self.separator}{self.args.params(self.separator)}\n")
+        """预处理 help 文档"""
+        alias = f"{self.alias}, " if self.alias != self.name else ""
+        setattr(
+            self, "help_doc",
+            f"# {help_string}\n  {alias}{self.name}{self.separator}{self.args.params(self.separator)}\n")
         return self
 
 
 class Subcommand(CommandInterface):
+    """子命令, 次于主命令, 可解析 SubOption"""
     options: List[Option]
     sub_params: Dict[str, Union[Args, Option]]
 
@@ -50,6 +69,7 @@ class Subcommand(CommandInterface):
         self.sub_params = {"sub_args": self.args}
 
     def help(self, help_string: str):
+        """预处理 help 文档"""
         option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""), self.options)))
         option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
         setattr(self, "help_doc", f"# {help_string}\n"
@@ -93,25 +113,29 @@ class Arpamar:
 
     @property
     def main_args(self):
+        """返回可能解析到的 main arguments"""
         if self.need_main_args:
             return self.results.get('main_args')
 
     @property
     def header(self):
+        """返回可能解析到的命令头中的信息"""
         if 'header' in self.results:
             return self.results['header']
-        else:
-            return self.head_matched
+        return self.head_matched
 
     @property
     def all_matched_args(self):
+        """返回 Alconna 中所有 Args 解析到的值"""
         return {**self.results['main_args'], **self._args}
 
     @property
     def option_args(self):
+        """返回 Alconna 中所有 Option 里的 Args 解析到的值"""
         return self._args
 
     def encapsulate_result(self) -> None:
+        """处理 Arpamar 中的数据"""
         if not self.results.get('header'):
             del self.results['header']
         for k, v in self.results['options'].items():
@@ -125,21 +149,24 @@ class Arpamar:
         del self.results['options']
 
     def get(self, name: str) -> Union[Dict, str, NonTextElement]:
+        """根据选项或者子命令的名字返回对应的数据"""
         if name in self._options:
             return self._options[name]
-        elif name in self._args:
+        if name in self._args:
             return self._args[name]
 
     def has(self, name: str) -> bool:
+        """判断 Arpamar 是否有对应的选项/子命令的解析结果"""
         return any([name in self._args, name in self._options])
 
     def __getitem__(self, item: str):
         if item in self._options:
             return self._options[item]
-        elif item in self._args:
+        if item in self._args:
             return self._args[item]
 
     def split_by(self, separate: str):
+        """字符串分隔操作"""
         _text: str = ""  # 重置
         _rest_text: str = ""
 
