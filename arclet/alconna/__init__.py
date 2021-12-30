@@ -1,3 +1,5 @@
+"""Alconna 主体"""
+
 from typing import Dict, List, Optional, Union, Any, overload
 import re
 from .util import split_once, split
@@ -66,7 +68,8 @@ class Alconna(CommandInterface):
         self.options.append(_builtin_option)
         self._initialise_arguments()
 
-    def help(self, help_string: str):
+    def help(self, help_string: str) -> "Alconna":
+        """预处理 help 文档"""
         help_string += "\n" if help_string else ""
         command_string = f"{'|'.join(self._command_headers)}{self.separator}"
         option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""),
@@ -80,7 +83,8 @@ class Alconna(CommandInterface):
                                   f"{option_help}{option_string}")
         return self
 
-    def get_help(self):
+    def get_help(self) -> str:
+        """返回 help 文档"""
         return getattr(self, "help_doc", getattr(self.help(""), "help_doc"))
 
     @classmethod
@@ -110,15 +114,16 @@ class Alconna(CommandInterface):
             format_args: ...,
             reflect_map: Optional[Dict[str, str]] = None
     ) -> "Alconna":
+        """以格式化字符串的方式构造 Alconna"""
         strings = split(format_string)
         command = strings.pop(0)
         options = []
         main_args = None
 
-        _string_stack: List[str] = list()
-        for i in range(len(strings)):
-            if not (arg := re.findall(r"{(.+)}", strings[i])):
-                _string_stack.append(strings[i])
+        _string_stack: List[str] = []
+        for i, string in enumerate(strings):
+            if not (arg := re.findall(r"{(.+)}", string)):
+                _string_stack.append(string)
                 continue
 
             key = arg[0] if not reflect_map else (reflect_map[arg[0]] if reflect_map.get(arg[0]) else arg[0])
@@ -132,7 +137,7 @@ class Alconna(CommandInterface):
 
             stack_count = len(_string_stack)
             if stack_count == 2:
-                sub_name, opt_name = _string_stack
+                (sub_name, opt_name) = _string_stack
                 if isinstance(value, Args):
                     options.append(Subcommand(sub_name, Option(opt_name, args=value)))
                 elif not isinstance(value, Option) and not isinstance(value, List):
@@ -170,15 +175,18 @@ class Alconna(CommandInterface):
         return alc
 
     def option(self, name: str, sep: str = " ", args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
+        """链式注册一个 Option"""
         self.options.append(Option(name, args=args, alias=alias, **kwargs).separate(sep))
         self._initialise_arguments()
         return self
 
     def add_options(self, options: List[Option]):
+        """将若干 Option 加入 Alconna 的解析列表"""
         self.options.extend(options)
         self._initialise_arguments()
 
     def _initialise_arguments(self):
+        """初始化命令解析需要使用的参数"""
         # params是除开命令头的剩下部分
         self._params: Dict[str, Union[Args, Option, Subcommand]] = {"main_args": self.args}
         for opts in self.options:
@@ -201,7 +209,7 @@ class Alconna(CommandInterface):
             sep: str,
             rest_text: str
     ) -> Dict[str, Any]:
-
+        """分析 Args 部分"""
         _option_dict: Dict[str, Any] = {}
         may_element_index = self.result.raw_texts[self.result.current_index][1] + 1
         for key, value, default in opt_args:
@@ -221,7 +229,7 @@ class Alconna(CommandInterface):
                 if sep == self.separator:
                     self.result.raw_texts[self.result.current_index][0] = rest_text
             else:
-                if type(self.result.elements[may_element_index]) is value:
+                if self.result.elements[may_element_index].__class__ == value:
                     _option_dict[key] = self.result.elements.pop(may_element_index)
                     may_element_index += 1
                 elif default is not None:
@@ -229,7 +237,7 @@ class Alconna(CommandInterface):
                     may_element_index += 1
                 else:
                     raise ParamsUnmatched(
-                        f"param type {type(self.result.elements[may_element_index])} is incorrect")
+                        f"param type {self.result.elements[may_element_index].__class__} is incorrect")
         return _option_dict
 
     def _analyse_option(
@@ -238,7 +246,7 @@ class Alconna(CommandInterface):
             text: str,
             rest_text: str
     ) -> Dict[str, Any]:
-
+        """分析 Option 部分"""
         opt: str = param.name
         alias: str = param.alias
         args: Args = param.args
@@ -260,6 +268,7 @@ class Alconna(CommandInterface):
             text: str,
             rest_text: str
     ) -> Dict[str, Any]:
+        """分析 Subcommand 部分"""
         command: str = param.name
         sep: str = param.separator
         sub_params: Dict = param.sub_params
@@ -279,7 +288,7 @@ class Alconna(CommandInterface):
 
         subcommand = {}
         _get_args = False
-        for i in range(len(sub_params)):
+        for _ in range(len(sub_params)):
             try:
                 _text, _rest_text = self.result.split_by(sep)
                 if not (sub_param := sub_params.get(_text)):
@@ -306,6 +315,7 @@ class Alconna(CommandInterface):
         return {name: subcommand}
 
     def _analyse_header(self) -> str:
+        """分析命令头部"""
         head_text, self.result.raw_texts[0][0] = self.result.split_by(self.separator)
         for ch in self._command_headers:
             if not (_head_find := re.findall('^' + ch + '$', head_text)):
@@ -316,7 +326,8 @@ class Alconna(CommandInterface):
         if not self.result.head_matched:
             raise ParamsUnmatched(f"{head_text} does not matched")
 
-    def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:  # TODO:cache功能, 即保存解析步骤
+    def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:
+        """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         if hasattr(self, "result"):
             del self.result
         self.result: Arpamar = Arpamar()
@@ -374,7 +385,7 @@ class Alconna(CommandInterface):
         try:
             may_element_index = self.result.raw_texts[self.result.current_index][1] + 1
             for key, value, default in self.args:
-                if type(self.result.elements[may_element_index]) is value:
+                if self.result.elements[may_element_index].__class__ == value:
                     self.result.results['main_args'][key] = self.result.elements.pop(may_element_index)
                     may_element_index += 1
                 elif default is not None:
@@ -382,13 +393,12 @@ class Alconna(CommandInterface):
                     may_element_index += 1
                 else:
                     raise ParamsUnmatched(
-                        f"param element type {type(self.result.elements[may_element_index])} is incorrect")
+                        f"param element type {self.result.elements[may_element_index].__class__} is incorrect")
         except (KeyError, IndexError):
             pass
         except ParamsUnmatched:
             if self.exception_in_time:
                 raise
-            pass
 
         if len(self.result.elements) == 0 and all(
                 [t[0] == "" for t in self.result.raw_texts]
