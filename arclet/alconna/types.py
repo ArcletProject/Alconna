@@ -1,20 +1,24 @@
+"""Alconna 参数相关"""
+
+
 import inspect
-from .exceptions import InvalidName
 from typing import TypeVar, Union, Type, Dict, overload, Iterable, Generator, Tuple, Any, Optional
+from .exceptions import InvalidName
 
 
 class Pattern:
+    """对 Args 里参数类型的简单封装"""
     ip = r"(\d+)\.(\d+)\.(\d+)\.(\d+)"
     digit = r"(\d+)"
     string = r"(.+)"
     url = r"(http[s]?://.+)"
-    boolean = r"(True|False)"
+    boolean = r"(True|False|true|false)"
     empty = inspect.Signature.empty
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args):
         raise NotImplementedError("Pattern dose not support to init")
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args):
         return cls.compile(args[0])
 
     def __class_getitem__(cls, item):
@@ -22,6 +26,7 @@ class Pattern:
 
     @classmethod
     def compile(cls, item: Optional[Any] = None) -> Union[str, empty]:
+        """将一般数据类型转为 Args 使用的类型"""
         if item is str:
             return cls.string
         if item is int:
@@ -33,10 +38,10 @@ class Pattern:
         if isinstance(item, str):
             if item.lower() == "url":
                 return cls.url
-            elif item.lower() == "ip":
+            if item.lower() == "ip":
                 return cls.ip
-            else:
-                return item
+            return item
+        return item
 
 
 AnyStr = Pattern.string
@@ -54,6 +59,7 @@ TArgs = Dict[str, Union[TAValue, TADefault]]
 
 
 class Args:
+    """对命令参数的封装"""
     argument: Dict[str, TArgs]
 
     @overload
@@ -62,13 +68,14 @@ class Args:
 
     def __init__(self, *args: ..., **kwargs: TAValue):
         self.argument = {
-            k: {"value": v, "default": None}
+            k: {"value": Pattern(v), "default": None}
             for k, v in kwargs.items()
             if k not in ("name", "args", "alias")
         }
         self._check(args)
 
     def default(self, **kwargs: TADefault):
+        """设置参数的默认值"""
         for k, v in kwargs.items():
             if self.argument.get(k):
                 self.argument[k]['default'] = v
@@ -77,11 +84,22 @@ class Args:
     def _check(self, args: Iterable[slice]):
         for sl in args:
             if isinstance(sl, slice):
-                if not isinstance(sl.start, str):
+                name, value, default = sl.start, sl.stop, sl.step
+                if not isinstance(name, str):
                     raise InvalidName
-                self.argument.setdefault(sl.start, {"value": sl.stop, "default": sl.step})
+                if name in ("name", "args", "alias"):
+                    raise InvalidName
+                if value is Empty:
+                    raise InvalidName
+                if value in (str, bool, int) or isinstance(value, str):
+                    value = Pattern(value)
+                if isinstance(default, (bool, int)):
+                    default = str(default)
+                default = Pattern(default)
+                self.argument.setdefault(name, {"value": value, "default": default})
 
     def params(self, sep: str = " "):
+        """预处理参数的 help doc"""
         argument_string = ""
         i = 0
         length = len(self.argument)
