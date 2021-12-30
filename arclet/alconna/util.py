@@ -1,4 +1,8 @@
+"""杂物堆"""
+
+
 def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变本来的字符串
+    """单次分隔字符串"""
     out_text = ""
     quotation_stack = []
     is_split = True
@@ -17,6 +21,7 @@ def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变
 
 
 def split(text: str, separate: str = " ", max_split: int = -1):
+    """类似于shlex中的split, 但保留引号"""
     text_list = []
     quotation_stack = []
     is_split = True
