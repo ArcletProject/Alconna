@@ -22,7 +22,7 @@ from arclet.alconna.types import Pattern, Args
 cmd = Alconna(
     command="/pip",
     options=[
-        Subcommand("install", Option("--upgrade"), args=Args["pak_name": Pattern(str)])
+        Subcommand("install", Option("-u| --upgrade"), args=Args["pak_name": str])
         Option("list"),
     ]
 )
