@@ -96,11 +96,12 @@ class Arpamar:
     """
 
     def __init__(self):
-        self.current_index: int = 0  # 记录解析时当前字符串的index
+        self.current_index: int = 0  # 记录解析时当前数据的index
         self.is_str: bool = False  # 是否解析的是string
         self.results: Dict[str, Any] = {'options': {}, 'main_args': {}}
-        self.elements: Dict[int, NonTextElement] = {}
-        self.raw_texts: List[List[Union[int, str]]] = []
+        # self.elements: Dict[int, NonTextElement] = {}
+        # self.raw_texts: List[List[Union[int, str]]] = []
+        self.raw_data: Dict[int, Union[List[str], NonTextElement]] = {}
         self.need_main_args: bool = False
         self.matched: bool = False
         self.head_matched: bool = False
@@ -108,7 +109,7 @@ class Arpamar:
         self._options: Dict[str, Any] = {}
         self._args: Dict[str, Any] = {}
 
-    __slots__ = ("current_index", "is_str", "results", "elements", "raw_texts", "need_main_args", "matched",
+    __slots__ = ("current_index", "is_str", "results", "raw_data", "need_main_args", "matched",
                  "head_matched", "_options", "_args")
 
     @property
@@ -165,19 +166,30 @@ class Arpamar:
         if item in self._args:
             return self._args[item]
 
-    def split_by(self, separate: str):
-        """字符串分隔操作"""
+    def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Union[str, NonTextElement]:
+        """获取解析需要的下个数据"""
         _text: str = ""  # 重置
         _rest_text: str = ""
 
-        if self.raw_texts[self.current_index][0]:  # 如果命令头匹配后还有字符串没匹配到
-            _text, _rest_text = split_once(self.raw_texts[self.current_index][0], separate)
-
-        elif not self.is_str and len(self.raw_texts) > 1:  # 如果命令头匹配后字符串为空则有两种可能，这里选择不止一段字符串
+        if not self.raw_data[self.current_index]:
+            self.raw_data.pop(self.current_index)
             self.current_index += 1
-            _text, _rest_text = split_once(self.raw_texts[self.current_index][0], separate)
+        _current_data = self.raw_data[self.current_index]
 
-        return _text, _rest_text
+        if isinstance(_current_data, list):
+            _text, _rest_text = split_once(_current_data[0], separate)
+            if not _rest_text and not pop:
+                return _current_data[0]
+            if not _rest_text and pop:
+                return _current_data.pop(0)
+            if _rest_text and pop:
+                self.raw_data[self.current_index][0] = _rest_text
+            return _text
+
+        if pop:
+            self.raw_data.pop(self.current_index)
+            self.current_index += 1
+        return _current_data
 
     def __repr__(self):
         attrs = ((s, getattr(self, s)) for s in self.__slots__)
