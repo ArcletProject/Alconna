@@ -1,13 +1,24 @@
 """Alconna 参数相关"""
 
-
 import inspect
 from typing import TypeVar, Union, Type, Dict, overload, Iterable, Generator, Tuple, Any, Optional
 from .exceptions import InvalidName
 
 
-class Pattern:
-    """对 Args 里参数类型的简单封装"""
+class _AnyParam:
+    """单个参数的泛匹配"""
+    def __repr__(self):
+        return "AnyParam"
+
+
+class _AnyAllParam(_AnyParam):
+    """复数参数的泛匹配"""
+    def __repr__(self):
+        return "AllParam"
+
+
+class _ArgCheck:
+    """对 Args 里参数类型的检查"""
     ip = r"(\d+)\.(\d+)\.(\d+)\.(\d+)"
     digit = r"(\d+)"
     string = r"(.+)"
@@ -16,13 +27,10 @@ class Pattern:
     empty = inspect.Signature.empty
 
     def __init__(self, *args):
-        raise NotImplementedError("Pattern dose not support to init")
+        raise NotImplementedError("_ArgCheck dose not support to init")
 
     def __new__(cls, *args):
         return cls.compile(args[0])
-
-    def __class_getitem__(cls, item):
-        return cls.compile(item)
 
     @classmethod
     def compile(cls, item: Optional[Any] = None) -> Union[str, empty]:
@@ -44,16 +52,18 @@ class Pattern:
         return item
 
 
-AnyStr = Pattern.string
-AnyDigit = Pattern.digit
-AnyIP = Pattern.ip
-AnyUrl = Pattern.url
-Bool = Pattern.boolean
-Empty = Pattern.empty
+AnyStr = _ArgCheck.string
+AnyDigit = _ArgCheck.digit
+AnyIP = _ArgCheck.ip
+AnyUrl = _ArgCheck.url
+Bool = _ArgCheck.boolean
+Empty = _ArgCheck.empty
+AnyParam = _AnyParam()
+AllParam = _AnyAllParam()
 
 NonTextElement = TypeVar("NonTextElement")
 MessageChain = TypeVar("MessageChain")
-TAValue = Union[str, Type[NonTextElement]]
+TAValue = Union[str, Type[NonTextElement], _AnyParam]
 TADefault = Union[str, NonTextElement, Empty]
 TArgs = Dict[str, Union[TAValue, TADefault]]
 
@@ -68,7 +78,7 @@ class Args:
 
     def __init__(self, *args: ..., **kwargs: TAValue):
         self.argument = {
-            k: {"value": Pattern(v), "default": None}
+            k: {"value": _ArgCheck(v), "default": None}
             for k, v in kwargs.items()
             if k not in ("name", "args", "alias")
         }
@@ -89,13 +99,14 @@ class Args:
                     raise InvalidName
                 if name in ("name", "args", "alias"):
                     raise InvalidName
+
+                value = _ArgCheck(value)
                 if value is Empty:
                     raise InvalidName
-                if value in (str, bool, int) or isinstance(value, str):
-                    value = Pattern(value)
+
                 if isinstance(default, (bool, int)):
                     default = str(default)
-                default = Pattern(default)
+                default = _ArgCheck(default)
                 self.argument.setdefault(name, {"value": value, "default": default})
 
     def params(self, sep: str = " "):
@@ -105,7 +116,9 @@ class Args:
         length = len(self.argument)
         for k, v in self.argument.items():
             arg = f"<{k}"
-            if not isinstance(v['value'], str):
+            if isinstance(v['value'], _AnyParam):
+                arg += ": WildMatch"
+            elif not isinstance(v['value'], str):
                 arg += f": Type_{v['value'].__name__}"
             if v['default'] is Empty:
                 arg += " default: Empty"
@@ -127,9 +140,9 @@ class Args:
     def __setitem__(self, key, value):
         if isinstance(value, Iterable):
             values = list(value)
-            self.argument[key] = {"value": values[0], "default": values[1]}
+            self.argument[key] = {"value": _ArgCheck(values[0]), "default": _ArgCheck(values[1])}
         else:
-            self.argument[key] = {"value": value, "default": None}
+            self.argument[key] = {"value": _ArgCheck(value), "default": None}
         return self
 
     def __class_getitem__(cls, item) -> "Args":
@@ -150,8 +163,9 @@ class Args:
             values = list(other)
             if not isinstance(values[0], str):
                 raise InvalidName
-            self.argument[values[0]] = {"value": values[1], "default": values[2]} if len(values) > 2 \
-                else {"value": values[1], "default": None}
+            self.argument[values[0]] = {"value": _ArgCheck(values[1]), "default": _ArgCheck(values[2])} if len(
+                values) > 2 \
+                else {"value": _ArgCheck(values[1]), "default": None}
         return self
 
     def __add__(self, other) -> "Args":
