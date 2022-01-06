@@ -4,7 +4,7 @@ import re
 from typing import Union, Dict, List, Any, Optional
 from dataclasses import dataclass
 from .util import split_once
-from .exceptions import InvalidName
+from .exceptions import InvalidParam
 from .types import NonTextElement, Args
 
 
@@ -28,6 +28,10 @@ class CommandInterface:
         )
         return self
 
+    def __getitem__(self, item):
+        self.args.__merge__(Args.__class_getitem__(item))
+        return self
+
 
 class Option(CommandInterface):
     """命令选项, 可以使用别名"""
@@ -35,9 +39,9 @@ class Option(CommandInterface):
 
     def __init__(self, name: str, args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
         if name == "":
-            raise InvalidName
+            raise InvalidParam("选项的名字不能为空")
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
-            raise InvalidName
+            raise InvalidParam("选项的名字含有非法字符")
         if "|" in name:
             name, alias = name.replace(' ', '').split('|')
         self.name = name
@@ -60,9 +64,9 @@ class Subcommand(CommandInterface):
 
     def __init__(self, name: str, *option: Option, args: Optional[Args] = None, **kwargs):
         if name == "":
-            raise InvalidName
+            raise InvalidParam("子命令的名字不能为空")
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
-            raise InvalidName
+            raise InvalidParam("子命令的名字含有非法字符")
         self.name = name
         self.options = list(option)
         self.args = args or Args(**kwargs)
@@ -171,10 +175,14 @@ class Arpamar:
         _text: str = ""  # 重置
         _rest_text: str = ""
 
-        if not self.raw_data[self.current_index]:
-            self.raw_data.pop(self.current_index)
-            self.current_index += 1
-        _current_data = self.raw_data[self.current_index]
+        try:
+            if not self.raw_data[self.current_index]:
+                self.raw_data.pop(self.current_index)
+                self.current_index += 1
+
+            _current_data = self.raw_data[self.current_index]
+        except KeyError:
+            return ""
 
         if isinstance(_current_data, list):
             _text, _rest_text = split_once(_current_data[0], separate)
