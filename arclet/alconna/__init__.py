@@ -1,11 +1,11 @@
 """Alconna 主体"""
 
-from typing import Dict, List, Optional, Union, Any, overload
+from typing import Dict, List, Optional, Union, Any, overload, Type
 import re
 from .util import split_once, split
 from .component import Option, CommandInterface, Subcommand, Arpamar
 from .types import NonTextElement, MessageChain, TAValue, Args, AnyParam, AllParam
-from .exceptions import ParamsUnmatched, InvalidFormatMap, NullTextMessage, InvalidName
+from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam
 
 _builtin_option = Option("-help")
 
@@ -58,8 +58,8 @@ class Alconna(CommandInterface):
             **kwargs
     ):
         # headers与command二者必须有其一
-        if all([all([not headers, not command]), not options, not main_args]):
-            raise InvalidName
+        if all((not headers, not command)):
+            raise InvalidParam("headers与command二者必须有其一")
         self.headers = headers or [""]
         self.command = command or ""
         self.options = options or []
@@ -86,6 +86,39 @@ class Alconna(CommandInterface):
     def get_help(self) -> str:
         """返回 help 文档"""
         return getattr(self, "help_doc", getattr(self.help(""), "help_doc"))
+
+    @classmethod
+    def simple(cls, *item: Union[str, tuple]):
+        """构造Alconna的简易方式"""
+        if isinstance(item[0], str):
+            return cls(command=item[0]).__getitem__(item[1:]) if len(item) > 1 else cls(command=item[0])
+        return cls
+
+    @classmethod
+    def from_string(cls, command: str, custom_types: Dict[str, Type] = None, sep: str = " "):
+        """以纯字符串的形式构造Alconna的简易方式"""
+        head, params = split_once(command, sep)
+        headers = [head]
+        if re.match(r"^\[(.+?)]$", head):
+            headers = head.strip("[]").split("|")
+        _args = Args()
+        args = [p.split(":") for p in re.findall(r"<(.+?)>", params)]
+        for arg in args:
+            _le = len(arg)
+            if _le == 0:
+                raise NullTextMessage
+            name = arg[0]
+            value = arg[1].strip(" ") if _le > 1 else AnyParam
+            default = arg[2].strip(" ") if _le > 2 else None
+            if not isinstance(value, AnyParam.__class__):
+                ns = {}
+                exec(f"def ty():\n    return {value}", custom_types or {}, ns)
+                try:
+                    value = ns["ty"]()
+                except NameError:
+                    raise
+            _args.__getitem__([(name, value, default)])
+        return cls(headers=headers, main_args=_args)
 
     @classmethod
     @overload
@@ -115,6 +148,7 @@ class Alconna(CommandInterface):
             reflect_map: Optional[Dict[str, str]] = None
     ) -> "Alconna":
         """以格式化字符串的方式构造 Alconna"""
+        _key_ref = 0
         strings = split(format_string)
         command = strings.pop(0)
         options = []
@@ -124,8 +158,9 @@ class Alconna(CommandInterface):
         for i, string in enumerate(strings):
             if not (arg := re.findall(r"{(.+)}", string)):
                 _string_stack.append(string)
+                _key_ref = 0
                 continue
-
+            _key_ref += 1
             key = arg[0] if not reflect_map else (reflect_map[arg[0]] if reflect_map.get(arg[0]) else arg[0])
 
             if isinstance(format_args, List) and arg[0].isdigit():
@@ -133,29 +168,23 @@ class Alconna(CommandInterface):
             elif isinstance(format_args, Dict):
                 value = format_args[arg[0]]
             else:
-                raise InvalidFormatMap
-
-            stack_count = len(_string_stack)
-            if stack_count == 2:
-                (sub_name, opt_name) = _string_stack
-                if isinstance(value, Args):
-                    options.append(Subcommand(sub_name, Option(opt_name, args=value)))
-                elif not isinstance(value, Option) and not isinstance(value, List):
-                    options.append(Subcommand(sub_name, Option(opt_name, **{key: value})))
-                _string_stack.clear()
-
-            if stack_count == 1:
-                may_name = _string_stack.pop(0)
+                raise InvalidParam("FormatMap 只能是 List 或者 Dict")
+            try:
+                _param = _string_stack.pop(-1)
                 if isinstance(value, Option):
-                    options.append(Subcommand(may_name, value))
+                    options.append(Subcommand(_param, value))
                 elif isinstance(value, List):
-                    options.append(Subcommand(may_name, *value))
+                    options.append(Subcommand(_param, *value))
+                elif _key_ref > 1 and isinstance(options[-1], Option):
+                    if isinstance(value, Args):
+                        options.append(Subcommand(_param, options.pop(-1), args=value))
+                    else:
+                        options.append(Subcommand(_param, options.pop(-1), **{key: value}))
                 elif isinstance(value, Args):
-                    options.append(Option(may_name, args=value))
+                    options.append(Option(_param, args=value))
                 else:
-                    options.append(Option(may_name, **{key: value}))
-
-            if stack_count == 0:
+                    options.append(Option(_param, **{key: value}))
+            except IndexError:
                 if i == 0:
                     if isinstance(value, Args):
                         main_args = value
@@ -291,8 +320,6 @@ class Alconna(CommandInterface):
                     if args := self._analyse_args(sub_param, sep):
                         _get_args = True
                         subcommand.update(args)
-            except (IndexError, KeyError):
-                continue
             except ParamsUnmatched:
                 if self.exception_in_time:
                     raise
@@ -334,19 +361,26 @@ class Alconna(CommandInterface):
 
         if isinstance(message, str):
             self.result.is_str = True
+            if not message.lstrip():
+                if self.exception_in_time:
+                    raise NullTextMessage
+                return self.result
             self.result.raw_data.setdefault(0, split(message, self.separator))
         else:
-            for i, ele in enumerate(message):
-                if ele.__class__.__name__ not in ("Plain", "Text", "Source", "Quote", "File"):
-                    self.result.raw_data[i] = ele
-                elif ele.__class__.__name__ in ("Plain", "Text"):
+            i, _tc = 0, 0
+            for ele in message:
+                if ele.__class__.__name__ in ("Source", "Quote", "File"):
+                    continue
+                if ele.__class__.__name__ in ("Plain", "Text"):
                     self.result.raw_data[i] = split(ele.text.lstrip(' '), self.separator)
-
-        if not self.result.raw_data:
-            if self.exception_in_time:
-                raise NullTextMessage
-            self.result.results.clear()
-            return self.result
+                    _tc += 1
+                else:
+                    self.result.raw_data[i] = ele
+                i += 1
+            if _tc == 0:
+                if self.exception_in_time:
+                    raise NullTextMessage
+                return self.result
 
         try:
             self.result.results['header'] = self._analyse_header()
@@ -373,8 +407,6 @@ class Alconna(CommandInterface):
                     self.result.results['options'].update(self._analyse_subcommand(_param))
                 elif not self.result.results.get("main_args"):
                     self.result.results['main_args'] = self._analyse_args(_param, self.separator)
-            except (IndexError, KeyError):
-                pass
             except ParamsUnmatched:
                 if self.exception_in_time:
                     raise
