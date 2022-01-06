@@ -1,8 +1,8 @@
 """Alconna 参数相关"""
 
 import inspect
-from typing import TypeVar, Union, Type, Dict, overload, Iterable, Generator, Tuple, Any, Optional
-from .exceptions import InvalidName
+from typing import TypeVar, Union, Type, Dict, overload, Iterable, Generator, Tuple, Any
+from .exceptions import InvalidParam
 
 
 class _AnyParam:
@@ -17,38 +17,45 @@ class _AnyAllParam(_AnyParam):
         return "AllParam"
 
 
+AnyParam = _AnyParam()
+AllParam = _AnyAllParam()
+
+
 class _ArgCheck:
     """对 Args 里参数类型的检查"""
-    ip = r"(\d+)\.(\d+)\.(\d+)\.(\d+)"
-    digit = r"(\d+)"
+    ip = r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)"
+    digit = r"(\-?\d+)"
+    floating = r"(\-?\d+\.?\d*)"
     string = r"(.+)"
     url = r"(http[s]?://.+)"
     boolean = r"(True|False|true|false)"
     empty = inspect.Signature.empty
 
+    check_list = {
+        str: string,
+        int: digit,
+        float: floating,
+        bool: boolean,
+        Ellipsis: empty,
+        "url": url,
+        "ip": ip,
+        "": AnyParam,
+        "...": empty
+    }
+
     def __init__(self, *args):
         raise NotImplementedError("_ArgCheck dose not support to init")
 
     def __new__(cls, *args):
-        return cls.compile(args[0])
+        return cls.__arg_check__(args[0])
 
     @classmethod
-    def compile(cls, item: Optional[Any] = None) -> Union[str, empty]:
+    def __arg_check__(cls, item: Any) -> Union[str, empty]:
         """将一般数据类型转为 Args 使用的类型"""
-        if item is str:
-            return cls.string
-        if item is int:
-            return cls.digit
-        if item is bool:
-            return cls.boolean
-        if item is None or item is Ellipsis:
+        if cls.check_list.get(item):
+            return cls.check_list.get(item)
+        if item is None:
             return cls.empty
-        if isinstance(item, str):
-            if item.lower() == "url":
-                return cls.url
-            if item.lower() == "ip":
-                return cls.ip
-            return item
         return item
 
 
@@ -56,10 +63,10 @@ AnyStr = _ArgCheck.string
 AnyDigit = _ArgCheck.digit
 AnyIP = _ArgCheck.ip
 AnyUrl = _ArgCheck.url
+AnyFloat = _ArgCheck.floating
 Bool = _ArgCheck.boolean
 Empty = _ArgCheck.empty
-AnyParam = _AnyParam()
-AllParam = _AnyAllParam()
+
 
 NonTextElement = TypeVar("NonTextElement")
 MessageChain = TypeVar("MessageChain")
@@ -73,7 +80,7 @@ class Args:
     argument: Dict[str, TArgs]
 
     @overload
-    def __init__(self, *args: slice, **kwargs: ...):
+    def __init__(self, *args: Union[slice, tuple], **kwargs: ...):
         ...
 
     def __init__(self, *args: ..., **kwargs: TAValue):
@@ -91,23 +98,26 @@ class Args:
                 self.argument[k]['default'] = v
         return self
 
-    def _check(self, args: Iterable[slice]):
+    def _check(self, args: Iterable[Union[slice, tuple]]):
         for sl in args:
             if isinstance(sl, slice):
                 name, value, default = sl.start, sl.stop, sl.step
-                if not isinstance(name, str):
-                    raise InvalidName
-                if name in ("name", "args", "alias"):
-                    raise InvalidName
+            else:
+                name, value = sl[0], sl[1] if len(sl) > 1 else None
+                default = sl[2] if len(sl) > 2 else None
+            if not isinstance(name, str):
+                raise InvalidParam("参数的名字只能是字符串")
+            if name in ("name", "args", "alias"):
+                raise InvalidParam("非法的参数名字")
 
-                value = _ArgCheck(value)
-                if value is Empty:
-                    raise InvalidName
+            value = _ArgCheck(value)
+            if value is Empty:
+                raise InvalidParam("参数值不能为Empty")
 
-                if isinstance(default, (bool, int)):
-                    default = str(default)
-                default = _ArgCheck(default)
-                self.argument.setdefault(name, {"value": value, "default": default})
+            if isinstance(default, (bool, int)):
+                default = str(default)
+            default = _ArgCheck(default) if default else None
+            self.argument.setdefault(name, {"value": value, "default": default})
 
     def params(self, sep: str = " "):
         """预处理参数的 help doc"""
@@ -162,7 +172,7 @@ class Args:
         elif isinstance(other, Iterable):
             values = list(other)
             if not isinstance(values[0], str):
-                raise InvalidName
+                raise InvalidParam("参数的名字只能是字符串")
             self.argument[values[0]] = {"value": _ArgCheck(values[1]), "default": _ArgCheck(values[2])} if len(
                 values) > 2 \
                 else {"value": _ArgCheck(values[1]), "default": None}
