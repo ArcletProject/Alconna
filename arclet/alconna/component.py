@@ -1,7 +1,8 @@
 """Alconna 的组件相关"""
 
 import re
-from typing import Union, Dict, List, Any, Optional
+import inspect
+from typing import Union, Dict, List, Any, Optional, Callable, Type, Tuple
 from dataclasses import dataclass
 from .util import split_once
 from .exceptions import InvalidParam
@@ -36,8 +37,10 @@ class CommandInterface:
 class Option(CommandInterface):
     """命令选项, 可以使用别名"""
     alias: str
+    action: Callable[[Any], Union[List, Tuple]]
 
-    def __init__(self, name: str, args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
+    def __init__(self, name: str, args: Optional[Args] = None, alias: Optional[str] = None,
+                 actions: Optional[Callable] = None, **kwargs):
         if name == "":
             raise InvalidParam("选项的名字不能为空")
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
@@ -47,6 +50,7 @@ class Option(CommandInterface):
         self.name = name
         self.alias = alias or name
         self.args = args or Args(**kwargs)
+        self.__check_action__(actions)
 
     def help(self, help_string: str):
         """预处理 help 文档"""
@@ -55,6 +59,26 @@ class Option(CommandInterface):
             self, "help_doc",
             f"# {help_string}\n  {alias}{self.name}{self.separator}{self.args.params(self.separator)}\n")
         return self
+
+    def __check_action__(self, action):
+        if action:
+            argument = [
+                (name, param.annotation, param.default) for name, param in inspect.signature(action).parameters.items()
+            ]
+            if len(argument) != len(self.args.argument):
+                raise InvalidParam("action 接受的参数个数必须与 Args 里的一致")
+
+            def _act_(*items: Any):
+                try:
+                    result = action(*items)
+                    if not isinstance(result, tuple):
+                        result = [result]
+                    return result
+                except Exception:
+                    return items
+            self.action = _act_
+        else:
+            self.action = action
 
 
 class Subcommand(CommandInterface):
@@ -103,8 +127,6 @@ class Arpamar:
         self.current_index: int = 0  # 记录解析时当前数据的index
         self.is_str: bool = False  # 是否解析的是string
         self.results: Dict[str, Any] = {'options': {}, 'main_args': {}}
-        # self.elements: Dict[int, NonTextElement] = {}
-        # self.raw_texts: List[List[Union[int, str]]] = []
         self.raw_data: Dict[int, Union[List[str], NonTextElement]] = {}
         self.need_main_args: bool = False
         self.matched: bool = False
@@ -153,22 +175,23 @@ class Arpamar:
                         self._args.update(vv)
         del self.results['options']
 
-    def get(self, name: str) -> Union[Dict, str, NonTextElement]:
+    def get(self, name: Union[str, Type[NonTextElement]]) -> Union[Dict, str, NonTextElement]:
         """根据选项或者子命令的名字返回对应的数据"""
-        if name in self._options:
-            return self._options[name]
-        if name in self._args:
-            return self._args[name]
+        if isinstance(name, str):
+            if name in self._options:
+                return self._options[name]
+            if name in self._args:
+                return self._args[name]
+        for _, v in self.all_matched_args:
+            if type(v) is name:
+                return v
 
     def has(self, name: str) -> bool:
         """判断 Arpamar 是否有对应的选项/子命令的解析结果"""
         return any([name in self._args, name in self._options])
 
-    def __getitem__(self, item: str):
-        if item in self._options:
-            return self._options[item]
-        if item in self._args:
-            return self._args[item]
+    def __getitem__(self, item: Union[str, Type[NonTextElement]]):
+        return self.get(item)
 
     def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Union[str, NonTextElement]:
         """获取解析需要的下个数据"""
