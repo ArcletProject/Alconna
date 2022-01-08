@@ -41,7 +41,7 @@ print(result.get('install'))
  - `headers` : 呼叫该命令的命令头，一般是你的机器人的名字或者符号，与command至少有一个填写. 例如: /, !
  - `command` : 命令名称，你的命令的名字，与headers至少有一个填写
  - `options` : 命令选项，你的命令可选择的所有option,是一个包含Subcommand与Option的列表
- - `main_argument` : 主参数，填入后当且仅当命令中含有该参数时才会成功解析
+ - `main_args` : 主参数，填入后当且仅当命令中含有该参数时才会成功解析
 
 解析时，先判断命令头(即 headers + command),再判断options与main argument, 这里options与main argument在输入指令时是不分先后的
 
@@ -71,4 +71,4 @@ Alconna(
 解析成功的命令的参数会保存在analysis_message方法返回的`Arpamar`实例中
 
 ## 性能参考
-在 i5-10210U 处理器上, `Alconna` 的性能大约为 `38000~61000 msg/s`, 取决于 `Alconna` 的复杂程度
+在 i5-10210U 处理器上, `Alconna` 的性能大约为 `36000~71000 msg/s`, 取决于 `Alconna` 的复杂程度
