@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Union, Any, overload, Type
 import re
 from .util import split_once, split
 from .component import Option, CommandInterface, Subcommand, Arpamar
-from .types import NonTextElement, MessageChain, TAValue, Args, AnyParam, AllParam
+from .types import NonTextElement, MessageChain, TAValue, Args, AnyParam, AllParam, ArgPattern, Empty
 from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam
 
 _builtin_option = Option("-help")
@@ -108,13 +108,14 @@ class Alconna(CommandInterface):
             if _le == 0:
                 raise NullTextMessage
             name = arg[0]
-            value = arg[1].strip(" ") if _le > 1 else AnyParam
+            value = arg[1].strip(" ()") if _le > 1 else AnyParam
             default = arg[2].strip(" ") if _le > 2 else None
+
             if not isinstance(value, AnyParam.__class__):
-                ns = {}
-                exec(f"def ty():\n    return {value}", custom_types or {}, ns)
+                if custom_types and custom_types.get(value) and not isinstance(custom_types[value], type):
+                    raise InvalidParam(f"自定义参数类型传入的不是类型而是 {custom_types[value]}, 这是有意而为之的吗?")
                 try:
-                    value = ns["ty"]()
+                    value = eval(value, custom_types)
                 except NameError:
                     raise
             _args.__getitem__([(name, value, default)])
@@ -240,13 +241,15 @@ class Alconna(CommandInterface):
         _option_dict: Dict[str, Any] = {}
         for key, value, default in opt_args:
             _may_arg = self.result.next_data(sep)
-            if isinstance(value, str):
-                if not (_arg_find := re.findall('^' + value + '$', _may_arg)):
+            if isinstance(value, ArgPattern):
+                if not (_arg_find := re.findall("^" + value.pattern + "$", _may_arg)):
                     if default is None:
                         raise ParamsUnmatched(f"param {_may_arg} is incorrect")
                     _arg_find = [default]
-                if _may_arg == value:
+                if _may_arg == value.pattern:
                     _arg_find[0] = Ellipsis
+                if value.transform and isinstance(_arg_find[0], str):
+                    _arg_find[0] = eval(_arg_find[0], {"true": True, "false": False})
                 _option_dict[key] = _arg_find[0]
             elif value == AnyParam:
                 _option_dict[key] = _may_arg
@@ -280,12 +283,18 @@ class Alconna(CommandInterface):
         sep: str = param.separator
 
         name = self.result.next_data(sep)
-        if (not re.match('^' + opt + '$', name)) and (not re.match('^' + alias + '$', name)):  # 先匹配选项名称
+        if opt != name and alias != name:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {opt}")
         name = name.lstrip("-")
         if not args.argument:
             return {name: Ellipsis}
-        return {name: self._analyse_args(args, sep)}
+
+        args_result = self._analyse_args(args, sep)
+        if param.action:
+            additional_values = param.action(*args_result.values())
+            for i, k in enumerate(args_result.keys()):
+                args_result[k] = additional_values[i]
+        return {name: args_result}
 
     def _analyse_subcommand(
             self,
@@ -296,7 +305,7 @@ class Alconna(CommandInterface):
         sep: str = param.separator
         sub_params: Dict = param.sub_params
         name = self.result.next_data(sep)
-        if not re.match('^' + command + '$', name):
+        if command != name:
             raise ParamsUnmatched(f"{name} dose not matched with {command}")
         name = name.lstrip("-")
         if not param.args.argument and not param.options:
