@@ -5,6 +5,10 @@ from typing import TypeVar, Union, Type, Dict, overload, Iterable, Generator, Tu
 from .exceptions import InvalidParam
 
 
+NonTextElement = TypeVar("NonTextElement")
+MessageChain = TypeVar("MessageChain")
+
+
 class _AnyParam:
     """单个参数的泛匹配"""
     def __repr__(self):
@@ -19,28 +23,40 @@ class _AnyAllParam(_AnyParam):
 
 AnyParam = _AnyParam()
 AllParam = _AnyAllParam()
+Empty = inspect.Signature.empty
+
+
+class ArgPattern:
+    pattern: str
+    transform: bool
+
+    def __init__(self, pattern: str, transform: bool = False):
+        self.pattern = pattern
+        self.transform = transform
+
+    def __repr__(self):
+        return self.pattern
 
 
 class _ArgCheck:
     """对 Args 里参数类型的检查"""
-    ip = r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)"
-    digit = r"(\-?\d+)"
-    floating = r"(\-?\d+\.?\d*)"
-    string = r"(.+)"
-    url = r"(http[s]?://.+)"
-    boolean = r"(True|False|true|false)"
-    empty = inspect.Signature.empty
+    ip = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)")
+    digit = ArgPattern(r"(\-?\d+)", transform=True)
+    floating = ArgPattern(r"(\-?\d+\.?\d*)", transform=True)
+    string = ArgPattern(r"(.+)")
+    url = ArgPattern(r"(http[s]?://.+)")
+    boolean = ArgPattern(r"(True|False|true|false)", transform=True)
 
     check_list = {
         str: string,
         int: digit,
         float: floating,
         bool: boolean,
-        Ellipsis: empty,
+        Ellipsis: Empty,
         "url": url,
         "ip": ip,
         "": AnyParam,
-        "...": empty
+        "...": Empty
     }
 
     def __init__(self, *args):
@@ -50,12 +66,14 @@ class _ArgCheck:
         return cls.__arg_check__(args[0])
 
     @classmethod
-    def __arg_check__(cls, item: Any) -> Union[str, empty]:
+    def __arg_check__(cls, item: Any) -> Union[ArgPattern, _AnyParam, Type[NonTextElement], Empty]:
         """将一般数据类型转为 Args 使用的类型"""
         if cls.check_list.get(item):
             return cls.check_list.get(item)
         if item is None:
-            return cls.empty
+            return Empty
+        if isinstance(item, str):
+            return ArgPattern(item)
         return item
 
 
@@ -65,12 +83,9 @@ AnyIP = _ArgCheck.ip
 AnyUrl = _ArgCheck.url
 AnyFloat = _ArgCheck.floating
 Bool = _ArgCheck.boolean
-Empty = _ArgCheck.empty
 
 
-NonTextElement = TypeVar("NonTextElement")
-MessageChain = TypeVar("MessageChain")
-TAValue = Union[str, Type[NonTextElement], _AnyParam]
+TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam]
 TADefault = Union[str, NonTextElement, Empty]
 TArgs = Dict[str, Union[TAValue, TADefault]]
 
@@ -114,9 +129,8 @@ class Args:
             if value is Empty:
                 raise InvalidParam("参数值不能为Empty")
 
-            if isinstance(default, (bool, int)):
-                default = str(default)
-            default = _ArgCheck(default) if default else None
+            if default in ("...", Ellipsis):
+                default = Empty
             self.argument.setdefault(name, {"value": value, "default": default})
 
     def params(self, sep: str = " "):
@@ -128,7 +142,7 @@ class Args:
             arg = f"<{k}"
             if isinstance(v['value'], _AnyParam):
                 arg += ": WildMatch"
-            elif not isinstance(v['value'], str):
+            elif not isinstance(v['value'], ArgPattern):
                 arg += f": Type_{v['value'].__name__}"
             if v['default'] is Empty:
                 arg += " default: Empty"
