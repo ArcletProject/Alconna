@@ -31,6 +31,7 @@ class ArgAction:
         except Exception as e:
             if exception_in_time:
                 raise e
+        return option_dict
 
 
 class _StoreValue(ArgAction):
