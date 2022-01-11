@@ -9,7 +9,7 @@ from .types import NonTextElement, MessageChain, AnyParam, AllParam, Empty, \
 from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam
 from .main import Alconna
 from .actions import store_bool, store_const, ArgAction
-alconna_version = (0, 5, 1)
+alconna_version = (0, 5, 2)
 
 if TYPE_CHECKING:
     from .actions import version
