@@ -9,7 +9,7 @@ from .util import split_once, split
 from .base import TemplateCommand, TAValue, Args
 from .component import Option, Subcommand, Arpamar
 from .types import NonTextElement, MessageChain, AnyParam, AllParam, ArgPattern
-from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam
+from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, UnexpectedElement
 
 _builtin_option = Option("-help")
 
@@ -46,14 +46,14 @@ class Alconna(TemplateCommand):
         main_args: 主参数，填入后当且仅当命令中含有该参数时才会成功解析
     """
 
-    headers: List[str]
+    headers: List[Union[str, NonTextElement]]
     command: str
     options: List[Union[Option, Subcommand]]
     result: Arpamar
 
     def __init__(
             self,
-            headers: List[str] = None,
+            headers: List[Union[str, NonTextElement]] = None,
             command: Optional[str] = None,
             options: List[Union[Option, Subcommand]] = None,
             main_args: Optional[Args] = None,
@@ -239,10 +239,14 @@ class Alconna(TemplateCommand):
                     opts.sub_params.setdefault(sub_opts.name, sub_opts)
             self._params[opts.name] = opts
 
-        self._command_headers: List[str] = []  # 依据headers与command生成一个列表，其中含有所有的命令头
+        # 依据headers与command生成一个列表，其中含有所有的命令头
+        self._command_headers: List[Union[str, List[Union[NonTextElement, str]]]] = []
         if self.headers != [""]:
             for i in self.headers:
-                self._command_headers.append(i + self.command)
+                if isinstance(i, str):
+                    self._command_headers.append(i + self.command)
+                else:
+                    self._command_headers.append([i, self.command])
         elif self.command:
             self._command_headers.append(self.command)
 
@@ -361,6 +365,16 @@ class Alconna(TemplateCommand):
                 self.result.head_matched = True
                 if _head_find[0] != ch:
                     return _head_find[0]
+        else:
+            may_command = self.result.next_data(self.separator)
+            for ch in self._command_headers:
+                if isinstance(ch, List):
+                    if not (_head_find := re.findall('^' + ch[1] + '$', may_command)):
+                        continue
+                    if head_text == ch[0]:
+                        self.result.head_matched = True
+                        if _head_find[0] != ch[1]:
+                            return _head_find[0]
         if not self.result.head_matched:
             raise ParamsUnmatched(f"{head_text} does not matched")
 
@@ -374,6 +388,40 @@ class Alconna(TemplateCommand):
                 _result.append(v)
         self.result.raw_data.clear()
         return _result
+
+    def chain_filter(
+            self,
+            message: MessageChain,
+            texts: List[str],
+            black_elements: List[str],
+            white_elements: Optional[List[str]] = None
+    ):
+        """消息链过滤方法, 优先度 texts > white_elements > black_elements"""
+        i, _tc = 0, 0
+        for ele in message:
+            if ele.__class__.__name__ in texts:
+                self.result.raw_data[i] = split(ele.text.lstrip(' '), self.separator)
+                _tc += 1
+            elif white_elements:
+                if ele.__class__.__name__ not in white_elements:
+                    if self.exception_in_time:
+                        raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
+                    continue
+                else:
+                    self.result.raw_data[i] = ele
+            else:
+                if ele.__class__.__name__ in black_elements:
+                    if self.exception_in_time:
+                        raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
+                    continue
+                else:
+                    self.result.raw_data[i] = ele
+
+            i += 1
+        if _tc == 0:
+            if self.exception_in_time:
+                raise NullTextMessage
+            return self.result
 
     def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
@@ -392,20 +440,8 @@ class Alconna(TemplateCommand):
                 return self.result
             self.result.raw_data.setdefault(0, split(message, self.separator))
         else:
-            i, _tc = 0, 0
-            for ele in message:
-                if ele.__class__.__name__ in ("Source", "Quote", "File"):
-                    continue
-                if ele.__class__.__name__ in ("Plain", "Text"):
-                    self.result.raw_data[i] = split(ele.text.lstrip(' '), self.separator)
-                    _tc += 1
-                else:
-                    self.result.raw_data[i] = ele
-                i += 1
-            if _tc == 0:
-                if self.exception_in_time:
-                    raise NullTextMessage
-                return self.result
+            from . import default_chain_texts, default_black_elements, default_white_elements
+            self.chain_filter(message, default_chain_texts, default_black_elements, default_white_elements)
 
         try:
             self.result.results['header'] = self._analyse_header()
