@@ -11,3 +11,9 @@ class InvalidParam(Exception):
 
 class NullTextMessage(Exception):
     """传入了不含有text的消息"""
+
+
+class UnexpectedElement(Exception):
+    """给出的消息含有不期望的元素"""
+
+
