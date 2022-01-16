@@ -29,7 +29,7 @@ cmd = Alconna(
 
 msg = "/pip install cesloi --upgrade"
 result = cmd.analysis_message(msg) # 该方法返回一个Arpamar类的实例
-print(result.get('install'))
+print(result.get('install'))  # 或者 result.install
 ```
 其结果为
 ```
