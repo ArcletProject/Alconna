@@ -1,17 +1,38 @@
 """Alconna 主体"""
 
 
-from typing import Dict, List, Optional, Union, Any, overload, Type, Callable
+from typing import Dict, List, Optional, Union, overload, Type, Callable
 import re
-
+from .analyser import CommandAnalyser
 from .actions import ArgAction
 from .util import split_once, split
 from .base import TemplateCommand, TAValue, Args
 from .component import Option, Subcommand, Arpamar
-from .types import NonTextElement, MessageChain, AnyParam, AllParam, ArgPattern
-from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, UnexpectedElement
+from .types import NonTextElement, MessageChain, AnyParam
+from .exceptions import NullTextMessage, InvalidParam, UnexpectedElement
 
 _builtin_option = Option("-help")
+default_chain_texts = ["Plain", "Text"]
+default_black_elements = ["Source", "File", "Quote"]
+default_white_elements = []
+
+
+def set_chain_texts(*text: Union[str, Type[NonTextElement]]):
+    """设置文本类元素的集合"""
+    global default_chain_texts
+    default_chain_texts = [t if isinstance(t, str) else t.__name__ for t in text]
+
+
+def set_black_elements(*element: Union[str, Type[NonTextElement]]):
+    """设置消息元素的黑名单"""
+    global default_black_elements
+    default_black_elements = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
+
+
+def set_white_elements(*element: Union[str, Type[NonTextElement]]):
+    """设置消息元素的白名单"""
+    global default_white_elements
+    default_white_elements = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
 
 
 class Alconna(TemplateCommand):
@@ -49,7 +70,7 @@ class Alconna(TemplateCommand):
     headers: List[Union[str, NonTextElement]]
     command: str
     options: List[Union[Option, Subcommand]]
-    result: Arpamar
+    analyser: CommandAnalyser
 
     def __init__(
             self,
@@ -70,12 +91,12 @@ class Alconna(TemplateCommand):
         self.options = options or []
         self.exception_in_time = exception_in_time
         self.options.append(_builtin_option)
-        self._initialise_arguments()
+        self.analyser = CommandAnalyser(self)
 
     def help(self, help_string: str) -> "Alconna":
         """预处理 help 文档"""
         help_string += "\n" if help_string else ""
-        command_string = f"{'|'.join(self._command_headers)}{self.separator}"
+        command_string = f"{'|'.join(self.analyser.command_headers)}{self.separator}"
         option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""),
                                          filter(lambda x: isinstance(x, Option), self.options))))
         subcommand_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""),
@@ -211,8 +232,9 @@ class Alconna(TemplateCommand):
 
     def option(self, name: str, sep: str = " ", args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
         """链式注册一个 Option"""
-        self.options.append(Option(name, args=args, alias=alias, **kwargs).separate(sep))
-        self._initialise_arguments()
+        opt = Option(name, args=args, alias=alias, **kwargs).separate(sep)
+        self.options.append(opt)
+        self.analyser.add_param(opt)
         return self
 
     def set_action(self, action: Union[Callable, str, ArgAction], custom_types: Dict[str, Type] = None):
@@ -223,171 +245,6 @@ class Alconna(TemplateCommand):
             action = ns.popitem()[1]
         self.__check_action__(action)
         return self
-
-    def add_options(self, options: List[Option]):
-        """将若干 Option 加入 Alconna 的解析列表"""
-        self.options.extend(options)
-        self._initialise_arguments()
-
-    def _initialise_arguments(self):
-        """初始化命令解析需要使用的参数"""
-        # params是除开命令头的剩下部分
-        self._params: Dict[str, Union[Args, Option, Subcommand]] = {"main_args": self.args}
-        for opts in self.options:
-            if isinstance(opts, Subcommand):
-                for sub_opts in opts.options:
-                    opts.sub_params.setdefault(sub_opts.name, sub_opts)
-            self._params[opts.name] = opts
-
-        # 依据headers与command生成一个列表，其中含有所有的命令头
-        self._command_headers: List[Union[str, List[Union[NonTextElement, str]]]] = []
-        if self.headers != [""]:
-            for i in self.headers:
-                if isinstance(i, str):
-                    self._command_headers.append(i + self.command)
-                else:
-                    self._command_headers.append([i, self.command])
-        elif self.command:
-            self._command_headers.append(self.command)
-
-    def _analyse_args(
-            self,
-            opt_args: Args,
-            sep: str,
-            action: Optional[ArgAction] = None
-    ) -> Dict[str, Any]:
-        """分析 Args 部分"""
-        _option_dict: Dict[str, Any] = {}
-        for key, value, default in opt_args:
-            _may_arg = self.result.next_data(sep)
-            if isinstance(value, ArgPattern):
-                if not (_arg_find := re.findall("^" + value.pattern + "$", _may_arg)):
-                    if default is None:
-                        raise ParamsUnmatched(f"param {_may_arg} is incorrect")
-                    _arg_find = [default]
-                    self.result.reduce_data(_may_arg)
-                if _may_arg == value.pattern:
-                    _arg_find[0] = Ellipsis
-                if value.transform and isinstance(_arg_find[0], str):
-                    _arg_find[0] = eval(_arg_find[0], {"true": True, "false": False})
-                _option_dict[key] = _arg_find[0]
-            elif value == AnyParam:
-                _option_dict[key] = _may_arg
-            elif value == AllParam:
-                _rest_data = self.recover_raw_data()
-                if not _rest_data:
-                    _rest_data = [_may_arg]
-                elif isinstance(_rest_data[0], str):
-                    _rest_data[0] = _may_arg + sep + _rest_data[0]
-                else:
-                    _rest_data.insert(0, _may_arg)
-                _option_dict[key] = _rest_data[0] if self.result.is_str else _rest_data
-                return _option_dict
-            else:
-                if _may_arg.__class__ == value:
-                    _option_dict[key] = _may_arg
-                elif default is not None:
-                    _option_dict[key] = default
-                    self.result.reduce_data(_may_arg)
-                else:
-                    raise ParamsUnmatched(f"param type {_may_arg.__class__} is incorrect")
-        if action:
-            _option_dict = action(_option_dict, self.exception_in_time)
-        return _option_dict
-
-    def _analyse_option(
-            self,
-            param: Option,
-    ) -> Dict[str, Any]:
-        """分析 Option 部分"""
-        opt: str = param.name
-        alias: str = param.alias
-        args: Args = param.args
-        sep: str = param.separator
-
-        name = self.result.next_data(sep)
-        if name not in (opt, alias):  # 先匹配选项名称
-            raise ParamsUnmatched(f"{name} dose not matched with {opt}")
-        name = name.lstrip("-")
-        if not args.argument:
-            if param.action:
-                return {name: param.action({}, self.exception_in_time)}
-            return {name: Ellipsis}
-
-        return {name: self._analyse_args(args, sep, param.action)}
-
-    def _analyse_subcommand(
-            self,
-            param: Subcommand
-    ) -> Dict[str, Any]:
-        """分析 Subcommand 部分"""
-        command: str = param.name
-        sep: str = param.separator
-        sub_params: Dict = param.sub_params
-        name = self.result.next_data(sep)
-        if command != name:
-            raise ParamsUnmatched(f"{name} dose not matched with {command}")
-        name = name.lstrip("-")
-        if not param.args.argument and not param.options:
-            return {name: Ellipsis}
-
-        subcommand = {}
-        _get_args = False
-        for _ in range(len(sub_params)):
-            try:
-                _text = self.result.next_data(sep, pop=False)
-                if not (sub_param := sub_params.get(_text)):
-                    sub_param = sub_params['sub_args']
-                    if isinstance(_text, str):
-                        for sp in sub_params:
-                            if _text.startswith(sp):
-                                sub_param = sub_params.get(sp)
-                                break
-                if isinstance(sub_param, Option):
-                    subcommand.update(self._analyse_option(sub_param))
-                elif not _get_args:
-                    if args := self._analyse_args(sub_param, sep, param.action):
-                        _get_args = True
-                        subcommand.update(args)
-            except ParamsUnmatched:
-                if self.exception_in_time:
-                    raise
-                break
-        return {name: subcommand}
-
-    def _analyse_header(self) -> str:
-        """分析命令头部"""
-        head_text = self.result.next_data(self.separator)
-        if isinstance(head_text, str):
-            for ch in self._command_headers:
-                if not (_head_find := re.findall('^' + ch + '$', head_text)):
-                    continue
-                self.result.head_matched = True
-                if _head_find[0] != ch:
-                    return _head_find[0]
-        else:
-            may_command = self.result.next_data(self.separator)
-            for ch in self._command_headers:
-                if isinstance(ch, List):
-                    if not (_head_find := re.findall('^' + ch[1] + '$', may_command)):
-                        continue
-                    if head_text == ch[0]:
-                        self.result.head_matched = True
-                        if _head_find[0] != ch[1]:
-                            return _head_find[0]
-        if not self.result.head_matched:
-            raise ParamsUnmatched(f"{head_text} does not matched")
-
-    def recover_raw_data(self) -> List[Union[str, NonTextElement]]:
-        """将处理过的命令数据大概还原"""
-        _result = []
-        for v in self.result.raw_data.values():
-            if isinstance(v, list):
-                _result.append(f'{self.separator}'.join(v))
-            else:
-                _result.append(v)
-        self.result.raw_data.clear()
-        return _result
 
     def chain_filter(
             self,
@@ -400,86 +257,36 @@ class Alconna(TemplateCommand):
         i, _tc = 0, 0
         for ele in message:
             if ele.__class__.__name__ in texts:
-                self.result.raw_data[i] = split(ele.text.lstrip(' '), self.separator)
+                self.analyser.raw_data[i] = split(ele.text.lstrip(' '), self.separator)
                 _tc += 1
             elif white_elements:
                 if ele.__class__.__name__ not in white_elements:
                     if self.exception_in_time:
                         raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
                     continue
-                else:
-                    self.result.raw_data[i] = ele
+                self.analyser.raw_data[i] = ele
             else:
                 if ele.__class__.__name__ in black_elements:
                     if self.exception_in_time:
                         raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
                     continue
-                else:
-                    self.result.raw_data[i] = ele
-
+                self.analyser.raw_data[i] = ele
             i += 1
         if _tc == 0:
             if self.exception_in_time:
                 raise NullTextMessage
-            return self.result
+            return self.analyser.create_arpamar(fail=True)
 
     def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
-        if hasattr(self, "result"):
-            del self.result
-        self.result: Arpamar = Arpamar()
-
-        if self.args.argument:
-            self.result.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-
         if isinstance(message, str):
-            self.result.is_str = True
+            self.analyser.is_str = True
             if not message.lstrip():
                 if self.exception_in_time:
                     raise NullTextMessage
-                return self.result
-            self.result.raw_data.setdefault(0, split(message, self.separator))
+                return self.analyser.create_arpamar(fail=True)
+            self.analyser.raw_data.setdefault(0, split(message, self.separator))
         else:
-            from . import default_chain_texts, default_black_elements, default_white_elements
             self.chain_filter(message, default_chain_texts, default_black_elements, default_white_elements)
 
-        try:
-            self.result.results['header'] = self._analyse_header()
-        except ParamsUnmatched:
-            self.result.results.clear()
-            return self.result
-
-        for i in range(len(self._params)):
-            if not self.result.raw_data:
-                break
-            try:
-                _text = self.result.next_data(self.separator, pop=False)
-                _param = self._params.get(_text)
-                if not _param:
-                    _param = self._params['main_args']
-                    if isinstance(_text, str):
-                        for p, value in self._params.items():
-                            if _text.startswith(p) or _text.startswith(getattr(value, 'alias', p)):
-                                _param = value
-                                break
-                if isinstance(_param, Option):
-                    self.result.results['options'].update(self._analyse_option(_param))
-                elif isinstance(_param, Subcommand):
-                    self.result.results['options'].update(self._analyse_subcommand(_param))
-                elif not self.result.results.get("main_args"):
-                    self.result.results['main_args'] = self._analyse_args(_param, self.separator, self.action)
-            except ParamsUnmatched:
-                if self.exception_in_time:
-                    raise
-                break
-
-        if not self.result.raw_data and (not self.result.need_main_args or (
-                self.result.need_main_args and not self.result.has('help') and self.result.results.get('main_args')
-        )):
-            self.result.matched = True
-            self.result.encapsulate_result()
-        else:
-            if self.exception_in_time:
-                raise ParamsUnmatched(", ".join([f"{v}" for v in self.result.raw_data.values()]))
-            self.result.results.clear()
-        return self.result
+        return self.analyser.analyse(self.action)
