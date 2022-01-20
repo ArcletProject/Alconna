@@ -41,7 +41,7 @@ class ArgPattern:
         return self.pattern
 
 
-AnyStr = ArgPattern(r"(.+)", type_mark=str)
+AnyStr = ArgPattern(r"(.+?)", type_mark=str)
 AnyDigit = ArgPattern(r"(\-?\d+)", need_transform=True, type_mark=int)
 AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", need_transform=True, type_mark=float)
 Bool = ArgPattern(r"(True|False|true|false)", need_transform=True, type_mark=bool)
