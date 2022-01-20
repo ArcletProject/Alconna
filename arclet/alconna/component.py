@@ -117,7 +117,9 @@ class Arpamar:
                 return self._options[name]
             if name in self._other_args:
                 return self._other_args[name]
-        for _, v in self.all_matched_args:
+            if name in self._main_args:
+                return self._main_args[name]
+        for _, v in self.all_matched_args.items():
             if isinstance(v, name):
                 return v
 
