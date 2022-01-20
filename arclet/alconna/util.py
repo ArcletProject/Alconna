@@ -43,7 +43,8 @@ def split(text: str, separate: str = " ", max_split: int = -1):
             if separate == char and is_split:
                 break
             out_text += char
-        text_list.append(out_text)
+        if out_text:
+            text_list.append(out_text)
         text = text.replace(out_text, "", 1).replace(separate, "", 1)
         max_split -= 1
     if text:
