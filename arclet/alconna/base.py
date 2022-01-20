@@ -18,8 +18,6 @@ class Args:
     """对命令参数的封装"""
     argument: Dict[str, TArgs]
 
-    __slots__ = ["argument"]
-
     @overload
     def __init__(self, *args: Union[slice, tuple], **kwargs: ...):
         ...
@@ -50,7 +48,8 @@ class Args:
                 raise InvalidParam("参数的名字只能是字符串")
             if name in ("name", "args", "alias"):
                 raise InvalidParam("非法的参数名字")
-
+            if name == "":
+                raise InvalidParam("该参数的指示名不能为空")
             value = arg_check(value)
             if value is Empty:
                 raise InvalidParam("参数值不能为Empty")
@@ -94,6 +93,15 @@ class Args:
         else:
             self.argument[key] = {"value": arg_check(value), "default": None}
         return self
+
+    def __setattr__(self, key, value):
+        if isinstance(value, Dict):
+            super().__setattr__(key, value)
+        elif isinstance(value, Iterable):
+            values = list(value)
+            self.argument[key] = {"value": arg_check(values[0]), "default": arg_check(values[1])}
+        else:
+            self.argument[key] = {"value": arg_check(value), "default": None}
 
     def __class_getitem__(cls, item) -> "Args":
         slices = list(item) if not isinstance(item, slice) else [item]
