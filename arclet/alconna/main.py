@@ -1,6 +1,5 @@
 """Alconna 主体"""
-
-
+from inspect import isclass
 from typing import Dict, List, Optional, Union, overload, Type, Callable
 import re
 from .analyser import DisorderCommandAnalyser
@@ -87,7 +86,7 @@ class Alconna(TemplateCommand):
         # headers与command二者必须有其一
         if all((not headers, not command)):
             raise InvalidParam("headers与command二者必须有其一")
-        super().__init__("Alconna", main_args, actions, **kwargs)
+        super().__init__(f"Alconna.{command}", main_args, actions, **kwargs)
         self.headers = headers or [""]
         self.command = command or ""
         self.options = options or []
@@ -155,7 +154,7 @@ class Alconna(TemplateCommand):
             if not isinstance(value, AnyParam.__class__):
                 if not custom_types:
                     custom_types = cls.custom_types
-                if custom_types and custom_types.get(value) and not isinstance(custom_types[value], type):
+                if custom_types and custom_types.get(value) and not isclass(custom_types[value]):
                     raise InvalidParam(f"自定义参数类型传入的不是类型而是 {custom_types[value]}, 这是有意而为之的吗?")
                 try:
                     cls.custom_types.update(custom_types)

@@ -10,7 +10,7 @@ from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, Unexpect
 from .actions import store_bool, store_const, ArgAction
 from .main import Alconna, set_chain_texts, set_black_elements, set_white_elements
 
-alconna_version = (0, 5, 5)
+alconna_version = (0, 5, 6)
 
 if TYPE_CHECKING:
     from .actions import version
