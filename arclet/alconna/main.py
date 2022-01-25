@@ -86,7 +86,7 @@ class Alconna(TemplateCommand):
         # headers与command二者必须有其一
         if all((not headers, not command)):
             raise InvalidParam("headers与command二者必须有其一")
-        super().__init__(f"Alconna.{command}", main_args, actions, **kwargs)
+        super().__init__(f"Alconna.{command or headers[0]}", main_args, actions, **kwargs)
         self.headers = headers or [""]
         self.command = command or ""
         self.options = options or []
@@ -142,7 +142,7 @@ class Alconna(TemplateCommand):
         if re.match(r"^\[(.+?)]$", head):
             headers = head.strip("[]").split("|")
         _args = Args()
-        args = [p.split(":") for p in re.findall(r"<(.+?)>", params)]
+        args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", params)]
         for arg in args:
             _le = len(arg)
             if _le == 0:
@@ -170,7 +170,7 @@ class Alconna(TemplateCommand):
                 except ValueError:
                     opt_alias = opt_head
                 _opt_args = Args()
-                opt_args = [p.split(":") for p in re.findall(r"<(.+?)>", opt_params)]
+                opt_args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", opt_params)]
                 for opt_arg in opt_args:
                     _le = len(opt_arg)
                     if _le == 0:

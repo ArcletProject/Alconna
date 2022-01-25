@@ -34,7 +34,7 @@ class Subcommand(TemplateCommand):
                  actions: Optional[Callable] = None, **kwargs):
         super().__init__(name, args, actions, **kwargs)
         self.options = list(option)
-        self.sub_params = {"sub_args": self.args}
+        self.sub_params = {}
 
     def help(self, help_string: str):
         """预处理 help 文档"""

@@ -54,13 +54,24 @@ class _CommandAnalyser(metaclass=ABCMeta):
         """把数据放回"""
         if data:
             try:
-                if isinstance(data, str) and isinstance(self.raw_data[self.current_index], list):
-                    self.raw_data[self.current_index].insert(0, data)
+                if isinstance(self.raw_data[self.current_index], list):
+                    if isinstance(data, str):
+                        self.raw_data[self.current_index].insert(0, data)
+                    else:
+                        self.current_index -= 1
+                        self.raw_data[self.current_index] = data
                 else:
-                    self.current_index -= 1
-                    self.raw_data[self.current_index] = [data]
+                    if isinstance(data, str):
+                        self.current_index -= 1
+                        self.raw_data[self.current_index] = [data]
+                    else:
+                        self.current_index -= 1
+                        self.raw_data[self.current_index] = data
             except KeyError:
-                self.raw_data[self.current_index] = [data]
+                if isinstance(data, str):
+                    self.raw_data[self.current_index] = [data]
+                else:
+                    self.raw_data[self.current_index] = data
 
     def recover_raw_data(self) -> List[Union[str, NonTextElement]]:
         """将处理过的命令数据大概还原"""
@@ -94,16 +105,18 @@ def analyse_args(
     for key, value, default in opt_args:
         may_arg = analyser.next_data(sep)
         if isinstance(value, ArgPattern):
-            if not (arg_find := re.findall("^" + value.pattern + "$", may_arg)):
+            try:
+                arg_find = re.findall("^" + value.pattern + "$", may_arg)[0]
+            except (TypeError, IndexError):
                 analyser.reduce_data(may_arg)
                 if default is None:
                     raise ParamsUnmatched(f"param {may_arg} is incorrect")
-                arg_find = [default]
+                arg_find = default
             if may_arg == value.pattern:
-                arg_find[0] = Ellipsis
-            if value.transform and isinstance(arg_find[0], str):
-                arg_find[0] = value.transform_action(arg_find[0])
-            option_dict[key] = arg_find[0]
+                arg_find = Ellipsis
+            if value.transform and isinstance(arg_find, str):
+                arg_find = value.transform_action(arg_find)
+            option_dict[key] = arg_find
         elif value == AnyParam:
             option_dict[key] = may_arg
         elif value == AllParam:
@@ -173,7 +186,7 @@ def analyse_subcommand(
 
     subcommand = {}
     get_args = False
-    for _ in sub_params:
+    for _ in {**sub_params, "sub_arg": param.args}:
         text = analyser.next_data(sep, pop=False)
         if not (sub_param := sub_params.get(text)) and isinstance(text, str):
             for sp, sv in sub_params.items():
