@@ -9,9 +9,16 @@
 
 一般情况下请当作简易的消息链解析器/命令解析器
 
+## 安装
+
+pip
+```
+pip install --upgrade arclet-alconna
+```
+
 ## 文档
 
-[暂时的文档](https://github.com/RF-Tar-Railt/Cesloi/wiki/Alconna-Introduction)
+[文档 in GitHub](https://arcletproject.github.io/docs/alconna/tutorial)
 
 ## Example
 ```python
