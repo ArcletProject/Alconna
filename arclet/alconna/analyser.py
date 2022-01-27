@@ -1,6 +1,7 @@
 """Alconna 核心"""
 import re
 from abc import ABCMeta, abstractmethod
+from copy import deepcopy
 from typing import Dict, Any, Union, List, Optional, TYPE_CHECKING
 from .actions import ArgAction
 from .base import Args
@@ -239,7 +240,6 @@ class DisorderCommandAnalyser(_CommandAnalyser):
         self.main_args = {"data": {}}
         self.need_main_args = False
         self.head_matched = False
-
         if alconna.args.argument:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
         self.is_raise_exception = alconna.exception_in_time
@@ -333,6 +333,54 @@ class DisorderCommandAnalyser(_CommandAnalyser):
         return result
 
 
+class DataNode:
+    name: str
+    index: int
+    content_index: int
+
+    def __init__(self, name, index, content_index=0):
+        self.name = name
+        self.index = index
+        self.content_index = content_index
+
+    def catch(self, data: Dict[int, Union[List[str], NonTextElement]]):
+        try:
+            result = data[self.index]
+            if isinstance(result, list):
+                result = result[self.content_index]
+            return {self.name: result}
+        except (KeyError, IndexError):
+            return
+
+    def __repr__(self):
+        return f"Node<{self.name}> in {self.index}/{self.content_index}"
+
+
+class AlconnaCache:
+    prime_data: Dict[int, Union[List[str], NonTextElement]]
+    nodes: List[DataNode]
+
+    def __init__(self):
+        self.nodes = []
+
+    def record(self, result: Dict[str, Any]):
+        for name, value in result.items():
+            for i, data in self.prime_data.items():
+                if isinstance(data, list):
+                    for ci, d in enumerate(data):
+                        if isinstance(value, (int, bool, float, str)) and str(value) in d:
+                            self.nodes.append(DataNode(name, i, ci))
+                        elif value == d:
+                            self.nodes.append(DataNode(name, i, ci))
+
+                elif not isinstance(value, (int, bool, float, str)) and data == value:
+                    self.nodes.append(DataNode(name, i))
+                    # break
+
+
+cache_list: Dict[str, AlconnaCache] = {}
+
+
 class OrderCommandAnalyser(_CommandAnalyser):
     options: Dict[str, Any]
     main_args: Dict[str, Any]
@@ -347,6 +395,7 @@ class OrderCommandAnalyser(_CommandAnalyser):
             alconna: "Alconna"
     ):
         """初始化命令解析需要使用的参数"""
+        self.alconna = alconna
         self.current_index = 0
         self.is_str = False
         self.raw_data = {}
@@ -355,6 +404,10 @@ class OrderCommandAnalyser(_CommandAnalyser):
         self.need_main_args = False
         self.head_matched = False
 
+        if not cache_list.get(alconna.name):
+            self.cache = AlconnaCache()
+        else:
+            self.cache = cache_list[alconna.name]
         if alconna.args.argument:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
         self.is_raise_exception = alconna.exception_in_time
@@ -389,7 +442,25 @@ class OrderCommandAnalyser(_CommandAnalyser):
         self.raw_data.clear()
         self.head_matched = False
 
+    def add_param(self, tc: Union[Option, Subcommand]):
+        """临时增加解析用参数"""
+        if isinstance(tc, Subcommand):
+            for sub_opts in tc.options:
+                tc.sub_params.setdefault(sub_opts.name, sub_opts)
+        self.params[tc.name] = tc
+
     def analyse(self, action: ArgAction):
+        if not self.cache.nodes:
+            self.cache.prime_data = deepcopy(self.raw_data)
+        else:
+            _result = {}
+            for n in self.cache.nodes:
+                if r := n.catch(self.raw_data):
+                    _result.update(r)
+            result = Arpamar()
+            result.matched = True
+            result._other_args = _result
+            return result
         try:
             self.header = analyse_header(self, self.command_headers, self.separator)
         except ParamsUnmatched:
@@ -428,5 +499,9 @@ class OrderCommandAnalyser(_CommandAnalyser):
             return result
         result.matched = True
         result.encapsulate_result(self.header, self.main_args, self.options)
+        if not self.cache.nodes:
+            self.cache.record(result.all_matched_args)
+        if not cache_list.get(self.alconna.name):
+            cache_list[self.alconna.name] = self.cache
         self.reset()
         return result

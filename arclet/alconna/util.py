@@ -100,7 +100,7 @@ def arg_check(item: Any) -> Union[ArgPattern, _AnyParam, Type[NonTextElement], E
 
 
 def chain_filter(
-        self,
+        alc,
         message,
 ):
     """消息链过滤方法, 优先度 texts > white_elements > black_elements"""
@@ -109,7 +109,7 @@ def chain_filter(
     for ele in message:
         try:
             if ele.__class__.__name__ in chain_texts:
-                raw_data[i] = split(ele.text.lstrip(' '), self.separator)
+                raw_data[i] = split(ele.text.lstrip(' '), alc.separator)
                 _tc += 1
             elif elements_whitelist and ele.__class__.__name__ not in elements_whitelist:
                 raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
@@ -119,11 +119,11 @@ def chain_filter(
                 raw_data[i] = ele
             i += 1
         except UnexpectedElement:
-            if self.exception_in_time:
+            if alc.exception_in_time:
                 raise
             continue
     if _tc == 0:
-        if self.exception_in_time:
+        if alc.exception_in_time:
             raise NullTextMessage
         return
     return raw_data

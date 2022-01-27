@@ -2,7 +2,7 @@
 from inspect import isclass
 from typing import Dict, List, Optional, Union, overload, Type, Callable
 import re
-from .analyser import DisorderCommandAnalyser
+from .analyser import DisorderCommandAnalyser, OrderCommandAnalyser
 from .actions import ArgAction
 from .util import split_once, split, chain_filter
 from .base import TemplateCommand, TAValue, Args
@@ -49,7 +49,7 @@ class Alconna(TemplateCommand):
     headers: List[Union[str, NonTextElement]]
     command: str
     options: List[Union[Option, Subcommand]]
-    analyser: DisorderCommandAnalyser
+    analyser: Union[OrderCommandAnalyser, DisorderCommandAnalyser]
     custom_types: Dict[str, Type] = {}
 
     def __init__(
@@ -60,6 +60,7 @@ class Alconna(TemplateCommand):
             main_args: Optional[Args] = None,
             exception_in_time: bool = False,
             actions: Optional[Callable] = None,
+            order_parse: bool = False,
             **kwargs
     ):
         # headers与command二者必须有其一
@@ -71,7 +72,7 @@ class Alconna(TemplateCommand):
         self.options = options or []
         self.exception_in_time = exception_in_time
         self.options.append(_builtin_option)
-        self.analyser = DisorderCommandAnalyser(self)
+        self.analyser = OrderCommandAnalyser(self) if order_parse else DisorderCommandAnalyser(self)
 
     def help(self, help_string: str) -> "Alconna":
         """预处理 help 文档"""
