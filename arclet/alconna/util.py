@@ -2,8 +2,33 @@
 
 
 from typing import Any, Union, Type
-from arclet.alconna.types import ArgPattern, _AnyParam, NonTextElement, Empty, AnyStr, AnyDigit, AnyFloat, Bool, \
+
+from .exceptions import UnexpectedElement, NullTextMessage
+from .types import ArgPattern, _AnyParam, NonTextElement, Empty, AnyStr, AnyDigit, AnyFloat, Bool, \
     AnyUrl, AnyIP, AnyParam
+
+
+chain_texts = ["Plain", "Text"]
+elements_blacklist = ["Source", "File", "Quote"]
+elements_whitelist = []
+
+
+def set_chain_texts(*text: Union[str, Type[NonTextElement]]):
+    """设置文本类元素的集合"""
+    global chain_texts
+    chain_texts = [t if isinstance(t, str) else t.__name__ for t in text]
+
+
+def set_black_elements(*element: Union[str, Type[NonTextElement]]):
+    """设置消息元素的黑名单"""
+    global elements_blacklist
+    elements_blacklist = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
+
+
+def set_white_elements(*element: Union[str, Type[NonTextElement]]):
+    """设置消息元素的白名单"""
+    global elements_whitelist
+    elements_whitelist = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
 
 
 def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变本来的字符串
@@ -72,3 +97,33 @@ def arg_check(item: Any) -> Union[ArgPattern, _AnyParam, Type[NonTextElement], E
     if isinstance(item, str):
         return ArgPattern(item)
     return item
+
+
+def chain_filter(
+        self,
+        message,
+):
+    """消息链过滤方法, 优先度 texts > white_elements > black_elements"""
+    i, _tc = 0, 0
+    raw_data = {}
+    for ele in message:
+        try:
+            if ele.__class__.__name__ in chain_texts:
+                raw_data[i] = split(ele.text.lstrip(' '), self.separator)
+                _tc += 1
+            elif elements_whitelist and ele.__class__.__name__ not in elements_whitelist:
+                raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
+            elif ele.__class__.__name__ in elements_blacklist:
+                raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
+            else:
+                raw_data[i] = ele
+            i += 1
+        except UnexpectedElement:
+            if self.exception_in_time:
+                raise
+            continue
+    if _tc == 0:
+        if self.exception_in_time:
+            raise NullTextMessage
+        return
+    return raw_data

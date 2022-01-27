@@ -4,35 +4,14 @@ from typing import Dict, List, Optional, Union, overload, Type, Callable
 import re
 from .analyser import DisorderCommandAnalyser
 from .actions import ArgAction
-from .util import split_once, split
+from .util import split_once, split, chain_filter
 from .base import TemplateCommand, TAValue, Args
 from .component import Option, Subcommand, Arpamar
-from .types import NonTextElement, MessageChain, AnyParam
-from .exceptions import NullTextMessage, InvalidParam, UnexpectedElement
+from .types import NonTextElement, MessageChain, AnyParam, AllParam
+from .exceptions import NullTextMessage, InvalidParam
 from .actions import store_bool, store_const
 
 _builtin_option = Option("-help")
-default_chain_texts = ["Plain", "Text"]
-default_black_elements = ["Source", "File", "Quote"]
-default_white_elements = []
-
-
-def set_chain_texts(*text: Union[str, Type[NonTextElement]]):
-    """设置文本类元素的集合"""
-    global default_chain_texts
-    default_chain_texts = [t if isinstance(t, str) else t.__name__ for t in text]
-
-
-def set_black_elements(*element: Union[str, Type[NonTextElement]]):
-    """设置消息元素的黑名单"""
-    global default_black_elements
-    default_black_elements = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
-
-
-def set_white_elements(*element: Union[str, Type[NonTextElement]]):
-    """设置消息元素的白名单"""
-    global default_white_elements
-    default_white_elements = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
 
 
 class Alconna(TemplateCommand):
@@ -147,9 +126,10 @@ class Alconna(TemplateCommand):
             _le = len(arg)
             if _le == 0:
                 raise NullTextMessage
-            name = arg[0]
-            value = arg[1].strip(" ()") if _le > 1 else AnyParam
+
             default = arg[2].strip(" ") if _le > 2 else None
+            value = AllParam if arg[0].startswith("...") else (arg[1].strip(" ()") if _le > 1 else AnyParam)
+            name = arg[0].replace("...", "")
 
             if not isinstance(value, AnyParam.__class__):
                 if not custom_types:
@@ -300,37 +280,6 @@ class Alconna(TemplateCommand):
         self.__check_action__(action)
         return self
 
-    def chain_filter(
-            self,
-            message: MessageChain,
-            texts: List[str],
-            black_elements: List[str],
-            white_elements: Optional[List[str]] = None
-    ):
-        """消息链过滤方法, 优先度 texts > white_elements > black_elements"""
-        i, _tc = 0, 0
-        for ele in message:
-            if ele.__class__.__name__ in texts:
-                self.analyser.raw_data[i] = split(ele.text.lstrip(' '), self.separator)
-                _tc += 1
-            elif white_elements:
-                if ele.__class__.__name__ not in white_elements:
-                    if self.exception_in_time:
-                        raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
-                    continue
-                self.analyser.raw_data[i] = ele
-            else:
-                if ele.__class__.__name__ in black_elements:
-                    if self.exception_in_time:
-                        raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
-                    continue
-                self.analyser.raw_data[i] = ele
-            i += 1
-        if _tc == 0:
-            if self.exception_in_time:
-                raise NullTextMessage
-            return self.analyser.create_arpamar(fail=True)
-
     def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         if isinstance(message, str):
@@ -341,6 +290,9 @@ class Alconna(TemplateCommand):
                 return self.analyser.create_arpamar(fail=True)
             self.analyser.raw_data.setdefault(0, split(message, self.separator))
         else:
-            self.chain_filter(message, default_chain_texts, default_black_elements, default_white_elements)
+            result = chain_filter(self, message)
+            if not result:
+                return self.analyser.create_arpamar(fail=True)
+            self.analyser.raw_data.update(result)
 
         return self.analyser.analyse(self.action)

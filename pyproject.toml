@@ -1,0 +1,24 @@
+[tool.pylint."MESSAGE CONTROL"]
+max-line-length = 120
+extension-pkg-whitelist = ["pydantic"]
+disable = [
+    "broad-except",
+    "wrong-import-order",
+    "unused-import",
+    "invalid-name",
+    "use-a-generator",
+    "unbalanced-tuple-unpacking",
+    "inconsistent-return-statements",
+    "redefined-builtin",
+    "redefined-outer-name",
+    "import-outside-toplevel",
+    "too-many-arguments",
+    "too-many-instance-attributes",
+    "too-many-branches",
+    "too-many-boolean-expressions",
+    "too-many-locals",
+    "too-many-statements",
+    "too-many-return-statements",
+    "super-init-not-called",
+    "no-self-use"
+]

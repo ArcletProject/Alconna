@@ -102,13 +102,9 @@ class Arpamar:
         self._header = hdr
         self._main_args = margs['data']
         for k, v in opts.items():
-            self._options.setdefault(k, v)
+            self._options[k] = v
             if isinstance(v, dict):
-                for kk, vv in v.items():
-                    if not isinstance(vv, dict):
-                        self._other_args[kk] = vv
-                    else:
-                        self._other_args.update(vv)
+                self._other_args.update(v)
 
     def get(self, name: Union[str, Type[NonTextElement]]) -> Union[Dict, str, NonTextElement]:
         """根据选项或者子命令的名字返回对应的数据"""

@@ -93,7 +93,6 @@ class _CommandAnalyser(metaclass=ABCMeta):
         pass
 
 
-# @lru_cache(maxsize=128)
 def analyse_args(
         analyser: _CommandAnalyser,
         opt_args: Args,
@@ -104,7 +103,7 @@ def analyse_args(
     option_dict: Dict[str, Any] = {}
     for key, value, default in opt_args:
         may_arg = analyser.next_data(sep)
-        if isinstance(value, ArgPattern):
+        if value.__class__ is ArgPattern:
             try:
                 arg_find = re.findall("^" + value.pattern + "$", may_arg)[0]
             except (TypeError, IndexError):
@@ -117,9 +116,9 @@ def analyse_args(
             if value.transform and isinstance(arg_find, str):
                 arg_find = value.transform_action(arg_find)
             option_dict[key] = arg_find
-        elif value == AnyParam:
+        elif value is AnyParam:
             option_dict[key] = may_arg
-        elif value == AllParam:
+        elif value is AllParam:
             rest_data = analyser.recover_raw_data()
             if not rest_data:
                 rest_data = [may_arg]
@@ -130,76 +129,60 @@ def analyse_args(
             option_dict[key] = rest_data[0] if analyser.is_str else rest_data
             return option_dict
         else:
-            if may_arg.__class__ == value:
+            if may_arg.__class__ is value:
                 option_dict[key] = may_arg
             elif default is not None:
                 option_dict[key] = default
                 analyser.reduce_data(may_arg)
             else:
+                analyser.reduce_data(may_arg)
                 raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
     if action:
         option_dict = action(option_dict, analyser.is_raise_exception)
     return option_dict
 
 
-# @lru_cache(maxsize=128)
 def analyse_option(
         analyser: _CommandAnalyser,
         param: Option,
 ) -> Dict[str, Any]:
     """分析 Option 部分"""
-    opt: str = param.name
-    alias: str = param.alias
-    args: Args = param.args
-    sep: str = param.separator
 
-    name = analyser.next_data(sep)
-    if name not in (opt, alias):  # 先匹配选项名称
-        raise ParamsUnmatched(f"{name} dose not matched with {opt}")
+    name = analyser.next_data(param.separator)
+    if name not in (param.name, param.alias):  # 先匹配选项名称
+        raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = name.lstrip("-")
-    if not args.argument:
-        if param.action:
-            return {name: param.action({}, analyser.is_raise_exception)}
-        return {name: Ellipsis}
-
-    return {name: analyse_args(analyser, args, sep, param.action)}
+    if not param.args.argument:
+        return {name: param.action({}, analyser.is_raise_exception)} if param.action else {name: Ellipsis}
+    return {name: analyse_args(analyser, param.args, param.separator, param.action)}
 
 
-# @lru_cache(maxsize=128)
 def analyse_subcommand(
         analyser: _CommandAnalyser,
         param: Subcommand
 ) -> Dict[str, Any]:
     """分析 Subcommand 部分"""
-    command = param.name
-    sep = param.separator
-    sub_params = param.sub_params
-
-    name = analyser.next_data(sep)
-    if command != name:
-        raise ParamsUnmatched(f"{name} dose not matched with {command}")
+    name = analyser.next_data(param.separator)
+    if param.name != name:
+        raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = name.lstrip("-")
     if not param.args.argument and not param.options:
-        if param.action:
-            return {name: param.action({}, analyser.is_raise_exception)}
-        return {name: Ellipsis}
+        return {name: param.action({}, analyser.is_raise_exception)} if param.action else {name: Ellipsis}
 
     subcommand = {}
-    get_args = False
-    for _ in {**sub_params, "sub_arg": param.args}:
-        text = analyser.next_data(sep, pop=False)
-        if not (sub_param := sub_params.get(text)) and isinstance(text, str):
-            for sp, sv in sub_params.items():
+    args = None
+    for _ in {**param.sub_params, "sub_arg": param.args}:
+        text = analyser.next_data(param.separator, pop=False)
+        if not (sub_param := param.sub_params.get(text)) and isinstance(text, str):
+            for sp in param.sub_params:
                 if text.startswith(sp):
-                    sub_param = sv
+                    sub_param = param.sub_params[sp]
                     break
         try:
             if isinstance(sub_param, Option):
                 subcommand.update(analyse_option(analyser, sub_param))
-            elif not get_args:
-                if args := analyse_args(analyser, param.args, sep, param.action):
-                    get_args = True
-                    subcommand.update(args)
+            elif not args and (args := analyse_args(analyser, param.args, param.separator, param.action)):
+                subcommand.update(args)
         except ParamsUnmatched:
             if analyser.is_raise_exception:
                 raise
@@ -216,11 +199,11 @@ def analyse_header(
     head_text = analyser.next_data(separator)
     if isinstance(head_text, str):
         for ch in commands:
-            if not (_head_find := re.findall('^' + ch + '$', head_text)):
-                continue
-            analyser.head_matched = True
-            if _head_find[0] != ch:
-                return _head_find[0]
+            if isinstance(ch, str):
+                if not (_head_find := re.findall('^' + ch + '$', head_text)):
+                    continue
+                analyser.head_matched = True
+                return _head_find[0] if _head_find[0] != ch else None
     else:
         may_command = analyser.next_data(separator)
         for ch in commands:
@@ -229,8 +212,7 @@ def analyse_header(
                     continue
                 if head_text == ch[0]:
                     analyser.head_matched = True
-                    if _head_find[0] != ch[1]:
-                        return _head_find[0]
+                    return _head_find[0] if _head_find[0] != ch[1] else None
     if not analyser.head_matched:
         raise ParamsUnmatched(f"{head_text} does not matched")
 
@@ -313,9 +295,9 @@ class DisorderCommandAnalyser(_CommandAnalyser):
             _text = self.next_data(self.separator, pop=False)
             _param = self.params.get(_text)
             if not _param and isinstance(_text, str):
-                for p, value in self.params.items():
-                    if _text.startswith(p) or _text.startswith(getattr(value, 'alias', p)):
-                        _param = value
+                for p in self.params:
+                    if _text.startswith(p) or _text.startswith(getattr(self.params[p], 'alias', p)):
+                        _param = self.params[p]
                         break
             try:
                 if isinstance(_param, Option):
@@ -329,9 +311,7 @@ class DisorderCommandAnalyser(_CommandAnalyser):
                     raise
                 break
 
-        if not self.raw_data and (not self.need_main_args or (
-                self.need_main_args and not self.options.get('help') and self.main_args.get('data')
-        )):
+        if not self.raw_data and (not self.need_main_args or (self.need_main_args and self.main_args.get('data'))):
             return self.create_arpamar()
         if self.is_raise_exception:
             raise ParamsUnmatched(", ".join([f"{v}" for v in self.raw_data.values()]))
@@ -415,5 +395,38 @@ class OrderCommandAnalyser(_CommandAnalyser):
         except ParamsUnmatched:
             return self.create_arpamar(fail=True)
 
+        for _, param in self.params.items():
+            if not self.raw_data:
+                break
+            try:
+                if isinstance(param, Option):
+                    self.options.update(analyse_option(self, param))
+                elif isinstance(param, Subcommand):
+                    self.options.update(analyse_subcommand(self, param))
+                elif not self.main_args.get('data'):
+                    self.main_args['data'] = analyse_args(self, self.params['main_args'], self.separator, action)
+            except ParamsUnmatched:
+                if self.is_raise_exception:
+                    raise
+                break
+
+        if not self.raw_data and (not self.need_main_args or (self.need_main_args and self.main_args.get('data'))):
+            return self.create_arpamar()
+        if self.is_raise_exception:
+            raise ParamsUnmatched(", ".join([f"{v}" for v in self.raw_data.values()]))
+        return self.create_arpamar(fail=True)
+
     def create_arpamar(self, fail: bool = False):
-        pass
+        """生成 Arpamar 结果"""
+        result = Arpamar()
+        result.head_matched = self.head_matched
+        if fail:
+            if self.raw_data:
+                result.error_data = self.recover_raw_data()
+            result.matched = False
+            self.reset()
+            return result
+        result.matched = True
+        result.encapsulate_result(self.header, self.main_args, self.options)
+        self.reset()
+        return result

@@ -32,7 +32,7 @@ def test(wild, text: str, num: int, boolean: bool):
 
 
 alc1 = Alconna.from_string(
-    "test_type <wild> <text:str> <num:digit> <boolean:bool=True>",
+    "test_type <wild> <text:str> <num:digit> <...boolean>",
     "--foo <bool>",
 ).set_action(store_bool(True))
 print(alc1)
