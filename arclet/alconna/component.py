@@ -18,6 +18,7 @@ class Option(TemplateCommand):
 
     def help(self, help_string: str):
         """预处理 help 文档"""
+        self.help_text = help_string
         alias = f"{self.alias}, " if self.alias != self.name else ""
         setattr(
             self, "help_doc",
@@ -38,6 +39,7 @@ class Subcommand(TemplateCommand):
 
     def help(self, help_string: str):
         """预处理 help 文档"""
+        self.help_text = help_string
         option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""), self.options)))
         option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
         setattr(self, "help_doc", f"# {help_string}\n"

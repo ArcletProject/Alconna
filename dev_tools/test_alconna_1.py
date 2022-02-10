@@ -1,10 +1,11 @@
 from arclet.alconna import Alconna, Args
-from arclet.alconna.component import Subcommand, Option
+from arclet.alconna.component import Subcommand, Option, Arpamar
 from arclet.alconna.types import AnyUrl, AnyIP, AnyDigit, AnyStr, AllParam, AnyParam
 from arclet.cesloi.message.messageChain import MessageChain
+from arclet.alconna.manager import command_manager, disable_command
 
 if __name__ == "__main__":
-    from arclet.cesloi.message.element import At, Source
+    from arclet.cesloi.message.element import At, Source, Face
 
     ar = Args["test":bool:True]["aaa":str:"bbb"] << Args["perm":str:...] + ["month", int]
     a = "bbb"
@@ -52,7 +53,7 @@ if __name__ == "__main__":
             Option("list").help("列出所有安装的包"),
             Option("--retries", retries=int).help("设置尝试次数"),
             Option("-t| --timeout", sec=int).help("设置超时时间"),
-            Option("--exists-action", action=str).help("添加行为"),
+            Option("--exists-action", ex_action=str).help("添加行为"),
             Option("--trusted-host", hostname=AnyUrl).help("选择可信赖地址")
         ]
     ).help("pip指令")
@@ -153,16 +154,25 @@ if __name__ == "__main__":
     wild = Alconna(
         headers=[At(12345)],
         command="丢漂流瓶",
-        main_args=Args["wild":AnyParam],
-        actions=test_act
+        main_args=Args["wild":AllParam],
+        # actions=test_act
     )
     # print(wild.analyse_message("丢漂流瓶 aaa bbb ccc").all_matched_args)
-    msg = MessageChain.create(Source(id=1, time=1), At(12345), " 丢漂流瓶 ", "123")
-    print(wild.analyse_message(msg).all_matched_args)
+    msg = MessageChain.create(At(12345), " 丢漂流瓶 aa\t\nvv")
+    print(wild.analyse_message(msg))
+
+    get_ap = Alconna(
+        command="AP",
+        main_args=Args(type=str, text=str)
+    )
 
     test = Alconna(
         command="test",
-        main_args=Args(num=int).default(num=1)
-    )
+        main_args=Args(t=Arpamar)
+    ).set_namespace("TEST")
     print(test)
-    print(test.analyse_message("test"))
+    print(test.analyse_message(
+        [get_ap.analyse_message("AP Plain test"), get_ap.analyse_message("AP At 123")]
+    ).all_matched_args)
+
+    print(command_manager.commands)

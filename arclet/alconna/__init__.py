@@ -7,10 +7,11 @@ from .component import Option, Subcommand, Arpamar
 from .types import NonTextElement, MessageChain, AnyParam, AllParam, Empty, \
     AnyStr, AnyIP, AnyUrl, AnyDigit, AnyFloat, Bool
 from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, UnexpectedElement
-from .actions import store_bool, store_const, ArgAction
+from .actions import store_bool, store_const, ArgAction, change_help_send_action
+from .manager import enable_command, disable_command, get_command, get_commands, all_command
 from .main import Alconna
 
-alconna_version = (0, 5, 8)
+alconna_version = (0, 5, 9)
 
 if TYPE_CHECKING:
     from .actions import version

@@ -3,11 +3,10 @@
 [![PyPI](https://img.shields.io/pypi/v/arclet-alconna)](https://pypi.org/project/arclet-alconna)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/arclet-alconna)](https://www.python.org/)
 
-`Alconna` 隶属于`ArcletProject`， 在`Cesloi`内有内置
+`Alconna` 隶属于`ArcletProject`， 是 `Cesloi-CommandAnalysis` 的高级版，
+支持解析消息链或者其他原始消息数据
 
-`Alconna` 是 `Cesloi-CommandAnalysis` 的高级版，支持解析消息链
-
-一般情况下请当作简易的消息链解析器/命令解析器
+`Alconna` 拥有复杂的解析功能与命令组件，但 一般情况下请当作~~奇妙~~简易的消息链解析器/命令解析器(雾)
 
 ## 安装
 
@@ -22,20 +21,18 @@ pip install --upgrade arclet-alconna
 
 ## Example
 ```python
-from arclet.alconna import Alconna
-from arclet.alconna.component import Option, Subcommand
-from arclet.alconna.types import Pattern, Args
+from arclet.alconna import Alconna, Option, Subcommand, Args
 
 cmd = Alconna(
     command="/pip",
     options=[
-        Subcommand("install", Option("-u| --upgrade"), args=Args["pak_name": str])
+        Subcommand("install", Option("-u| --upgrade"), args=Args["pak_name": str]),
         Option("list"),
     ]
 )
 
 msg = "/pip install cesloi --upgrade"
-result = cmd.analysis_message(msg) # 该方法返回一个Arpamar类的实例
+result = cmd.analyse_message(msg) # 该方法返回一个Arpamar类的实例
 print(result.get('install'))  # 或者 result.install
 ```
 其结果为

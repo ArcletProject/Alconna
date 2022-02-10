@@ -1,7 +1,17 @@
 """Alconna 参数相关"""
 
 import inspect
-from typing import TypeVar, Type, Callable, Optional, Any
+from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable
+
+_KT = TypeVar('_KT')
+_VT_co = TypeVar("_VT_co", covariant=True)
+
+
+@runtime_checkable
+class Gettable(Protocol):
+    def get(self, key: _KT) -> _VT_co:
+        ...
+
 
 NonTextElement = TypeVar("NonTextElement")
 MessageChain = TypeVar("MessageChain")
@@ -9,12 +19,14 @@ MessageChain = TypeVar("MessageChain")
 
 class _AnyParam:
     """单个参数的泛匹配"""
+
     def __repr__(self):
         return "AnyParam"
 
 
 class _AnyAllParam(_AnyParam):
     """复数参数的泛匹配"""
+
     def __repr__(self):
         return "AllParam"
 

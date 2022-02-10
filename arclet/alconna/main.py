@@ -1,6 +1,6 @@
 """Alconna 主体"""
 from inspect import isclass
-from typing import Dict, List, Optional, Union, overload, Type, Callable
+from typing import Dict, List, Optional, Union, Type, Callable
 import re
 from .analyser import DisorderCommandAnalyser, OrderCommandAnalyser
 from .actions import ArgAction
@@ -9,9 +9,8 @@ from .base import TemplateCommand, TAValue, Args
 from .component import Option, Subcommand, Arpamar
 from .types import NonTextElement, MessageChain, AnyParam, AllParam
 from .exceptions import NullTextMessage, InvalidParam
-from .actions import store_bool, store_const
-
-_builtin_option = Option("-help")
+from .actions import store_bool, store_const, help_send
+from .manager import command_manager
 
 
 class Alconna(TemplateCommand):
@@ -44,6 +43,10 @@ class Alconna(TemplateCommand):
         command: 命令名称，你的命令的名字，与 headers 至少有一个填写
         options: 命令选项，你的命令可选择的所有 option ，包括子命令与单独的选项
         main_args: 主参数，填入后当且仅当命令中含有该参数时才会成功解析
+        exception_in_time: 当解析失败时是否抛出异常，默认为 False
+        actions: 命令解析后针对主参数的回调函数
+        order_parse: 是否按照命令顺序解析，默认为 False
+        namespace: 命令命名空间，默认为 'Alconna'
     """
 
     headers: List[Union[str, NonTextElement]]
@@ -51,6 +54,7 @@ class Alconna(TemplateCommand):
     options: List[Union[Option, Subcommand]]
     analyser: Union[OrderCommandAnalyser, DisorderCommandAnalyser]
     custom_types: Dict[str, Type] = {}
+    namespace: str
 
     def __init__(
             self,
@@ -61,22 +65,32 @@ class Alconna(TemplateCommand):
             exception_in_time: bool = False,
             actions: Optional[Callable] = None,
             order_parse: bool = False,
+            namespace: str = "Alconna",
             **kwargs
     ):
         # headers与command二者必须有其一
         if all((not headers, not command)):
             raise InvalidParam("headers与command二者必须有其一")
-        super().__init__(f"Alconna.{command or headers[0]}", main_args, actions, **kwargs)
+        super().__init__(f"ALCONNA_{command or headers[0]}", main_args, actions, **kwargs)
         self.headers = headers or [""]
         self.command = command or ""
         self.options = options or []
         self.exception_in_time = exception_in_time
-        self.options.append(_builtin_option)
+        self.namespace = namespace
+        self.options.append(Option("--help", alias="-h", actions=help_send(self.get_help)))
         self.analyser = OrderCommandAnalyser(self) if order_parse else DisorderCommandAnalyser(self)
+        command_manager.register(self)
+
+    def set_namespace(self, namespace: str):
+        command_manager.delete(self)
+        self.namespace = namespace
+        command_manager.register(self)
+        return self
 
     def help(self, help_string: str) -> "Alconna":
         """预处理 help 文档"""
-        help_string += "\n" if help_string else ""
+        self.help_text = help_string
+        help_string = ("\n" + help_string) if help_string else ""
         command_string = f"{'|'.join(self.analyser.command_headers)}{self.separator}"
         option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""),
                                          filter(lambda x: isinstance(x, Option), self.options))))
@@ -91,7 +105,10 @@ class Alconna(TemplateCommand):
 
     def get_help(self) -> str:
         """返回 help 文档"""
-        return getattr(self, "help_doc", getattr(self.help(""), "help_doc"))
+        try:
+            return getattr(self, "help_doc")
+        except AttributeError:
+            return getattr(self.help(""), "help_doc")
 
     @classmethod
     def simple(cls, *item: Union[str, tuple]):
@@ -114,15 +131,17 @@ class Alconna(TemplateCommand):
     ):
         """
         以纯字符串的形式构造Alconna的简易方式
-        from_string("test <message:str>", ["-f|--foo <val:bool:True>", "--bar [134]"])
+        from_string("test <message:str> #HELP_STRING", ["--foo|-f <val:bool:True>", "--bar [134]"])
         """
         _options = []
-        head, params = split_once(command, sep)
+        head, others = split_once(command, sep)
         headers = [head]
         if re.match(r"^\[(.+?)]$", head):
             headers = head.strip("[]").split("|")
         _args = Args()
-        args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", params)]
+        args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", others)]
+        if not (help_string := re.findall(r"#(.+)", others)):
+            help_string = headers
         for arg in args:
             _le = len(arg)
             if _le == 0:
@@ -145,13 +164,13 @@ class Alconna(TemplateCommand):
             _args.__getitem__([(name, value, default)])
         for opt in option:
             if opt.startswith("--"):
-                opt_head, opt_params = split_once(opt, sep)
+                opt_head, opt_others = split_once(opt, sep)
                 try:
                     opt_head, opt_alias = opt_head.split("|")
                 except ValueError:
                     opt_alias = opt_head
                 _opt_args = Args()
-                opt_args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", opt_params)]
+                opt_args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", opt_others)]
                 for opt_arg in opt_args:
                     _le = len(opt_arg)
                     if _le == 0:
@@ -171,7 +190,9 @@ class Alconna(TemplateCommand):
                         except NameError:
                             raise
                     _opt_args.__getitem__([(name, value, default)])
-                opt_action_value = re.findall(r"\[(.+?)]$", opt_params)
+                opt_action_value = re.findall(r"\[(.+?)]$", opt_others)
+                if not (opt_help_string := re.findall(r"#(.+)", opt_others)):
+                    opt_help_string = [opt_head]
                 if opt_action_value:
                     val = eval(opt_action_value[0], {"true": True, "false": False})
                     if isinstance(val, bool):
@@ -180,34 +201,14 @@ class Alconna(TemplateCommand):
                         _options.append(Option(opt_head, alias=opt_alias, args=_opt_args, actions=store_const(val)))
                 else:
                     _options.append(Option(opt_head, alias=opt_alias, args=_opt_args))
-        return cls(headers=headers, main_args=_args, options=_options)
-
-    @classmethod
-    @overload
-    def format(
-            cls,
-            format_string: str,
-            format_args: List[Union[TAValue, Args, Option, List[Option]]],
-            reflect_map: Optional[Dict[str, str]] = None
-    ) -> "Alconna":
-        ...
-
-    @classmethod
-    @overload
-    def format(
-            cls,
-            format_string: str,
-            format_args: Dict[str, Union[TAValue, Args, Option, List[Option]]],
-            reflect_map: Optional[Dict[str, str]] = None
-    ) -> "Alconna":
-        ...
+                _options[-1].help(opt_help_string[0])
+        return cls(headers=headers, main_args=_args, options=_options).help(help_string[0])
 
     @classmethod
     def format(
             cls,
             format_string: str,
-            format_args: ...,
-            reflect_map: Optional[Dict[str, str]] = None
+            format_args: Dict[str, Union[TAValue, Args, Option, List[Option]]]
     ) -> "Alconna":
         """以格式化字符串的方式构造 Alconna"""
         _key_ref = 0
@@ -223,14 +224,8 @@ class Alconna(TemplateCommand):
                 _key_ref = 0
                 continue
             _key_ref += 1
-            key = arg[0] if not reflect_map else (reflect_map[arg[0]] if reflect_map.get(arg[0]) else arg[0])
-
-            if isinstance(format_args, List) and arg[0].isdigit():
-                value = format_args[int(arg[0])]
-            elif isinstance(format_args, Dict):
-                value = format_args[arg[0]]
-            else:
-                raise InvalidParam("FormatMap 只能是 List 或者 Dict")
+            key = arg[0]
+            value = format_args[key]
             try:
                 _param = _string_stack.pop(-1)
                 if isinstance(value, Option):
@@ -283,6 +278,8 @@ class Alconna(TemplateCommand):
 
     def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
+        if command_manager.is_disable(self):
+            return self.analyser.create_arpamar(fail=True)
         if isinstance(message, str):
             self.analyser.is_str = True
             if not message.lstrip():
@@ -291,7 +288,7 @@ class Alconna(TemplateCommand):
                 return self.analyser.create_arpamar(fail=True)
             self.analyser.raw_data.setdefault(0, split(message, self.separator))
         else:
-            result = chain_filter(self, message)
+            result = chain_filter(message, self.separator, self.exception_in_time)
             if not result:
                 return self.analyser.create_arpamar(fail=True)
             self.analyser.raw_data.update(result)

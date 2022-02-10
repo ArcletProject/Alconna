@@ -10,13 +10,15 @@ from .util import arg_check
 from .actions import ArgAction
 
 TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam]
-TADefault = Union[str, NonTextElement, Empty]
+TADefault = Union[Any, NonTextElement, Empty]
 TArgs = Dict[str, Union[TAValue, TADefault]]
 
 
 class Args:
     """对命令参数的封装"""
     argument: Dict[str, TArgs]
+
+    __slots__ = "argument"
 
     @overload
     def __init__(self, *args: Union[slice, tuple], **kwargs: ...):
@@ -70,9 +72,9 @@ class Args:
             elif not isinstance(v['value'], ArgPattern):
                 arg += f": Type_{v['value'].__name__}"
             if v['default'] is Empty:
-                arg += " default: Empty"
+                arg += ", default=Empty"
             elif v['default'] is not None:
-                arg += f" default: {v['default']}"
+                arg += f", default={v['default']}"
             argument_string += arg + ">"
             i += 1
             if i != length:
@@ -149,13 +151,14 @@ class TemplateCommand:
     """命令体基类, 规定基础命令的参数"""
     name: str
     args: Args
-    separator: str = " "
+    separator: str
     action: ArgAction
+    help_text: str
 
     def __init__(
             self, name: str,
             args: Optional[Args] = None,
-            actions: Optional[Union[ArgAction, Callable]] = None,
+            action: Optional[Union[ArgAction, Callable]] = None,
             **kwargs
     ):
         if name == "":
@@ -164,7 +167,9 @@ class TemplateCommand:
             raise InvalidParam("该指令的名字含有非法字符")
         self.name = name
         self.args = args or Args(**kwargs)
-        self.__check_action__(actions)
+        self.__check_action__(action)
+        self.separator = " "
+        self.help_text = self.name
 
     def separate(self, sep: str):
         """设置命令头与命令参数的分隔符"""
@@ -177,6 +182,7 @@ class TemplateCommand:
             self, "help_doc",
             f"# {help_string}\n  {self.name}{self.separator}{self.args.params(self.separator)}\n"
         )
+        self.help_text = help_string
         return self
 
     def __getitem__(self, item):

@@ -13,6 +13,7 @@ class ArgAction:
     @classmethod
     def set_action(cls, action: Callable):
         """修饰一个action"""
+
         def _act(*items: Any):
             result = action(*items)
             if result is None:
@@ -53,6 +54,28 @@ def store_bool(value: bool):
 def store_const(value: int):
     """存储一个整数"""
     return _StoreValue(value)
+
+
+help_send_action: Callable[[str], Any] = lambda x: True
+
+
+def change_help_send_action(action: Callable[[str], Any]):
+    """修改help_send_action"""
+    global help_send_action
+    help_send_action = action
+
+
+def help_send(help_string_call: Callable[[], str]):
+    """发送帮助信息"""
+
+    class _HELP(ArgAction):
+        def __init__(self):
+            super().__init__(lambda x: x)
+
+        def __call__(self, option_dict, exception_in_time):
+            return help_send_action(help_string_call())
+
+    return _HELP()
 
 
 if TYPE_CHECKING:

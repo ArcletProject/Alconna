@@ -293,7 +293,10 @@ class DisorderCommandAnalyser(_CommandAnalyser):
             if not self.raw_data:
                 break
             _text = self.next_data(self.separator, pop=False)
-            _param = self.params.get(_text)
+            try:
+                _param = self.params.get(_text)
+            except TypeError:
+                _param = None
             if not _param and isinstance(_text, str):
                 for p in self.params:
                     if _text.startswith(p) or _text.startswith(getattr(self.params[p], 'alias', p)):
@@ -301,6 +304,9 @@ class DisorderCommandAnalyser(_CommandAnalyser):
                         break
             try:
                 if isinstance(_param, Option):
+                    if _param.name == "--help":
+                        analyse_option(self, _param)
+                        return self.create_arpamar(fail=True)
                     self.options.update(analyse_option(self, _param))
                 elif isinstance(_param, Subcommand):
                     self.options.update(analyse_subcommand(self, _param))
