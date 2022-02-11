@@ -10,7 +10,7 @@ assignees: ""
 
 * [ ] 问题的标题明确
 * [ ] 我翻阅过其他的issue并且找不到类似的问题
-* [ ] 我已经阅读了文档 [the wiki](https://github.com/RF-Tar-Railt/Cesloi/wiki/Alconna-Introduction) 并仍然认为这是一个Bug
+* [ ] 我已经阅读了文档 [the wiki](https://arcletproject.github.io/docs/alconna/tutorial) 并仍然认为这是一个Bug
 
 # Bug
 

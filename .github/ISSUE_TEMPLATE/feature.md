@@ -9,7 +9,7 @@ assignees: ""
 ### 检查
 
 * [ ] 新特性的目的明确
-* [ ] 我已经阅读了文档 [the wiki](https://github.com/RF-Tar-Railt/Cesloi/wiki/Alconna-Introduction) 并且找不到类似特性
+* [ ] 我已经阅读了文档 [the wiki](https://arcletproject.github.io/docs/alconna/tutorial) 并且找不到类似特性
 
 
 # Feature
