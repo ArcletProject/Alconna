@@ -40,7 +40,7 @@ class Subcommand(TemplateCommand):
     def help(self, help_string: str):
         """预处理 help 文档"""
         self.help_text = help_string
-        option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""), self.options)))
+        option_string = " ".join(list(map(lambda x: getattr(x, "help_doc", ""), self.options)))
         option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
         setattr(self, "help_doc", f"# {help_string}\n"
                                   f"  {self.name}{self.separator}{self.args.params(self.separator)}\n"
@@ -90,6 +90,11 @@ class Arpamar:
         return self.head_matched
 
     @property
+    def options(self):
+        """返回 Alconna 中所有 Option 里的 Args 解析到的值"""
+        return self._options
+
+    @property
     def all_matched_args(self):
         """返回 Alconna 中所有 Args 解析到的值"""
         return {**self._main_args, **self._other_args}
@@ -99,14 +104,17 @@ class Arpamar:
         """返回 Alconna 中所有 Option 里的 Args 解析到的值"""
         return self._other_args
 
-    def encapsulate_result(self, hdr: Optional[str], margs: Dict[str, Any], opts: Dict[str, Any]) -> None:
+    def encapsulate_result(self, header: Optional[str], main_args: Dict[str, Any], options: Dict[str, Any]) -> None:
         """处理 Arpamar 中的数据"""
-        self._header = hdr
-        self._main_args = margs['data']
-        for k, v in opts.items():
-            self._options[k] = v
+        self._header = header
+        self._main_args = main_args
+        self._options = options
+        for k in options:
+            v = options[k]
             if isinstance(v, dict):
-                self._other_args.update(v)
+                self._other_args = {**self._other_args, **v}
+            elif isinstance(v, list):
+                self._other_args = {**self._other_args, **v[0]}
 
     def get(self, name: Union[str, Type[NonTextElement]]) -> Union[Dict, str, NonTextElement]:
         """根据选项或者子命令的名字返回对应的数据"""

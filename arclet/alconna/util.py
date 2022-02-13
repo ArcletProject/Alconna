@@ -2,7 +2,7 @@
 
 from inspect import stack
 from typing import Any, Union, Type
-
+from functools import lru_cache
 from .exceptions import UnexpectedElement, NullTextMessage
 from .types import ArgPattern, _AnyParam, NonTextElement, Empty, AnyStr, AnyDigit, AnyFloat, Bool, \
     AnyUrl, AnyIP, AnyParam, Gettable

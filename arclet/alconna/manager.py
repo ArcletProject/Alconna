@@ -7,32 +7,28 @@ if TYPE_CHECKING:
     from .main import Alconna
 
 
-def singleton(cls):
-    _instance = {}
+class Singleton(type):
+    _instances = {}
 
-    def inner(*args, **kwargs):
-        if cls not in _instance:
-            _instance[cls] = cls(*args, **kwargs)
-        return _instance[cls]
-
-    return inner
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
-@singleton
-class CommandManager:
-    sign: str = "ALCONNA_"
+class CommandManager(metaclass=Singleton):
+    sign: str = "ALCONNA::"
     default_namespace: str = "Alconna"
     __commands: Dict[str, Dict[str, "Alconna"]]
     __abandons: List["Alconna"]
     current_count: int
     max_count: int = 100
 
-    def __init__(self) -> None:
+    def __init__(self):
         self.__commands = {}
         self.__abandons = []
         self.current_count = 0
 
-    @property
     def commands(self) -> Dict[str, Dict[str, "Alconna"]]:
         """获取命令字典"""
         return self.__commands
@@ -121,8 +117,3 @@ class CommandManager:
 
 
 command_manager = CommandManager()
-disable_command = command_manager.set_disable
-enable_command = command_manager.set_enable
-get_command = command_manager.get_command
-get_commands = command_manager.get_commands
-all_command = command_manager.commands

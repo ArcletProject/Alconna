@@ -1,5 +1,4 @@
 """Alconna 主体"""
-from inspect import isclass
 from typing import Dict, List, Optional, Union, Type, Callable
 import re
 from .analyser import DisorderCommandAnalyser, OrderCommandAnalyser
@@ -7,7 +6,7 @@ from .actions import ArgAction
 from .util import split_once, split, chain_filter
 from .base import TemplateCommand, TAValue, Args
 from .component import Option, Subcommand, Arpamar
-from .types import NonTextElement, MessageChain, AnyParam, AllParam
+from .types import NonTextElement, MessageChain
 from .exceptions import NullTextMessage, InvalidParam
 from .actions import store_bool, store_const, help_send
 from .manager import command_manager
@@ -55,6 +54,7 @@ class Alconna(TemplateCommand):
     analyser: Union[OrderCommandAnalyser, DisorderCommandAnalyser]
     custom_types: Dict[str, Type] = {}
     namespace: str
+    __cls_name__: str = "Alconna"
 
     def __init__(
             self,
@@ -65,23 +65,30 @@ class Alconna(TemplateCommand):
             exception_in_time: bool = False,
             actions: Optional[Callable] = None,
             order_parse: bool = False,
-            namespace: str = "Alconna",
+            namespace: Optional[str] = None,
             **kwargs
     ):
         # headers与command二者必须有其一
         if all((not headers, not command)):
             raise InvalidParam("headers与command二者必须有其一")
-        super().__init__(f"ALCONNA_{command or headers[0]}", main_args, actions, **kwargs)
+        super().__init__(f"ALCONNA::{command or headers[0]}", main_args, actions, **kwargs)
         self.headers = headers or [""]
         self.command = command or ""
         self.options = options or []
         self.exception_in_time = exception_in_time
-        self.namespace = namespace
+        self.namespace = namespace or self.__cls_name__
         self.options.append(Option("--help", alias="-h", actions=help_send(self.get_help)))
         self.analyser = OrderCommandAnalyser(self) if order_parse else DisorderCommandAnalyser(self)
         command_manager.register(self)
+        self.__class__.__cls_name__ = "Alconna"
+
+    def __class_getitem__(cls, item):
+        if isinstance(item, str):
+            cls.__cls_name__ = item
+        return cls
 
     def set_namespace(self, namespace: str):
+        """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
         command_manager.register(self)
@@ -91,7 +98,8 @@ class Alconna(TemplateCommand):
         """预处理 help 文档"""
         self.help_text = help_string
         help_string = ("\n" + help_string) if help_string else ""
-        command_string = f"{'|'.join(self.analyser.command_headers)}{self.separator}"
+        headers = [f"{ch}" for ch in self.analyser.command_headers]
+        command_string = f"{'|'.join(headers)}{self.separator}"
         option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""),
                                          filter(lambda x: isinstance(x, Option), self.options))))
         subcommand_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""),
@@ -119,6 +127,7 @@ class Alconna(TemplateCommand):
 
     @classmethod
     def set_custom_types(cls, **types: Type):
+        """设置自定义类型"""
         cls.custom_types = types
 
     @classmethod
@@ -138,30 +147,12 @@ class Alconna(TemplateCommand):
         headers = [head]
         if re.match(r"^\[(.+?)]$", head):
             headers = head.strip("[]").split("|")
-        _args = Args()
         args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", others)]
         if not (help_string := re.findall(r"#(.+)", others)):
             help_string = headers
-        for arg in args:
-            _le = len(arg)
-            if _le == 0:
-                raise NullTextMessage
-
-            default = arg[2].strip(" ") if _le > 2 else None
-            value = AllParam if arg[0].startswith("...") else (arg[1].strip(" ()") if _le > 1 else AnyParam)
-            name = arg[0].replace("...", "")
-
-            if not isinstance(value, AnyParam.__class__):
-                if not custom_types:
-                    custom_types = cls.custom_types
-                if custom_types and custom_types.get(value) and not isclass(custom_types[value]):
-                    raise InvalidParam(f"自定义参数类型传入的不是类型而是 {custom_types[value]}, 这是有意而为之的吗?")
-                try:
-                    cls.custom_types.update(custom_types)
-                    value = eval(value, custom_types)
-                except NameError:
-                    raise
-            _args.__getitem__([(name, value, default)])
+        if not custom_types:
+            custom_types = cls.custom_types
+        _args = Args.from_string_list(args, custom_types)
         for opt in option:
             if opt.startswith("--"):
                 opt_head, opt_others = split_once(opt, sep)
@@ -169,27 +160,8 @@ class Alconna(TemplateCommand):
                     opt_head, opt_alias = opt_head.split("|")
                 except ValueError:
                     opt_alias = opt_head
-                _opt_args = Args()
                 opt_args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", opt_others)]
-                for opt_arg in opt_args:
-                    _le = len(opt_arg)
-                    if _le == 0:
-                        raise NullTextMessage
-                    name = opt_arg[0]
-                    value = opt_arg[1].strip(" ()") if _le > 1 else AnyParam
-                    default = opt_arg[2].strip(" ") if _le > 2 else None
-
-                    if not isinstance(value, AnyParam.__class__):
-                        if not custom_types:
-                            custom_types = cls.custom_types
-                        if custom_types and custom_types.get(value) and not isinstance(custom_types[value], type):
-                            raise InvalidParam(f"自定义参数类型传入的不是类型而是 {custom_types[value]}, 这是有意而为之的吗?")
-                        try:
-                            cls.custom_types.update(custom_types)
-                            value = eval(value, custom_types)
-                        except NameError:
-                            raise
-                    _opt_args.__getitem__([(name, value, default)])
+                _opt_args = Args.from_string_list(opt_args, custom_types)
                 opt_action_value = re.findall(r"\[(.+?)]$", opt_others)
                 if not (opt_help_string := re.findall(r"#(.+)", opt_others)):
                     opt_help_string = [opt_head]

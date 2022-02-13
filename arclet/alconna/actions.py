@@ -56,7 +56,7 @@ def store_const(value: int):
     return _StoreValue(value)
 
 
-help_send_action: Callable[[str], Any] = lambda x: True
+help_send_action: Callable[[str], Any] = lambda x: print(x)
 
 
 def change_help_send_action(action: Callable[[str], Any]):

@@ -3,9 +3,9 @@
 
 import re
 import inspect
-from typing import Union, Any, Optional, Callable, Tuple, Type, Dict, Iterable, Generator, overload
-from .exceptions import InvalidParam
-from .types import ArgPattern, _AnyParam, Empty, NonTextElement
+from typing import Union, Any, Optional, Callable, Tuple, Type, Dict, Iterable, Generator, overload, List
+from .exceptions import InvalidParam, NullTextMessage
+from .types import ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam
 from .util import arg_check
 from .actions import ArgAction
 
@@ -38,6 +38,29 @@ class Args:
             if self.argument.get(k):
                 self.argument[k]['default'] = v
         return self
+
+    @classmethod
+    def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
+        _args = cls()
+        for arg in args:
+            _le = len(arg)
+            if _le == 0:
+                raise NullTextMessage
+
+            default = arg[2].strip(" ") if _le > 2 else None
+            value = AllParam if arg[0].startswith("...") else (arg[1].strip(" ()") if _le > 1 else AnyParam)
+            name = arg[0].replace("...", "")
+
+            if not isinstance(value, AnyParam.__class__):
+                if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
+                    raise InvalidParam(f"自定义参数类型传入的不是类型而是 {custom_types[value]}, 这是有意而为之的吗?")
+                try:
+                    custom_types.update(custom_types)
+                    value = eval(value, custom_types)
+                except NameError:
+                    pass
+            _args.__getitem__([(name, value, default)])
+        return _args
 
     def _check(self, args: Iterable[Union[slice, tuple]]):
         for sl in args:
@@ -219,4 +242,4 @@ class TemplateCommand:
             self.action = action
 
     def __repr__(self):
-        return f"<{self.name}: args={self.args}>"
+        return f"<{self.name} args={self.args}>"

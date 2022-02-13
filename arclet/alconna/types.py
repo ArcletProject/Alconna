@@ -1,7 +1,9 @@
 """Alconna 参数相关"""
-
+import re
 import inspect
-from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable
+from functools import lru_cache
+from enum import Enum
+from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable, Pattern
 
 _KT = TypeVar('_KT')
 _VT_co = TypeVar("_VT_co", covariant=True)
@@ -9,12 +11,22 @@ _VT_co = TypeVar("_VT_co", covariant=True)
 
 @runtime_checkable
 class Gettable(Protocol):
+    """表示拥有 get 方法的对象"""
     def get(self, key: _KT) -> _VT_co:
         ...
 
 
 NonTextElement = TypeVar("NonTextElement")
 MessageChain = TypeVar("MessageChain")
+
+
+class PatternToken(str, Enum):
+    """
+    参数表达式类型
+    """
+    REGEX_TRANSFORM = "regex_transform"
+    REGEX_MATCH = "regex_match"
+    DIRECT = "direct"
 
 
 class _AnyParam:
@@ -38,35 +50,46 @@ Empty = inspect.Signature.empty
 
 class ArgPattern:
     """对参数类型值的包装"""
+    re_pattern: Pattern  # 实际的正则表达式
     pattern: str  # 用以正则解析的表达式
-    transform: bool  # 是否需要类型转换
+    token: PatternToken  # 匹配类型
     transform_action: Callable[[str], Any]  # 类型转换的函数
     type_mark: Type  # 针对action的类型检查
 
-    __slots__ = "pattern", "transform", "type_mark", "transform_action"
+    __slots__ = "re_pattern", "pattern", "token", "type_mark", "transform_action"
 
     def __init__(
             self,
             regex_pattern: str,
-            need_transform: bool = False,
+            token: PatternToken = PatternToken.REGEX_MATCH,
             type_mark: Type = str,
             transform_action: Optional[Callable] = lambda x: eval(x)
     ):
         self.pattern = regex_pattern
-        self.transform = need_transform
+        self.re_pattern = re.compile("^" + regex_pattern + "$")
+        self.token = token
         self.type_mark = type_mark
-        if self.transform:
+        if self.token == PatternToken.REGEX_TRANSFORM:
             self.transform_action = transform_action
 
     def __repr__(self):
         return self.pattern
 
+    @lru_cache(maxsize=512)
+    def find(self, text: str):
+        if not isinstance(text, str):
+            return
+        if self.token == PatternToken.DIRECT:
+            return text
+        r = self.re_pattern.findall(text)
+        return r[0] if r else None
 
-AnyStr = ArgPattern(r"(.+?)", type_mark=str)
-AnyDigit = ArgPattern(r"(\-?\d+)", need_transform=True, type_mark=int)
-AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", need_transform=True, type_mark=float)
+
+AnyStr = ArgPattern(r"(.+?)", token=PatternToken.DIRECT, type_mark=str)
+AnyDigit = ArgPattern(r"(\-?\d+)", token=PatternToken.REGEX_TRANSFORM, type_mark=int)
+AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", token=PatternToken.REGEX_TRANSFORM, type_mark=float)
 Bool = ArgPattern(
-    r"(True|False|true|false)", need_transform=True, type_mark=bool,
+    r"(True|False|true|false)", token=PatternToken.REGEX_TRANSFORM, type_mark=bool,
     transform_action=lambda x: eval(x, {"true": True, "false": False})
 )
 Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", type_mark=tuple)
