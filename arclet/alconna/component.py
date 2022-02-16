@@ -30,12 +30,14 @@ class Subcommand(TemplateCommand):
     """子命令, 次于主命令, 可解析 SubOption"""
     options: List[Option]
     sub_params: Dict[str, Union[Args, Option]]
+    sub_part_len: range
 
     def __init__(self, name: str, *option: Option, args: Optional[Args] = None,
                  actions: Optional[Callable] = None, **kwargs):
         super().__init__(name, args, actions, **kwargs)
         self.options = list(option)
         self.sub_params = {}
+        self.sub_part_len = range(self.nargs)
 
     def help(self, help_string: str):
         """预处理 help 文档"""

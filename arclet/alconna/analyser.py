@@ -13,78 +13,69 @@ if TYPE_CHECKING:
     from .main import Alconna
 
 
-class _CommandAnalyser(metaclass=ABCMeta):
+class CommandAnalyser(metaclass=ABCMeta):
     """Alconna使用的分析器"""
     current_index: int  # 记录解析时当前数据的index
+    content_index: int  # 记录内部index
     is_str: bool  # 是否解析的是string
     raw_data: Dict[int, Union[List[str], NonTextElement]]
+    ndata: int
     separator: str
     is_raise_exception: bool
+    params: Dict[str, Union[Args, Option, Subcommand]]
+    command_headers: List[Union[ArgPattern, List[Union[NonTextElement, ArgPattern]]]]
 
     def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Union[str, NonTextElement]:
         """获取解析需要的下个数据"""
         _text: str = ""  # 重置
         _rest_text: str = ""
 
-        try:
-            if not self.raw_data[self.current_index]:
-                self.raw_data.pop(self.current_index)
-                self.current_index += 1
-
-            _current_data = self.raw_data[self.current_index]
-        except KeyError:
+        if self.current_index == self.ndata:
             return ""
-
+        _current_data = self.raw_data[self.current_index]
         if isinstance(_current_data, list):
+            _text = _current_data[self.content_index]
             if separate != self.separator:
-                _text, _rest_text = split_once(_current_data[0], separate)
-            else:
-                _text = _current_data[0]
-            if not _rest_text and not pop:
-                return _current_data[0]
-            if not _rest_text and pop:
-                return _current_data.pop(0)
-            if _rest_text and pop:
-                self.raw_data[self.current_index][0] = _rest_text
+                _text, _rest_text = split_once(_text, separate)
+            if pop:
+                if _rest_text:  # 这里实际上还是pop了
+                    self.raw_data[self.current_index][self.content_index] = _rest_text
+                else:
+                    self.content_index += 1
+            if len(_current_data) == self.content_index:
+                self.current_index += 1
+                self.content_index = 0
             return _text
-
         if pop:
-            self.raw_data.pop(self.current_index)
             self.current_index += 1
         return _current_data
 
     def reduce_data(self, data: Union[str, NonTextElement]):
-        """把数据放回"""
+        """把pop的数据放回(实际只是指针移动)"""
         if data:
-            try:
-                if isinstance(self.raw_data[self.current_index], list):
-                    if isinstance(data, str):
-                        self.raw_data[self.current_index].insert(0, data)
-                    else:
-                        self.current_index -= 1
-                        self.raw_data[self.current_index] = data
-                else:
-                    if isinstance(data, str):
-                        self.current_index -= 1
-                        self.raw_data[self.current_index] = [data]
-                    else:
-                        self.current_index -= 1
-                        self.raw_data[self.current_index] = data
-            except KeyError:
+            if self.current_index == self.ndata:
+                self.current_index -= 1
                 if isinstance(data, str):
-                    self.raw_data[self.current_index] = [data]
+                    self.content_index = len(self.raw_data[self.current_index]) - 1
+            else:
+                _current_data = self.raw_data[self.current_index]
+                if isinstance(_current_data, list) and isinstance(data, str):
+                    self.content_index -= 1
                 else:
-                    self.raw_data[self.current_index] = data
+                    self.current_index -= 1
 
     def recover_raw_data(self) -> List[Union[str, NonTextElement]]:
         """将处理过的命令数据大概还原"""
         _result = []
-        for v in self.raw_data.values():
-            if isinstance(v, list):
-                _result.append(f'{self.separator}'.join(v))
+        for i in self.raw_data:
+            if i < self.current_index:
+                continue
+            if isinstance(self.raw_data[i], list):
+                _result.append(f'{self.separator}'.join(self.raw_data[i][self.content_index:]))
             else:
-                _result.append(v)
-        self.raw_data.clear()
+                _result.append(self.raw_data[i])
+        self.current_index = self.ndata
+        self.content_index = 0
         return _result
 
     @abstractmethod
@@ -95,9 +86,13 @@ class _CommandAnalyser(metaclass=ABCMeta):
     def create_arpamar(self, fail: bool = False):
         pass
 
+    @abstractmethod
+    def add_param(self, opt):
+        pass
+
 
 def analyse_args(
-        analyser: _CommandAnalyser,
+        analyser: CommandAnalyser,
         opt_args: Args,
         sep: str,
         action: Optional[ArgAction] = None
@@ -130,7 +125,7 @@ def analyse_args(
                 rest_data[0] = may_arg + sep + rest_data[0]
             else:
                 rest_data.insert(0, may_arg)
-            option_dict[key] = rest_data if analyser.is_str else rest_data
+            option_dict[key] = rest_data
             return option_dict
         else:
             if may_arg.__class__ is value:
@@ -147,7 +142,7 @@ def analyse_args(
 
 
 def analyse_option(
-        analyser: _CommandAnalyser,
+        analyser: CommandAnalyser,
         param: Option,
 ) -> List[Any]:
     """分析 Option 部分"""
@@ -156,26 +151,26 @@ def analyse_option(
     if name not in (param.name, param.alias):  # 先匹配选项名称
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.name.lstrip("-")
-    if not param.args.argument:
+    if param.nargs == 0:
         return [name, param.action({}, analyser.is_raise_exception)] if param.action else [name, Ellipsis]
     return [name, analyse_args(analyser, param.args, param.separator, param.action)]
 
 
 def analyse_subcommand(
-        analyser: _CommandAnalyser,
+        analyser: CommandAnalyser,
         param: Subcommand
-) -> Dict[str, Any]:
+) -> List[Union[str, Any]]:
     """分析 Subcommand 部分"""
     name = analyser.next_data(param.separator)
     if param.name != name:
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = name.lstrip("-")
-    if not param.args.argument and not param.options:
-        return {name: param.action({}, analyser.is_raise_exception)} if param.action else {name: Ellipsis}
+    if param.sub_part_len.stop == 0:
+        return [name, param.action({}, analyser.is_raise_exception)] if param.action else [name, Ellipsis]
 
     subcommand = {}
     args = None
-    for _ in {**param.sub_params, "sub_arg": param.args}:
+    for _ in param.sub_part_len:
         text = analyser.next_data(param.separator, pop=False)
         if not (sub_param := param.sub_params.get(text)) and isinstance(text, str):
             for sp in param.sub_params:
@@ -187,8 +182,8 @@ def analyse_subcommand(
                 opt_n, opt_v = analyse_option(analyser, sub_param)
                 if not subcommand.get(opt_n):
                     subcommand[opt_n] = opt_v
-                elif isinstance(subcommand[opt_v], Dict):
-                    subcommand[opt_n] = [subcommand[opt_v], opt_v]
+                elif isinstance(subcommand[opt_n], Dict):
+                    subcommand[opt_n] = [subcommand[opt_n], opt_v]
                 else:
                     subcommand[opt_n].append(opt_v)
             elif not args and (args := analyse_args(analyser, param.args, param.separator, param.action)):
@@ -197,11 +192,11 @@ def analyse_subcommand(
             if analyser.is_raise_exception:
                 raise
             break
-    return {name: subcommand}
+    return [name, subcommand]
 
 
 def analyse_header(
-        analyser: _CommandAnalyser,
+        analyser: CommandAnalyser,
         commands: List[Union[ArgPattern, List[Union[NonTextElement, ArgPattern]]]],
         separator: str
 ) -> str:
@@ -227,15 +222,14 @@ def analyse_header(
         raise ParamsUnmatched(f"{head_text} does not matched")
 
 
-class DisorderCommandAnalyser(_CommandAnalyser):
+class DisorderCommandAnalyser(CommandAnalyser):
     """无序的分析器"""
     options: Dict[str, Any]
     main_args: Dict[str, Any]
     header: Optional[str]
     need_main_args: bool
     head_matched: bool
-    params: Dict[str, Union[Args, Option, Subcommand]]
-    command_headers: List[Union[ArgPattern, List[Union[NonTextElement, ArgPattern]]]]
+    part_len: range
 
     def __init__(
             self,
@@ -244,8 +238,15 @@ class DisorderCommandAnalyser(_CommandAnalyser):
         """初始化命令解析需要使用的参数"""
         self.reset()
         self.need_main_args = False
-        if alconna.args.argument:
+        self.default_main_only = False
+        if alconna.nargs > 0:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
+        _de_count = 0
+        for k, a in alconna.args.argument.items():
+            if a['default'] is not None:
+                _de_count += 1
+        if _de_count and _de_count == alconna.nargs:
+            self.default_main_only = True
         self.is_raise_exception = alconna.exception_in_time
         self.separator = alconna.separator
 
@@ -253,10 +254,12 @@ class DisorderCommandAnalyser(_CommandAnalyser):
         self.params = {"main_args": alconna.args}
         for opts in alconna.options:
             if isinstance(opts, Subcommand):
+                opts.sub_params.setdefault('sub_args', opts.args)
                 for sub_opts in opts.options:
                     opts.sub_params.setdefault(sub_opts.name, sub_opts)
+                opts.sub_part_len = range(len(opts.options) + opts.nargs)
             self.params[opts.name] = opts
-
+        self.part_len = range(len(self.params))
         # 依据headers与command生成一个列表，其中含有所有的命令头
         self.command_headers = []
         if alconna.headers != [""]:
@@ -271,6 +274,7 @@ class DisorderCommandAnalyser(_CommandAnalyser):
     def reset(self):
         """重置分析器"""
         self.current_index = 0
+        self.content_index = 0
         self.is_str = False
         self.options = {}
         self.main_args = {}
@@ -287,15 +291,12 @@ class DisorderCommandAnalyser(_CommandAnalyser):
 
     def analyse(self, action: ArgAction):
         """分析整个命令"""
-
         try:
             self.header = analyse_header(self, self.command_headers, self.separator)
         except ParamsUnmatched:
             return self.create_arpamar(fail=True)
 
-        for _ in self.params:
-            if not self.raw_data:
-                break
+        for _ in self.part_len:
             _text = self.next_data(self.separator, pop=False)
             try:
                 _param = self.params.get(_text)
@@ -314,24 +315,31 @@ class DisorderCommandAnalyser(_CommandAnalyser):
                     opt_n, opt_v = analyse_option(self, _param)
                     if not self.options.get(opt_n):
                         self.options[opt_n] = opt_v
-                    elif isinstance(self.options[opt_v], Dict):
-                        self.options[opt_n] = [self.options[opt_v], opt_v]
+                    elif isinstance(self.options[opt_n], Dict):
+                        self.options[opt_n] = [self.options[opt_n], opt_v]
                     else:
                         self.options[opt_n].append(opt_v)
 
                 elif isinstance(_param, Subcommand):
-                    self.options.update(analyse_subcommand(self, _param))
+                    sub_n, sub_v = analyse_subcommand(self, _param)
+                    self.options[sub_n] = sub_v
                 elif not self.main_args:
                     self.main_args = analyse_args(self, self.params['main_args'], self.separator, action)
             except ParamsUnmatched:
                 if self.is_raise_exception:
                     raise
                 break
+            if self.current_index == self.ndata:
+                break
 
-        if not self.raw_data and (not self.need_main_args or (self.need_main_args and self.main_args)):
+        # 防止主参数的默认值被忽略
+        if self.default_main_only:
+            self.main_args = analyse_args(self, self.params['main_args'], self.separator, action)
+
+        if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):
             return self.create_arpamar()
         if self.is_raise_exception:
-            raise ParamsUnmatched(", ".join([f"{v}" for v in self.raw_data.values()]))
+            raise ParamsUnmatched(", ".join([f"{v}" for v in self.recover_raw_data()]))
         return self.create_arpamar(fail=True)
 
     def create_arpamar(self, fail: bool = False):
@@ -339,13 +347,11 @@ class DisorderCommandAnalyser(_CommandAnalyser):
         result = Arpamar()
         result.head_matched = self.head_matched
         if fail:
-            if self.raw_data:
-                result.error_data = self.recover_raw_data()
+            result.error_data = self.recover_raw_data()
             result.matched = False
-            self.reset()
-            return result
-        result.matched = True
-        result.encapsulate_result(self.header, self.main_args, self.options)
+        else:
+            result.matched = True
+            result.encapsulate_result(self.header, self.main_args, self.options)
         self.reset()
         return result
 
@@ -400,15 +406,13 @@ class AlconnaCache:
 cache_list: Dict[str, AlconnaCache] = {}
 
 
-class OrderCommandAnalyser(_CommandAnalyser):
+class OrderCommandAnalyser(CommandAnalyser):
     """有序的分析器"""
     options: Dict[str, Any]
     main_args: Dict[str, Any]
     header: Optional[str]
     need_main_args: bool
     head_matched: bool
-    params: Dict[str, Union[Args, Option, Subcommand]]
-    command_headers: List[Union[ArgPattern, List[Union[NonTextElement, ArgPattern]]]]
 
     def __init__(
             self,
@@ -481,8 +485,8 @@ class OrderCommandAnalyser(_CommandAnalyser):
         except ParamsUnmatched:
             return self.create_arpamar(fail=True)
 
-        for _, param in self.params.items():
-            if not self.raw_data:
+        for param in self.params.values():
+            if self.ndata == self.current_index:
                 break
             try:
                 if isinstance(param, Option):
@@ -505,7 +509,7 @@ class OrderCommandAnalyser(_CommandAnalyser):
                     raise
                 break
 
-        if not self.raw_data and (not self.need_main_args or (self.need_main_args and self.main_args)):
+        if self.ndata == self.current_index and (not self.need_main_args or (self.need_main_args and self.main_args)):
             return self.create_arpamar()
         if self.is_raise_exception:
             raise ParamsUnmatched(", ".join([f"{v}" for v in self.raw_data.values()]))

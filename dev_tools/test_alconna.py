@@ -18,7 +18,7 @@ ping = Alconna(
 pip = Alconna(
         command="/pip",
         options=[
-            Option("--timeout", Args["foo":AnyDigit]).help("设置超时时间"),
+            Option("--timeout", Args["foo":int]).help("设置超时时间"),
         ]
     ).help("pip指令")
 
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     debug(ping.analyse_message(msg))
     st = time.time()
     for _ in range(count):
-        ping.analyse_message(msg)
+        pip.analyse_message(msg1)
     ed = time.time()
     print(f"Alconna: {count / (ed - st):.2f}msg/s")
 

@@ -176,6 +176,7 @@ class TemplateCommand:
     args: Args
     separator: str
     action: ArgAction
+    nargs: int
     help_text: str
 
     def __init__(
@@ -193,6 +194,7 @@ class TemplateCommand:
         self.__check_action__(action)
         self.separator = " "
         self.help_text = self.name
+        self.nargs = len(self.args.argument)
 
     def separate(self, sep: str):
         """设置命令头与命令参数的分隔符"""
@@ -210,6 +212,7 @@ class TemplateCommand:
 
     def __getitem__(self, item):
         self.args.__merge__(Args.__class_getitem__(item))
+        self.nargs = len(self.args.argument)
         return self
 
     def __check_action__(self, action):

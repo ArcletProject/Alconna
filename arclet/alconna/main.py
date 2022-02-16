@@ -1,7 +1,7 @@
 """Alconna 主体"""
 from typing import Dict, List, Optional, Union, Type, Callable
 import re
-from .analyser import DisorderCommandAnalyser, OrderCommandAnalyser
+from .analyser import CommandAnalyser, DisorderCommandAnalyser, OrderCommandAnalyser
 from .actions import ArgAction
 from .util import split_once, split, chain_filter
 from .base import TemplateCommand, TAValue, Args
@@ -51,7 +51,7 @@ class Alconna(TemplateCommand):
     headers: List[Union[str, NonTextElement]]
     command: str
     options: List[Union[Option, Subcommand]]
-    analyser: Union[OrderCommandAnalyser, DisorderCommandAnalyser]
+    analyser: CommandAnalyser
     custom_types: Dict[str, Type] = {}
     namespace: str
     __cls_name__: str = "Alconna"
@@ -122,7 +122,10 @@ class Alconna(TemplateCommand):
     def simple(cls, *item: Union[str, tuple]):
         """构造Alconna的简易方式"""
         if isinstance(item[0], str):
-            return cls(command=item[0]).__getitem__(item[1:]) if len(item) > 1 else cls(command=item[0])
+
+            return cls(command=item[0], main_args=Args.__class_getitem__(item[1:])) if len(item) > 1 else cls(
+                command=item[0]
+            )
         return cls
 
     @classmethod
@@ -258,11 +261,13 @@ class Alconna(TemplateCommand):
                 if self.exception_in_time:
                     raise NullTextMessage
                 return self.analyser.create_arpamar(fail=True)
-            self.analyser.raw_data.setdefault(0, split(message, self.separator))
+            self.analyser.raw_data[0] = split(message, self.separator)
+            self.analyser.ndata = 1
         else:
             result = chain_filter(message, self.separator, self.exception_in_time)
             if not result:
                 return self.analyser.create_arpamar(fail=True)
-            self.analyser.raw_data.update(result)
+            self.analyser.raw_data = result
+            self.analyser.ndata = len(result)
 
         return self.analyser.analyse(self.action)

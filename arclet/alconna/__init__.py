@@ -17,7 +17,7 @@ enable_command = command_manager.set_enable
 get_command = command_manager.get_command
 get_commands = command_manager.get_commands
 all_command = command_manager.commands
-alconna_version = (0, 6, 0)
+alconna_version = (0, 6, 1)
 
 if TYPE_CHECKING:
     from .actions import version
