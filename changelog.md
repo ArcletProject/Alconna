@@ -13,9 +13,9 @@
 3. 修复Bug
 
 ## Alconna 0.6.2:
-1.修复几个Bug
-2.加入from_dict与to_dict，暂时无法支持保存action
-3.命令行功能加入using
+1. 修复几个Bug
+2. 加入from_dict与to_dict，暂时无法支持保存action
+3. 命令行功能加入using
 
 # Alconna 0.5.x:
 
