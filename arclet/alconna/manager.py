@@ -51,7 +51,7 @@ class CommandManager(metaclass=Singleton):
             self.__commands[command.namespace][cid] = command
             self.current_count += 1
         else:
-            raise DuplicateCommand
+            raise DuplicateCommand("命令已存在")
 
     def delete(self, command: Union["Alconna", str]) -> None:
         """删除命令"""
@@ -117,3 +117,10 @@ class CommandManager(metaclass=Singleton):
 
 
 command_manager = CommandManager()
+
+
+def all_command_help(namespace: str = None) -> str:
+    command_string = ""
+    for name, cmd in command_manager.commands()[namespace or command_manager.default_namespace].items():
+        command_string += "\n - " + name + " " + cmd.help_text
+    return f"# 当前可用的命令有:{command_string}\n# 输入'命令名 --help' 查看特定命令的语法"

@@ -1,6 +1,5 @@
 """Alconna 的基础内容相关"""
 
-
 import re
 import inspect
 from typing import Union, Any, Optional, Callable, Tuple, Type, Dict, Iterable, Generator, overload, List
@@ -56,7 +55,7 @@ class Args:
                     raise InvalidParam(f"自定义参数类型传入的不是类型而是 {custom_types[value]}, 这是有意而为之的吗?")
                 try:
                     custom_types.update(custom_types)
-                    value = eval(value, custom_types)
+                    value = eval(value, custom_types.copy())
                 except NameError:
                     pass
             _args.__getitem__([(name, value, default)])
@@ -169,6 +168,54 @@ class Args:
         )
         return repr_string.format(repr_args)
 
+    def __getstate__(self):
+        return self.to_dict()
+
+    def to_dict(self) -> Dict[str, Any]:
+        result = {}
+        for k, v in self.argument.items():
+            value = v['value']
+            default = v['default']
+            if isinstance(value, (ArgPattern, _AnyParam)):
+                value = value.__getstate__()
+            else:
+                value = {"type": value.__name__}
+            result[k] = {"value": value, "default": default}
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        args = cls()
+        for k, v in data.items():
+            value = v['value']
+            default = v['default']
+            v_type = value.get("type")
+            if v_type == "ArgPattern":
+                value = ArgPattern.from_dict(value)
+            elif v_type == "AnyParam":
+                value = AnyParam
+            elif v_type == "AllParam":
+                value = AllParam
+            else:
+                value = eval(v_type)
+            args.argument[k] = {"value": value, "default": default}
+        return args
+
+    def __setstate__(self, state):
+        for k, v in state.items():
+            value = v['value']
+            default = v['default']
+            v_type = value.get("type")
+            if v_type == "ArgPattern":
+                value = ArgPattern.from_dict(value)
+            elif v_type == "AnyParam":
+                value = AnyParam
+            elif v_type == "AllParam":
+                value = AllParam
+            else:
+                value = eval(v_type)
+            self.argument[k] = {"value": value, "default": default}
+
 
 class TemplateCommand:
     """命令体基类, 规定基础命令的参数"""
@@ -246,3 +293,27 @@ class TemplateCommand:
 
     def __repr__(self):
         return f"<{self.name} args={self.args}>"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": self.__class__.__name__,
+            "name": self.name,
+            "args": self.args.to_dict(),
+            "separator": self.separator,
+            "help_text": self.help_text,
+        }
+
+    def __getstate__(self):
+        return self.to_dict()
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        name = data['name']
+        args = Args.from_dict(data['args'])
+        cmd = cls(name, args).separate(data['separator']).help(data['help_text'])
+        return cmd
+
+    def __setstate__(self, state):
+        self.__init__(
+            state['name'], Args.from_dict(state['args'])
+        ).separate(state['separator']).help(state['help_text'])

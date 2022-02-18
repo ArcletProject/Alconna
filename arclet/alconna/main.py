@@ -1,5 +1,5 @@
 """Alconna 主体"""
-from typing import Dict, List, Optional, Union, Type, Callable
+from typing import Dict, List, Optional, Union, Type, Callable, Any
 import re
 from .analyser import CommandAnalyser, DisorderCommandAnalyser, OrderCommandAnalyser
 from .actions import ArgAction
@@ -122,7 +122,6 @@ class Alconna(TemplateCommand):
     def simple(cls, *item: Union[str, tuple]):
         """构造Alconna的简易方式"""
         if isinstance(item[0], str):
-
             return cls(command=item[0], main_args=Args.__class_getitem__(item[1:])) if len(item) > 1 else cls(
                 command=item[0]
             )
@@ -253,6 +252,7 @@ class Alconna(TemplateCommand):
 
     def analyse_message(self, message: Union[str, MessageChain]) -> Arpamar:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
+        self.analyser.ndata = 0
         if command_manager.is_disable(self):
             return self.analyser.create_arpamar(fail=True)
         if isinstance(message, str):
@@ -271,3 +271,53 @@ class Alconna(TemplateCommand):
             self.analyser.ndata = len(result)
 
         return self.analyser.analyse(self.action)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "headers": self.headers,
+            "command": self.command,
+            "options": [opt.to_dict() for opt in self.options if opt.name != "--help"],
+            "main_args": self.args.to_dict(),
+            "exception_in_time": self.exception_in_time,
+            "separator": self.separator,
+            "namespace": self.namespace,
+            "help_text": self.help_text,
+            "order_parse": True if isinstance(self.analyser, OrderCommandAnalyser) else False,
+        }
+
+    def __getstate__(self):
+        return self.to_dict()
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Alconna":
+        """从字典中恢复一个 Alconna 对象"""
+        headers = data["headers"]
+        command = data["command"]
+        options = []
+        for o in data["options"]:
+            if o['type'] == 'Option':
+                options.append(Option.from_dict(o))
+            elif o['type'] == 'Subcommand':
+                options.append(Subcommand.from_dict(o))
+        main_args = Args.from_dict(data["main_args"])
+        exception_in_time = data["exception_in_time"]
+        order_parse = data["order_parse"]
+        namespace = data["namespace"]
+        return cls(
+            command=command, options=options, main_args=main_args, headers=headers,
+            exception_in_time=exception_in_time, order_parse=order_parse, namespace=namespace
+        ).help(data["help_text"]).separate(data["separator"])
+
+    def __setstate__(self, state):
+        options = []
+        for o in state["options"]:
+            if o['type'] == 'Option':
+                options.append(Option.from_dict(o))
+            elif o['type'] == 'Subcommand':
+                options.append(Subcommand.from_dict(o))
+        self.__init__(
+            headers=state["headers"], command=state["command"], options=options,
+            main_args=Args.from_dict(state["main_args"]), exception_in_time=state["exception_in_time"],
+            order_parse=state["order_parse"], namespace=state["namespace"]
+        ).separate(state["separator"]).help(state["help_text"])

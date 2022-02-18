@@ -35,6 +35,9 @@ class _AnyParam:
     def __repr__(self):
         return "AnyParam"
 
+    def __getstate__(self):
+        return {"type": self.__repr__()}
+
 
 class _AnyAllParam(_AnyParam):
     """复数参数的泛匹配"""
@@ -83,6 +86,25 @@ class ArgPattern:
             return text
         r = self.re_pattern.findall(text)
         return r[0] if r else None
+
+    def __getstate__(self):
+        pattern = self.pattern
+        token = self.token.value
+        type_mark = self.type_mark.__name__
+        return {"type": "ArgPattern", "pattern": pattern, "token": token, "type_mark": type_mark}
+
+    def to_dict(self):
+        return self.__getstate__()
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        pattern = data["pattern"]
+        token = PatternToken(data["token"])
+        type_mark = eval(data["type_mark"])
+        return cls(pattern, token, type_mark)
+
+    def __setstate__(self, state):
+        self.__init__(state["pattern"], PatternToken(state["token"]), eval(state["type_mark"]))
 
 
 AnyStr = ArgPattern(r"(.+?)", token=PatternToken.DIRECT, type_mark=str)

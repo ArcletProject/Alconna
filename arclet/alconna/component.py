@@ -25,6 +25,25 @@ class Option(TemplateCommand):
             f"# {help_string}\n  {alias}{self.name}{self.separator}{self.args.params(self.separator)}\n")
         return self
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {**super().to_dict(), "alias": self.alias}
+
+    def __getstate__(self):
+        return self.to_dict()
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Option":
+        name = data['name']
+        alias = data['alias']
+        args = Args.from_dict(data['args'])
+        opt = cls(name, args, alias=alias).separate(data['separator']).help(data['help_text'])
+        return opt
+
+    def __setstate__(self, state):
+        self.__init__(
+            state['name'], Args.from_dict(state['args']), state['alias']
+        ).separate(state['separator']).help(state['help_text'])
+
 
 class Subcommand(TemplateCommand):
     """子命令, 次于主命令, 可解析 SubOption"""
@@ -48,6 +67,27 @@ class Subcommand(TemplateCommand):
                                   f"  {self.name}{self.separator}{self.args.params(self.separator)}\n"
                                   f"{option_help}{option_string}")
         return self
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {**super().to_dict(), "options": [option.to_dict() for option in self.options]}
+
+    def __getstate__(self):
+        return self.to_dict()
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Subcommand":
+        name = data['name']
+        options = [Option.from_dict(option) for option in data['options']]
+        args = Args.from_dict(data['args'])
+        sub = cls(name, *options, args=args).separate(data['separator']).help(data['help_text'])
+        return sub
+
+    def __setstate__(self, state):
+        self.__init__(
+            state['name'],
+            *[Option.from_dict(option) for option in state['options']],
+            args=Args.from_dict(state['args'])
+        ).separate(state['separator']).help(state['help_text'])
 
 
 class Arpamar:
@@ -116,7 +156,17 @@ class Arpamar:
             if isinstance(v, dict):
                 self._other_args = {**self._other_args, **v}
             elif isinstance(v, list):
-                self._other_args = {**self._other_args, **v[0]}
+                _rr = {}
+                for i in v:
+                    if not isinstance(i, dict):
+                        break
+                    for kk, vv in i.items():
+                        if kk not in _rr:
+                            _rr[kk] = [vv]
+                        else:
+                            _rr[kk].append(vv)
+
+                self._other_args = {**self._other_args, **_rr}
 
     def get(self, name: Union[str, Type[NonTextElement]]) -> Union[Dict, str, NonTextElement]:
         """根据选项或者子命令的名字返回对应的数据"""
@@ -127,9 +177,10 @@ class Arpamar:
                 return self._other_args[name]
             if name in self._main_args:
                 return self._main_args[name]
-        for _, v in self.all_matched_args.items():
-            if isinstance(v, name):
-                return v
+        else:
+            for _, v in self.all_matched_args.items():
+                if isinstance(v, name):
+                    return v
 
     def has(self, name: str) -> bool:
         """判断 Arpamar 是否有对应的选项/子命令的解析结果"""

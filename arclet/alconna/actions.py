@@ -1,6 +1,7 @@
 """Alconna Action相关"""
 
 from typing import Callable, Any, Union, List, Tuple, Optional, TYPE_CHECKING
+from functools import wraps
 
 
 class ArgAction:
@@ -13,7 +14,7 @@ class ArgAction:
     @classmethod
     def set_action(cls, action: Callable):
         """修饰一个action"""
-
+        @wraps(action)
         def _act(*items: Any):
             result = action(*items)
             if result is None:

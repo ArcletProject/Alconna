@@ -34,7 +34,10 @@ class CommandAnalyser(metaclass=ABCMeta):
             return ""
         _current_data = self.raw_data[self.current_index]
         if isinstance(_current_data, list):
-            _text = _current_data[self.content_index]
+            try:
+                _text = _current_data[self.content_index]
+            except IndexError:
+                return ""
             if separate != self.separator:
                 _text, _rest_text = split_once(_text, separate)
             if pop:
@@ -294,6 +297,8 @@ class DisorderCommandAnalyser(CommandAnalyser):
         try:
             self.header = analyse_header(self, self.command_headers, self.separator)
         except ParamsUnmatched:
+            self.current_index = 0
+            self.content_index = 0
             return self.create_arpamar(fail=True)
 
         for _ in self.part_len:
