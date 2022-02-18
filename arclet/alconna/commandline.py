@@ -2,6 +2,7 @@ import sys
 from typing import Dict, Any
 import re
 import json
+import os
 
 from . import *
 from .types import ArgPattern, PatternToken
@@ -246,8 +247,11 @@ def main(args=None):
     if not args:
         print("* Alconna CL\n" + all_command_help("ALCLI"))
         return
-    with open('alconna_cache.json', 'r+', encoding='UTF-8') as f_obj:
-        cache_data = json.load(f_obj)
+    try:
+        with open('alconna_cache.json', 'r+', encoding='UTF-8') as f_obj:
+            cache_data = json.load(f_obj)
+    except FileNotFoundError:
+        cache_data = {}
     text = " ".join(args)
     if text == "--help":
         print("* Alconna CL\n" + all_command_help("ALCLI"))

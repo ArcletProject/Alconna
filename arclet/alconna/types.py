@@ -3,7 +3,7 @@ import re
 import inspect
 from functools import lru_cache
 from enum import Enum
-from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable, Pattern
+from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable, Pattern, Union
 
 _KT = TypeVar('_KT')
 _VT_co = TypeVar("_VT_co", covariant=True)
@@ -12,6 +12,7 @@ _VT_co = TypeVar("_VT_co", covariant=True)
 @runtime_checkable
 class Gettable(Protocol):
     """表示拥有 get 方法的对象"""
+
     def get(self, key: _KT) -> _VT_co:
         ...
 
@@ -117,3 +118,15 @@ Bool = ArgPattern(
 Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", type_mark=tuple)
 AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", type_mark=tuple)
 AnyUrl = ArgPattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", type_mark=str)
+
+
+class MultiArg(ArgPattern):
+    """可变参数的匹配"""
+    arg_value: Union[ArgPattern, Type[NonTextElement]]
+
+    def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement]]):
+        super().__init__(r"(.+?)", token=PatternToken.DIRECT, type_mark=list)
+        self.arg_value = arg_value
+
+    def __repr__(self):
+        return f"[{self.arg_value}, ...]"

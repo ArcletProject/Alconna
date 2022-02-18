@@ -5,8 +5,8 @@ from typing import Dict, Any, Union, List, Optional, TYPE_CHECKING
 from .actions import ArgAction
 from .base import Args
 from .component import Option, Subcommand, Arpamar
-from .util import split_once
-from .types import NonTextElement, ArgPattern, AllParam, AnyParam, PatternToken
+from .util import split_once, split
+from .types import NonTextElement, ArgPattern, AllParam, AnyParam, PatternToken, MultiArg
 from .exceptions import ParamsUnmatched
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ class CommandAnalyser(metaclass=ABCMeta):
                 _text = _current_data[self.content_index]
             except IndexError:
                 return ""
-            if separate != self.separator:
+            if separate and separate != self.separator:
                 _text, _rest_text = split_once(_text, separate)
             if pop:
                 if _rest_text:  # 这里实际上还是pop了
@@ -52,6 +52,21 @@ class CommandAnalyser(metaclass=ABCMeta):
         if pop:
             self.current_index += 1
         return _current_data
+
+    def rest_count(self, separate: Optional[str] = None) -> int:
+        """剩余的数据个数"""
+        _result = 0
+        for i in self.raw_data:
+            if i < self.current_index:
+                continue
+            if isinstance(self.raw_data[i], list):
+                for s in self.raw_data[i][self.content_index:]:
+                    if separate and self.separator != separate:
+                        _result += len(split(s, separate))
+                    _result += 1
+            else:
+                _result += 1
+        return _result
 
     def reduce_data(self, data: Union[str, NonTextElement]):
         """把pop的数据放回(实际只是指针移动)"""
@@ -98,7 +113,8 @@ def analyse_args(
         analyser: CommandAnalyser,
         opt_args: Args,
         sep: str,
-        action: Optional[ArgAction] = None
+        nargs: int,
+        action: Optional[ArgAction] = None,
 ) -> Dict[str, Any]:
     """分析 Args 部分"""
     option_dict: Dict[str, Any] = {}
@@ -106,7 +122,61 @@ def analyse_args(
         value = opt_args.argument[key]['value']
         default = opt_args.argument[key]['default']
         may_arg = analyser.next_data(sep)
-        if value.__class__ is ArgPattern:
+        if value.__class__ is MultiArg:
+            _m_arg_base = value.arg_value
+            if _m_arg_base.__class__ is ArgPattern:
+                if not isinstance(may_arg, str):
+                    continue
+            elif isinstance(may_arg, str):
+                continue
+            # 当前args 已经解析 m 个参数， 总共需要 n 个参数，总共剩余p个参数，
+            # q = n - m 为剩余需要参数（包括自己）， p - q + 1 为自己可能需要的参数个数
+            _m_rest_arg = nargs - len(option_dict) - 1
+            _m_all_args_count = analyser.rest_count(sep) - _m_rest_arg + 1
+            analyser.reduce_data(may_arg)
+            result = []
+
+            def __putback(data):
+                analyser.reduce_data(data)
+                for ii in range(min(len(result), _m_rest_arg)):
+                    analyser.reduce_data(result.pop(-1))
+
+            for i in range(_m_all_args_count):
+                _m_arg = analyser.next_data(sep)
+                if isinstance(_m_arg, str) and _m_arg in analyser.params:
+                    __putback(_m_arg)
+                    break
+                if _m_arg_base.__class__ is ArgPattern:
+                    if not isinstance(_m_arg, str):
+                        __putback(_m_arg)
+                        break
+                    _m_arg_find = _m_arg_base.find(_m_arg)
+                    if not _m_arg_find:
+                        __putback(_m_arg)
+                        if default is None:
+                            raise ParamsUnmatched(f"param {may_arg} is incorrect")
+                        result = [default]
+                        break
+                    if may_arg == _m_arg_base.pattern:
+                        _m_arg_find = Ellipsis
+                    if _m_arg_base.token == PatternToken.REGEX_TRANSFORM and isinstance(_m_arg_find, str):
+                        _m_arg_find = _m_arg_base.transform_action(_m_arg_find)
+                    result.append(_m_arg_find)
+                else:
+                    if isinstance(_m_arg, str):
+                        __putback(_m_arg)
+                        break
+                    if _m_arg.__class__ is _m_arg_base:
+                        result.append(_m_arg)
+                    elif default is not None:
+                        __putback(_m_arg)
+                        result = [default]
+                        break
+                    else:
+                        __putback(_m_arg)
+                        raise ParamsUnmatched(f"param type {_m_arg.__class__} is incorrect")
+            option_dict[key] = result
+        elif value.__class__ is ArgPattern:
             arg_find = value.find(may_arg)
             if not arg_find:
                 analyser.reduce_data(may_arg)
@@ -156,7 +226,7 @@ def analyse_option(
     name = param.name.lstrip("-")
     if param.nargs == 0:
         return [name, param.action({}, analyser.is_raise_exception)] if param.action else [name, Ellipsis]
-    return [name, analyse_args(analyser, param.args, param.separator, param.action)]
+    return [name, analyse_args(analyser, param.args, param.separator, param.nargs, param.action)]
 
 
 def analyse_subcommand(
@@ -189,7 +259,7 @@ def analyse_subcommand(
                     subcommand[opt_n] = [subcommand[opt_n], opt_v]
                 else:
                     subcommand[opt_n].append(opt_v)
-            elif not args and (args := analyse_args(analyser, param.args, param.separator, param.action)):
+            elif not args and (args := analyse_args(analyser, param.args, param.separator, param.nargs, param.action)):
                 subcommand.update(args)
         except ParamsUnmatched:
             if analyser.is_raise_exception:
@@ -242,6 +312,7 @@ class DisorderCommandAnalyser(CommandAnalyser):
         self.reset()
         self.need_main_args = False
         self.default_main_only = False
+        self.nargs = alconna.nargs
         if alconna.nargs > 0:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
         _de_count = 0
@@ -329,7 +400,7 @@ class DisorderCommandAnalyser(CommandAnalyser):
                     sub_n, sub_v = analyse_subcommand(self, _param)
                     self.options[sub_n] = sub_v
                 elif not self.main_args:
-                    self.main_args = analyse_args(self, self.params['main_args'], self.separator, action)
+                    self.main_args = analyse_args(self, self.params['main_args'], self.separator, self.nargs, action)
             except ParamsUnmatched:
                 if self.is_raise_exception:
                     raise
@@ -339,7 +410,7 @@ class DisorderCommandAnalyser(CommandAnalyser):
 
         # 防止主参数的默认值被忽略
         if self.default_main_only:
-            self.main_args = analyse_args(self, self.params['main_args'], self.separator, action)
+            self.main_args = analyse_args(self, self.params['main_args'], self.separator, self.nargs, action)
 
         if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):
             return self.create_arpamar()
@@ -508,7 +579,9 @@ class OrderCommandAnalyser(CommandAnalyser):
                 elif isinstance(param, Subcommand):
                     self.options.update(analyse_subcommand(self, param))
                 elif not self.main_args.get:
-                    self.main_args = analyse_args(self, self.params['main_args'], self.separator, action)
+                    self.main_args = analyse_args(
+                        self, self.params['main_args'], self.separator, self.alconna.nargs, action
+                    )
             except ParamsUnmatched:
                 if self.is_raise_exception:
                     raise

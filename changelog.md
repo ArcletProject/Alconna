@@ -17,6 +17,10 @@
 2. 加入from_dict与to_dict，暂时无法支持保存action
 3. 命令行功能加入using
 
+## Alconna 0.6.3:
+1. 修复命令行的Bug
+2. 加入变长参数的支持, 可以在参数名前面添加一个`*`来表示变长参数
+
 # Alconna 0.5.x:
 
 ## Alconna 0.5.1: 

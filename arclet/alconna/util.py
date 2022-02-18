@@ -4,7 +4,7 @@ from inspect import stack
 from typing import Any, Union, Type
 from .exceptions import UnexpectedElement, NullTextMessage
 from .types import ArgPattern, _AnyParam, NonTextElement, Empty, AnyStr, AnyDigit, AnyFloat, Bool, \
-    AnyUrl, AnyIP, AnyParam, Gettable, Email
+    AnyUrl, AnyIP, AnyParam, Gettable, Email, AllParam
 
 raw_type = ["str", "dict", "Arpamar"]
 chain_texts = ["Plain", "Text"]
@@ -105,8 +105,9 @@ def arg_check(item: Any) -> Union[ArgPattern, _AnyParam, Type[NonTextElement], E
         "url": AnyUrl,
         "ip": AnyIP,
         "email": Email,
-        "": AnyParam,
-        "...": Empty
+        "": Empty,
+        "..": AnyParam,
+        "...": AllParam
     }
     if _check_list.get(item):
         return _check_list.get(item)
