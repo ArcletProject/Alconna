@@ -1,33 +1,33 @@
-"""Alconna Action相关"""
+"""Alconna ArgAction相关"""
 
-from typing import Callable, Any, Union, List, Tuple, Optional, TYPE_CHECKING
-from functools import wraps
+from typing import Callable, Any, Optional, TYPE_CHECKING, Iterable
 
 
 class ArgAction:
-    """负责封装action的类"""
-    action: Callable[[Any], Union[List, Tuple]]
+    """
+    负责封装action的类
+
+    Attributes:
+        action: 实际的function
+    """
+    action: Callable[..., Iterable]
 
     def __init__(self, action: Callable = None):
+        """
+        ArgAction的构造函数
+
+        Args:
+            action: (...) -> Iterable
+        """
         self.action = action
-
-    @classmethod
-    def set_action(cls, action: Callable):
-        """修饰一个action"""
-        @wraps(action)
-        def _act(*items: Any):
-            result = action(*items)
-            if result is None:
-                return items
-            if not isinstance(result, tuple):
-                result = [result]
-            return result
-
-        return cls(_act)
 
     def __call__(self, option_dict, exception_in_time):
         try:
             additional_values = self.action(*option_dict.values())
+            if additional_values is None:
+                additional_values = list(option_dict.values())
+            elif not isinstance(additional_values, Iterable):
+                additional_values = [additional_values]
             for i, k in enumerate(option_dict.keys()):
                 option_dict[k] = additional_values[i]
         except Exception as e:
@@ -40,11 +40,10 @@ class _StoreValue(ArgAction):
     """针对特定值的类"""
 
     def __init__(self, value: Any):
-        super().__init__(lambda x: x)
-        self.value = value
+        super().__init__(lambda: value)
 
     def __call__(self, option_dict, exception_in_time):
-        return self.value
+        return self.action()
 
 
 def store_bool(value: bool):

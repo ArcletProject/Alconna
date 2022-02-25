@@ -20,14 +20,14 @@ def get_module_name() -> str:
 
 
 def get_module_filename() -> str:
-    """获取当前模块名"""
+    """获取当前模块的文件名"""
     for frame in stack():
         if frame.frame.f_locals.get("__name__"):
             return frame.filename.split("/")[-1].split(".")[0]
 
 
 def get_module_filepath() -> str:
-    """获取当前模块名"""
+    """获取当前模块的路径"""
     for frame in stack():
         if frame.frame.f_locals.get("__name__"):
             return ".".join(frame.filename.split("/")[1:]).replace('.py', '')
@@ -72,7 +72,15 @@ def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变
 
 
 def split(text: str, separate: str = " ", ):
-    """类似于shlex中的split, 但保留引号"""
+    """尊重引号与转义的字符串切分
+
+    Args:
+        text (str): 要切割的字符串
+        separate (str): 切割符. 默认为 " ".
+
+    Returns:
+        List[str]: 切割后的字符串, 可能含有空格
+    """
     result = []
     quote = ""
     cache = []
@@ -109,8 +117,11 @@ def arg_check(item: Any) -> Union[ArgPattern, _AnyParam, Type[NonTextElement], E
         "..": AnyParam,
         "...": AllParam
     }
-    if _check_list.get(item):
-        return _check_list.get(item)
+    try:
+        if _check_list.get(item):
+            return _check_list.get(item)
+    except TypeError:
+        return item
     if item is None:
         return Empty
     if isinstance(item, str):

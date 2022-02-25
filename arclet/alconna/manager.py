@@ -1,5 +1,6 @@
 """Alconna 负责记录命令的部分"""
 
+import re
 from typing import TYPE_CHECKING, Dict, Union, List, Tuple
 from .exceptions import DuplicateCommand, ExceedMaxCount
 
@@ -19,6 +20,7 @@ class Singleton(type):
 class CommandManager(metaclass=Singleton):
     sign: str = "ALCONNA::"
     default_namespace: str = "Alconna"
+    __shortcuts: Dict[str, Tuple[str, str, bool]] = {}
     __commands: Dict[str, Dict[str, "Alconna"]]
     __abandons: List["Alconna"]
     current_count: int
@@ -29,6 +31,11 @@ class CommandManager(metaclass=Singleton):
         self.__abandons = []
         self.current_count = 0
 
+    def __del__(self):  # TODO: save to file
+        self.__commands = {}
+        self.__abandons = []
+
+    @property
     def commands(self) -> Dict[str, Dict[str, "Alconna"]]:
         """获取命令字典"""
         return self.__commands
@@ -88,6 +95,37 @@ class CommandManager(metaclass=Singleton):
             return
         self.__abandons.remove(command)
 
+    def add_shortcut(self, target: Union["Alconna", str], shortcut: str, command: str, reserve: bool = False) -> None:
+        """添加快捷命令"""
+        if isinstance(target, str):
+            namespace, name = self._command_part(target)
+            try:
+                target = self.__commands[namespace][name]
+            except KeyError:
+                raise ValueError("命令不存在")
+        if shortcut in self.__shortcuts:
+            raise DuplicateCommand("快捷命令已存在")
+        self.__shortcuts[shortcut] = (target.namespace + "." + target.name.replace(self.sign, ""), command, reserve)
+
+    def find_shortcut(self, target: Union["Alconna", str], shortcut: str):
+        """查找快捷命令"""
+        if shortcut not in self.__shortcuts:
+            raise ValueError("快捷命令不存在")
+        info, command, reserve = self.__shortcuts[shortcut]
+        if isinstance(target, str):
+            namespace, name = self._command_part(target)
+            if info != (namespace + "." + name):
+                raise ValueError("目标命令错误")
+            try:
+                target = self.__commands[namespace][name]
+            except KeyError:
+                raise ValueError("目标命令不存在")
+            else:
+                return target, command, reserve
+        if info != (target.namespace + "." + target.name.replace(self.sign, "")):
+            raise ValueError("目标命令错误")
+        return target, command, reserve
+
     def set_disable(self, command: Union["Alconna", str]) -> None:
         """禁用命令"""
         if isinstance(command, str):
@@ -115,12 +153,25 @@ class CommandManager(metaclass=Singleton):
             return []
         return [alc for alc in self.__commands[namespace].values()]
 
+    def broadcast(self, command: str, namespace: str = None):
+        """广播命令"""
+        may_command_head = command.split(" ")[0]
+        if namespace is None:
+            for n in self.__commands:
+                if self.__commands[n].get(may_command_head):
+                    return self.__commands[n][may_command_head].analyse_message(command)
+                for k in self.__commands[n]:
+                    if re.match("^" + k + ".*" + "$", str(command)):
+                        return self.__commands[n][k].analyse_message(command)
+        else:
+            if self.__commands[namespace].get(may_command_head):
+                return self.__commands[namespace][may_command_head].analyse_message(command)
+            for k in self.__commands[namespace]:
+                if re.match("^" + k + ".*" + "$", str(command)):
+                    return self.__commands[namespace][k].analyse_message(command)
 
-command_manager = CommandManager()
-
-
-def all_command_help(namespace: str = None) -> str:
-    command_string = ""
-    for name, cmd in command_manager.commands()[namespace or command_manager.default_namespace].items():
-        command_string += "\n - " + name + " " + cmd.help_text
-    return f"# 当前可用的命令有:{command_string}\n# 输入'命令名 --help' 查看特定命令的语法"
+    def all_command_help(self, namespace: str = None) -> str:
+        command_string = ""
+        for name, cmd in self.__commands[namespace or self.default_namespace].items():
+            command_string += "\n - " + name + " " + cmd.help_text
+        return f"# 当前可用的命令有:{command_string}\n# 输入'命令名 --help' 查看特定命令的语法"

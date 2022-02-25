@@ -8,13 +8,18 @@ from .types import ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyPa
 from .util import arg_check
 from .actions import ArgAction
 
-TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg]
+TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg, Iterable]
 TADefault = Union[Any, NonTextElement, Empty]
 TArgs = Dict[str, Union[TAValue, TADefault]]
 
 
 class Args:
-    """对命令参数的封装"""
+    """
+    对命令参数的封装
+
+    Attributes:
+        argument: 存放参数内容的容器
+    """
     argument: Dict[str, TArgs]
 
     __slots__ = "argument"
@@ -24,6 +29,13 @@ class Args:
         ...
 
     def __init__(self, *args: ..., **kwargs: TAValue):
+        """
+        构造一个Args
+
+        Args:
+            args: 应传入 slice|tuple, 代表key、value、default
+            kwargs: 传入key与value; default需要另外传入
+        """
         self.argument = {
             k: {"value": arg_check(v), "default": None}
             for k, v in kwargs.items()
@@ -40,6 +52,16 @@ class Args:
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
+        """
+        从处理好的字符串列表中生成Args
+
+        Args:
+            args: 字符串列表
+            custom_types: 自定义的类型
+
+        Example:
+            Args.from_string_list([["foo", "str"], ["bar", "digit", "123"]], {"digit":int})
+        """
         _args = cls()
         for arg in args:
             _le = len(arg)
@@ -94,6 +116,8 @@ class Args:
             arg = f"<{k}"
             if isinstance(v['value'], _AnyParam):
                 arg += ": WildMatch"
+            elif isinstance(v['value'], Iterable):
+                arg += ": (" + "|".join(v['value']) + ")"
             elif not isinstance(v['value'], ArgPattern):
                 arg += f": Type_{v['value'].__name__}"
             if v['default'] is Empty:
@@ -221,7 +245,17 @@ class Args:
 
 
 class TemplateCommand:
-    """命令体基类, 规定基础命令的参数"""
+    """
+    命令体基类, 规定基础命令的参数
+
+    Attributes:
+        name: 命令名称
+        args: 命令参数
+        separator: 命令分隔符
+        action: 命令动作
+        nargs: 参数个数
+        help_text: 命令帮助信息
+    """
     name: str
     args: Args
     separator: str
@@ -235,6 +269,14 @@ class TemplateCommand:
             action: Optional[Union[ArgAction, Callable]] = None,
             **kwargs
     ):
+        """
+        初始化命令体
+
+        Args:
+            name(str): 命令名称
+            args(Args): 命令参数
+            action(ArgAction): 命令动作
+        """
         if name == "":
             raise InvalidParam("该指令的名字不能为空")
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
@@ -290,7 +332,7 @@ class TemplateCommand:
                             raise InvalidParam(f"{argument[i][0]}的类型不能指定为 {argument[i][1]}")
                     elif argument[i][1] != value:
                         raise InvalidParam(f"{argument[i][0]}指定的消息元素类型不是 {value}")
-            self.action = ArgAction.set_action(action)
+            self.action = ArgAction(action)
         else:
             self.action = action
 

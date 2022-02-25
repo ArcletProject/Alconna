@@ -2,12 +2,12 @@ import sys
 from typing import Dict, Any
 import re
 import json
-import os
 
-from . import *
-from .types import ArgPattern, PatternToken
+from arclet.alconna import Alconna, Args, Arpamar, Option, AnyUrl, AnyIP, AnyDigit, AnyFloat, AllParam, Email, Bool, \
+    command_manager, all_command_help
+from arclet.alconna.types import ArgPattern, PatternToken
 
-cache_data: Dict[str, Any]
+cache_data: Dict[str, Any] = {}
 
 list_type = ArgPattern(
     r"\[(.*?)]",
@@ -23,13 +23,14 @@ args_type = ArgPattern(
     transform_action=lambda x: [re.split("[:|=]", p) for p in re.findall(r"\[(.*?)]", x)]
 )
 
+
 create = Alconna(
     command="create",
     options=[
         Option("--command|-C", Args["command_name":str]).help("指定命令名称"),
         Option("--header|-H", Args["command_header":list_type]).help("传入命令头"),
-        Option("--option|-O", Args["option_name":str, "option_args":args_type:[]]).help("创建命令选项"),
-        Option("--analysed|-A").help("从已经分析的命令结构中创建Alconna"),
+        Option("--option|-O", Args["option_name":str]["option_args":args_type:[]]).help("创建命令选项"),
+        Option("--analysed|-A").help("从已经分析的命令结构中创建Alconna")
     ],
     namespace="ALCLI"
 ).help("开始创建 Alconna 命令")
@@ -217,6 +218,7 @@ def command_using(arpamar: Arpamar):
         using_result
     )
     alc = using_result['alc']
+    alc.set_namespace("ALCLI/USING")
     result = alc.analyse_message(command[0])
     if result.matched:
         print(

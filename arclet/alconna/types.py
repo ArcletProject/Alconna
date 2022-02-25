@@ -53,12 +53,22 @@ Empty = inspect.Signature.empty
 
 
 class ArgPattern:
-    """对参数类型值的包装"""
-    re_pattern: Pattern  # 实际的正则表达式
-    pattern: str  # 用以正则解析的表达式
-    token: PatternToken  # 匹配类型
-    transform_action: Callable[[str], Any]  # 类型转换的函数
-    type_mark: Type  # 针对action的类型检查
+    """
+    对参数类型值的包装
+
+    Attributes:
+        re_pattern: 实际的正则表达式
+        pattern: 用以正则解析的表达式
+        token: 匹配类型
+        transform_action: 匹配成功后的转换方法
+        type_mark: 针对action的类型检查
+    """
+
+    re_pattern: Pattern
+    pattern: str
+    token: PatternToken
+    transform_action: Callable[[str], Any]
+    type_mark: Type
 
     __slots__ = "re_pattern", "pattern", "token", "type_mark", "transform_action"
 
@@ -81,6 +91,9 @@ class ArgPattern:
 
     @lru_cache(maxsize=512)
     def find(self, text: str):
+        """
+        匹配文本, 返回匹配结果
+        """
         if not isinstance(text, str):
             return
         if self.token == PatternToken.DIRECT:

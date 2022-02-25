@@ -95,15 +95,16 @@ class Arpamar:
     亚帕玛尔(Arpamar), Alconna的珍藏宝书
 
     Example:
-        1.`Arpamar.main_args`: 当 Alconna 写入了 main_argument 时,该参数返回对应的解析出来的值
 
-        2.`Arpamar.header`: 当 Alconna 的 command 内写有正则表达式时,该参数返回对应的匹配值
+    1. `Arpamar.main_args`: 当 Alconna 写入了 main_argument 时,该参数返回对应的解析出来的值
 
-        3.`Arpamar.has`: 判断 Arpamar 内是否有对应的属性
+        2. `Arpamar.header`: 当 Alconna 的 command 内写有正则表达式时,该参数返回对应的匹配值
 
-        4.`Arpamar.get`: 返回 Arpamar 中指定的属性
+        3. `Arpamar.has`: 判断 Arpamar 内是否有对应的属性
 
-        5.`Arpamar.matched`: 返回命令是否匹配成功
+        4. `Arpamar.get`: 返回 Arpamar 中指定的属性
+
+        5. `Arpamar.matched`: 返回命令是否匹配成功
 
     """
 

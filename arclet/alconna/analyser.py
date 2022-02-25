@@ -1,29 +1,38 @@
 """Alconna 核心"""
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
-from typing import Dict, Any, Union, List, Optional, TYPE_CHECKING
+from typing import Dict, Any, Union, List, Optional, TYPE_CHECKING, Iterable, Tuple
 from .actions import ArgAction
 from .base import Args
 from .component import Option, Subcommand, Arpamar
 from .util import split_once, split
 from .types import NonTextElement, ArgPattern, AllParam, AnyParam, PatternToken, MultiArg
 from .exceptions import ParamsUnmatched
+from .manager import CommandManager
+
+command_manager = CommandManager()
 
 if TYPE_CHECKING:
     from .main import Alconna
 
 
 class CommandAnalyser(metaclass=ABCMeta):
-    """Alconna使用的分析器"""
-    current_index: int  # 记录解析时当前数据的index
-    content_index: int  # 记录内部index
-    is_str: bool  # 是否解析的是string
+    """
+    Alconna使用的分析器基类, 实现了一些通用的方法
+
+    Attributes:
+        current_index(int): 记录解析时当前数据的index
+        content_index(int): 记录内部index
+    """
+    current_index: int
+    content_index: int
+    is_str: bool
     raw_data: Dict[int, Union[List[str], NonTextElement]]
     ndata: int
     separator: str
     is_raise_exception: bool
     params: Dict[str, Union[Args, Option, Subcommand]]
-    command_headers: List[Union[ArgPattern, List[Union[NonTextElement, ArgPattern]]]]
+    command_header: Union[ArgPattern, Tuple[List[NonTextElement], ArgPattern]]
 
     def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Union[str, NonTextElement]:
         """获取解析需要的下个数据"""
@@ -54,7 +63,7 @@ class CommandAnalyser(metaclass=ABCMeta):
         return _current_data
 
     def rest_count(self, separate: Optional[str] = None) -> int:
-        """剩余的数据个数"""
+        """获取剩余的数据个数"""
         _result = 0
         for i in self.raw_data:
             if i < self.current_index:
@@ -69,7 +78,7 @@ class CommandAnalyser(metaclass=ABCMeta):
         return _result
 
     def reduce_data(self, data: Union[str, NonTextElement]):
-        """把pop的数据放回(实际只是指针移动)"""
+        """把pop的数据放回 (实际只是‘指针’移动)"""
         if data:
             if self.current_index == self.ndata:
                 self.current_index -= 1
@@ -98,14 +107,17 @@ class CommandAnalyser(metaclass=ABCMeta):
 
     @abstractmethod
     def analyse(self, action: ArgAction):
+        """主体解析函数, 应针对各种情况进行解析"""
         pass
 
     @abstractmethod
     def create_arpamar(self, fail: bool = False):
+        """创建arpamar, 其一定是一次解析的最后部分"""
         pass
 
     @abstractmethod
     def add_param(self, opt):
+        """临时增加解析用参数"""
         pass
 
 
@@ -116,7 +128,19 @@ def analyse_args(
         nargs: int,
         action: Optional[ArgAction] = None,
 ) -> Dict[str, Any]:
-    """分析 Args 部分"""
+    """
+    分析 Args 部分
+
+    Args:
+        analyser: 使用的分析器
+        opt_args: 目标Args
+        sep: 当前命令节点的分隔符
+        nargs: Args参数个数
+        action: 当前命令节点的ArgAction
+
+    Returns:
+        Dict: 解析结果
+    """
     option_dict: Dict[str, Any] = {}
     for key in opt_args.argument:
         value = opt_args.argument[key]['value']
@@ -200,6 +224,13 @@ def analyse_args(
                 rest_data.insert(0, may_arg)
             option_dict[key] = rest_data
             return option_dict
+        elif isinstance(value, Iterable):  # TODO: 如同MultiArg一样进行类型判定
+            if may_arg not in value:
+                analyser.reduce_data(may_arg)
+                if default is None:
+                    raise ParamsUnmatched(f"param {may_arg} is incorrect")
+                may_arg = default
+            option_dict[key] = may_arg
         else:
             if may_arg.__class__ is value:
                 option_dict[key] = may_arg
@@ -218,7 +249,13 @@ def analyse_option(
         analyser: CommandAnalyser,
         param: Option,
 ) -> List[Any]:
-    """分析 Option 部分"""
+    """
+    分析 Option 部分
+
+    Args:
+        analyser: 使用的分析器
+        param: 目标Option
+    """
 
     name = analyser.next_data(param.separator)
     if name not in (param.name, param.alias):  # 先匹配选项名称
@@ -233,7 +270,13 @@ def analyse_subcommand(
         analyser: CommandAnalyser,
         param: Subcommand
 ) -> List[Union[str, Any]]:
-    """分析 Subcommand 部分"""
+    """
+    分析 Subcommand 部分
+
+    Args:
+        analyser: 使用的分析器
+        param: 目标Subcommand
+    """
     name = analyser.next_data(param.separator)
     if param.name != name:
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
@@ -270,33 +313,42 @@ def analyse_subcommand(
 
 def analyse_header(
         analyser: CommandAnalyser,
-        commands: List[Union[ArgPattern, List[Union[NonTextElement, ArgPattern]]]],
+        command: Union[ArgPattern, List[Union[NonTextElement, ArgPattern]]],
         separator: str
 ) -> str:
-    """分析命令头部"""
+    """
+    分析命令头部
+
+    Args:
+        analyser: 使用的分析器
+        command: 命令头列表
+        separator: 分隔符
+
+    Returns:
+        head_match: 当命令头内写有正则表达式并且匹配成功的话, 返回匹配结果
+    """
     head_text = analyser.next_data(separator)
-    if isinstance(head_text, str):
-        for ch in commands:
-            if isinstance(ch, ArgPattern):
-                if not (_head_find := ch.find(head_text)):
-                    continue
-                analyser.head_matched = True
-                return _head_find if _head_find != ch.pattern else None
+    if isinstance(command, ArgPattern):
+        if isinstance(head_text, str) and (_head_find := command.find(head_text)):
+            analyser.head_matched = True
+            return _head_find if _head_find != head_text else None
     else:
         may_command = analyser.next_data(separator)
-        for ch in commands:
-            if isinstance(ch, List):
-                if not (_head_find := ch[1].find(may_command)):
-                    continue
-                if head_text == ch[0]:
-                    analyser.head_matched = True
-                    return _head_find if _head_find != ch[1].pattern else None
+        if _head_find := command[1].find(may_command) and head_text in command[0]:
+            analyser.head_matched = True
+            return _head_find if _head_find != head_text else None
     if not analyser.head_matched:
         raise ParamsUnmatched(f"{head_text} does not matched")
 
 
 class DisorderCommandAnalyser(CommandAnalyser):
-    """无序的分析器"""
+    """
+    无序的分析器
+
+    Attributes:
+        part_len: 所有可用参数的个数
+        head_matched: 是否匹配了命令头部
+    """
     options: Dict[str, Any]
     main_args: Dict[str, Any]
     header: Optional[str]
@@ -308,11 +360,16 @@ class DisorderCommandAnalyser(CommandAnalyser):
             self,
             alconna: "Alconna"
     ):
-        """初始化命令解析需要使用的参数"""
+        """
+        初始化命令解析需要使用的参数
+
+        Args:
+            alconna: 分析器分析的对象
+        """
         self.reset()
+        self.alconna = alconna
         self.need_main_args = False
         self.default_main_only = False
-        self.nargs = alconna.nargs
         if alconna.nargs > 0:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
         _de_count = 0
@@ -334,16 +391,19 @@ class DisorderCommandAnalyser(CommandAnalyser):
                 opts.sub_part_len = range(len(opts.options) + opts.nargs)
             self.params[opts.name] = opts
         self.part_len = range(len(self.params))
-        # 依据headers与command生成一个列表，其中含有所有的命令头
-        self.command_headers = []
+
         if alconna.headers != [""]:
+            elements = []
+            ch_text = ""
             for i in alconna.headers:
                 if isinstance(i, str):
-                    self.command_headers.append(ArgPattern(i + alconna.command))
+                    ch_text += i.replace(".", "\\.").replace("^", "\\^").replace("*", "\\*").replace("$", "\\$")
+                    ch_text += alconna.command + "|"
                 else:
-                    self.command_headers.append([i, ArgPattern(alconna.command)])
-        elif alconna.command:
-            self.command_headers.append(ArgPattern(alconna.command))
+                    elements.append(i)
+            self.command_header = (elements, ArgPattern(ch_text[:-1])) if elements else ArgPattern(ch_text[:-1])
+        else:
+            self.command_header = ArgPattern(alconna.command)
 
     def reset(self):
         """重置分析器"""
@@ -357,20 +417,26 @@ class DisorderCommandAnalyser(CommandAnalyser):
         self.head_matched = False
 
     def add_param(self, tc: Union[Option, Subcommand]):
-        """临时增加解析用参数"""
         if isinstance(tc, Subcommand):
             for sub_opts in tc.options:
                 tc.sub_params.setdefault(sub_opts.name, sub_opts)
         self.params[tc.name] = tc
 
     def analyse(self, action: ArgAction):
-        """分析整个命令"""
         try:
-            self.header = analyse_header(self, self.command_headers, self.separator)
+            self.header = analyse_header(self, self.command_header, self.separator)
         except ParamsUnmatched:
             self.current_index = 0
             self.content_index = 0
-            return self.create_arpamar(fail=True)
+            try:
+                _, cmd, reserve = command_manager.find_shortcut(self.alconna, self.next_data(self.separator, pop=False))
+                if reserve:
+                    data = self.recover_raw_data()
+                    data[0] = cmd
+                    return self.alconna.analyse_message(data)
+                return self.alconna.analyse_message(cmd)
+            except ValueError:
+                return self.create_arpamar(fail=True)
 
         for _ in self.part_len:
             _text = self.next_data(self.separator, pop=False)
@@ -400,7 +466,9 @@ class DisorderCommandAnalyser(CommandAnalyser):
                     sub_n, sub_v = analyse_subcommand(self, _param)
                     self.options[sub_n] = sub_v
                 elif not self.main_args:
-                    self.main_args = analyse_args(self, self.params['main_args'], self.separator, self.nargs, action)
+                    self.main_args = analyse_args(
+                        self, self.params['main_args'], self.separator, self.alconna.nargs, action
+                    )
             except ParamsUnmatched:
                 if self.is_raise_exception:
                     raise
@@ -410,7 +478,7 @@ class DisorderCommandAnalyser(CommandAnalyser):
 
         # 防止主参数的默认值被忽略
         if self.default_main_only:
-            self.main_args = analyse_args(self, self.params['main_args'], self.separator, self.nargs, action)
+            self.main_args = analyse_args(self, self.params['main_args'], self.separator, self.alconna.nargs, action)
 
         if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):
             return self.create_arpamar()
@@ -419,7 +487,6 @@ class DisorderCommandAnalyser(CommandAnalyser):
         return self.create_arpamar(fail=True)
 
     def create_arpamar(self, fail: bool = False):
-        """生成 Arpamar 结果"""
         result = Arpamar()
         result.head_matched = self.head_matched
         if fail:
@@ -516,20 +583,23 @@ class OrderCommandAnalyser(CommandAnalyser):
                     opts.sub_params.setdefault(sub_opts.name, sub_opts)
             self.params[opts.name] = opts
 
-        # 依据headers与command生成一个列表，其中含有所有的命令头
-        self.command_headers = []
         if alconna.headers != [""]:
+            elements = []
+            ch_text = ""
             for i in alconna.headers:
                 if isinstance(i, str):
-                    self.command_headers.append(ArgPattern(i + alconna.command))
+                    ch_text += i.replace(".", "\\.").replace("^", "\\^").replace("*", "\\*").replace("$", "\\$")
+                    ch_text += alconna.command + "|"
                 else:
-                    self.command_headers.append([i, ArgPattern(alconna.command)])
-        elif alconna.command:
-            self.command_headers.append(ArgPattern(alconna.command))
+                    elements.append(i)
+            self.command_header = (elements, ArgPattern(ch_text[:-1])) if elements else ArgPattern(ch_text[:-1])
+        else:
+            self.command_header = ArgPattern(alconna.command)
 
     def reset(self):
         """重置分析器"""
         self.current_index = 0
+        self.content_index = 0
         self.is_str = False
         self.options = {}
         self.main_args = {}
@@ -538,7 +608,6 @@ class OrderCommandAnalyser(CommandAnalyser):
         self.head_matched = False
 
     def add_param(self, tc: Union[Option, Subcommand]):
-        """临时增加解析用参数"""
         if isinstance(tc, Subcommand):
             for sub_opts in tc.options:
                 tc.sub_params.setdefault(sub_opts.name, sub_opts)
@@ -557,7 +626,7 @@ class OrderCommandAnalyser(CommandAnalyser):
             result._other_args = _result
             return result
         try:
-            self.header = analyse_header(self, self.command_headers, self.separator)
+            self.header = analyse_header(self, self.command_header, self.separator)
         except ParamsUnmatched:
             return self.create_arpamar(fail=True)
 
@@ -594,7 +663,6 @@ class OrderCommandAnalyser(CommandAnalyser):
         return self.create_arpamar(fail=True)
 
     def create_arpamar(self, fail: bool = False):
-        """生成 Arpamar 结果"""
         result = Arpamar()
         result.head_matched = self.head_matched
         if fail:

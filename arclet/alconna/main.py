@@ -9,24 +9,35 @@ from .component import Option, Subcommand, Arpamar
 from .types import NonTextElement, MessageChain
 from .exceptions import NullTextMessage, InvalidParam
 from .actions import store_bool, store_const, help_send
-from .manager import command_manager
+from .manager import CommandManager
+
+command_manager = CommandManager()
 
 
 class Alconna(TemplateCommand):
     """
-    亚尔康娜（Alconna），Cesloi的妹妹
+    亚尔康娜 (Alconna), Cesloi 的妹妹
 
-    用于更加奇怪(大雾)精确的命令解析，支持String与MessageChain
+    用于更加精确的命令解析，支持 String 与 MessageChain
 
-    样例：Alconna(
-        headers=[""],
-        command="name",
-        options=[
-            Subcommand("sub_name",Option("sub_opt", args=sub_arg), args=sub_main_args),
-            Option("opt", args=arg)
-            ]
-        main_args=main_args
-        )
+    Examples:
+
+    >>> from arclet.alconna import Alconna
+    >>> alc = Alconna(
+    ...     headers=["h1", "h2"],
+    ...     command="name",
+    ...     options=[
+    ...         Option("opt", Args["opt_arg":"opt_arg"]),
+    ...         Subcommand(
+    ...             "sub_name",
+    ...             Option("sub_opt", Args["sub_arg":"sub_arg"]),
+    ...             args=Args["sub_main_args":"sub_main_args"]
+    ...         )
+    ...     ],
+    ...     main_args=Args["main_args":"main_args"],
+    ...  )
+    >>> alc.analyse_message("name opt opt_arg")
+
 
     其中
         - name: 命令名称
@@ -35,17 +46,8 @@ class Alconna(TemplateCommand):
         - sub_arg: 子命令选项参数
         - sub_main_args: 子命令主参数
         - opt: 命令选项名称
-        - arg: 命令选项参数
-
-    Args:
-        headers: 呼叫该命令的命令头，一般是你的机器人的名字或者符号，与 command 至少有一个填写
-        command: 命令名称，你的命令的名字，与 headers 至少有一个填写
-        options: 命令选项，你的命令可选择的所有 option ，包括子命令与单独的选项
-        main_args: 主参数，填入后当且仅当命令中含有该参数时才会成功解析
-        exception_in_time: 当解析失败时是否抛出异常，默认为 False
-        actions: 命令解析后针对主参数的回调函数
-        order_parse: 是否按照命令顺序解析，默认为 False
-        namespace: 命令命名空间，默认为 'Alconna'
+        - opt_arg: 命令选项参数
+        - main_args: 命令主参数
     """
 
     headers: List[Union[str, NonTextElement]]
@@ -68,6 +70,19 @@ class Alconna(TemplateCommand):
             namespace: Optional[str] = None,
             **kwargs
     ):
+        """
+        以标准形式构造 Alconna
+
+        Args:
+            headers: 呼叫该命令的命令头，一般是你的机器人的名字或者符号，与 command 至少有一个填写
+            command: 命令名称，你的命令的名字，与 headers 至少有一个填写
+            options: 命令选项，你的命令可选择的所有 option ，包括子命令与单独的选项
+            main_args: 主参数，填入后当且仅当命令中含有该参数时才会成功解析
+            exception_in_time: 当解析失败时是否抛出异常，默认为 False
+            actions: 命令解析后针对主参数的回调函数
+            order_parse: 是否按照命令顺序解析，默认为 False
+            namespace: 命令命名空间，默认为 'Alconna'
+        """
         # headers与command二者必须有其一
         if all((not headers, not command)):
             raise InvalidParam("headers与command二者必须有其一")
@@ -98,7 +113,15 @@ class Alconna(TemplateCommand):
         """预处理 help 文档"""
         self.help_text = help_string
         help_string = ("\n" + help_string) if help_string else ""
-        headers = [f"{ch}" for ch in self.analyser.command_headers]
+        headers = []
+        if self.headers != [""]:
+            for i in self.headers:
+                if isinstance(i, str):
+                    headers.append(i + self.command)
+                else:
+                    headers.extend((f"{i}", self.command))
+        elif self.command:
+            headers.append(self.command)
         command_string = f"{'|'.join(headers)}{self.separator}"
         option_string = "".join(list(map(lambda x: getattr(x, "help_doc", ""),
                                          filter(lambda x: isinstance(x, Option), self.options))))
@@ -142,8 +165,17 @@ class Alconna(TemplateCommand):
     ):
         """
         以纯字符串的形式构造Alconna的简易方式
-        from_string("test <message:str> #HELP_STRING", ["--foo|-f <val:bool:True>", "--bar [134]"])
+
+        Examples:
+
+        >>> from arclet.alconna import Alconna
+        >>> alc = Alconna.from_string(
+        ... "test <message:str> #HELP_STRING",
+        ... "--foo|-f <val:bool:True>", "--bar [134]"
+        ... )
+        >>> alc.analyse_message("test abcd --foo True")
         """
+
         _options = []
         head, others = split_once(command, sep)
         headers = [head]
@@ -184,7 +216,18 @@ class Alconna(TemplateCommand):
             format_string: str,
             format_args: Dict[str, Union[TAValue, Args, Option, List[Option]]]
     ) -> "Alconna":
-        """以格式化字符串的方式构造 Alconna"""
+        """
+        以格式化字符串的方式构造 Alconna
+
+        Examples:
+
+        >>> from arclet.alconna import Alconna
+        >>> alc1 = Alconna.format(
+        ...     "lp user {target} perm set {perm} {default}",
+        ...     {"target": str, "perm": str, "default": Args["de":bool:True]},
+        ... )
+        >>> alc1.analyse_message("lp user AAA perm set admin.all False")
+        """
         _key_ref = 0
         strings = split(format_string)
         command = strings.pop(0)
@@ -233,6 +276,10 @@ class Alconna(TemplateCommand):
 
         alc = cls(command=command, options=options, main_args=main_args)
         return alc
+
+    def shortcut(self, short_key: str, command: str, reserve_args: bool = False):
+        """添加快捷键"""
+        command_manager.add_shortcut(self, short_key, command, reserve_args)
 
     def option(self, name: str, sep: str = " ", args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
         """链式注册一个 Option"""

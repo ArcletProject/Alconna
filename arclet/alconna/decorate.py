@@ -43,9 +43,21 @@ class ALCCommand:
         self.local_args = {}
 
     def set_local_args(self, local_args: Optional[Dict[str, Any]] = None):
+        """
+        设置本地参数
+
+        Args:
+            local_args (Optional[Dict[str, Any]]): 本地参数
+        """
         self.local_args = local_args
 
     def set_parser(self, parser_func: PARSER_TYPE):
+        """
+        设置解析器
+
+        Args:
+            parser_func (PARSER_TYPE): 解析器, 接受的参数必须为 (func, args, local_args, loop)
+        """
         self.parser_func = parser_func
         return self
 
@@ -57,6 +69,7 @@ class ALCCommand:
             self.parser_func(self.exec_target, result.all_matched_args, self.local_args, self.loop)
 
     def from_commandline(self):
+        """从命令行解析参数"""
         if not self.command:
             raise Exception("You must call @xxx.command() before @xxx.from_commandline()")
         args = sys.argv[1:]
@@ -71,6 +84,20 @@ FC = TypeVar("FC", bound=Union[Callable[..., Any], ALCCommand])
 class AlconnaDecorate:
     """
     Alconna Click-like 构造方法的生成器
+
+    Examples:
+        >>> cli = AlconnaDecorate()
+        >>> @cli.build_command()
+        ... @cli.option("--name|-n", Args["name":str:"your name"])
+        ... @cli.option("--age|-a", Args["age":int:"your age"])
+        ... def hello(name: str, age: int):
+        ...     print(f"Hello {name}, you are {age} years old.")
+        ...
+        >>> hello("hello --name Alice --age 18")
+
+    Attributes:
+        namespace (str): 命令的命名空间
+        loop (AbstractEventLoop): 事件循环
     """
     namespace: str
     loop: AbstractEventLoop
@@ -83,6 +110,13 @@ class AlconnaDecorate:
             namespace: str = "Alconna",
             loop: Optional[AbstractEventLoop] = None,
     ):
+        """
+        初始化构造器
+
+        Args:
+            namespace (str): 命令的命名空间
+            loop (AbstractEventLoop): 事件循环
+        """
         self.namespace = namespace
         self.building = False
         self.__storage = {"options": []}
@@ -90,6 +124,12 @@ class AlconnaDecorate:
         self.default_parser = default_parser
 
     def build_command(self, name: Optional[str] = None) -> Callable[[F], ALCCommand]:
+        """
+        开始构建命令
+
+        Args:
+            name (Optional[str]): 命令名称
+        """
         self.building = True
 
         def wrapper(func: Callable[..., Any]) -> ALCCommand:
@@ -118,6 +158,17 @@ class AlconnaDecorate:
             sep: str = " ",
             **kwargs
     ) -> Callable[[FC], FC]:
+        """
+        添加命令选项
+
+        Args:
+            name (str): 选项名称
+            args (Optional[Args]): 选项参数
+            alias (Optional[str]): 选项别名
+            help (Optional[str]): 选项帮助信息
+            action (Optional[Callable]): 选项动作
+            sep (str): 参数分隔符
+        """
         if not self.building:
             raise Exception("This must behind a @xxx.command()")
 
@@ -132,6 +183,12 @@ class AlconnaDecorate:
         return wrapper
 
     def arguments(self, args: Args) -> Callable[[FC], FC]:
+        """
+        添加命令参数
+
+        Args:
+            args (Args): 参数
+        """
         if not self.building:
             raise Exception("This must behind a @xxx.command()")
 
@@ -144,5 +201,11 @@ class AlconnaDecorate:
         return wrapper
 
     def set_default_parser(self, parser_func: PARSER_TYPE):
+        """
+        设置默认的参数解析器
+
+        Args:
+            parser_func (PARSER_TYPE): 参数解析器, 接受的参数必须为 (func, args, local_args, loop)
+        """
         self.default_parser = parser_func
         return self
