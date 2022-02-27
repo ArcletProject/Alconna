@@ -27,6 +27,11 @@
 3. 修改docstring, 使其变得更加可读
 4. 加入commandManager.broadcast功能, 可以广播命令
 
+## Alconna 0.6.5:
+1. 可以自定义all_command_help
+2. 加入anti-arg, 用以反向检查参数
+3. 修复一些bug
+
 # Alconna 0.5.x:
 
 ## Alconna 0.5.1: 
