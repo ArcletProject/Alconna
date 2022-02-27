@@ -3,7 +3,7 @@ import re
 import inspect
 from functools import lru_cache
 from enum import Enum
-from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable, Pattern, Union
+from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable, Pattern, Union, Iterable
 
 _KT = TypeVar('_KT')
 _VT_co = TypeVar("_VT_co", covariant=True)
@@ -143,3 +143,15 @@ class MultiArg(ArgPattern):
 
     def __repr__(self):
         return f"[{self.arg_value}, ...]"
+
+
+class AntiArg(ArgPattern):
+    """反向参数的匹配"""
+    arg_value: Union[ArgPattern, Type[NonTextElement], Iterable]
+
+    def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement], Iterable]):
+        super().__init__(r"(.+?)", token=PatternToken.REGEX_MATCH, type_mark=str)
+        self.arg_value = arg_value
+
+    def __repr__(self):
+        return f"!{self.arg_value}"

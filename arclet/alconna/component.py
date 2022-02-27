@@ -51,10 +51,11 @@ class Subcommand(TemplateCommand):
     sub_params: Dict[str, Union[Args, Option]]
     sub_part_len: range
 
-    def __init__(self, name: str, *option: Option, args: Optional[Args] = None,
+    def __init__(self, name: str, *option: Option, args: Optional[Args] = None, options: List[Option] = None,
                  actions: Optional[Callable] = None, **kwargs):
         super().__init__(name, args, actions, **kwargs)
-        self.options = list(option)
+        self.options = options or []
+        self.options.extend(list(option))
         self.sub_params = {}
         self.sub_part_len = range(self.nargs)
 

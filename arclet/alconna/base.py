@@ -4,11 +4,11 @@ import re
 import inspect
 from typing import Union, Any, Optional, Callable, Tuple, Type, Dict, Iterable, Generator, overload, List
 from .exceptions import InvalidParam, NullTextMessage
-from .types import ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg
+from .types import ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg, AntiArg
 from .util import arg_check
 from .actions import ArgAction
 
-TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg, Iterable]
+TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg, AntiArg, Iterable]
 TADefault = Union[Any, NonTextElement, Empty]
 TArgs = Dict[str, Union[TAValue, TADefault]]
 
@@ -103,6 +103,10 @@ class Args:
                 name = name.lstrip("*")
                 if not isinstance(value, _AnyParam):
                     value = MultiArg(value)
+            elif name.startswith("!"):
+                name = name.lstrip("!")
+                if not isinstance(value, _AnyParam):
+                    value = AntiArg(value)
             if default in ("...", Ellipsis):
                 default = Empty
             self.argument.setdefault(name, {"value": value, "default": default})

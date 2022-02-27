@@ -170,8 +170,26 @@ class CommandManager(metaclass=Singleton):
                 if re.match("^" + k + ".*" + "$", str(command)):
                     return self.__commands[namespace][k].analyse_message(command)
 
-    def all_command_help(self, namespace: str = None) -> str:
+    def all_command_help(
+            self,
+            header: str = None,
+            namespace: str = None,
+            footer: str = None,
+            max_length: int = -1,
+            page: int = 1,
+    ) -> str:
+        header = header or "# 当前可用的命令有:"
+        footer = footer or "# 输入'命令名 --help' 查看特定命令的语法"
         command_string = ""
-        for name, cmd in self.__commands[namespace or self.default_namespace].items():
-            command_string += "\n - " + name + " " + cmd.help_text
-        return f"# 当前可用的命令有:{command_string}\n# 输入'命令名 --help' 查看特定命令的语法"
+        cmds = self.__commands[namespace or self.default_namespace]
+        if max_length < 1:
+            for name, cmd in cmds.items():
+                command_string += "\n - " + name + " : " + cmd.help_text
+        else:
+            max_page = len(cmds) // max_length + 1
+            if page < 1 or page > max_page:
+                page = 1
+            header += f"\t第 {page}/{max_page} 页"
+            for name in list(cmds.keys())[(page - 1) * max_length: page * max_length]:
+                command_string += "\n - " + name + " : " + cmds[name].help_text
+        return f"{header}{command_string}\n{footer}"

@@ -92,6 +92,7 @@ class Alconna(TemplateCommand):
         self.options = options or []
         self.exception_in_time = exception_in_time
         self.namespace = namespace or self.__cls_name__
+        self.help_text = "Unknown Information"
         self.options.append(Option("--help", alias="-h", actions=help_send(self.get_help)))
         self.analyser = OrderCommandAnalyser(self) if order_parse else DisorderCommandAnalyser(self)
         command_manager.register(self)
@@ -280,6 +281,12 @@ class Alconna(TemplateCommand):
     def shortcut(self, short_key: str, command: str, reserve_args: bool = False):
         """添加快捷键"""
         command_manager.add_shortcut(self, short_key, command, reserve_args)
+
+    def __repr__(self):
+        return (
+            f"<{self.namespace}::{self.command or self.headers[0]} "
+            f"with {len(self.options)} options; args={self.args}>"
+        )
 
     def option(self, name: str, sep: str = " ", args: Optional[Args] = None, alias: Optional[str] = None, **kwargs):
         """链式注册一个 Option"""

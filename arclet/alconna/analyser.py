@@ -6,7 +6,7 @@ from .actions import ArgAction
 from .base import Args
 from .component import Option, Subcommand, Arpamar
 from .util import split_once, split
-from .types import NonTextElement, ArgPattern, AllParam, AnyParam, PatternToken, MultiArg
+from .types import NonTextElement, ArgPattern, AllParam, AnyParam, PatternToken, MultiArg, AntiArg
 from .exceptions import ParamsUnmatched
 from .manager import CommandManager
 
@@ -200,6 +200,33 @@ def analyse_args(
                         __putback(_m_arg)
                         raise ParamsUnmatched(f"param type {_m_arg.__class__} is incorrect")
             option_dict[key] = result
+        elif value.__class__ is AntiArg:
+            _a_arg_base = value.arg_value
+            if _a_arg_base.__class__ is ArgPattern:
+                arg_find = _a_arg_base.find(may_arg)
+                if not arg_find and isinstance(may_arg, str):
+                    option_dict[key] = may_arg
+                else:
+                    analyser.reduce_data(may_arg)
+                    if default is None:
+                        raise ParamsUnmatched(f"param {may_arg} is incorrect")
+                    option_dict[key] = default
+            elif isinstance(value, Iterable):
+                if may_arg in value:
+                    analyser.reduce_data(may_arg)
+                    if default is None:
+                        raise ParamsUnmatched(f"param {may_arg} is incorrect")
+                    may_arg = default
+                option_dict[key] = may_arg
+            else:
+                if may_arg.__class__ is not _a_arg_base:
+                    option_dict[key] = may_arg
+                elif default is not None:
+                    option_dict[key] = default
+                    analyser.reduce_data(may_arg)
+                else:
+                    analyser.reduce_data(may_arg)
+                    raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
         elif value.__class__ is ArgPattern:
             arg_find = value.find(may_arg)
             if not arg_find:
@@ -224,7 +251,7 @@ def analyse_args(
                 rest_data.insert(0, may_arg)
             option_dict[key] = rest_data
             return option_dict
-        elif isinstance(value, Iterable):  # TODO: 如同MultiArg一样进行类型判定
+        elif isinstance(value, Iterable):
             if may_arg not in value:
                 analyser.reduce_data(may_arg)
                 if default is None:
@@ -477,7 +504,7 @@ class DisorderCommandAnalyser(CommandAnalyser):
                 break
 
         # 防止主参数的默认值被忽略
-        if self.default_main_only:
+        if self.default_main_only and not self.main_args:
             self.main_args = analyse_args(self, self.params['main_args'], self.separator, self.alconna.nargs, action)
 
         if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):

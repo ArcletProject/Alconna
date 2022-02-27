@@ -4,7 +4,7 @@ import re
 import json
 
 from arclet.alconna import Alconna, Args, Arpamar, Option, AnyUrl, AnyIP, AnyDigit, AnyFloat, AllParam, Email, Bool, \
-    command_manager, all_command_help
+    command_manager, all_command_help, alconna_version
 from arclet.alconna.types import ArgPattern, PatternToken
 
 cache_data: Dict[str, Any] = {}
@@ -247,7 +247,7 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
     if not args:
-        print("* Alconna CL\n" + all_command_help("ALCLI"))
+        print("* Alconna CLI %d.%d.%d\n" % alconna_version + all_command_help(namespace="ALCLI"))
         return
     try:
         with open('alconna_cache.json', 'r+', encoding='UTF-8') as f_obj:
