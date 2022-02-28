@@ -1,7 +1,10 @@
 # Alconna
+![Alconna](https://img.shields.io/badge/Arclet-Alconna-2564c2.svg)
+![latest release](https://img.shields.io/github/release/ArcletProject/Alconna)
 [![Licence](https://img.shields.io/github/license/ArcletProject/Alconna)](https://github.com/ArcletProject/Alconna/blob/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/arclet-alconna)](https://pypi.org/project/arclet-alconna)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/arclet-alconna)](https://www.python.org/)
+
 
 `Alconna` 隶属于`ArcletProject`， 是 `Cesloi-CommandAnalysis` 的高级版，
 支持解析消息链或者其他原始消息数据
@@ -26,13 +29,13 @@ from arclet.alconna import Alconna, Option, Subcommand, Args
 cmd = Alconna(
     command="/pip",
     options=[
-        Subcommand("install", Option("-u| --upgrade"), args=Args["pak_name": str]),
+        Subcommand("install", options=[Option("-u| --upgrade")], args=Args["pak_name": str]),
         Option("list"),
     ]
 )
 
 msg = "/pip install cesloi --upgrade"
-result = cmd.analyse_message(msg) # 该方法返回一个Arpamar类的实例
+result = cmd.parse(msg) # 该方法返回一个Arpamar类的实例
 print(result.get('install'))  # 或者 result.install
 ```
 其结果为

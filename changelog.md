@@ -1,3 +1,39 @@
+# Alconna 0.7.x:
+
+## Alconna 0.7.0:
+1. 内部结构大更改, 将`Command`与`Analyser`进行了一个解耦
+2. 多个api更改或去除, 请留意. 该特性为不兼容的特性.
+ - `Alconna`:
+    - `Alconna.analyse_message`: 变更为`Alconna.parse`; 其新增参数`static`, 可以指定是否动态创建`Analyser`
+    - `Alconna.order_parse`: 移除, 以`Alconna.analyser_type`为准
+    - `Alconna.from_string`、`Alconna.format`: 迁移至`alconna.builtin.construct`中
+ - `TemplateCommand`:
+   - 变更为`CommandNode`
+   - `CommandNode.__init__`: 移除`kwargs`
+   - `CommandNode.__init__`: 增加参数`help_text`, `separator`, 替代`CommandNode.help`与`CommandNode.separate`
+   - `CommandNode.help`: 仍然保留, 但推荐从__init__中传入
+   - `CommandNode.separate`: 移除
+   - `CommandNode.action`: 增加对Iterable的判断
+ - `Subcommand`:
+   - `Option`的传入由`*option`改为`options`
+ - `Arpamar`:
+   - 新增`Arpamar.get_first_arg`, 用以获取第一个参数
+ - `ArgAction`:
+   - 从`alconna.actions`迁移至`alconna.base`, 剩余的`ArgAction`迁移至`alconna.builtin.actions`
+ - `AlconnaDecorate`:
+   - 迁移至`alconna.builtin.construct`
+ - `alconna.analyser`:
+   - 迁移至`alconna.analysis.analyser`
+   - `analyse_args`、`analyse_option`、`analyse_subcommand`、`analyse_headers`: 迁移至`alconna.analysis.parts`
+3. 增加`alconna.analysis`, 其中:
+ - `analysis.compile`: 用以从`Alconna`中生成`Analyser`
+ - `analysis.analyse`: 隐式调用`analyser.analyse`
+ - `analysis.analyse_args`: 可直接传入`Args`以针对性解析
+ - `analysis.analyse_option`: 可直接传入`Option`以针对性解析
+ - `analysis.analyse_subcommand`: 可直接传入`Subcommand`以针对性解析
+ - `analysis.analyse_headers`: 可直接传入`Headers`以针对性解析
+
+
 # Alconna 0.6.x:
 
 ## Alconna 0.6.0:

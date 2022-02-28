@@ -1,28 +1,37 @@
 """Alconna 的组件相关"""
 
-from typing import Union, Dict, List, Any, Optional, Callable, Type
+from typing import Union, Dict, List, Any, Optional, Callable, Type, Iterable
 from .types import NonTextElement
-from .base import TemplateCommand, Args
+from .base import CommandNode, Args
 
 
-class Option(TemplateCommand):
+class Option(CommandNode):
     """命令选项, 可以使用别名"""
     alias: str
 
-    def __init__(self, name: str, args: Optional[Args] = None, alias: Optional[str] = None,
-                 actions: Optional[Callable] = None, **kwargs):
+    def __init__(
+            self,
+            name: str,
+            args: Optional[Args] = None,
+            alias: str = None,
+            actions: Optional[Callable] = None,
+            separator: str = None,
+            help_text: str = None,
+
+    ):
         if "|" in name:
             name, alias = name.replace(' ', '').split('|')
-        super().__init__(name, args, actions, **kwargs)
         self.alias = alias or name
+        super().__init__(name, args, actions, separator, help_text)
 
-    def help(self, help_string: str):
+    def __generate_help__(self):
         """预处理 help 文档"""
-        self.help_text = help_string
         alias = f"{self.alias}, " if self.alias != self.name else ""
-        setattr(
-            self, "help_doc",
-            f"# {help_string}\n  {alias}{self.name}{self.separator}{self.args.params(self.separator)}\n")
+        self.help_docstring = (
+            f"# {self.help_text}"
+            f"\n  {alias}{self.name}{self.separator}"
+            f"{self.args.params(self.separator)}\n"
+        )
         return self
 
     def to_dict(self) -> Dict[str, Any]:
@@ -36,37 +45,48 @@ class Option(TemplateCommand):
         name = data['name']
         alias = data['alias']
         args = Args.from_dict(data['args'])
-        opt = cls(name, args, alias=alias).separate(data['separator']).help(data['help_text'])
+        opt = cls(name, args, alias=alias, separator=data['separator'], help_text=data['help_text'])
         return opt
 
     def __setstate__(self, state):
         self.__init__(
-            state['name'], Args.from_dict(state['args']), state['alias']
-        ).separate(state['separator']).help(state['help_text'])
+            state['name'],
+            Args.from_dict(state['args']),
+            alias=state['alias'],
+            separator=state['separator'],
+            help_text=state['help_text']
+        )
 
 
-class Subcommand(TemplateCommand):
+class Subcommand(CommandNode):
     """子命令, 次于主命令, 可解析 SubOption"""
     options: List[Option]
     sub_params: Dict[str, Union[Args, Option]]
     sub_part_len: range
 
-    def __init__(self, name: str, *option: Option, args: Optional[Args] = None, options: List[Option] = None,
-                 actions: Optional[Callable] = None, **kwargs):
-        super().__init__(name, args, actions, **kwargs)
-        self.options = options or []
-        self.options.extend(list(option))
+    def __init__(
+            self,
+            name: str,
+            options: Optional[Iterable[Option]] = None,
+            args: Optional[Args] = None,
+            actions: Optional[Callable] = None,
+            separator: str = None,
+            help_text: str = None,
+    ):
+        self.options = list(options or [])
+        super().__init__(name, args, actions, separator, help_text)
         self.sub_params = {}
         self.sub_part_len = range(self.nargs)
 
-    def help(self, help_string: str):
+    def __generate_help__(self):
         """预处理 help 文档"""
-        self.help_text = help_string
-        option_string = " ".join(list(map(lambda x: getattr(x, "help_doc", ""), self.options)))
+        option_string = " ".join([option.help_docstring for option in self.options])
         option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
-        setattr(self, "help_doc", f"# {help_string}\n"
-                                  f"  {self.name}{self.separator}{self.args.params(self.separator)}\n"
-                                  f"{option_help}{option_string}")
+        self.help_docstring = (
+            f"# {self.help_text}\n"
+            f"  {self.name}{self.separator}{self.args.params(self.separator)}\n"
+            f"{option_help}{option_string}"
+        )
         return self
 
     def to_dict(self) -> Dict[str, Any]:
@@ -80,15 +100,17 @@ class Subcommand(TemplateCommand):
         name = data['name']
         options = [Option.from_dict(option) for option in data['options']]
         args = Args.from_dict(data['args'])
-        sub = cls(name, *options, args=args).separate(data['separator']).help(data['help_text'])
+        sub = cls(name, options, args, separator=data['separator'], help_text=data['help_text'])
         return sub
 
     def __setstate__(self, state):
         self.__init__(
             state['name'],
-            *[Option.from_dict(option) for option in state['options']],
-            args=Args.from_dict(state['args'])
-        ).separate(state['separator']).help(state['help_text'])
+            [Option.from_dict(option) for option in state['options']],
+            args=Args.from_dict(state['args']),
+            separator=state['separator'],
+            help_text=state['help_text']
+        )
 
 
 class Arpamar:
@@ -183,6 +205,14 @@ class Arpamar:
             for _, v in self.all_matched_args.items():
                 if isinstance(v, name):
                     return v
+
+    def get_first_arg(self, option_name: str) -> Any:
+        """根据选项的名字返回第一个参数的值"""
+        if option_name in self._options:
+            opt_args = self._options[option_name]
+            if not isinstance(opt_args, Dict):
+                return opt_args
+            return list(opt_args.values())[0]
 
     def has(self, name: str) -> bool:
         """判断 Arpamar 是否有对应的选项/子命令的解析结果"""

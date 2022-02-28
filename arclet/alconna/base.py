@@ -2,11 +2,10 @@
 
 import re
 import inspect
-from typing import Union, Any, Optional, Callable, Tuple, Type, Dict, Iterable, Generator, overload, List
+from typing import Union, Tuple, Type, Dict, Iterable, overload, List, Callable, Any, Optional
 from .exceptions import InvalidParam, NullTextMessage
 from .types import ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg, AntiArg
-from .util import arg_check
-from .actions import ArgAction
+from .util import arg_check, deprecated
 
 TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg, AntiArg, Iterable]
 TADefault = Union[Any, NonTextElement, Empty]
@@ -37,9 +36,7 @@ class Args:
             kwargs: 传入key与value; default需要另外传入
         """
         self.argument = {
-            k: {"value": arg_check(v), "default": None}
-            for k, v in kwargs.items()
-            if k not in ("name", "args", "alias")
+            k: {"value": arg_check(v), "default": None} for k, v in kwargs.items()
         }
         self._check(args)
 
@@ -69,14 +66,13 @@ class Args:
                 raise NullTextMessage
 
             default = arg[2].strip(" ") if _le > 2 else None
-            value = AllParam if arg[0].startswith("...") else (arg[1].strip(" ()") if _le > 1 else AnyParam)
+            value = AllParam if arg[0].startswith("...") else (arg[1].strip(" ") if _le > 1 else AnyParam)
             name = arg[0].replace("...", "")
 
             if not isinstance(value, AnyParam.__class__):
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
                     raise InvalidParam(f"自定义参数类型传入的不是类型而是 {custom_types[value]}, 这是有意而为之的吗?")
                 try:
-                    custom_types.update(custom_types)
                     value = eval(value, custom_types.copy())
                 except NameError:
                     pass
@@ -88,12 +84,9 @@ class Args:
             if isinstance(sl, slice):
                 name, value, default = sl.start, sl.stop, sl.step
             else:
-                name, value = sl[0], sl[1] if len(sl) > 1 else None
-                default = sl[2] if len(sl) > 2 else None
+                name, value, default = sl[0], sl[1] if len(sl) > 1 else None, sl[2] if len(sl) > 2 else None
             if not isinstance(name, str):
                 raise InvalidParam("参数的名字只能是字符串")
-            if name in ("name", "args", "alias"):
-                raise InvalidParam("非法的参数名字")
             if name == "":
                 raise InvalidParam("该参数的指示名不能为空")
             value = arg_check(value)
@@ -109,7 +102,7 @@ class Args:
                     value = AntiArg(value)
             if default in ("...", Ellipsis):
                 default = Empty
-            self.argument.setdefault(name, {"value": value, "default": default})
+            self.argument[name] = {"value": value, "default": default}
 
     def params(self, sep: str = " "):
         """预处理参数的 help doc"""
@@ -133,10 +126,6 @@ class Args:
             if i != length:
                 argument_string += sep
         return argument_string
-
-    def __iter__(self) -> Generator[Tuple[str, TAValue, TADefault], Any, None]:
-        for k, a in self.argument.items():
-            yield k, a.get('value'), a.get('default')
 
     def __len__(self):
         return len(self.argument)
@@ -248,7 +237,40 @@ class Args:
             self.argument[k] = {"value": value, "default": default}
 
 
-class TemplateCommand:
+class ArgAction:
+    """
+    负责封装action的类
+
+    Attributes:
+        action: 实际的function
+    """
+    action: Callable[..., Iterable]
+
+    def __init__(self, action: Callable = None):
+        """
+        ArgAction的构造函数
+
+        Args:
+            action: (...) -> Iterable
+        """
+        self.action = action
+
+    def __call__(self, option_dict, exception_in_time):
+        try:
+            additional_values = self.action(*option_dict.values())
+            if additional_values is None:
+                additional_values = list(option_dict.values())
+            elif not isinstance(additional_values, Iterable):
+                additional_values = [additional_values]
+            for i, k in enumerate(option_dict.keys()):
+                option_dict[k] = additional_values[i]
+        except Exception as e:
+            if exception_in_time:
+                raise e
+        return option_dict
+
+
+class CommandNode:
     """
     命令体基类, 规定基础命令的参数
 
@@ -257,21 +279,20 @@ class TemplateCommand:
         args: 命令参数
         separator: 命令分隔符
         action: 命令动作
-        nargs: 参数个数
         help_text: 命令帮助信息
     """
     name: str
     args: Args
     separator: str
     action: ArgAction
-    nargs: int
     help_text: str
 
     def __init__(
             self, name: str,
             args: Optional[Args] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            **kwargs
+            separator: str = None,
+            help_text: str = None,
     ):
         """
         初始化命令体
@@ -286,29 +307,35 @@ class TemplateCommand:
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidParam("该指令的名字含有非法字符")
         self.name = name
-        self.args = args or Args(**kwargs)
+        self.args = args or Args()
         self.__check_action__(action)
-        self.separator = " "
-        self.help_text = self.name
+        self.separator = separator or " "
+        self.help_text = help_text or self.name
+        self.__generate_help__()
+
         self.nargs = len(self.args.argument)
 
-    def separate(self, sep: str):
-        """设置命令头与命令参数的分隔符"""
-        self.separator = sep
-        return self
-
-    def help(self, help_string: str):
-        """预处理 help 文档"""
-        setattr(
-            self, "help_doc",
-            f"# {help_string}\n  {self.name}{self.separator}{self.args.params(self.separator)}\n"
-        )
-        self.help_text = help_string
-        return self
+    help_docstring: str
+    nargs: int
+    scale: Tuple[int, int]
 
     def __getitem__(self, item):
         self.args.__merge__(Args.__class_getitem__(item))
         self.nargs = len(self.args.argument)
+        return self
+
+    def __generate_help__(self):
+        """预处理 help 文档"""
+        self.help_docstring = f"# {self.help_text}\n  {self.name}{self.separator}{self.args.params(self.separator)}\n"
+
+    def separate(self, separator: str):
+        self.separator = separator
+        return self
+
+    @deprecated("0.7.1")
+    def help(self, help_text: str):
+        self.help_text = help_text
+        self.__generate_help__()
         return self
 
     def __check_action__(self, action):
@@ -323,18 +350,24 @@ class TemplateCommand:
                 raise InvalidParam("action 接受的参数个数必须与 Args 里的一致")
             if action.__name__ != "<lambda>":
                 for i, k in enumerate(self.args.argument):
+                    anno = argument[i][1]
                     value = self.args.argument[k]['value']
                     if isinstance(
-                            value, ArgPattern
+                        value, ArgPattern
                     ):
-                        if value.type_mark != getattr(argument[i][1], "__origin__", argument[i][1]):
+                        if value.type_mark != getattr(anno, "__origin__", anno):
                             raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.type_mark} 不一致")
                     elif isinstance(
-                            value, _AnyParam
+                        value, _AnyParam
                     ):
-                        if argument[i][1] not in (Empty, Any):
-                            raise InvalidParam(f"{argument[i][0]}的类型不能指定为 {argument[i][1]}")
-                    elif argument[i][1] != value:
+                        if anno not in (Empty, Any):
+                            raise InvalidParam(f"{argument[i][0]}的类型不能指定为 {anno}")
+                    elif isinstance(
+                        value, Iterable
+                    ):
+                        if anno != value.__class__:
+                            raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.__class__} 不一致")
+                    elif anno != value:
                         raise InvalidParam(f"{argument[i][0]}指定的消息元素类型不是 {value}")
             self.action = ArgAction(action)
         else:
@@ -359,10 +392,10 @@ class TemplateCommand:
     def from_dict(cls, data: Dict[str, Any]):
         name = data['name']
         args = Args.from_dict(data['args'])
-        cmd = cls(name, args).separate(data['separator']).help(data['help_text'])
+        cmd = cls(name, args, separator=data['separator'], help_text=data['help_text'])
         return cmd
 
     def __setstate__(self, state):
         self.__init__(
-            state['name'], Args.from_dict(state['args'])
-        ).separate(state['separator']).help(state['help_text'])
+            state['name'], Args.from_dict(state['args']), separator=state['separator'], help_text=state['help_text']
+        )

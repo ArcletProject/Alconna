@@ -1,11 +1,14 @@
 """杂物堆"""
-
+import functools
+import warnings
+import logging
 from inspect import stack
-from typing import Any, Union, Type
+from typing import Any, Union, Type, Callable, TypeVar
 from .exceptions import UnexpectedElement, NullTextMessage
 from .types import ArgPattern, _AnyParam, NonTextElement, Empty, AnyStr, AnyDigit, AnyFloat, Bool, \
     AnyUrl, AnyIP, AnyParam, Gettable, Email, AllParam
 
+R = TypeVar('R')
 raw_type = ["str", "dict", "Arpamar"]
 chain_texts = ["Plain", "Text"]
 elements_blacklist = ["Source", "File", "Quote"]
@@ -168,3 +171,18 @@ def chain_filter(
             raise NullTextMessage
         return
     return raw_data
+
+
+def deprecated(remove_ver: str) -> Callable[[Callable[..., R]], Callable[..., R]]:
+    """标注一个方法 / 函数已被弃用"""
+
+    def out_wrapper(func: Callable[..., R]) -> Callable[..., R]:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> R:
+            warnings.warn("{} will be removed in {}!".format(func.__qualname__, remove_ver), DeprecationWarning, 2)
+            logging.warning(f"{func.__qualname__} will be removed in {remove_ver}!")
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return out_wrapper

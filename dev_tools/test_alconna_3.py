@@ -1,55 +1,62 @@
-from arclet.cesloi.event.messages import MessageChain
-from arclet.cesloi.message.alconna import AlconnaParser
-from arclet.alconna import Alconna, Option, Args, Arpamar, AnyStr, AnyParam
-from arclet.letoderea import EventSystem
-from arclet.cesloi.event.messages import FriendMessage
-from arclet.cesloi.model.relation import Friend
+from arclet.alconna import Args
+from arclet.alconna.builtin.construct import AlconnaDecorate
+from graia.broadcast import Broadcast, DispatcherInterface
+from graia.broadcast.entities.dispatcher import BaseDispatcher
+from graia.broadcast.entities.exectarget import ExecTarget
+from arclet.letoderea.handler import await_exec_target
+from arclet.letoderea.entities.event import TemplateEvent
 import asyncio
 
-es = EventSystem()
+
+loop = asyncio.new_event_loop()
+
+c1 = AlconnaDecorate(loop=loop)
+c2 = AlconnaDecorate(loop=loop)
 
 
-alc = Alconna(
-    command="test",
-    options=[
-        Option("name", Args["pak":str]),
-        Option("foo", Args["bar":bool:True])
-    ]
-)
+@c1.set_default_parser
+def _(func, args, l_args, loo):
+    class _D(BaseDispatcher):
+        async def catch(self, interface: DispatcherInterface):
+            if interface.name in args:
+                return args[interface.name]
+            if interface.name in l_args:
+                return l_args[interface.name]
+            if interface.default:
+                return interface.default
 
-# alc1 = Alconna(
-#     command="商店",
-#     options=[
-#         Option("有", Args["good":str], actions=lambda x:x.split("和"))
-#     ]
-# ).separate("里")
-alc1 = Alconna(
-    command=f"{AnyStr}今天",
-    main_args=Args["good":AnyParam],
-    actions=lambda x: x.split("和")
-).separate('吃')
+    target = ExecTarget(callable=func)
+    loo.run_until_complete(bcc.Executor(target, [_D()]))
 
 
-@es.register(FriendMessage, decorators=[AlconnaParser(alconna=alc1)])
-async def test_action(frd: Friend, result: Arpamar):
-    print(frd)
-    print(result.header)
-    print(result.good)
+bcc = Broadcast(loop=loop)
 
 
-friend = Friend(id=3165388245, nickname="RF")
-msg = MessageChain.create("test name ces foo False")
-fri_msg = FriendMessage(messageChain=msg, sender=friend)
-msg1 = MessageChain.create("test name les foo True")
-fri_msg1 = FriendMessage(messageChain=msg1, sender=friend)
+@c2.set_default_parser
+def _(func, args, l_args, loo):
+    loo.run_until_complete(
+        await_exec_target(
+            func,
+            TemplateEvent.param_export(**{**args, **l_args})
+        )
+    )
 
-msg2 = MessageChain.create("嘉然今天吃鱼和薯条")
 
-fri_msg2 = FriendMessage(messageChain=msg2, sender=friend)
+@c1.build_command()
+@c1.option("--count", Args["num":int], help="Test Option Count")
+@c1.option("--foo", Args["bar":str], help="Test Option Foo")
+def hello(bar: str, num: int = 1):
+    """测试DOC"""
+    print(bar * num)
 
 
-async def main(msg):
-    es.event_spread(msg)
-    await asyncio.sleep(0.1)
+@c2.build_command("halo")
+@c2.option("--count", Args["num":int], help="Test Option Count")
+@c2.option("--foo", Args["bar":str], help="Test Option Foo")
+def halo(bar: str, num: int = 1):
+    """测试DOC"""
+    print(bar * num)
 
-es.loop.run_until_complete(main(fri_msg2))
+
+if __name__ == "__main__":
+    hello("hello --foo John")

@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Option, Arpamar, Args, AnyParam
+from arclet.alconna import Alconna, Option, Arpamar, Args, AnyParam, compile
 
 
 class Plain:
@@ -26,14 +26,15 @@ ping = Alconna(
         Option('--foo', Args["bar":AnyParam])
     ]
 )
+s_ping = compile(ping)
 
 msg = [Plain(".test"), Plain(" --foo"), At(124)]
 count = 10000
 
 if __name__ == "__main__":
-    st = time.time()
+    st = time.process_time()
 
     for _ in range(count):
-        ping.analyse_message(msg)
-    ed = time.time()
+        s_ping.analyse(msg)
+    ed = time.process_time()
     print(f"Alconna: {count / (ed - st):.2f}msg/s")

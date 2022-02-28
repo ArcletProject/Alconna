@@ -27,31 +27,35 @@ args_type = ArgPattern(
 create = Alconna(
     command="create",
     options=[
-        Option("--command|-C", Args["command_name":str]).help("指定命令名称"),
-        Option("--header|-H", Args["command_header":list_type]).help("传入命令头"),
-        Option("--option|-O", Args["option_name":str]["option_args":args_type:[]]).help("创建命令选项"),
-        Option("--analysed|-A").help("从已经分析的命令结构中创建Alconna")
+        Option("--command|-C", Args["command_name":str], help_text="指定命令名称"),
+        Option("--header|-H", Args["command_header":list_type], help_text="传入命令头"),
+        Option("--option|-O", Args["option_name":str]["option_args":args_type:[]], help_text="创建命令选项"),
+        Option("--analysed|-A", help_text="从已经分析的命令结构中创建Alconna")
     ],
-    namespace="ALCLI"
-).help("开始创建 Alconna 命令")
+    namespace="ALCLI",
+    help_text="开始创建 Alconna 命令"
+)
 
 analysis = Alconna(
     command="analysis",
     main_args=Args["command":AllParam],
-    namespace="ALCLI"
-).help("分析命令并转换为 Alconna 命令结构")
+    namespace="ALCLI",
+    help_text="分析命令并转换为 Alconna 命令结构"
+)
 
 help_find = Alconna(
     command="help",
     main_args=Args["target":str],
-    namespace="ALCLI"
-).help("展示指定Alconna组件的帮助信息")
+    namespace="ALCLI",
+    help_text="展示指定Alconna组件的帮助信息"
+)
 
 using = Alconna(
     command="using",
     main_args=Args["command":AllParam],
-    namespace="ALCLI"
-).help("依据创建的 Alconna 来解析输入的命令")
+    namespace="ALCLI",
+    help_text="依据创建的 Alconna 来解析输入的命令"
+)
 
 
 def command_create(result: Arpamar):
@@ -87,16 +91,20 @@ def command_create(result: Arpamar):
             option_text = option_text[:-2] + "\n    ],"
 
         if header_text:
-            construct_command = f"Alconna(\n" \
-                                f"    header={header_text},\n" \
-                                f"    command=\"{command_name}\"," \
-                                f"    {option_text}\n" \
-                                f")"
+            construct_command = (
+                f"Alconna(\n"
+                f"    header={header_text},\n"
+                f"    command=\"{command_name}\","
+                f"    {option_text}\n"
+                f")"
+            )
         else:
-            construct_command = f"Alconna(\n" \
-                                f"    command=\"{command_name}\"," \
-                                f"    {option_text}\n" \
-                                f")"
+            construct_command = (
+                f"Alconna(\n" 
+                f"    command=\"{command_name}\"," 
+                f"    {option_text}\n" 
+                f")"
+            )
         print(construct_command)
         cache_data['ALCLI::create'] = construct_command
         return
@@ -134,16 +142,20 @@ def command_create(result: Arpamar):
         for h in header:
             header_text += f'"{h}", '
         header_text = header_text[:-2] + "]"
-        construct_command = f"Alconna(\n" \
-                            f"    header={header_text},\n" \
-                            f"    command=\"{command['command_name']}\"," \
-                            f"    {option_text}\n" \
-                            f") "
+        construct_command = (
+            f"Alconna(\n" 
+            f"    header={header_text},\n" 
+            f"    command=\"{command['command_name']}\"," 
+            f"    {option_text}\n" 
+            f") "
+        )
     else:
-        construct_command = f"Alconna(\n" \
-                            f"    command=\"{command['command_name']}\"," \
-                            f"    {option_text}\n" \
-                            f")"
+        construct_command = (
+            f"Alconna(\n" 
+            f"    command=\"{command['command_name']}\"," 
+            f"    {option_text}\n" 
+            f")"
+        )
     print(construct_command)
     cache_data['ALCLI::create'] = construct_command
     return
@@ -218,7 +230,7 @@ def command_using(arpamar: Arpamar):
         using_result
     )
     alc = using_result['alc']
-    alc.set_namespace("ALCLI/USING")
+    alc.reset_namespace("ALCLI/USING")
     result = alc.analyse_message(command[0])
     if result.matched:
         print(
@@ -259,7 +271,7 @@ def main(args=None):
         print("* Alconna CL\n" + all_command_help("ALCLI"))
         return
     for alc in command_manager.get_commands("ALCLI"):
-        result = alc.analyse_message(text)
+        result = alc.parse(text)
         if result.matched:
             eval("command_" + alc.command)(result)
     with open('alconna_cache.json', 'w+', encoding='UTF-8') as f_obj:

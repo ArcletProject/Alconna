@@ -1,188 +1,196 @@
 from arclet.alconna import Alconna, Args
 from arclet.alconna.component import Subcommand, Option, Arpamar
-from arclet.alconna.types import AnyUrl, AnyIP, AnyDigit, AnyStr, AllParam, AnyParam
-from arclet.cesloi.message.messageChain import MessageChain
-from arclet.alconna import command_manager, disable_command
+from arclet.alconna.types import AnyIP, AnyDigit, AnyStr, AnyParam
+from graia.ariadne.message.chain import MessageChain
 
-if __name__ == "__main__":
-    from arclet.cesloi.message.element import At, Source, Face
+from graia.ariadne.message.element import At
 
-    ar = Args["test":bool:True]["aaa":str:"bbb"] << Args["perm":str:...] + ["month", int]
-    a = "bbb"
-    b = str
-    c = "fff"
-    ar1 = Args[a:b:c]
-    ar["foo"] = ["bar", ...]
-    ar.foo1 = ("bar1", "321")
-    print(ar)
-    print(ar1)
+ar = Args["test":bool:True]["aaa":str:"bbb"] << Args["perm":str:...] + ["month", int]
+a = "bbb"
+b = str
+c = "fff"
+ar1 = Args[a:b:c]
+ar["foo"] = ["bar", ...]
+print(ar)
+print(ar1)
 
-    ping = Alconna(
-        headers=["/", "!"],
-        command="ping",
-        options=[
-            Subcommand(
-                "test", Option("-u", Args["username":str]).help("输入用户名"), args=Args["test":"Test"]
-            ).separate(' ').help("测试用例"),
-            Option("-n|--num", Args["count":int:123]).help("输入数字"),
-            Option("-u", Args(At=At)).help("输入需要At的用户")
-        ],
-        main_args=Args(IP=AnyIP)
-    ).help("ping指令")
-    print(ping.get_help())
-    msg = MessageChain.create("/ping -u", At(123), "test Test -u AAA -n 222 127.0.0.1")
-    print(msg)
-    print(ping.analyse_message(msg))
+ping = Alconna(
+    headers=["/", "!"],
+    command="ping",
+    options=[
+        Subcommand(
+            "test", [Option("-u", Args["username":str], help_text="输入用户名")], args=Args["test":"Test"]
+        ).help("测试用例"),
+        Option("-n|--num", Args["count":int:123], help_text="输入数字"),
+        Option("-u", Args(At=At), help_text="输入需要At的用户")
+    ],
+    main_args=Args(IP=AnyIP),
+    help_text="简单的ping指令"
+)
+print(ping.get_help())
+msg = MessageChain.create("/ping -u", At(123), "test Test -u AAA -n 222 127.0.0.1")
+print(msg)
+print(ping.parse(msg))
 
-    msg1 = MessageChain.create("/ping 127.0.0.1 -u", At(123))
-    print(msg1)
-    print(ping.analyse_message(msg1).has('u'))
+msg1 = MessageChain.create("/ping 127.0.0.1 -u", At(123))
+print(msg1)
+print(ping.parse(msg1).all_matched_args)
 
-    msg2 = MessageChain.create("/ping a")
-    print(msg2)
-    result = ping.analyse_message(msg2)
-    print(result.header)
-    print(result.head_matched)
+msg2 = MessageChain.create("/ping a")
+print(msg2)
+result = ping.parse(msg2)
+print(result.header)
+print(result.head_matched)
 
-    pip = Alconna(
-        command="/pip",
-        options=[
-            Subcommand("install", Option("--upgrade").help("升级包"), pak=str).help("安装一个包"),
-            Subcommand("show", pak=str).help("显示一个包的信息"),
-            Subcommand("help", command=str).help("显示一个指令的帮助"),
-            Option("list").help("列出所有安装的包"),
-            Option("--retries", retries=int).help("设置尝试次数"),
-            Option("-t| --timeout", sec=int).help("设置超时时间"),
-            Option("--exists-action", ex_action=str).help("添加行为"),
-            Option("--trusted-host", hostname=AnyUrl).help("选择可信赖地址")
-        ]
-    ).help("pip指令")
-    print(pip.get_help())
-    msg = "/pip install ces --upgrade -t 6 --trusted-host http://pypi.douban.com/simple"
-    print(msg)
-    print(pip.analyse_message(msg).all_matched_args)
+pip = Alconna(
+    command="/pip",
+    options=[
+        Subcommand("install", [Option("--upgrade", help_text="升级包")], Args["pak":str], help_text="安装一个包"),
+        Option("--retries", Args["retries":int], help_text="设置尝试次数"),
+        Option("-t| --timeout", Args["sec":int], help_text="设置超时时间"),
+        Option("--exists-action", Args["action":str], help_text="添加行为"),
+        Option("--trusted-host", Args["host_name":"url"], help_text="选择可信赖地址")
+    ],
+    help_text="简单的pip指令"
+)
+print(pip.get_help())
+msg = "/pip install ces --upgrade -t 6 --trusted-host http://pypi.douban.com/simple"
+print(msg)
+print(pip.parse(msg).all_matched_args)
 
-    aaa = Alconna(headers=[".", "!"], command="摸一摸")["At":At]
-    msg = MessageChain.create(".摸一摸", At(123))
-    print(msg)
-    print(aaa.analyse_message(msg).matched)
-    """
+aaa = Alconna(headers=[".", "!"], command="摸一摸", main_args=Args["At":At])
+msg = MessageChain.create(".摸一摸", At(123))
+print(msg)
+print(aaa.parse(msg).matched)
 
-    ccc = Alconna(
-        headers=[""],
-        command="help",
-        main_argument=AnyStr
-    )
-    msg = "help \"what he say?\""
-    print(msg)
-    result = ccc.analyse_message(msg)
-    print(result.main_argument)
+ccc = Alconna(
+    headers=[""],
+    command="4help",
+    main_args=Args["aaa":str],
+)
+msg = "4help 'what he say?'"
+print(msg)
+result = ccc.parse(msg)
+print(result.main_args)
 
+eee = Alconna(
+    headers=[""],
+    command=f"RD{AnyDigit}?=={AnyDigit}"
+)
+msg = "RD100==36"
+result = eee.parse(msg)
+print(result.header)
 
+weather = Alconna(
+    headers=['渊白', 'cmd.', '/bot '],
+    command=f"{AnyStr}天气",
+    options=[
+        Option("时间")["days":str, "aaa":str].separate('='),
+        Option("bbb")
+    ],
+)
+msg = MessageChain.create('渊白桂林天气 时间=明天=后台 bbb')
+result = weather.parse(msg)
+print(result)
+print(result['aaa'])
 
-    eee = Alconna(
-        headers=[""],
-        command=f"RD{AnyDigit}?=={AnyDigit}"
-    )
-    msg = "RD100==36"
-    result = eee.analyse_message(msg)
-    print(result.results)
-    """
+msg = MessageChain.create('渊白桂林天气 aaa')
+result = weather.parse(msg)
+print(result)
 
-    weather = Alconna(
-        headers=['渊白', 'cmd.', '/bot '],
-        command=f"{AnyStr}天气",
-        options=[
-            Option("时间")["days":str, "aaa":str].separate('='),
-            Option("bbb")
-        ]
-    )
-    msg = MessageChain.create('渊白桂林天气 时间=明天=后台 bbb')
-    result = weather.analyse_message(msg)
-    print(result)
-    print(result['aaa'])
+msg = MessageChain.create(At(123))
+result = weather.parse(msg)
+print(result)
 
-    msg = MessageChain.create('渊白桂林天气 aaa')
-    result = weather.analyse_message(msg)
-    print(result)
-
-    msg = MessageChain.create(At(123))
-    result = weather.analyse_message(msg)
-    print(result)
-
-    ddd = Alconna(
-        command="Cal",
-        options=[
-            Subcommand(
-                "-div",
+ddd = Alconna(
+    command="Cal",
+    options=[
+        Subcommand(
+            "-div",
+            options=[
                 Option(
                     "--round| -r",
                     args=Args(decimal=AnyDigit),
-                    actions=lambda x: x + "a"
-                ).help("保留n位小数"),
-                args=Args(num_a=AnyDigit, num_b=AnyDigit)).help("除法计算")
-        ],
-    )
-    msg = "Cal -div 12 23 --round 2"
-    print(msg)
-    print(ddd.get_help())
-    result = ddd.analyse_message(msg)
-    print(result.div)
+                    actions=lambda x: x + "a",
+                    help_text="保留n位小数"
+                )
+            ],
+            args=Args(num_a=AnyDigit, num_b=AnyDigit),
+            help_text="除法计算"
+        )
+    ],
+)
+msg = "Cal -div 12 23 --round 2"
+print(msg)
+print(ddd.get_help())
+result = ddd.parse(msg)
+print(result.div)
 
-    ddd = Alconna(
-        command="点歌"
-    ).option(
-        "歌名", sep="：", args=Args(song_name=AnyStr)
-    ).option(
-        "歌手", sep="：", args=Args(singer_name=AnyStr)
-    )
-    msg = "点歌 歌名：Freejia"
-    print(msg)
-    result = ddd.analyse_message(msg)
-    print(result.all_matched_args)
+ddd = Alconna(
+    command="点歌"
+).option(
+    "歌名", sep="：", args=Args(song_name=AnyStr)
+).option(
+    "歌手", sep="：", args=Args(singer_name=AnyStr)
+)
+msg = "点歌 歌名：Freejia"
+print(msg)
+result = ddd.parse(msg, static=False)
+print(result.all_matched_args)
 
-    give = Alconna.simple("give", ("sb", int, ...), ("sth", str, ...))
-    print(give)
-    print(give.analyse_message("give B 6"))
-
-
-    def test_act(content):
-        print(content)
-        return content
+give = Alconna.simple("give", ("sb", int, ...), ("sth", int, ...))
+print(give)
+print(give.parse("give"))
 
 
-    wild = Alconna(
-        headers=[At(12345)],
-        command="丢漂流瓶",
-        main_args=Args["wild":AllParam],
-        # actions=test_act
-    )
-    # print(wild.analyse_message("丢漂流瓶 aaa bbb ccc").all_matched_args)
-    msg = MessageChain.create(At(12345), " 丢漂流瓶 aa\t\nvv")
-    print(wild.analyse_message(msg))
+def test_act(content):
+    print(content)
+    return content
 
-    get_ap = Alconna(
-        command="AP",
-        main_args=Args(type=str, text=str)
-    )
 
-    test = Alconna(
-        command="test",
-        main_args=Args(t=Arpamar)
-    ).set_namespace("TEST")
-    print(test)
-    print(test.analyse_message(
-        [get_ap.analyse_message("AP Plain test"), get_ap.analyse_message("AP At 123")]
-    ).all_matched_args)
+wild = Alconna(
+    headers=[At(12345)],
+    command="丢漂流瓶",
+    main_args=Args["wild":AnyParam],
+    actions=test_act,
+    help_text="丢漂流瓶"
+)
+# print(wild.parse("丢漂流瓶 aaa bbb ccc").all_matched_args)
+msg = MessageChain.create(At(12345), " 丢漂流瓶 aa\t\nvv")
+print(wild.parse(msg))
 
-    double_default = Alconna(
-        command="double",
-        main_args=Args(num=int).default(num=22),
-        options=[
-            Option("--d", Args(num1=int).default(num1=22))
-        ]
-    )
+get_ap = Alconna(
+    command="AP",
+    main_args=Args(type=str, text=str)
+)
 
-    result = double_default.analyse_message("double --d")
-    print(result)
+test = Alconna(
+    command="test",
+    main_args=Args(t=Arpamar)
+).reset_namespace("TEST")
+print(test)
+print(test.parse(
+    [get_ap.parse("AP Plain test"), get_ap.parse("AP At 123")]
+).all_matched_args)
+
+# print(command_manager.commands)
+
+double_default = Alconna(
+    command="double",
+    main_args=Args(num=int).default(num=22),
+    options=[
+        Option("--d", Args(num1=int).default(num1=22))
+    ]
+)
+
+result = double_default.parse("double --d")
+print(result)
+
+choice = Alconna(
+    command="choice",
+    main_args=Args["part":["a", "b", "c"]],
+    help_text="选择一个部分"
+)
+print(choice.parse("choice d"))
+print(choice.get_help())
 
