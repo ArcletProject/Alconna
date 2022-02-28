@@ -5,23 +5,24 @@ from typing import TYPE_CHECKING
 from arclet.alconna import (
     Alconna,
     Arpamar,
-    change_help_send_action,
     MessageChain,
     NonTextElement,
     ParamsUnmatched,
+    change_help_send_action,
     compile
 )
+from graia.broadcast.entities.dispatcher import BaseDispatcher
+from graia.broadcast.entities.event import Dispatchable
 from graia.broadcast.entities.signatures import Force
 from graia.broadcast.exceptions import ExecutionStop
-from graia.broadcast.entities.event import Dispatchable
-from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 
 from graia.ariadne import get_running
 from graia.ariadne.app import Ariadne
+from graia.ariadne.dispatcher import ContextDispatcher
 from graia.ariadne.event.message import MessageEvent
 from graia.ariadne.message.chain import MessageChain as GraiaMessageChain
-from graia.ariadne.dispatcher import ContextDispatcher
+
 
 if TYPE_CHECKING:
     ArpamarProperty = type("ArpamarProperty", (str, MessageChain, NonTextElement), {})
@@ -67,7 +68,7 @@ class AlconnaDispatcher(BaseDispatcher):
 
         Args:
             alconna (Alconna): Alconna实例
-            reply_help (bool): 是否自助回复帮助信息给指令的发起者, 默认为 False
+            reply_help (bool): 是否自助回复帮助信息给指令的发起者. 当为 False 时, 会广播一个'AlconnaHelpMessage'事件以交给用户处理帮助信息.
             skip_for_unmatch (bool): 当指令匹配失败时是否跳过对应的事件监听器, 默认为 True
         """
         super().__init__()
@@ -83,17 +84,15 @@ class AlconnaDispatcher(BaseDispatcher):
             app: Ariadne = get_running()
 
             def _send_help_string(help_string: str):
-                app.loop.create_task(
-                    app.sendMessage(event.sender, GraiaMessageChain.create(help_string))
-                )
+                app.loop.create_task(app.sendMessage(event.sender, GraiaMessageChain.create(help_string)))
 
             change_help_send_action(_send_help_string)
         else:
             def _post_help(help_string: str):
                 interface.broadcast.postEvent(
-                    AlconnaHelpMessage(self.analyser.alconna, help_string),
-                    upper_event=event
+                    AlconnaHelpMessage(self.analyser.alconna, help_string), upper_event=event
                 )
+
             change_help_send_action(_post_help)
 
         local_storage = interface.local_storage
