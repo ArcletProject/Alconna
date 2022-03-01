@@ -324,7 +324,9 @@ def _from_string(
         help_string = headers
     if not custom_types:
         custom_types = Alconna.custom_types
-    _args = Args.from_string_list(args, custom_types)
+    else:
+        custom_types.update(Alconna.custom_types)
+    _args = Args.from_string_list(args, custom_types.copy())
     for opt in option:
         if opt.startswith("--"):
             opt_head, opt_others = split_once(opt, sep)
@@ -333,7 +335,7 @@ def _from_string(
             except ValueError:
                 opt_alias = opt_head
             opt_args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", opt_others)]
-            _opt_args = Args.from_string_list(opt_args, custom_types)
+            _opt_args = Args.from_string_list(opt_args, custom_types.copy())
             opt_action_value = re.findall(r"\[(.+?)]$", opt_others)
             if not (opt_help_string := re.findall(r"#(.+)", opt_others)):
                 opt_help_string = [opt_head]

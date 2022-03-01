@@ -122,15 +122,29 @@ class ArgPattern:
 
 
 AnyStr = ArgPattern(r"(.+?)", token=PatternToken.DIRECT, type_mark=str)
+"""任意字符串"""
+
 AnyDigit = ArgPattern(r"(\-?\d+)", token=PatternToken.REGEX_TRANSFORM, type_mark=int)
+"""任意数字"""
+
 AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", token=PatternToken.REGEX_TRANSFORM, type_mark=float)
+"""任意浮点数"""
+
+
 Bool = ArgPattern(
     r"(True|False|true|false)", token=PatternToken.REGEX_TRANSFORM, type_mark=bool,
     transform_action=lambda x: eval(x, {"true": True, "false": False})
 )
+"""布尔值"""
+
 Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", type_mark=tuple)
+"""邮箱"""
+
 AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", type_mark=tuple)
+"""任意IP地址"""
+
 AnyUrl = ArgPattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", type_mark=str)
+"""任意URL"""
 
 
 class MultiArg(ArgPattern):

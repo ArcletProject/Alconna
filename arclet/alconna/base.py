@@ -73,7 +73,7 @@ class Args:
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
                     raise InvalidParam(f"自定义参数类型传入的不是类型而是 {custom_types[value]}, 这是有意而为之的吗?")
                 try:
-                    value = eval(value, custom_types.copy())
+                    value = eval(value, custom_types)
                 except NameError:
                     pass
             _args.__getitem__([(name, value, default)])

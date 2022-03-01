@@ -216,7 +216,7 @@ class Arpamar:
 
     def has(self, name: str) -> bool:
         """判断 Arpamar 是否有对应的选项/子命令的解析结果"""
-        return any([name in self._other_args, name in self._options])
+        return any([name in self._other_args, name in self._options, name in self._main_args])
 
     def __getitem__(self, item: Union[str, Type[NonTextElement]]):
         return self.get(item)

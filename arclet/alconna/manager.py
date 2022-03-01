@@ -61,19 +61,14 @@ class CommandManager(metaclass=Singleton):
         else:
             raise DuplicateCommand("命令已存在")
 
-    def require(self, command: Union["Alconna", str]) -> "Analyser":
+    def require(self, command: str) -> "Analyser":
         """获取解析器"""
-        if isinstance(command, str):
-            namespace, name = self._command_part(command)
-            try:
-                ana = self.__commands[namespace][name]
-            except KeyError:
-                raise ValueError("命令不存在")
-            return ana
-        else:
-            cid = command.name.replace(self.sign, "")
-            namespace = command.namespace
-            return self.__commands[namespace][cid]
+        namespace, name = self._command_part(command)
+        try:
+            ana = self.__commands[namespace][name]
+        except KeyError:
+            raise ValueError("命令不存在")
+        return ana
 
     def delete(self, command: Union["Alconna", str]) -> None:
         """删除命令"""
