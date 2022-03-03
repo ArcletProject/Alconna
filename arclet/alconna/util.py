@@ -3,10 +3,9 @@ import functools
 import warnings
 import logging
 from inspect import stack
-from typing import Any, Union, Type, Callable, TypeVar
+from typing import Any, Union, Type, Callable, TypeVar, get_args
 from .exceptions import UnexpectedElement, NullTextMessage
-from .types import ArgPattern, _AnyParam, NonTextElement, Empty, AnyStr, AnyDigit, AnyFloat, Bool, \
-    AnyUrl, AnyIP, AnyParam, Gettable, Email, AllParam
+from .types import ArgPattern, _AnyParam, NonTextElement, Empty, Gettable, check_list
 
 R = TypeVar('R')
 raw_type = ["str", "dict", "Arpamar"]
@@ -95,6 +94,8 @@ def split(text: str, separate: str = " ", ):
                 quote = ""
             else:
                 cache.append(char)
+        elif char in ("\n", "\r"):
+            continue
         elif not quote and char == separate and cache:
             result.append("".join(cache))
             cache = []
@@ -107,25 +108,19 @@ def split(text: str, separate: str = " ", ):
 
 def arg_check(item: Any) -> Union[ArgPattern, _AnyParam, Type[NonTextElement], Empty]:
     """对 Args 里参数类型的检查， 将一般数据类型转为 Args 使用的类型"""
-    _check_list = {
-        str: AnyStr,
-        int: AnyDigit,
-        float: AnyFloat,
-        bool: Bool,
-        Ellipsis: Empty,
-        "url": AnyUrl,
-        "ip": AnyIP,
-        "email": Email,
-        "": Empty,
-        "..": AnyParam,
-        "...": AllParam
-    }
     try:
-        if _check_list.get(item):
-            return _check_list.get(item)
+        if check_list.get(item):
+            return check_list.get(item)
     except TypeError:
-        return item
-    if item is None:
+        pass
+    if item.__class__.__name__ == "_GenericAlias":
+        args = [arg_check(t) for t in get_args(item)]
+        if len(args) < 1:
+            return item
+        if len(args) < 2:
+            args = args[0]
+        return args
+    if item is None or getattr(item, "__name__", None) == "NoneType":
         return Empty
     if isinstance(item, str):
         return ArgPattern(item)

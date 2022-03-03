@@ -1,4 +1,6 @@
 import time
+from typing import Union
+
 from arclet.alconna import Args, AnyFloat
 from arclet.alconna.analysis import analyse_args
 
@@ -29,10 +31,18 @@ print("\nArgs Feature: Multi")
 arg4 = Args["*multi":str]
 print("arg4:", arg4)
 print(analyse_args(arg4, "a b c d"))
-arg5 = Args["!anti":r"(.+?)/(.+?)\.py"]
+
 
 print("\nArgs Feature: Anti")
+arg5 = Args["!anti":r"(.+?)/(.+?)\.py"]
 print("arg5:", arg5)
 print(analyse_args(arg5, "a/b.mp3"))  # OK
 time.sleep(0.1)
 print(analyse_args(arg5, "a/b.py"))  # error
+
+print("\nArgs Feature: Union")
+arg6 = Args["bar":Union[float, int]]
+print("arg6:", arg6)
+print(analyse_args(arg6, "1.2"))  # OK
+time.sleep(0.1)
+print(analyse_args(arg6, "1"))  # OK

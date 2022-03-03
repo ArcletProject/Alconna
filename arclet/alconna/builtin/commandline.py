@@ -231,7 +231,7 @@ def command_using(arpamar: Arpamar):
     )
     alc = using_result['alc']
     alc.reset_namespace("ALCLI/USING")
-    result = alc.analyse_message(command[0])
+    result = alc.parse(command[0])
     if result.matched:
         print(
             f"Your command is successfully matched!"

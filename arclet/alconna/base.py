@@ -2,12 +2,13 @@
 
 import re
 import inspect
-from typing import Union, Tuple, Type, Dict, Iterable, overload, List, Callable, Any, Optional
+from types import LambdaType
+from typing import Union, Tuple, Type, Dict, Iterable, overload, Callable, Any, Optional, Sequence, List
 from .exceptions import InvalidParam, NullTextMessage
-from .types import ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg, AntiArg
+from .types import ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg, AntiArg, UnionArg
 from .util import arg_check, deprecated
 
-TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg, AntiArg, Iterable]
+TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg, AntiArg, UnionArg]
 TADefault = Union[Any, NonTextElement, Empty]
 TArgs = Dict[str, Union[TAValue, TADefault]]
 
@@ -22,30 +23,6 @@ class Args:
     argument: Dict[str, TArgs]
 
     __slots__ = "argument"
-
-    @overload
-    def __init__(self, *args: Union[slice, tuple], **kwargs: ...):
-        ...
-
-    def __init__(self, *args: ..., **kwargs: TAValue):
-        """
-        构造一个Args
-
-        Args:
-            args: 应传入 slice|tuple, 代表key、value、default
-            kwargs: 传入key与value; default需要另外传入
-        """
-        self.argument = {
-            k: {"value": arg_check(v), "default": None} for k, v in kwargs.items()
-        }
-        self._check(args)
-
-    def default(self, **kwargs: TADefault):
-        """设置参数的默认值"""
-        for k, v in kwargs.items():
-            if self.argument.get(k):
-                self.argument[k]['default'] = v
-        return self
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -79,6 +56,56 @@ class Args:
             _args.__getitem__([(name, value, default)])
         return _args
 
+    @classmethod
+    def from_callable(cls, target: Callable):
+        """
+        从方法中构造Args
+        """
+        sig = inspect.signature(target)
+        _args = cls()
+        method = False
+        for param in sig.parameters.values():
+            name = param.name
+            if name in ["self", "cls"]:
+                method = True
+                continue
+            anno = param.annotation
+            de = param.default
+            if anno == inspect.Signature.empty:
+                anno = type(de) if de is not inspect.Signature.empty else AnyParam
+            if de is inspect.Signature.empty:
+                de = None
+            elif de is None:
+                de = inspect.Signature.empty
+            if param.kind == param.VAR_POSITIONAL:
+                name = "*" + name
+            _args.__getitem__([(name, anno, de)])
+        return _args, method
+
+    @overload
+    def __init__(self, *args: Union[slice, tuple], **kwargs: ...):
+        ...
+
+    def __init__(self, *args: ..., **kwargs: TAValue):
+        """
+        构造一个Args
+
+        Args:
+            args: 应传入 slice|tuple, 代表key、value、default
+            kwargs: 传入key与value; default需要另外传入
+        """
+        self.argument = {
+            k: {"value": arg_check(v), "default": None} for k, v in kwargs.items()
+        }
+        self._check(args)
+
+    def default(self, **kwargs: TADefault):
+        """设置参数的默认值"""
+        for k, v in kwargs.items():
+            if self.argument.get(k):
+                self.argument[k]['default'] = v
+        return self
+
     def _check(self, args: Iterable[Union[slice, tuple]]):
         for sl in args:
             if isinstance(sl, slice):
@@ -91,14 +118,20 @@ class Args:
                 raise InvalidParam("该参数的指示名不能为空")
             value = arg_check(value)
             if value is Empty:
-                raise InvalidParam("参数值不能为Empty")
+                raise InvalidParam(f"{name} 的参数值不能为Empty")
+            if isinstance(value, Sequence):
+                if len(value) == 2 and Empty in value:
+                    value = value[0]
+                    default = Empty if default is None else default
+                else:
+                    value = UnionArg(value, anti=name.startswith("!"))
             if name.startswith("*"):
                 name = name.lstrip("*")
-                if not isinstance(value, _AnyParam):
+                if not isinstance(value, (_AnyParam, UnionArg)):
                     value = MultiArg(value)
-            elif name.startswith("!"):
+            if name.startswith("!"):
                 name = name.lstrip("!")
-                if not isinstance(value, _AnyParam):
+                if not isinstance(value, (_AnyParam, UnionArg)):
                     value = AntiArg(value)
             if default in ("...", Ellipsis):
                 default = Empty
@@ -113,12 +146,15 @@ class Args:
             arg = f"<{k}"
             if isinstance(v['value'], _AnyParam):
                 arg += ": WildMatch"
-            elif isinstance(v['value'], Iterable):
-                arg += ": (" + "|".join(v['value']) + ")"
+            elif isinstance(v['value'], UnionArg):
+                arg += f": {v['value']}"
             elif not isinstance(v['value'], ArgPattern):
-                arg += f": Type_{v['value'].__name__}"
+                try:
+                    arg += f": Type_{v['value'].__name__}"
+                except AttributeError:
+                    arg += f": Type_{repr(v['value'])}"
             if v['default'] is Empty:
-                arg += ", default=Empty"
+                arg += ", default=None"
             elif v['default'] is not None:
                 arg += f", default={v['default']}"
             argument_string += arg + ">"
@@ -244,7 +280,8 @@ class ArgAction:
     Attributes:
         action: 实际的function
     """
-    action: Callable[..., Iterable]
+    awaitable: bool
+    action: Callable[..., Any]
 
     def __init__(self, action: Callable = None):
         """
@@ -254,10 +291,11 @@ class ArgAction:
             action: (...) -> Iterable
         """
         self.action = action
+        self.awaitable = inspect.iscoroutinefunction(action)
 
-    def __call__(self, option_dict, exception_in_time):
+    def handle(self, option_dict: dict, is_raise_exception: bool):
         try:
-            additional_values = self.action(*option_dict.values())
+            additional_values = self.action(**option_dict)
             if additional_values is None:
                 additional_values = list(option_dict.values())
             elif not isinstance(additional_values, Iterable):
@@ -265,7 +303,21 @@ class ArgAction:
             for i, k in enumerate(option_dict.keys()):
                 option_dict[k] = additional_values[i]
         except Exception as e:
-            if exception_in_time:
+            if is_raise_exception:
+                raise e
+        return option_dict
+
+    async def handle_async(self, option_dict: dict, is_raise_exception: bool):
+        try:
+            additional_values = await self.action(**option_dict)
+            if additional_values is None:
+                additional_values = list(option_dict.values())
+            elif not isinstance(additional_values, Iterable):
+                additional_values = [additional_values]
+            for i, k in enumerate(option_dict.keys()):
+                option_dict[k] = additional_values[i]
+        except Exception as e:
+            if is_raise_exception:
                 raise e
         return option_dict
 
@@ -345,12 +397,15 @@ class CommandNode:
                 return
             argument = [
                 (name, param.annotation, param.default) for name, param in inspect.signature(action).parameters.items()
+                if name not in ["self", "cls", "option_dict", "exception_in_time"]
             ]
             if len(argument) != len(self.args.argument):
                 raise InvalidParam("action 接受的参数个数必须与 Args 里的一致")
-            if action.__name__ != "<lambda>":
+            if not isinstance(action, LambdaType):
                 for i, k in enumerate(self.args.argument):
                     anno = argument[i][1]
+                    if anno == inspect.Signature.empty:
+                        anno = type(argument[i][2]) if argument[i][2] is not inspect.Signature.empty else str
                     value = self.args.argument[k]['value']
                     if isinstance(
                         value, ArgPattern

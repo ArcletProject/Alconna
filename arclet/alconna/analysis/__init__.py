@@ -2,10 +2,10 @@ from typing import TYPE_CHECKING, Union, Callable, Optional, List
 import traceback
 
 from .analyser import Analyser, default_params_generator
-from .arg_handlers import multi_arg_handler, anti_arg_handler, common_arg_handler
+from .arg_handlers import multi_arg_handler, anti_arg_handler, common_arg_handler, union_arg_handler
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..component import Arpamar, Option, Subcommand
-from ..types import MessageChain, MultiArg, ArgPattern, AntiArg
+from ..types import MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern
 from ..base import Args
 
 if TYPE_CHECKING:
@@ -35,6 +35,8 @@ class _DummyAnalyser(Analyser):
         cls.add_arg_handler(MultiArg, multi_arg_handler)
         cls.add_arg_handler(ArgPattern, common_arg_handler)
         cls.add_arg_handler(AntiArg, anti_arg_handler)
+        cls.add_arg_handler(UnionArg, union_arg_handler)
+        cls.add_arg_handler(ObjectPattern, common_arg_handler)
         cls.params = {}
         return super().__new__(cls)
 
@@ -75,11 +77,13 @@ def analyse_header(
     _analyser.separator = sep
     _analyser.is_raise_exception = True
     _analyser.handle_message(command)
-    try:
-        _analyser.__init_header__(command_name, headers)
-        return alh(_analyser)
-    except Exception as e:
-        traceback.print_exception(AnalyseError, e, e.__traceback__)
+    _analyser.__init_header__(command_name, headers)
+    r = alh(_analyser)
+    if r is False:
+        traceback.print_exception(
+            AnalyseError, AnalyseError(f"header {_analyser.recover_raw_data()} analyse failed"), None
+        )
+    return r
 
 
 def analyse_option(

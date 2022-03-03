@@ -2,7 +2,7 @@
 
 from typing import Union, Dict, List, Any, Optional, Callable, Type, Iterable
 from .types import NonTextElement
-from .base import CommandNode, Args
+from .base import CommandNode, Args, ArgAction
 
 
 class Option(CommandNode):
@@ -14,7 +14,7 @@ class Option(CommandNode):
             name: str,
             args: Optional[Args] = None,
             alias: str = None,
-            actions: Optional[Callable] = None,
+            actions: Optional[Union[ArgAction, Callable]] = None,
             separator: str = None,
             help_text: str = None,
 
@@ -69,7 +69,7 @@ class Subcommand(CommandNode):
             name: str,
             options: Optional[Iterable[Option]] = None,
             args: Optional[Args] = None,
-            actions: Optional[Callable] = None,
+            actions: Optional[Union[ArgAction, Callable]] = None,
             separator: str = None,
             help_text: str = None,
     ):

@@ -3,6 +3,7 @@
 import re
 from typing import TYPE_CHECKING, Dict, Union, List, Tuple
 from .exceptions import DuplicateCommand, ExceedMaxCount
+import asyncio
 from . import analysis
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ class CommandManager(metaclass=Singleton):
     max_count: int = 100
 
     def __init__(self):
+
         self.__commands = {}
         self.__abandons = []
         self.current_count = 0
@@ -36,6 +38,13 @@ class CommandManager(metaclass=Singleton):
     def __del__(self):  # td: save to file
         self.__commands = {}
         self.__abandons = []
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop:
+        try:
+            return asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.get_event_loop()
 
     @property
     def all_namespace(self):

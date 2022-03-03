@@ -3,7 +3,9 @@ import re
 import inspect
 from functools import lru_cache
 from enum import Enum
-from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable, Pattern, Union, Iterable
+from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable, Pattern, Union, Sequence, \
+    List, Dict, get_args, Literal, Tuple
+from types import LambdaType
 
 _KT = TypeVar('_KT')
 _VT_co = TypeVar("_VT_co", covariant=True)
@@ -67,7 +69,7 @@ class ArgPattern:
     re_pattern: Pattern
     pattern: str
     token: PatternToken
-    transform_action: Callable[[str], Any]
+    transform_action: Optional[Callable[[str], Any]]
     type_mark: Type
 
     __slots__ = "re_pattern", "pattern", "token", "type_mark", "transform_action"
@@ -85,6 +87,8 @@ class ArgPattern:
         self.type_mark = type_mark
         if self.token == PatternToken.REGEX_TRANSFORM:
             self.transform_action = transform_action
+        else:
+            self.transform_action = None
 
     def __repr__(self):
         return self.pattern
@@ -122,29 +126,172 @@ class ArgPattern:
 
 
 AnyStr = ArgPattern(r"(.+?)", token=PatternToken.DIRECT, type_mark=str)
-"""任意字符串"""
-
 AnyDigit = ArgPattern(r"(\-?\d+)", token=PatternToken.REGEX_TRANSFORM, type_mark=int)
-"""任意数字"""
-
 AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", token=PatternToken.REGEX_TRANSFORM, type_mark=float)
-"""任意浮点数"""
-
-
 Bool = ArgPattern(
     r"(True|False|true|false)", token=PatternToken.REGEX_TRANSFORM, type_mark=bool,
     transform_action=lambda x: eval(x, {"true": True, "false": False})
 )
-"""布尔值"""
-
 Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", type_mark=tuple)
-"""邮箱"""
-
 AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", type_mark=tuple)
-"""任意IP地址"""
-
 AnyUrl = ArgPattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", type_mark=str)
-"""任意URL"""
+
+check_list = {
+    str: AnyStr,
+    int: AnyDigit,
+    float: AnyFloat,
+    bool: Bool,
+    Ellipsis: Empty,
+    "url": AnyUrl,
+    "ip": AnyIP,
+    "email": Email,
+    "": Empty,
+    "..": AnyParam,
+    "...": AllParam
+}
+
+
+def add_check(pattern: ArgPattern):
+    return check_list.setdefault(pattern.type_mark, pattern)
+
+
+class ObjectPattern(ArgPattern):
+
+    def __init__(
+            self,
+            origin: Type,
+            limit: Tuple[str, ...] = (),
+            head: str = "",
+            flag: Literal["http", "part", "json"] = "part",
+            **suppliers: Callable
+    ):
+        """
+        讲传入的对象转换为参数化的对象
+
+        Args:
+            origin: 原始对象
+            headless: 是否只匹配对象的属性
+            flag: 匹配类型
+            suppliers: 对象属性的匹配方法
+        """
+        self.origin = origin
+        self._require_map: Dict[str, Callable] = {}
+        self._supplement_map: Dict[str, Callable] = {}
+        self._transform_map: Dict[str, Callable] = {}
+        self._params: Dict[str, Any] = {}
+        _re_pattern = ""
+        sig = inspect.signature(origin.__init__)
+        for param in sig.parameters.values():
+            name = param.name
+            if name in ("self", "args", "kwargs"):
+                continue
+            if limit and name not in limit:
+                continue
+            if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+                continue
+            self._params[name] = None
+            if name in suppliers:
+                _s_sig = inspect.signature(suppliers[name])
+                if _s_sig.return_annotation in get_args(param.annotation):
+                    if len(_s_sig.parameters) == 0 or (
+                            len(_s_sig.parameters) == 1 and
+                            list(_s_sig.parameters.values())[0].name in {"self", "cls"}
+                    ):
+                        self._supplement_map[name] = suppliers[name]
+                    elif len(_s_sig.parameters) == 1 or (
+                            len(_s_sig.parameters) == 2 and
+                            list(_s_sig.parameters.values())[0].name in {"self", "cls"}
+                    ):
+                        self._require_map[name] = suppliers[name]
+                        if flag == "http":
+                            _re_pattern += f"{name}=(?P<{name}>.+?)&"
+                        elif flag == "part":
+                            _re_pattern += f"(?P<{name}>.+?);"
+                        elif flag == "json":
+                            _re_pattern += f"\\'{name}\\':\\'(?P<{name}>.+?)\\',"
+                    else:
+                        raise TypeError(
+                            f"{name} in {origin.__name__} init function should have 0 or 1 parameter"
+                        )
+                else:
+                    if isinstance(suppliers[name], LambdaType):
+                        if len(_s_sig.parameters) == 0:
+                            self._supplement_map[name] = suppliers[name]
+                        elif len(_s_sig.parameters) == 1:
+                            self._require_map[name] = suppliers[name]
+                            if flag == "http":
+                                _re_pattern += f"{name}=(?P<{name}>.+?)&"
+                            elif flag == "part":
+                                _re_pattern += f"(?P<{name}>.+?);"
+                            elif flag == "json":
+                                _re_pattern += f"\\'{name}\\':\\'(?P<{name}>.+?)\\',"
+                        else:
+                            raise TypeError(
+                                f"{name} in {origin.__name__} init function should have 0 or 1 parameter"
+                            )
+                    else:
+                        raise TypeError(f"{name}'s supplier of {origin.__name__} must return {param.annotation}")
+            elif param.default is not Empty and param.default is not None and param.default != Ellipsis:
+                self._params[name] = param.default
+            else:
+                pat = param.annotation
+                if not (args := get_args(param.annotation)):
+                    args = (pat,)
+                for anno in args:
+                    pat = check_list.get(anno, None)
+                    if pat is not None:
+                        break
+                else:
+                    if param.annotation is Empty:
+                        pat = AnyStr
+                    elif inspect.isclass(param.annotation) and issubclass(param.annotation, str):
+                        pat = AnyStr
+                    elif inspect.isclass(param.annotation) and issubclass(param.annotation, int):
+                        pat = AnyDigit
+                    elif pat is None:
+                        raise TypeError(f"{name} in {origin.__name__} init function should give a supplier")
+
+                if isinstance(pat, ObjectPattern):
+                    raise NotImplementedError(f"{pat} is not supported")
+                self._require_map[name] = pat.find
+                self._transform_map[name] = pat.transform_action
+                if flag == "http":
+                    _re_pattern += f"{name}=(?P<{name}>{pat.pattern.strip('()')})&"
+                elif flag == "part":
+                    _re_pattern += f"(?P<{name}>{pat.pattern.strip('()')});"
+                elif flag == "json":
+                    _re_pattern += f"\\'{name}\\':\\'(?P<{name}>{pat.pattern.strip('()')})\\',"
+        if _re_pattern != "":
+            if head:
+                if flag == "http":
+                    _re_pattern = rf"(?P<self>{head})\?{_re_pattern}"[:-1]
+                elif flag == "part":
+                    _re_pattern = rf"(?P<self>{head});{_re_pattern}"[:-1]
+                elif flag == "json":
+                    _re_pattern = f"{head}:{{{_re_pattern}"[:-1] + "}"
+            elif flag == "json":
+                _re_pattern = rf"{{{_re_pattern}"[:-1] + "}"
+            else:
+                _re_pattern = f"{_re_pattern}"[:-1]
+        else:
+            _re_pattern = rf"(?P<self>{head})" if head else rf"(?P<self>{self.origin.__name__})"
+        super().__init__(
+            _re_pattern,
+            token=PatternToken.REGEX_MATCH, type_mark=self.origin
+        )
+        add_check(self)
+
+    def find(self, text: str):
+        if matched := self.re_pattern.fullmatch(text):
+            args = matched.groupdict()
+            for k in self._require_map:
+                if k in args:
+                    self._params[k] = self._require_map[k](args[k])
+                    if self._transform_map.get(k, None):
+                        self._params[k] = self._transform_map[k](self._params[k])
+            for k in self._supplement_map:
+                self._params[k] = self._supplement_map[k]()
+            return self.origin(**self._params)
 
 
 class MultiArg(ArgPattern):
@@ -161,11 +308,42 @@ class MultiArg(ArgPattern):
 
 class AntiArg(ArgPattern):
     """反向参数的匹配"""
-    arg_value: Union[ArgPattern, Type[NonTextElement], Iterable]
+    arg_value: Union[ArgPattern, Type[NonTextElement]]
 
-    def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement], Iterable]):
+    def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement]]):
         super().__init__(r"(.+?)", token=PatternToken.REGEX_MATCH, type_mark=str)
         self.arg_value = arg_value
 
     def __repr__(self):
         return f"!{self.arg_value}"
+
+
+class UnionArg(ArgPattern):
+    """多项参数的匹配"""
+    anti: bool
+    arg_value: Sequence[Union[Type, ArgPattern, NonTextElement, str]]
+    for_type_check: List[Type]
+    for_match: List[ArgPattern]
+    for_equal: List[Union[str, NonTextElement]]
+
+    def __init__(self, arg_value: Sequence[Union[Type, ArgPattern, NonTextElement, str]], anti: bool = False):
+        super().__init__(r"(.+?)", token=PatternToken.DIRECT, type_mark=list)
+        self.anti = anti
+        self.arg_value = arg_value
+
+        self.for_type_check = []
+        self.for_match = []
+        self.for_equal = []
+
+        for arg in arg_value:
+            if isinstance(arg, ArgPattern):
+                self.for_match.append(arg)
+            elif isinstance(arg, str):
+                self.for_equal.append(arg)
+            elif isinstance(arg, type):
+                self.for_type_check.append(arg)
+            else:
+                self.for_equal.append(arg)
+
+    def __repr__(self):
+        return "(" + "|".join([repr(a) for a in self.arg_value]) + ")"

@@ -40,6 +40,7 @@ class Analyser(metaclass=ABCMeta):
     head_matched: bool  # 是否匹配了命令头部
     part_len: range  # 分段长度
     default_main_only: bool  # 默认只有主参数
+    self_args: Args  # 自身参数
     ARGHANDLER_TYPE = Callable[["Analyser", Union[str, NonTextElement], str, Type, Any, int, str, Dict[str, Any]], Any]
     arg_handlers: Dict[Type, ARGHANDLER_TYPE]
 
@@ -64,6 +65,7 @@ class Analyser(metaclass=ABCMeta):
     def __init__(self, alconna: "Alconna"):
         self.reset()
         self.alconna = alconna
+        self.self_args = alconna.args
         self.separator = alconna.separator
         self.is_raise_exception = alconna.is_raise_exception
         self.need_main_args = False
@@ -120,10 +122,7 @@ class Analyser(metaclass=ABCMeta):
             return ""
         _current_data = self.raw_data[self.current_index]
         if isinstance(_current_data, list):
-            try:
-                _text = _current_data[self.content_index]
-            except IndexError:
-                return ""
+            _text = _current_data[self.content_index]
             if separate and separate != self.separator:
                 _text, _rest_text = split_once(_text, separate)
             if pop:
@@ -216,7 +215,7 @@ class Analyser(metaclass=ABCMeta):
 
 
 def default_params_generator(analyser: Analyser):
-    analyser.params = {"main_args": analyser.alconna.args}
+    analyser.params = {}  # "main_args": analyser.alconna.args
     for opts in analyser.alconna.options:
         if isinstance(opts, Subcommand):
             opts.sub_params.setdefault('sub_args', opts.args)
@@ -224,4 +223,4 @@ def default_params_generator(analyser: Analyser):
                 opts.sub_params.setdefault(sub_opts.name, sub_opts)
             opts.sub_part_len = range(len(opts.options) + opts.nargs)
         analyser.params[opts.name] = opts
-    analyser.part_len = range(len(analyser.params))
+    analyser.part_len = range(len(analyser.params) + 1)

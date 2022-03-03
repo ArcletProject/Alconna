@@ -1,4 +1,4 @@
-from arclet.alconna import Alconna, Args
+from arclet.alconna import Alconna, Args, AlconnaString
 from arclet.alconna.component import Subcommand, Option, Arpamar
 from arclet.alconna.types import AnyIP, AnyDigit, AnyStr, AnyParam
 from graia.ariadne.message.chain import MessageChain
@@ -138,7 +138,7 @@ print(msg)
 result = ddd.parse(msg, static=False)
 print(result.all_matched_args)
 
-give = Alconna.simple("give", ("sb", int, ...), ("sth", int, ...))
+give = AlconnaString("give <sb:int:...> <sth:int:...>")
 print(give)
 print(give.parse("give"))
 

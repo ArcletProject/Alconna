@@ -2,13 +2,16 @@ import asyncio
 from asyncio import AbstractEventLoop
 import sys
 import re
+import inspect
+from functools import partial
+from types import FunctionType, MethodType, ModuleType
 from typing import Dict, Any, Optional, Callable, Union, TypeVar, List, Type
 
 from arclet.alconna.types import MessageChain
 from arclet.alconna.builtin.actions import store_bool, store_const
 from arclet.alconna.main import Alconna
 from arclet.alconna.component import Option, Subcommand
-from arclet.alconna.base import Args, TAValue
+from arclet.alconna.base import Args, TAValue, ArgAction
 from arclet.alconna.util import split, split_once
 
 PARSER_TYPE = Callable[[Callable, Dict[str, Any], Optional[Dict[str, Any]], Optional[AbstractEventLoop]], Any]
@@ -233,7 +236,7 @@ def _from_format(
 
     Examples:
 
-    >>> from arclet.alconna import Alconna
+    >>> from arclet.alconna import AlconnaFormat
     >>> alc1 = AlconnaFormat(
     ...     "lp user {target} perm set {perm} {default}",
     ...     {"target": str, "perm": str, "default": Args["de":bool:True]},
@@ -302,11 +305,11 @@ def _from_string(
         sep: str = " "
 ) -> "Alconna":
     """
-    以纯字符串的形式构造Alconna的简易方式
+    以纯字符串的形式构造Alconna的简易方式, 或者说是koishi-like的方式
 
     Examples:
 
-    >>> from arclet.alconna import Alconna
+    >>> from arclet.alconna import AlconnaString
     >>> alc = AlconnaString(
     ... "test <message:str> #HELP_STRING",
     ... "--foo|-f <val:bool:True>", "--bar [134]"
@@ -323,9 +326,10 @@ def _from_string(
     if not (help_string := re.findall(r"#(.+)", others)):
         help_string = headers
     if not custom_types:
-        custom_types = Alconna.custom_types
+        custom_types = Alconna.custom_types.copy()
     else:
         custom_types.update(Alconna.custom_types)
+    custom_types.update(inspect.getmodule(inspect.stack()[1][0]).__dict__)
     _args = Args.from_string_list(args, custom_types.copy())
     for opt in option:
         if opt.startswith("--"):
@@ -352,5 +356,215 @@ def _from_string(
     return Alconna(headers=headers, main_args=_args, options=_options, help_text=help_string[0])
 
 
+def _from_callable(
+        func: Union[FunctionType, MethodType],
+) -> "Alconna":
+    func_name = func.__name__
+    help_text = func.__doc__ or func_name
+    if func_name.startswith("_"):
+        raise ValueError("function name can not start with '_'")
+    _args, method = Args.from_callable(func)
+    if method:
+        func = partial(func, func.__self__)
+    return Alconna(command=func_name, main_args=_args, actions=func, help_text=help_text)
+
+
+class _ClassMounter(Alconna):
+
+    def _instance_action(self, option_dict):
+        if not self.instance:
+            self.instance = self.mount_cls(**option_dict)
+        else:
+            for key, value in option_dict.items():
+                setattr(self.instance, key, value)
+        return option_dict
+
+    def _inject_instance(self, target: Callable):
+        return partial(target, self.instance)
+
+    def __init__(self, mount_cls: Type):
+        self.mount_cls = mount_cls
+        self.instance: mount_cls = None
+
+        init = inspect.getfullargspec(mount_cls.__init__)
+        members = inspect.getmembers(
+            mount_cls, predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x)
+        )
+        _options = []
+        main_help_text = mount_cls.__doc__ or mount_cls.__name__
+
+        if len(init.args + init.kwonlyargs) > 1:
+            main_args = Args.from_callable(mount_cls.__init__)[0]
+
+            instance_handle = self._instance_action
+
+            class _InstanceAction(ArgAction):
+                def handle(self, option_dict, is_raise_exception):
+                    return instance_handle(option_dict)
+
+            inject = self._inject_instance
+
+            class _TargetAction(ArgAction):
+                origin: Callable
+
+                def __init__(self, target: Callable):
+                    self.origin = target
+                    super().__init__(target)
+
+                def handle(self, option_dict, is_raise_exception):
+                    self.action = inject(self.origin)
+                    return super().handle(option_dict, is_raise_exception)
+
+                async def handle_async(self, option_dict, is_raise_exception):
+                    self.action = inject(self.origin)
+                    return await super().handle_async(option_dict, is_raise_exception)
+
+            main_action = _InstanceAction()
+            for name, func in members:
+                if name.startswith("_"):
+                    continue
+                help_text = func.__doc__ or name
+                _opt_args, method = Args.from_callable(func)
+                if method:
+                    _options.append(Option(name, args=_opt_args, actions=_TargetAction(func), help_text=help_text))
+                else:
+                    _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+            super().__init__(
+                command=mount_cls.__name__, main_args=main_args, options=_options,
+                help_text=main_help_text, is_raise_exception=True, actions=main_action,
+            )
+        else:
+            for name, func in members:
+                if name.startswith("_"):
+                    continue
+                help_text = func.__doc__ or name
+                _opt_args, method = Args.from_callable(func)
+                if method:
+                    func = partial(func, mount_cls)
+                _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+            super().__init__(
+                command=mount_cls.__name__, options=_options,
+                help_text=main_help_text, is_raise_exception=True
+            )
+
+    def _get_instance(self):
+        return self.instance
+
+    def parse(self, message: Union[str, MessageChain], static: bool = True):
+        if self.instance:
+            for k, a in self.args.argument.items():
+                if hasattr(self.instance, k):
+                    a['default'] = getattr(self.instance, k)
+            self.__generate_help__()
+        return super().parse(message, False)
+
+
+class _ModuleMounter(Alconna):
+
+    def __init__(self, module: ModuleType):
+        _options = []
+        members = inspect.getmembers(
+            module, predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x)
+        )
+        for name, func in members:
+            if name.startswith("_") or func.__name__.startswith("_"):
+                continue
+            help_text = func.__doc__ or name
+            _opt_args, method = Args.from_callable(func)
+            if method:
+                func = partial(func, func.__self__)
+            _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+        super().__init__(
+            command=module.__name__, options=_options,
+            help_text=module.__doc__ or module.__name__, is_raise_exception=True
+        )
+
+    def parse(self, message: Union[str, MessageChain], static: bool = True):
+        if self.command.startswith("_"):
+            if isinstance(message, str):
+                message = self.command + " " + message
+            else:
+                message.inject(0, self.command)
+        return super().parse(message, False)
+
+
+class _ObjectMounter(Alconna):
+
+    def _instance_action(self, option_dict):
+        for key, value in option_dict.items():
+            setattr(self.instance, key, value)
+        return option_dict
+
+    def __init__(self, obj: object):
+        self.instance = obj
+        obj_name = obj.__class__.__name__
+        init = inspect.getfullargspec(obj.__init__)
+        members = inspect.getmembers(
+            obj, predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x)
+        )
+        _options = []
+        main_help_text = obj.__doc__ or obj_name
+        for name, func in members:
+            if name.startswith("_"):
+                continue
+            help_text = func.__doc__ or name
+            _opt_args, _ = Args.from_callable(func)
+            _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+        if len(init.args) > 1:
+            main_args = Args.from_callable(obj.__init__)[0]
+            for k, a in main_args.argument.items():
+                if hasattr(self.instance, k):
+                    a['default'] = getattr(self.instance, k)
+
+            instance_handle = self._instance_action
+
+            class _InstanceAction(ArgAction):
+
+                def handle(self, option_dict: dict, is_raise_exception: bool):
+                    return instance_handle(option_dict)
+
+            main_action = _InstanceAction()
+            super().__init__(
+                command=obj_name, main_args=main_args, options=_options,
+                help_text=main_help_text, is_raise_exception=True, actions=main_action,
+            )
+        else:
+            super().__init__(command=obj_name, options=_options, help_text=main_help_text, is_raise_exception=True)
+
+
+def _from_object(
+        target: Optional[Union[Type, object, FunctionType, MethodType, ModuleType]] = None,
+        command: Optional[str] = None,
+) -> Alconna:
+    """
+    通过解析传入的对象，生成 Alconna 实例的方法，或者说是Fire-like的方式
+
+    Examples:
+
+    >>> from arclet.alconna import AlconnaFire
+    >>> def test_func(a, b, c):
+    ...     print(a, b, c)
+    ...
+    >>> alc = AlconnaFire(test_func)
+    >>> alc.parse("test_func 1 2 3")
+    """
+    if inspect.isroutine(target):
+        r = _from_callable(target)
+    elif inspect.isclass(target):
+        r = _ClassMounter(target)
+    elif inspect.ismodule(target):
+        r = _ModuleMounter(target)
+    else:
+        if target:
+            r = _ObjectMounter(target)
+        else:
+            r = _ModuleMounter(inspect.getmodule(inspect.stack()[1][0]))
+    command = command or (sys.argv[1:] if len(sys.argv) > 1 else None)
+    if command:
+        r.parse(command)
+    return r
+
+
 AlconnaFormat = _from_format
 AlconnaString = _from_string
+AlconnaFire = _from_object

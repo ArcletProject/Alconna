@@ -4,7 +4,6 @@ from .analysis import Analyser, compile
 from .base import CommandNode, Args, ArgAction
 from .component import Option, Subcommand, Arpamar
 from .types import NonTextElement, MessageChain
-from .exceptions import InvalidParam
 from .manager import CommandManager
 from .builtin.actions import help_send
 from .builtin.analyser import DisorderCommandAnalyser
@@ -63,7 +62,7 @@ class Alconna(CommandNode):
             options: List[Union[Option, Subcommand]] = None,
             main_args: Optional[Args] = None,
             is_raise_exception: bool = False,
-            actions: Optional[Callable] = None,
+            actions: Optional[Union[ArgAction, Callable]] = None,
             namespace: Optional[str] = None,
             separator: str = " ",
             help_text: str = None,
@@ -86,7 +85,7 @@ class Alconna(CommandNode):
         """
         # headers与command二者必须有其一
         if all((not headers, not command)):
-            raise InvalidParam("headers与command二者必须有其一")
+            command = "Alconna"
         self.headers = headers or [""]
         self.command = command or ""
         self.options = options or []
@@ -156,15 +155,6 @@ class Alconna(CommandNode):
         return self.help_docstring
 
     @classmethod
-    def simple(cls, *item: Union[str, tuple]):
-        """构造Alconna的简易方式"""
-        if isinstance(item[0], str):
-            return cls(command=item[0], main_args=Args.__class_getitem__(item[1:])) if len(item) > 1 else cls(
-                command=item[0]
-            )
-        return cls
-
-    @classmethod
     def set_custom_types(cls, **types: Type):
         """设置自定义类型"""
         cls.custom_types = types
@@ -175,7 +165,7 @@ class Alconna(CommandNode):
 
     def __repr__(self):
         return (
-            f"<{self.namespace}::{self.command or self.headers[0]} "
+            f"<ALC.{self.namespace}::{self.command or self.headers[0]} "
             f"with {len(self.options)} options; args={self.args}>"
         )
 

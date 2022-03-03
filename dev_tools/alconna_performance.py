@@ -22,13 +22,11 @@ a = Arpamar()
 ping = Alconna(
     headers=["."],
     command="test",
-    options=[
-        Option('--foo', Args["bar":AnyParam])
-    ]
+    main_args=Args["bar":AnyParam]
 )
 s_ping = compile(ping)
 
-msg = [Plain(".test"), Plain(" --foo"), At(124)]
+msg = [Plain(".test"), At(124)]
 count = 10000
 
 if __name__ == "__main__":

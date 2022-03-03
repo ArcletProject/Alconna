@@ -1,10 +1,10 @@
 from typing import Union
 
 from ..component import Option, Subcommand, Arpamar
-from ..types import MessageChain, MultiArg, ArgPattern, AntiArg
+from ..types import MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern
 from ..analysis.analyser import Analyser
 from ..manager import CommandManager
-from ..analysis.arg_handlers import multi_arg_handler, common_arg_handler, anti_arg_handler
+from ..analysis.arg_handlers import multi_arg_handler, common_arg_handler, anti_arg_handler, union_arg_handler
 from ..analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
 from ..exceptions import ParamsUnmatched
 
@@ -31,9 +31,8 @@ class DisorderCommandAnalyser(Analyser):
                 raise ValueError('No data to analyse')
             if r := self.handle_message(message):
                 return r
-        try:
-            self.header = analyse_header(self)
-        except ParamsUnmatched:
+        self.header = analyse_header(self)
+        if self.header is False:
             self.current_index = 0
             self.content_index = 0
             try:
@@ -52,11 +51,8 @@ class DisorderCommandAnalyser(Analyser):
 
         for _ in self.part_len:
             _text = self.next_data(self.separator, pop=False)
-            try:
-                _param = self.params.get(_text)
-            except TypeError:
-                _param = None
-            if not _param and _text != "" and isinstance(_text, str):
+            _param = self.params.get(_text, None) if isinstance(_text, str) else Ellipsis
+            if not _param and _text != "":
                 for p in self.params:
                     if _text.startswith(getattr(self.params[p], 'alias', p)):
                         _param = self.params[p]
@@ -79,7 +75,7 @@ class DisorderCommandAnalyser(Analyser):
                     self.options[sub_n] = sub_v
                 elif not self.main_args:
                     self.main_args = analyse_args(
-                        self, self.params['main_args'], self.separator, self.alconna.nargs, self.alconna.action
+                        self, self.self_args, self.separator, self.alconna.nargs, self.alconna.action
                     )
             except ParamsUnmatched:
                 if self.is_raise_exception:
@@ -91,14 +87,18 @@ class DisorderCommandAnalyser(Analyser):
         # 防止主参数的默认值被忽略
         if self.default_main_only and not self.main_args:
             self.main_args = analyse_args(
-                self, self.params['main_args'],
+                self, self.self_args,
                 self.separator, self.alconna.nargs, self.alconna.action
             )
 
         if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):
             return self.create_arpamar()
         if self.is_raise_exception:
-            raise ParamsUnmatched(", ".join([f"{v}" for v in self.recover_raw_data()]))
+            data = self.recover_raw_data()
+            if data:
+                raise ParamsUnmatched(", ".join([f"{v}" for v in data]))
+            else:
+                raise ParamsUnmatched("You need more data to analyse!")
         return self.create_arpamar(fail=True)
 
     def create_arpamar(self, fail: bool = False):
@@ -116,4 +116,6 @@ class DisorderCommandAnalyser(Analyser):
 
 DisorderCommandAnalyser.add_arg_handler(MultiArg, multi_arg_handler)
 DisorderCommandAnalyser.add_arg_handler(AntiArg, anti_arg_handler)
+DisorderCommandAnalyser.add_arg_handler(UnionArg, union_arg_handler)
 DisorderCommandAnalyser.add_arg_handler(ArgPattern, common_arg_handler)
+DisorderCommandAnalyser.add_arg_handler(ObjectPattern, common_arg_handler)
