@@ -1,9 +1,9 @@
-from typing import Union, Optional, List, Any, Dict, Iterable
+from typing import Union, Optional, List, Any, Dict
 
-from .analyser import Analyser
+from .analyser import Analyser, command_manager
 from ..component import Option, Subcommand
 from ..exceptions import ParamsUnmatched
-from ..types import ArgPattern, AnyParam, AllParam
+from ..types import ArgPattern, AnyParam, AllParam, Empty
 from ..base import Args, ArgAction
 
 
@@ -49,18 +49,13 @@ def analyse_args(
                 rest_data.insert(0, may_arg)
             option_dict[key] = rest_data
             return option_dict
-        elif isinstance(value, Iterable):
-            if may_arg not in value:
-                analyser.reduce_data(may_arg)
-                if default is None:
-                    raise ParamsUnmatched(f"param {may_arg} is incorrect")
-                may_arg = default
-            option_dict[key] = may_arg
         else:
             if may_arg.__class__ is value:
                 option_dict[key] = may_arg
+            elif isinstance(value, type) and isinstance(may_arg, value):
+                option_dict[key] = may_arg
             elif default is not None:
-                option_dict[key] = default
+                option_dict[key] = None if default is Empty else default
                 analyser.reduce_data(may_arg)
             else:
                 analyser.reduce_data(may_arg)
@@ -69,7 +64,17 @@ def analyse_args(
                 else:
                     raise ParamsUnmatched(f"param {key} is required")
     if action:
-        option_dict = action(option_dict, analyser.is_raise_exception)
+        if action.awaitable:
+            if command_manager.loop.is_running():
+                option_dict = command_manager.loop.create_task(
+                    action.handle_async(option_dict, analyser.is_raise_exception)
+                )
+            else:
+                option_dict = command_manager.loop.run_until_complete(
+                    action.handle_async(option_dict, analyser.is_raise_exception)
+                )
+        else:
+            option_dict = action.handle(option_dict, analyser.is_raise_exception)
     return option_dict
 
 
@@ -90,7 +95,20 @@ def analyse_option(
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.name.lstrip("-")
     if param.nargs == 0:
-        return [name, param.action({}, analyser.is_raise_exception)] if param.action else [name, Ellipsis]
+        if param.action:
+            if param.action.awaitable:
+                if command_manager.loop.is_running():
+                    r = command_manager.loop.create_task(
+                        param.action.handle_async({}, analyser.is_raise_exception)
+                    )
+                else:
+                    r = command_manager.loop.run_until_complete(
+                        param.action.handle_async({}, analyser.is_raise_exception)
+                    )
+            else:
+                r = param.action.handle({}, analyser.is_raise_exception)
+            return [name, r]
+        return [name, Ellipsis]
     return [name, analyse_args(analyser, param.args, param.separator, param.nargs, param.action)]
 
 
@@ -110,17 +128,14 @@ def analyse_subcommand(
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = name.lstrip("-")
     if param.sub_part_len.stop == 0:
-        return [name, param.action({}, analyser.is_raise_exception)] if param.action else [name, Ellipsis]
+        return [name, param.action.handle({}, analyser.is_raise_exception)] if param.action else [name, Ellipsis]
 
     subcommand = {}
     args = None
     for _ in param.sub_part_len:
         text = analyser.next_data(param.separator, pop=False)
-        try:
-            sub_param = param.sub_params.get(text)
-        except TypeError:
-            sub_param = None
-        if not sub_param and text != "" and isinstance(text, str):
+        sub_param = param.sub_params.get(text, None) if isinstance(text, str) else Ellipsis
+        if not sub_param and text != "":
             for sp in param.sub_params:
                 if text.startswith(getattr(param.sub_params[sp], 'alias', sp)):
                     sub_param = param.sub_params[sp]
@@ -145,7 +160,7 @@ def analyse_subcommand(
 
 def analyse_header(
         analyser: Analyser,
-) -> str:
+) -> Union[str, bool]:
     """
     分析命令头部
 
@@ -166,5 +181,4 @@ def analyse_header(
         if _head_find := command[1].find(may_command) and head_text in command[0]:
             analyser.head_matched = True
             return _head_find if _head_find != head_text else True
-    if not analyser.head_matched:
-        raise ParamsUnmatched(f"{head_text} does not matched")
+    return analyser.head_matched
