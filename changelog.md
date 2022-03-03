@@ -33,6 +33,14 @@
  - `analysis.analyse_subcommand`: 可直接传入`Subcommand`以针对性解析
  - `analysis.analyse_headers`: 可直接传入`Headers`以针对性解析
 
+## Alconna 0.7.1:
+1. 增加`alconna.builtin.construct.AlconnaFire`，为`Alconna`的`Fire-like`方法. 
+其会尝试根据传入的对象生成`Alconna`
+2. 增加 `UnionArg`, 其传入的列表中可以包含`ArgPattern`、`Type`与实际值. 为`choice`的改进
+3. `Args`支持传入`Union[...]`格式的参数
+4. 增加 `ObjectPattern`, 其会尝试从对象中生成`ArgPattern`, 并在解析成功后创建实例
+5. `action`现支持传入异步函数
+6. `AlconnaString`现在会读取`locals`的值
 
 # Alconna 0.6.x:
 

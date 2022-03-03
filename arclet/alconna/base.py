@@ -384,7 +384,7 @@ class CommandNode:
         self.separator = separator
         return self
 
-    @deprecated("0.7.1")
+    @deprecated("0.7.2")
     def help(self, help_text: str):
         self.help_text = help_text
         self.__generate_help__()
