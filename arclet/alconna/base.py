@@ -3,10 +3,12 @@
 import re
 import inspect
 from types import LambdaType
-from typing import Union, Tuple, Type, Dict, Iterable, overload, Callable, Any, Optional, Sequence, List
+from typing import Union, Tuple, Type, Dict, Iterable, overload, Callable, Any, Optional, Sequence, List, Literal
 from .exceptions import InvalidParam, NullTextMessage
-from .types import ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg, AntiArg, UnionArg
-from .util import arg_check, deprecated
+from .types import (
+    ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, arg_check
+)
+from .util import deprecated
 
 TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg, AntiArg, UnionArg]
 TADefault = Union[Any, NonTextElement, Empty]
@@ -20,9 +22,10 @@ class Args:
     Attributes:
         argument: 存放参数内容的容器
     """
+    extra: Literal["allow", "ignore", "reject"]
     argument: Dict[str, TArgs]
 
-    __slots__ = "argument"
+    __slots__ = ("argument", "extra")
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -57,12 +60,12 @@ class Args:
         return _args
 
     @classmethod
-    def from_callable(cls, target: Callable):
+    def from_callable(cls, target: Callable, extra: Literal["allow", "ignore", "reject"] = "allow"):
         """
         从方法中构造Args
         """
         sig = inspect.signature(target)
-        _args = cls()
+        _args = cls(extra=extra)
         method = False
         for param in sig.parameters.values():
             name = param.name
@@ -83,10 +86,20 @@ class Args:
         return _args, method
 
     @overload
-    def __init__(self, *args: Union[slice, tuple], **kwargs: ...):
+    def __init__(
+            self,
+            extra: Literal["allow", "ignore", "reject"] = "allow",
+            *args: Union[slice, tuple],
+            **kwargs: ...
+    ):
         ...
 
-    def __init__(self, *args: ..., **kwargs: TAValue):
+    def __init__(
+            self,
+            extra: Literal["allow", "ignore", "reject"] = "allow",
+            *args: ...,
+            **kwargs: TAValue
+    ):
         """
         构造一个Args
 
@@ -94,6 +107,7 @@ class Args:
             args: 应传入 slice|tuple, 代表key、value、default
             kwargs: 传入key与value; default需要另外传入
         """
+        self.extra = extra
         self.argument = {
             k: {"value": arg_check(v), "default": None} for k, v in kwargs.items()
         }
@@ -116,26 +130,26 @@ class Args:
                 raise InvalidParam("参数的名字只能是字符串")
             if name == "":
                 raise InvalidParam("该参数的指示名不能为空")
-            value = arg_check(value)
-            if value is Empty:
+            _value = arg_check(value, self.extra)
+            if _value is Empty:
                 raise InvalidParam(f"{name} 的参数值不能为Empty")
-            if isinstance(value, Sequence):
-                if len(value) == 2 and Empty in value:
-                    value = value[0]
+            if isinstance(_value, Sequence):
+                if len(_value) == 2 and Empty in _value:
+                    _value = _value[0]
                     default = Empty if default is None else default
                 else:
-                    value = UnionArg(value, anti=name.startswith("!"))
+                    _value = UnionArg(_value, anti=name.startswith("!"))
             if name.startswith("*"):
                 name = name.lstrip("*")
-                if not isinstance(value, (_AnyParam, UnionArg)):
-                    value = MultiArg(value)
+                if not isinstance(_value, (_AnyParam, UnionArg)):
+                    _value = MultiArg(_value)
             if name.startswith("!"):
                 name = name.lstrip("!")
-                if not isinstance(value, (_AnyParam, UnionArg)):
-                    value = AntiArg(value)
+                if not isinstance(_value, (_AnyParam, UnionArg)):
+                    _value = AntiArg(_value)
             if default in ("...", Ellipsis):
                 default = Empty
-            self.argument[name] = {"value": value, "default": default}
+            self.argument[name] = {"value": _value, "default": default}
 
     def params(self, sep: str = " "):
         """预处理参数的 help doc"""
@@ -175,7 +189,9 @@ class Args:
         return self
 
     def __setattr__(self, key, value):
-        if isinstance(value, Dict):
+        if key == "extra":
+            super().__setattr__(key, value)
+        elif isinstance(value, Dict):
             super().__setattr__(key, value)
         elif isinstance(value, Iterable):
             values = list(value)

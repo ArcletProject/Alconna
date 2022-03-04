@@ -155,6 +155,33 @@ def add_check(pattern: ArgPattern):
     return check_list.setdefault(pattern.type_mark, pattern)
 
 
+def arg_check(item: Any, extra: str = "allow") -> Union[ArgPattern, _AnyParam, Type[NonTextElement], Empty]:
+    """对 Args 里参数类型的检查， 将一般数据类型转为 Args 使用的类型"""
+    try:
+        if check_list.get(item):
+            return check_list.get(item)
+    except TypeError:
+        pass
+    if item.__class__.__name__ == "_GenericAlias":
+        args = list(set([arg_check(t, extra) for t in get_args(item)]))
+        if len(args) < 1:
+            return item
+        if len(args) < 2:
+            args = args[0]
+        return args
+    if item is None or type(None) == item:
+        return Empty
+    if isinstance(item, str):
+        return ArgPattern(item)
+    if isinstance(item, (ArgPattern, _AnyParam)):
+        return item
+    if extra == "ignore":
+        return check_list.get('..')
+    elif extra == "reject":
+        raise TypeError(f"{item} is not allowed in Args")
+    return item
+
+
 class ObjectPattern(ArgPattern):
 
     def __init__(

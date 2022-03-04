@@ -3,9 +3,9 @@ import functools
 import warnings
 import logging
 from inspect import stack
-from typing import Any, Union, Type, Callable, TypeVar, get_args
+from typing import Union, Type, Callable, TypeVar
 from .exceptions import UnexpectedElement, NullTextMessage
-from .types import ArgPattern, _AnyParam, NonTextElement, Empty, Gettable, check_list
+from .types import NonTextElement, Gettable
 
 R = TypeVar('R')
 raw_type = ["str", "dict", "Arpamar"]
@@ -104,27 +104,6 @@ def split(text: str, separate: str = " ", ):
     if cache:
         result.append("".join(cache))
     return result
-
-
-def arg_check(item: Any) -> Union[ArgPattern, _AnyParam, Type[NonTextElement], Empty]:
-    """对 Args 里参数类型的检查， 将一般数据类型转为 Args 使用的类型"""
-    try:
-        if check_list.get(item):
-            return check_list.get(item)
-    except TypeError:
-        pass
-    if item.__class__.__name__ == "_GenericAlias":
-        args = [arg_check(t) for t in get_args(item)]
-        if len(args) < 1:
-            return item
-        if len(args) < 2:
-            args = args[0]
-        return args
-    if item is None or getattr(item, "__name__", None) == "NoneType":
-        return Empty
-    if isinstance(item, str):
-        return ArgPattern(item)
-    return item
 
 
 def chain_filter(
