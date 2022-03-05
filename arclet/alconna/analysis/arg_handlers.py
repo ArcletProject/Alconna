@@ -40,14 +40,11 @@ def multi_arg_handler(
             break
         if _m_arg_base.__class__ is ArgPattern:
             if not isinstance(_m_arg, str):
-                __putback(_m_arg)
+                analyser.reduce_data(_m_arg)
                 break
             _m_arg_find = _m_arg_base.find(_m_arg)
             if not _m_arg_find:
-                __putback(_m_arg)
-                if default is None:
-                    raise ParamsUnmatched(f"param {may_arg} is incorrect")
-                result = [None if default is Empty else default]
+                analyser.reduce_data(_m_arg)
                 break
             if _m_arg_base.token == PatternToken.REGEX_TRANSFORM and isinstance(_m_arg_find, str):
                 _m_arg_find = _m_arg_base.transform_action(_m_arg_find)
@@ -60,14 +57,14 @@ def multi_arg_handler(
                 break
             if _m_arg.__class__ is _m_arg_base:
                 result.append(_m_arg)
-            elif default is not None:
-                __putback(_m_arg)
-                result = [None if default is Empty else default]
-                break
+            elif isinstance(value, type) and isinstance(may_arg, value):
+                result.append(_m_arg)
             else:
-                __putback(_m_arg)
-                raise ParamsUnmatched(f"param type {_m_arg.__class__} is incorrect")
-    result_dict[key] = result
+                analyser.reduce_data(_m_arg)
+                break
+    if len(result) == 0:
+        result = [None if default is Empty else default]
+    result_dict[key] = tuple(result)
 
 
 def anti_arg_handler(

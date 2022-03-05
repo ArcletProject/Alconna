@@ -3,19 +3,38 @@
 import re
 import inspect
 from types import LambdaType
-from typing import Union, Tuple, Type, Dict, Iterable, overload, Callable, Any, Optional, Sequence, List, Literal
+from typing import Union, Tuple, Type, Dict, Iterable, overload, Callable, Any, Optional, Sequence, List, Literal, \
+    MutableSequence
 from .exceptions import InvalidParam, NullTextMessage
 from .types import (
-    ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, arg_check
+    ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argtype_validator,
 )
-from .util import deprecated
 
 TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg, AntiArg, UnionArg]
 TADefault = Union[Any, NonTextElement, Empty]
 TArgs = Dict[str, Union[TAValue, TADefault]]
 
 
-class Args:
+class ArgsMeta(type):
+
+    def __getattr__(cls, name):
+        cls.last_key = name
+        return cls
+
+    def __getitem__(cls, item):
+        if isinstance(item, slice):
+            return cls(args=[item])
+        elif not isinstance(item, tuple):
+            return cls(args=[(cls.last_key, item)])
+        slices = list(filter(lambda x: isinstance(x, slice), item))
+        args = cls(args=slices)
+        items = list(filter(lambda x: not isinstance(x, slice), item))
+        if items:
+            args.__setitem__(cls.last_key, items)
+        return args
+
+
+class Args(metaclass=ArgsMeta):
     """
     对命令参数的封装
 
@@ -24,8 +43,6 @@ class Args:
     """
     extra: Literal["allow", "ignore", "reject"]
     argument: Dict[str, TArgs]
-
-    __slots__ = ("argument", "extra")
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -56,7 +73,7 @@ class Args:
                     value = eval(value, custom_types)
                 except NameError:
                     pass
-            _args.__getitem__([(name, value, default)])
+            _args.__merge__([name, value, default])
         return _args
 
     @classmethod
@@ -82,22 +99,22 @@ class Args:
                 de = inspect.Signature.empty
             if param.kind == param.VAR_POSITIONAL:
                 name = "*" + name
-            _args.__getitem__([(name, anno, de)])
+            _args.__merge__([name, anno, de])
         return _args, method
 
     @overload
     def __init__(
             self,
+            args: Optional[Union[slice, Sequence]] = None,
             extra: Literal["allow", "ignore", "reject"] = "allow",
-            *args: Union[slice, tuple],
             **kwargs: ...
     ):
         ...
 
     def __init__(
             self,
+            args: ... = None,
             extra: Literal["allow", "ignore", "reject"] = "allow",
-            *args: ...,
             **kwargs: TAValue
     ):
         """
@@ -109,9 +126,9 @@ class Args:
         """
         self.extra = extra
         self.argument = {
-            k: {"value": arg_check(v), "default": None} for k, v in kwargs.items()
+            k: {"value": argtype_validator(v), "default": None} for k, v in kwargs.items()
         }
-        self._check(args)
+        self.__check_vars__(args or [])
 
     def default(self, **kwargs: TADefault):
         """设置参数的默认值"""
@@ -120,7 +137,7 @@ class Args:
                 self.argument[k]['default'] = v
         return self
 
-    def _check(self, args: Iterable[Union[slice, tuple]]):
+    def __check_vars__(self, args: Iterable[Union[slice, Sequence]]):
         for sl in args:
             if isinstance(sl, slice):
                 name, value, default = sl.start, sl.stop, sl.step
@@ -130,11 +147,14 @@ class Args:
                 raise InvalidParam("参数的名字只能是字符串")
             if name == "":
                 raise InvalidParam("该参数的指示名不能为空")
-            _value = arg_check(value, self.extra)
-            if _value is Empty:
-                raise InvalidParam(f"{name} 的参数值不能为Empty")
-            if isinstance(_value, Sequence):
+            if not name.startswith("#"):
+                _value = argtype_validator(value, self.extra)
+            else:
+                name = name.lstrip("#")
+                _value = value if not isinstance(value, str) else ArgPattern(value)
+            if isinstance(_value, MutableSequence):
                 if len(_value) == 2 and Empty in _value:
+                    _value.remove(Empty)
                     _value = _value[0]
                     default = Empty if default is None else default
                 else:
@@ -149,6 +169,8 @@ class Args:
                     _value = AntiArg(_value)
             if default in ("...", Ellipsis):
                 default = Empty
+            if _value is Empty:
+                raise InvalidParam(f"{name} 的参数值不能为Empty")
             self.argument[name] = {"value": _value, "default": default}
 
     def params(self, sep: str = " "):
@@ -181,12 +203,7 @@ class Args:
         return len(self.argument)
 
     def __setitem__(self, key, value):
-        if isinstance(value, Iterable):
-            values = list(value)
-            self.argument[key] = {"value": arg_check(values[0]), "default": arg_check(values[1])}
-        else:
-            self.argument[key] = {"value": arg_check(value), "default": None}
-        return self
+        return self.__setattr__(key, value)
 
     def __setattr__(self, key, value):
         if key == "extra":
@@ -195,31 +212,31 @@ class Args:
             super().__setattr__(key, value)
         elif isinstance(value, Iterable):
             values = list(value)
-            self.argument[key] = {"value": arg_check(values[0]), "default": arg_check(values[1])}
+            self.__check_vars__([(key, values[0], values[1])])
         else:
-            self.argument[key] = {"value": arg_check(value), "default": None}
-
-    def __class_getitem__(cls, item) -> "Args":
-        slices = list(item) if not isinstance(item, slice) else [item]
-        return cls(*slices)
+            self.__check_vars__([(key, value)])
+        return self
 
     def __getitem__(self, item) -> Union["Args", Tuple[TAValue, TADefault]]:
         if isinstance(item, str):
             return self.argument[item].get('value'), self.argument[item].get('default')
-        self._check(item if not isinstance(item, slice) else [item])
+        if isinstance(item, slice):
+            slices = [item]
+            self.__check_vars__(slices)
+        elif isinstance(item, Iterable):
+            slices = list(filter(lambda x: isinstance(x, slice), item))
+            items = list(filter(lambda x: isinstance(x, Sequence), item))
+            if items:
+                self.__check_vars__(items)
+            self.__check_vars__(slices)
         return self
 
     def __merge__(self, other) -> "Args":
         if isinstance(other, Args):
             self.argument.update(other.argument)
             del other
-        elif isinstance(other, Iterable):
-            values = list(other)
-            if not isinstance(values[0], str):
-                raise InvalidParam("参数的名字只能是字符串")
-            self.argument[values[0]] = {"value": arg_check(values[1]), "default": arg_check(values[2])} if len(
-                values) > 2 \
-                else {"value": arg_check(values[1]), "default": None}
+        elif isinstance(other, Sequence):
+            self.__getitem__([other])
         return self
 
     def __add__(self, other) -> "Args":
@@ -388,7 +405,7 @@ class CommandNode:
     scale: Tuple[int, int]
 
     def __getitem__(self, item):
-        self.args.__merge__(Args.__class_getitem__(item))
+        self.args.__merge__(Args[item])
         self.nargs = len(self.args.argument)
         return self
 
@@ -400,11 +417,11 @@ class CommandNode:
         self.separator = separator
         return self
 
-    @deprecated("0.7.2")
-    def help(self, help_text: str):
-        self.help_text = help_text
-        self.__generate_help__()
-        return self
+    # @deprecated("0.7.2")
+    # def help(self, help_text: str):
+    #     self.help_text = help_text
+    #     self.__generate_help__()
+    #     return self
 
     def __check_action__(self, action):
         if action:
@@ -424,17 +441,17 @@ class CommandNode:
                         anno = type(argument[i][2]) if argument[i][2] is not inspect.Signature.empty else str
                     value = self.args.argument[k]['value']
                     if isinstance(
-                        value, ArgPattern
+                            value, ArgPattern
                     ):
-                        if value.type_mark != getattr(anno, "__origin__", anno):
-                            raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.type_mark} 不一致")
+                        if value.origin_type != getattr(anno, "__origin__", anno):
+                            raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.origin_type} 不一致")
                     elif isinstance(
-                        value, _AnyParam
+                            value, _AnyParam
                     ):
                         if anno not in (Empty, Any):
                             raise InvalidParam(f"{argument[i][0]}的类型不能指定为 {anno}")
                     elif isinstance(
-                        value, Iterable
+                            value, Iterable
                     ):
                         if anno != value.__class__:
                             raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.__class__} 不一致")

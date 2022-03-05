@@ -1,7 +1,7 @@
 from typing import Union
 
 from ..component import Option, Subcommand, Arpamar
-from ..types import MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern
+from ..types import MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
 from ..analysis.analyser import Analyser
 from ..manager import CommandManager
 from ..analysis.arg_handlers import multi_arg_handler, common_arg_handler, anti_arg_handler, union_arg_handler
@@ -119,3 +119,5 @@ DisorderCommandAnalyser.add_arg_handler(AntiArg, anti_arg_handler)
 DisorderCommandAnalyser.add_arg_handler(UnionArg, union_arg_handler)
 DisorderCommandAnalyser.add_arg_handler(ArgPattern, common_arg_handler)
 DisorderCommandAnalyser.add_arg_handler(ObjectPattern, common_arg_handler)
+DisorderCommandAnalyser.add_arg_handler(SequenceArg, common_arg_handler)
+DisorderCommandAnalyser.add_arg_handler(MappingArg, common_arg_handler)

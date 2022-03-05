@@ -1,5 +1,5 @@
 import sys
-from typing import Dict, Any
+from typing import Dict, Any, List
 import re
 import json
 
@@ -9,17 +9,10 @@ from arclet.alconna.types import ArgPattern, PatternToken
 
 cache_data: Dict[str, Any] = {}
 
-list_type = ArgPattern(
-    r"\[(.*?)]",
-    token=PatternToken.REGEX_TRANSFORM,
-    type_mark=list,
-    transform_action=lambda x: x.split(",")
-)
-
 args_type = ArgPattern(
     r"(\[.+])*",
     token=PatternToken.REGEX_TRANSFORM,
-    type_mark=list,
+    origin_type=list,
     transform_action=lambda x: [re.split("[:|=]", p) for p in re.findall(r"\[(.*?)]", x)]
 )
 
@@ -28,7 +21,7 @@ create = Alconna(
     command="create",
     options=[
         Option("--command|-C", Args["command_name":str], help_text="指定命令名称"),
-        Option("--header|-H", Args["command_header":list_type], help_text="传入命令头"),
+        Option("--header|-H", Args["command_header":List[str]], help_text="传入命令头"),
         Option("--option|-O", Args["option_name":str]["option_args":args_type:[]], help_text="创建命令选项"),
         Option("--analysed|-A", help_text="从已经分析的命令结构中创建Alconna")
     ],

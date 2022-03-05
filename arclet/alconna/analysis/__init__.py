@@ -5,7 +5,7 @@ from .analyser import Analyser, default_params_generator
 from .arg_handlers import multi_arg_handler, anti_arg_handler, common_arg_handler, union_arg_handler
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..component import Arpamar, Option, Subcommand
-from ..types import MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern
+from ..types import MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
 from ..base import Args
 
 if TYPE_CHECKING:
@@ -37,6 +37,8 @@ class _DummyAnalyser(Analyser):
         cls.add_arg_handler(AntiArg, anti_arg_handler)
         cls.add_arg_handler(UnionArg, union_arg_handler)
         cls.add_arg_handler(ObjectPattern, common_arg_handler)
+        cls.add_arg_handler(SequenceArg, common_arg_handler)
+        cls.add_arg_handler(MappingArg, common_arg_handler)
         cls.params = {}
         return super().__new__(cls)
 
