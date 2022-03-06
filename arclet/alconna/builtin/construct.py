@@ -562,7 +562,7 @@ class ObjectMounter(AlconnaMounter):
             _opt_args, _ = Args.from_callable(func, extra=config.get("extra"))
             _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
         if len(init.args) > 1:
-            main_args = Args.from_callable(obj.__init__)[0]
+            main_args = Args.from_callable(obj.__init__, extra=config.get("extra"))[0]
             for k, a in main_args.argument.items():
                 if hasattr(self.instance, k):
                     a['default'] = getattr(self.instance, k)

@@ -33,7 +33,8 @@ class Analyser(metaclass=ABCMeta):
     command_header: Union[ArgPattern, Tuple[List[NonTextElement], ArgPattern]]  # 命令头部
     separator: str  # 分隔符
     is_raise_exception: bool  # 是否抛出异常
-    options: Dict[str, Any]  # 参数
+    options: Dict[str, Any]  # 存放解析到的所有选项
+    subcommands: Dict[str, Any]  # 存放解析到的所有子命令
     main_args: Dict[str, Any]  # 主参数
     header: Optional[str]  # 命令头部
     need_main_args: bool  # 是否需要主参数
@@ -108,6 +109,7 @@ class Analyser(metaclass=ABCMeta):
         self.is_str = False
         self.options = {}
         self.main_args = {}
+        self.subcommands = {}
         self.header = None
         self.raw_data = {}
         self.head_matched = False
@@ -187,14 +189,14 @@ class Analyser(metaclass=ABCMeta):
             self.is_str = True
             if not data.lstrip():
                 if self.is_raise_exception:
-                    raise NullTextMessage
-                return self.create_arpamar(fail=True)
+                    raise NullTextMessage("传入了空的字符串")
+                return self.create_arpamar(fail=True, exception=NullTextMessage("传入了空的字符串"))
             self.raw_data[0] = split(data, self.separator)
             self.ndata = 1
         else:
             result = chain_filter(data, self.separator, self.is_raise_exception)
             if not result:
-                return self.create_arpamar(fail=True)
+                return self.create_arpamar(fail=True, exception=NullTextMessage("传入了一个无法获取文本的消息链"))
             self.raw_data = result
             self.ndata = len(result)
 
@@ -204,7 +206,7 @@ class Analyser(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def create_arpamar(self, fail: bool = False):
+    def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False):
         """创建arpamar, 其一定是一次解析的最后部分"""
         pass
 

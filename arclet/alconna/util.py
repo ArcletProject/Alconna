@@ -142,7 +142,7 @@ def chain_filter(
             continue
     if _tc == 0:
         if exception_in_time:
-            raise NullTextMessage
+            raise NullTextMessage("传入了一个无法获取文本的消息链")
         return
     return raw_data
 

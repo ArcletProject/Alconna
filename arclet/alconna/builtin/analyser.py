@@ -1,4 +1,5 @@
-from typing import Union
+from typing import Union, Optional
+import traceback
 
 from ..component import Option, Subcommand, Arpamar
 from ..types import MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
@@ -6,7 +7,7 @@ from ..analysis.analyser import Analyser
 from ..manager import CommandManager
 from ..analysis.arg_handlers import multi_arg_handler, common_arg_handler, anti_arg_handler, union_arg_handler
 from ..analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
-from ..exceptions import ParamsUnmatched
+from ..exceptions import ParamsUnmatched, ArgumentMissing
 
 command_manager = CommandManager()
 
@@ -72,7 +73,7 @@ class DisorderCommandAnalyser(Analyser):
 
                 elif isinstance(_param, Subcommand):
                     sub_n, sub_v = analyse_subcommand(self, _param)
-                    self.options[sub_n] = sub_v
+                    self.subcommands[sub_n] = sub_v
                 elif not self.main_args:
                     self.main_args = analyse_args(
                         self, self.self_args, self.separator, self.alconna.nargs, self.alconna.action
@@ -80,7 +81,11 @@ class DisorderCommandAnalyser(Analyser):
             except ParamsUnmatched:
                 if self.is_raise_exception:
                     raise
-                break
+                return self.create_arpamar(fail=True)
+            except ArgumentMissing:
+                if self.is_raise_exception:
+                    raise
+                return self.create_arpamar(fail=True)
             if self.current_index == self.ndata:
                 break
 
@@ -93,23 +98,27 @@ class DisorderCommandAnalyser(Analyser):
 
         if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):
             return self.create_arpamar()
-        if self.is_raise_exception:
-            data = self.recover_raw_data()
-            if data:
-                raise ParamsUnmatched(", ".join([f"{v}" for v in data]))
-            else:
-                raise ParamsUnmatched("You need more data to analyse!")
-        return self.create_arpamar(fail=True)
 
-    def create_arpamar(self, fail: bool = False):
+        data_len = self.rest_count(self.separator)
+        if data_len > 0:
+            exc = ParamsUnmatched("Unmatched params: {}".format(self.next_data(self.separator, pop=False)))
+        else:
+            exc = ArgumentMissing("You need more data to analyse!")
+        if self.is_raise_exception:
+            raise exc
+        return self.create_arpamar(fail=True, exception=exc)
+
+    def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False):
         result = Arpamar()
         result.head_matched = self.head_matched
         if fail:
+            tb = traceback.format_exc(limit=1)
+            result.error_info = repr(tb) if tb != 'NoneType: None\n' else exception
             result.error_data = self.recover_raw_data()
             result.matched = False
         else:
             result.matched = True
-            result.encapsulate_result(self.header, self.main_args, self.options)
+            result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
         self.reset()
         return result
 

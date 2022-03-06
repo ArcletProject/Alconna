@@ -19,8 +19,9 @@ ping = Alconna(
     command="ping",
     options=[
         Subcommand(
-            "test", [Option("-u", Args["username":str], help_text="输入用户名")], args=Args["test":"Test"]
-        ).help("测试用例"),
+            "test", [Option("-u", Args["username":str], help_text="输入用户名")], args=Args["test":"Test"],
+            help_text="测试用例"
+        ),
         Option("-n|--num", Args["count":int:123], help_text="输入数字"),
         Option("-u", Args(At=At), help_text="输入需要At的用户")
     ],

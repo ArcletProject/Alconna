@@ -1,5 +1,4 @@
 """Alconna 的组件相关"""
-
 from typing import Union, Dict, List, Any, Optional, Callable, Type, Iterable
 from .types import NonTextElement
 from .base import CommandNode, Args, ArgAction
@@ -135,13 +134,18 @@ class Arpamar:
         self.matched: bool = False
         self.head_matched: bool = False
         self.error_data: List[Union[str, NonTextElement]] = []
+        self.error_info: Optional[str] = None
 
         self._options: Dict[str, Any] = {}
+        self._subcommands: Dict[str, Any] = {}
         self._other_args: Dict[str, Any] = {}
         self._header: Optional[str] = None
         self._main_args: Dict[str, Any] = {}
 
-    __slots__ = ("matched", "head_matched", "error_data", "_options", "_other_args", "_header", "_main_args")
+    __slots__ = (
+        "matched", "head_matched", "error_data", "error_info", "_options",
+        "_subcommands", "_other_args", "_header", "_main_args",
+    )
 
     @property
     def main_args(self):
@@ -157,8 +161,13 @@ class Arpamar:
 
     @property
     def options(self):
-        """返回 Alconna 中所有 Option 里的 Args 解析到的值"""
+        """返回 Alconna 中解析到的所有 Option"""
         return self._options
+
+    @property
+    def subcommands(self):
+        """返回 Alconna 中解析到的所有 Subcommand """
+        return self._subcommands
 
     @property
     def all_matched_args(self):
@@ -166,15 +175,22 @@ class Arpamar:
         return {**self._main_args, **self._other_args}
 
     @property
-    def option_args(self):
-        """返回 Alconna 中所有 Option 里的 Args 解析到的值"""
+    def other_args(self):
+        """返回 Alconna 中所有 Option 和 Subcommand 里的 Args 解析到的值"""
         return self._other_args
 
-    def encapsulate_result(self, header: Optional[str], main_args: Dict[str, Any], options: Dict[str, Any]) -> None:
+    def encapsulate_result(
+            self,
+            header: Optional[str],
+            main_args: Dict[str, Any],
+            options: Dict[str, Any],
+            subcommands: Dict[str, Any]
+    ) -> None:
         """处理 Arpamar 中的数据"""
         self._header = header
         self._main_args = main_args
         self._options = options
+        self._subcommands = subcommands
         for k in options:
             v = options[k]
             if isinstance(v, dict):
@@ -191,6 +207,17 @@ class Arpamar:
                             _rr[kk].append(vv)
 
                 self._other_args = {**self._other_args, **_rr}
+        for k, v in subcommands.items():
+            if isinstance(v, dict):
+                for kk, vv in v.items():
+                    if not isinstance(vv, dict):
+                        self._other_args[kk] = vv
+                    else:
+                        for kkk, vvv in vv.items():
+                            if not self._other_args.get(kkk):
+                                self._other_args[kkk] = vvv
+                            else:
+                                self._other_args[f"{k}_{kk}_{kkk}"] = vvv
 
     def get(self, name: Union[str, Type[NonTextElement]]) -> Union[Dict, str, NonTextElement]:
         """根据选项或者子命令的名字返回对应的数据"""
@@ -225,5 +252,11 @@ class Arpamar:
         return self.get(item)
 
     def __repr__(self):
-        attrs = ((s, getattr(self, s)) for s in self.__slots__)
-        return " ".join([f"{a}={v}" for a, v in attrs if v is not None])
+        if self.error_info:
+            attrs = ((s, getattr(self, s)) for s in ["matched", "head_matched", "error_data", "error_info"])
+            return ", ".join([f"{a}={v}" for a, v in attrs if v is not None])
+        else:
+            attrs = ((s, getattr(self, s)) for s in [
+                "matched", "head_matched", "main_args", "options", "subcommands", "other_args"
+            ])
+            return ", ".join([f"{a}={v}" for a, v in attrs if v])

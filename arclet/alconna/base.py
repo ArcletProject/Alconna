@@ -417,47 +417,46 @@ class CommandNode:
         self.separator = separator
         return self
 
-    # @deprecated("0.7.2")
-    # def help(self, help_text: str):
-    #     self.help_text = help_text
-    #     self.__generate_help__()
-    #     return self
-
     def __check_action__(self, action):
         if action:
             if isinstance(action, ArgAction):
                 self.action = action
                 return
-            argument = [
-                (name, param.annotation, param.default) for name, param in inspect.signature(action).parameters.items()
-                if name not in ["self", "cls", "option_dict", "exception_in_time"]
-            ]
-            if len(argument) != len(self.args.argument):
-                raise InvalidParam("action 接受的参数个数必须与 Args 里的一致")
-            if not isinstance(action, LambdaType):
-                for i, k in enumerate(self.args.argument):
-                    anno = argument[i][1]
-                    if anno == inspect.Signature.empty:
-                        anno = type(argument[i][2]) if argument[i][2] is not inspect.Signature.empty else str
-                    value = self.args.argument[k]['value']
-                    if isinstance(
-                            value, ArgPattern
-                    ):
-                        if value.origin_type != getattr(anno, "__origin__", anno):
-                            raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.origin_type} 不一致")
-                    elif isinstance(
-                            value, _AnyParam
-                    ):
-                        if anno not in (Empty, Any):
-                            raise InvalidParam(f"{argument[i][0]}的类型不能指定为 {anno}")
-                    elif isinstance(
-                            value, Iterable
-                    ):
-                        if anno != value.__class__:
-                            raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.__class__} 不一致")
-                    elif anno != value:
-                        raise InvalidParam(f"{argument[i][0]}指定的消息元素类型不是 {value}")
-            self.action = ArgAction(action)
+            if len(self.args.argument) == 0:
+                self.args, _ = Args.from_callable(action)
+                self.action = ArgAction(action)
+            else:
+                argument = [
+                    (name, param.annotation, param.default)
+                    for name, param in inspect.signature(action).parameters.items()
+                    if name not in ["self", "cls", "option_dict", "exception_in_time"]
+                ]
+                if len(argument) != len(self.args.argument):
+                    raise InvalidParam("action 接受的参数个数必须与 Args 里的一致")
+                if not isinstance(action, LambdaType):
+                    for i, k in enumerate(self.args.argument):
+                        anno = argument[i][1]
+                        if anno == inspect.Signature.empty:
+                            anno = type(argument[i][2]) if argument[i][2] is not inspect.Signature.empty else str
+                        value = self.args.argument[k]['value']
+                        if isinstance(
+                                value, ArgPattern
+                        ):
+                            if value.origin_type != getattr(anno, "__origin__", anno):
+                                raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.origin_type} 不一致")
+                        elif isinstance(
+                                value, _AnyParam
+                        ):
+                            if anno not in (Empty, Any):
+                                raise InvalidParam(f"{argument[i][0]}的类型不能指定为 {anno}")
+                        elif isinstance(
+                                value, Iterable
+                        ):
+                            if anno != value.__class__:
+                                raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.__class__} 不一致")
+                        elif anno != value:
+                            raise InvalidParam(f"{argument[i][0]}指定的消息元素类型不是 {value}")
+                self.action = ArgAction(action)
         else:
             self.action = action
 

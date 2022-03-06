@@ -2,7 +2,7 @@ from typing import Union, Optional, List, Any, Dict
 
 from .analyser import Analyser, command_manager
 from ..component import Option, Subcommand
-from ..exceptions import ParamsUnmatched
+from ..exceptions import ParamsUnmatched, ArgumentMissing
 from ..types import ArgPattern, AnyParam, AllParam, Empty
 from ..base import Args, ArgAction
 
@@ -62,7 +62,7 @@ def analyse_args(
                 if may_arg:
                     raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
                 else:
-                    raise ParamsUnmatched(f"param {key} is required")
+                    raise ArgumentMissing(f"param {key} is required")
     if action:
         if action.awaitable:
             if command_manager.loop.is_running():
@@ -128,10 +128,24 @@ def analyse_subcommand(
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = name.lstrip("-")
     if param.sub_part_len.stop == 0:
-        return [name, param.action.handle({}, analyser.is_raise_exception)] if param.action else [name, Ellipsis]
+        if param.action:
+            if param.action.awaitable:
+                if command_manager.loop.is_running():
+                    r = command_manager.loop.create_task(
+                        param.action.handle_async({}, analyser.is_raise_exception)
+                    )
+                else:
+                    r = command_manager.loop.run_until_complete(
+                        param.action.handle_async({}, analyser.is_raise_exception)
+                    )
+            else:
+                r = param.action.handle({}, analyser.is_raise_exception)
+            return [name, r]
+        return [name, Ellipsis]
 
     subcommand = {}
     args = None
+    need_args = True if param.nargs > 0 else False
     for _ in param.sub_part_len:
         text = analyser.next_data(param.separator, pop=False)
         sub_param = param.sub_params.get(text, None) if isinstance(text, str) else Ellipsis
@@ -140,21 +154,18 @@ def analyse_subcommand(
                 if text.startswith(getattr(param.sub_params[sp], 'alias', sp)):
                     sub_param = param.sub_params[sp]
                     break
-        try:
-            if isinstance(sub_param, Option):
-                opt_n, opt_v = analyse_option(analyser, sub_param)
-                if not subcommand.get(opt_n):
-                    subcommand[opt_n] = opt_v
-                elif isinstance(subcommand[opt_n], dict):
-                    subcommand[opt_n] = [subcommand[opt_n], opt_v]
-                else:
-                    subcommand[opt_n].append(opt_v)
-            elif not args and (args := analyse_args(analyser, param.args, param.separator, param.nargs, param.action)):
-                subcommand.update(args)
-        except ParamsUnmatched:
-            if analyser.is_raise_exception:
-                raise
-            break
+        if isinstance(sub_param, Option):
+            opt_n, opt_v = analyse_option(analyser, sub_param)
+            if not subcommand.get(opt_n):
+                subcommand[opt_n] = opt_v
+            elif isinstance(subcommand[opt_n], dict):
+                subcommand[opt_n] = [subcommand[opt_n], opt_v]
+            else:
+                subcommand[opt_n].append(opt_v)
+        elif not args and (args := analyse_args(analyser, param.args, param.separator, param.nargs, param.action)):
+            subcommand.update(args)
+    if need_args and not args:
+        raise ArgumentMissing(f"\"{name}\" subcommand missed its args")
     return [name, subcommand]
 
 
