@@ -42,6 +42,14 @@
 5. `action`现支持传入异步函数
 6. `AlconnaString`现在会读取`locals`的值
 
+# Alconna 0.7.2:
+1. 改进`AlconnaFire`方法, 其可通过`AlconnaFire.instance`获取目标对象的可能实例
+2. 加入`SequenceArg`与`MappingArg`, 其对应解析列表、元组、集合与字典
+3. Subcommand在其Args未解析时抛出异常
+4. Arpamar现在可以获取subcommands与error_info
+5. 增强Format
+6. 修改help—action相关
+
 # Alconna 0.6.x:
 
 ## Alconna 0.6.0:

@@ -1,5 +1,4 @@
 from graia.ariadne.message.chain import MessageChain
-from graia.ariadne.message.element import Source
 
 from alconna_dispatcher import AlconnaDispatcher, Alconna, Arpamar, AlconnaHelpMessage
 from arclet.alconna import all_command_help, Args
@@ -33,7 +32,7 @@ alc1 = Alconna(
 ariadne_ctx.set(bot)
 
 
-@bcc.receiver(FriendMessage, dispatchers=[AlconnaDispatcher(alconna=alc, reply_help=True, skip_for_unmatch=True)])
+@bcc.receiver(FriendMessage, dispatchers=[AlconnaDispatcher(alconna=alc, reply_help=False, skip_for_unmatch=True)])
 async def test(friend: Friend, result: Arpamar, foo: dict):
     print("test:", result)
     print("listener:", friend)
@@ -52,7 +51,7 @@ async def test(friend: Friend, result: Arpamar, foo: dict):
 async def test_event(help_string: str, app: Ariadne, message: MessageChain):
     print(help_string)
     print(app)
-    print(message)
+    print(message.__repr__())
 
 frd = Friend(id=12345678, nickname="test", remark="none")
 msg = MessageChain.create("!test --help")

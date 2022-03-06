@@ -8,7 +8,7 @@ from arclet.alconna import (
     MessageChain,
     NonTextElement,
     ParamsUnmatched,
-    change_help_send_action,
+    require_help_send_action,
     compile
 )
 from graia.broadcast.entities.dispatcher import BaseDispatcher
@@ -20,14 +20,31 @@ from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from graia.ariadne import get_running
 from graia.ariadne.app import Ariadne
 from graia.ariadne.dispatcher import ContextDispatcher
-from graia.ariadne.event.message import MessageEvent
+from graia.ariadne.util import resolve_dispatchers_mixin
+from graia.ariadne.event.message import MessageEvent, GroupMessage
 from graia.ariadne.message.chain import MessageChain as GraiaMessageChain
-
 
 if TYPE_CHECKING:
     ArpamarProperty = type("ArpamarProperty", (str, MessageChain, NonTextElement), {})
 else:
     ArpamarProperty = type("ArpamarProperty", (), {})
+
+
+class AlconnaHelpMessageDispatcher(BaseDispatcher):
+    mixin = [ContextDispatcher]
+
+    def __init__(self, alconna: Alconna, help_string: str, source_event: MessageEvent):
+        self.command = alconna
+        self.help_string = help_string
+        self.source_event = source_event
+
+    async def catch(self, interface: "DispatcherInterface"):
+        if interface.name == "help_string" and interface.annotation == str:
+            return self.help_string
+        if interface.annotation == Alconna:
+            return self.command
+        if issubclass(interface.annotation, MessageEvent) or interface.annotation == MessageEvent:
+            return self.source_event
 
 
 class AlconnaHelpMessage(Dispatchable):
@@ -42,19 +59,8 @@ class AlconnaHelpMessage(Dispatchable):
     help_string: str
     """帮助信息"""
 
-    def __init__(self, alconna: Alconna, help_string: str):
-        self.command = alconna
-        self.help_string = help_string
-
-    class Dispatcher(BaseDispatcher):
-        mixin = [ContextDispatcher]
-
-        @staticmethod
-        async def catch(interface: "DispatcherInterface[AlconnaHelpMessage]"):
-            if interface.name == "help_string" and interface.annotation == str:
-                return interface.event.help_string
-            if interface.annotation == Alconna:
-                return interface.event.command
+    source_event: MessageEvent
+    """来源事件"""
 
 
 class AlconnaDispatcher(BaseDispatcher):
@@ -84,16 +90,24 @@ class AlconnaDispatcher(BaseDispatcher):
             app: Ariadne = get_running()
 
             async def _send_help_string(help_string: str):
-                await app.sendMessage(event.sender, GraiaMessageChain.create(help_string))
+                if isinstance(event, GroupMessage):
+                    await app.sendGroupMessage(event.sender.group, GraiaMessageChain.create(help_string))
+                else:
+                    await app.sendMessage(event.sender, GraiaMessageChain.create(help_string))
 
-            change_help_send_action(_send_help_string)
+            require_help_send_action(_send_help_string, self.analyser.alconna.name)
         else:
-            def _post_help(help_string: str):
-                interface.broadcast.postEvent(
-                    AlconnaHelpMessage(self.analyser.alconna, help_string), upper_event=event
-                )
+            async def _post_help(help_string: str):
+                dispatchers = resolve_dispatchers_mixin(
+                            [
+                                AlconnaHelpMessageDispatcher(self.analyser.alconna, help_string, event),
+                                event.Dispatcher
+                            ]
+                        )
+                for listener in interface.broadcast.default_listener_generator(AlconnaHelpMessage):
+                    await interface.broadcast.Executor(listener, dispatchers=dispatchers)
 
-            change_help_send_action(_post_help)
+            require_help_send_action(_post_help, self.analyser.alconna.name)
 
         local_storage = interface.local_storage
         chain: GraiaMessageChain = await interface.lookup_param("message_chain", GraiaMessageChain, None)

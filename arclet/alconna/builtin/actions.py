@@ -1,7 +1,8 @@
 """Alconna ArgAction相关"""
 import inspect
-from typing import Callable, Any, Optional, TYPE_CHECKING, Union, Coroutine, List
+from typing import Callable, Any, Optional, TYPE_CHECKING, Union, Coroutine, Dict
 from ..base import ArgAction
+from ..util import Singleton
 
 
 class _StoreValue(ArgAction):
@@ -24,36 +25,42 @@ def store_const(value: int):
     return _StoreValue(value)
 
 
-helpers: List[ArgAction] = []
-help_send_action: Callable[[str], Union[Any, Coroutine]] = lambda x: print(x)
+class HelpDispatch(metaclass=Singleton):
+    """帮助信息"""
+    helpers: Dict[str, ArgAction] = {}
+    help_send_action: Callable[[str], Union[Any, Coroutine]] = lambda x: print(x)
 
 
-def change_help_send_action(action: Callable[[str], Any]):
+def require_help_send_action(action: Optional[Callable[[str], Any]] = None, command: Optional[str] = None):
     """修改help_send_action"""
-    global help_send_action
-    help_send_action = action
-    for helper in helpers:
-        helper.awaitable = inspect.iscoroutinefunction(action)
+    if action is None:
+        if command is None:
+            return HelpDispatch.help_send_action
+        return HelpDispatch.helpers[command].action
+    if command is None:
+        HelpDispatch.help_send_action = action
+        for helper in HelpDispatch.helpers:
+            helper.awaitable = inspect.iscoroutinefunction(action)
+    else:
+        HelpDispatch.helpers[command].action = action
+        HelpDispatch.helpers[command].awaitable = inspect.iscoroutinefunction(action)
 
 
-def help_send(help_string_call: Callable[[], str]):
+def help_send(command: str, help_string_call: Callable[[], str]):
     """发送帮助信息"""
-
-    def get_help():
-        return help_send_action
 
     class _HELP(ArgAction):
         def __init__(self):
-            super().__init__(help_send_action)
+            super().__init__(HelpDispatch.help_send_action)
 
         def handle(self, option_dict, is_raise_exception):
-            return get_help()(help_string_call())
+            return require_help_send_action(command=command)(help_string_call())
 
         async def handle_async(self, option_dict, is_raise_exception):
-            return await get_help()(help_string_call())
+            return await require_help_send_action(command=command)(help_string_call())
 
-    helpers.append(_HELP())
-    return helpers[-1]
+    HelpDispatch.helpers[command] = _HELP()
+    return HelpDispatch.helpers[command]
 
 
 if TYPE_CHECKING:

@@ -30,5 +30,5 @@ class _AlconnaHelpNode:
 
 
 b = _AlconnaHelpNode(
-    Alconna(command="test", help_text="test_help", options=[Option(name="test", help_text="test_help")]))
+    Alconna(command="test", help_text="test_help", options=[Option("test", Args.foo[str] ,help_text="test_help")]))
 print(b)

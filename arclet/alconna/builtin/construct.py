@@ -229,7 +229,7 @@ class AlconnaDecorate:
 
 def _from_format(
         format_string: str,
-        format_args: Dict[str, Union[TAValue, Args, Option, List[Option]]]
+        format_args: Dict[str, Union[TAValue, Args, Option, List[Option]]] = None,
 ) -> "Alconna":
     """
     以格式化字符串的方式构造 Alconna
@@ -243,11 +243,12 @@ def _from_format(
     ... )
     >>> alc1.parse("lp user AAA perm set admin.all False")
     """
+    format_args = format_args or {}
     _key_ref = 0
     strings = split(format_string)
     command = strings.pop(0)
     options = []
-    main_args = None
+    main_args = Args()
 
     _string_stack: List[str] = []
     for i, string in enumerate(strings):
@@ -257,38 +258,48 @@ def _from_format(
             continue
         _key_ref += 1
         key = arg[0]
-        value = format_args[key]
         try:
-            _param = _string_stack.pop(-1)
-            if isinstance(value, Option):
-                options.append(Subcommand(_param, [value]))
-            elif isinstance(value, List):
-                options.append(Subcommand(_param, value))
-            elif _key_ref > 1 and isinstance(options[-1], Option):
-                if isinstance(value, Args):
-                    options.append(Subcommand(_param, [options.pop(-1)], args=value))
-                else:
-                    options.append(Subcommand(_param, [options.pop(-1)], args=Args(**{key: value})))
-            elif isinstance(value, Args):
-                options.append(Option(_param, args=value))
-            else:
-                options.append(Option(_param, Args(**{key: value})))
-        except IndexError:
-            if i == 0:
-                if isinstance(value, Args):
-                    main_args = value
-                elif not isinstance(value, Option) and not isinstance(value, List):
-                    main_args = Args(**{key: value})
-            else:
+            value = format_args[key]
+            try:
+                _param = _string_stack.pop(-1)
                 if isinstance(value, Option):
-                    options.append(value)
+                    options.append(Subcommand(_param, [value]))
                 elif isinstance(value, List):
-                    options[-1].options.extend(value)
+                    options.append(Subcommand(_param, value))
+                elif _key_ref > 1 and isinstance(options[-1], Option):
+                    if isinstance(value, Args):
+                        options.append(Subcommand(_param, [options.pop(-1)], args=value))
+                    else:
+                        options.append(Subcommand(_param, [options.pop(-1)], args=Args(**{key: value})))
                 elif isinstance(value, Args):
-                    options[-1].args = value
+                    options.append(Option(_param, args=value))
                 else:
-                    options[-1].args.argument.update({key: value})
-
+                    options.append(Option(_param, Args(**{key: value})))
+            except IndexError:
+                if i == 0:
+                    if isinstance(value, Args):
+                        main_args.__merge__(value)
+                    elif not isinstance(value, Option) and not isinstance(value, List):
+                        main_args.__merge__(Args(**{key: value}))
+                else:
+                    if isinstance(value, Option):
+                        options.append(value)
+                    elif isinstance(value, List):
+                        options[-1].options.extend(value)
+                    elif isinstance(value, Args):
+                        options[-1].args = value
+                    else:
+                        options[-1].args.argument.update({key: value})
+                        options[-1].nargs += 1
+        except KeyError:
+            if _string_stack:
+                if _key_ref > 1:
+                    options[-1].args.__merge__([key, Any])
+                    options[-1].nargs += 1
+                else:
+                    options.append(Option(_string_stack.pop(-1), Args(**{key: Any})))
+            else:
+                main_args.__merge__([key, Any])
     alc = Alconna(command=command, options=options, main_args=main_args)
     return alc
 

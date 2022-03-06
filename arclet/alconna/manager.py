@@ -5,19 +5,11 @@ from typing import TYPE_CHECKING, Dict, Union, List, Tuple
 from .exceptions import DuplicateCommand, ExceedMaxCount
 import asyncio
 from . import analysis
+from .util import Singleton
 
 if TYPE_CHECKING:
     from .main import Alconna
     from .analysis.analyser import Analyser
-
-
-class Singleton(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
 
 
 class CommandManager(metaclass=Singleton):

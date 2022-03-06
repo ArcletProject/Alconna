@@ -10,7 +10,7 @@ from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, Unexpect
 from .analysis import compile, Analyser, analyse
 from .main import Alconna
 from .manager import CommandManager
-from .builtin.actions import store_bool, store_const, change_help_send_action
+from .builtin.actions import store_bool, store_const, require_help_send_action
 from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, AlconnaFire
 
 

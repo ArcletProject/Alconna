@@ -1,5 +1,7 @@
+from typing import Union
+
 from arclet.alconna.builtin.construct import AlconnaString, AlconnaFormat
-from arclet.alconna.types import AnyStr, AnyDigit, ArgPattern, PatternToken
+from arclet.alconna.types import AnyStr, AnyDigit
 from arclet.alconna import Alconna, Args, Option
 from arclet.alconna import command_manager
 from arclet.alconna.builtin.actions import store_bool
@@ -12,6 +14,10 @@ ping1 = AlconnaString("ping1 <url:url>").reset_namespace("Test")
 ping2 = AlconnaString("ping1 <url:url>")
 
 Alconna.set_custom_types(digit=int)
+
+alcf = AlconnaFormat("music {artist} {title} singer {name}")
+print(alcf.parse("music --help"))
+
 alc = AlconnaFormat(
     "lp user {target} perm set {perm} {default}",
     {"target": AnyStr, "perm": AnyStr, "default": Args["de":bool:True]},
@@ -50,13 +56,13 @@ print(alc1.parse("test_type abcd 'testing a text' 2 --foo"))
 print(dir(alc1.action.action.__closure__[0]))
 print(getsource(alc1.action.action))
 
-test_type = ArgPattern(r"(\[.*?])", token=PatternToken.REGEX_TRANSFORM, type_mark=list)
 alc2 = Alconna(
     command="test",
     options=[
-        Option("foo", Args["bar":str, "bar1":int:12345, "bar2":test_type])
-    ]
-).help("测试help直接发送")
+        Option("foo", Args["bar":str, "bar1":int:12345, "bar2":list])
+    ],
+    help_text="测试help直接发送"
+)
 print(alc2.parse("test --help"))
 
 dic = alc1.to_dict()
@@ -95,3 +101,24 @@ alc5 = Alconna(
     main_args=Args["!path":int],
 )
 print(alc5.parse("test_anti a"))
+
+
+alc6 = Alconna(
+    command="test_union",
+    main_args=Args.path[Union[int, float]]
+)
+print(alc6.parse("test_union 12.2"))
+
+alc7 = Alconna(
+    command="test_list",
+    main_args=Args.seq[list]
+)
+print(alc7)
+print(alc7.parse("test_list \"['1', '2', '3']\""))
+
+alc8 = Alconna(
+    command="test_dict",
+    main_args=Args.map[dict]
+)
+print(alc8)
+print(alc8.parse("test_dict \"{'a':1, 'b':2}\""))

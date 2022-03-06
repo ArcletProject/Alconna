@@ -98,7 +98,7 @@ class Alconna(CommandNode):
         )
         self.is_raise_exception = is_raise_exception
         self.namespace = namespace or self.__cls_name__
-        self.options.append(Option("--help", alias="-h", actions=help_send(self.get_help)))
+        self.options.append(Option("--help", alias="-h", actions=help_send(self.name, self.get_help)))
         self.analyser_type = analyser_type
         command_manager.register(self)
         self.__class__.__cls_name__ = "Alconna"
