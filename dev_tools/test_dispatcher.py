@@ -32,7 +32,7 @@ alc1 = Alconna(
 ariadne_ctx.set(bot)
 
 
-@bcc.receiver(FriendMessage, dispatchers=[AlconnaDispatcher(alconna=alc, reply_help=False, skip_for_unmatch=True)])
+@bcc.receiver(FriendMessage, dispatchers=[AlconnaDispatcher(alconna=alc, reply_help=True, skip_for_unmatch=True)])
 async def test(friend: Friend, result: Arpamar, foo: dict):
     print("test:", result)
     print("listener:", friend)
