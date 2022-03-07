@@ -32,13 +32,6 @@ class CommandManager(metaclass=Singleton):
         self.__abandons = []
 
     @property
-    def loop(self) -> asyncio.AbstractEventLoop:
-        try:
-            return asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.get_event_loop()
-
-    @property
     def all_namespace(self):
         return list(self.__commands.keys())
 

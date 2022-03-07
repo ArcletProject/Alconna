@@ -7,6 +7,13 @@ from ..types import ArgPattern, AnyParam, AllParam, Empty
 from ..base import Args, ArgAction
 
 
+def loop() -> asyncio.AbstractEventLoop:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.get_event_loop()
+
+
 def analyse_args(
         analyser: Analyser,
         opt_args: Args,
@@ -65,12 +72,12 @@ def analyse_args(
                     raise ArgumentMissing(f"param {key} is required")
     if action:
         if action.awaitable:
-            if command_manager.loop.is_running():
-                option_dict = command_manager.loop.create_task(
+            if loop().is_running():
+                option_dict = cast(Dict, loop().create_task(
                     action.handle_async(option_dict, analyser.is_raise_exception)
-                )
+                ))
             else:
-                option_dict = command_manager.loop.run_until_complete(
+                option_dict = loop().run_until_complete(
                     action.handle_async(option_dict, analyser.is_raise_exception)
                 )
         else:
@@ -97,12 +104,12 @@ def analyse_option(
     if param.nargs == 0:
         if param.action:
             if param.action.awaitable:
-                if command_manager.loop.is_running():
-                    r = command_manager.loop.create_task(
+                if loop().is_running():
+                    r = loop().create_task(
                         param.action.handle_async({}, analyser.is_raise_exception)
                     )
                 else:
-                    r = command_manager.loop.run_until_complete(
+                    r = loop().run_until_complete(
                         param.action.handle_async({}, analyser.is_raise_exception)
                     )
             else:
@@ -130,12 +137,12 @@ def analyse_subcommand(
     if param.sub_part_len.stop == 0:
         if param.action:
             if param.action.awaitable:
-                if command_manager.loop.is_running():
-                    r = command_manager.loop.create_task(
+                if loop().is_running():
+                    r = loop().create_task(
                         param.action.handle_async({}, analyser.is_raise_exception)
                     )
                 else:
-                    r = command_manager.loop.run_until_complete(
+                    r = loop().run_until_complete(
                         param.action.handle_async({}, analyser.is_raise_exception)
                     )
             else:
