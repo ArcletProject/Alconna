@@ -4,17 +4,19 @@ from typing import TYPE_CHECKING
 from .util import split_once, split, set_chain_texts, set_black_elements, set_white_elements
 from .base import CommandNode, Args, ArgAction
 from .component import Option, Subcommand, Arpamar
-from .types import NonTextElement, MessageChain, AnyParam, AllParam, Empty, \
-    AnyStr, AnyIP, AnyUrl, AnyDigit, AnyFloat, Bool, PatternToken, Email, ObjectPattern, add_check
+from .types import (
+    NonTextElement, MessageChain, AnyParam, AllParam, Empty,
+    AnyStr, AnyIP, AnyUrl, AnyDigit, AnyFloat, Bool, PatternToken, Email, ObjectPattern,
+    add_check
+)
 from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, UnexpectedElement
-from .analysis import compile, Analyser, analyse
+from .analysis import compile, analyse, analyse_args, analyse_header, analyse_option, analyse_subcommand
 from .main import Alconna
-from .manager import CommandManager
+from .manager import command_manager
 from .builtin.actions import store_bool, store_const, require_help_send_action
 from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, AlconnaFire
 
 
-command_manager = CommandManager()
 all_command_help = command_manager.all_command_help
 command_broadcast = command_manager.broadcast
 delete_command = command_manager.delete

@@ -224,6 +224,8 @@ class Arpamar:
         if isinstance(name, str):
             if name in self._options:
                 return self._options[name]
+            if name in self._subcommands:
+                return self._subcommands[name]
             if name in self._other_args:
                 return self._other_args[name]
             if name in self._main_args:
@@ -240,10 +242,17 @@ class Arpamar:
             if not isinstance(opt_args, Dict):
                 return opt_args
             return list(opt_args.values())[0]
+        if option_name in self._subcommands:
+            sub_args = self._subcommands[option_name]
+            if not isinstance(sub_args, Dict):
+                return sub_args
+            return list(sub_args.values())[0]
 
     def has(self, name: str) -> bool:
         """判断 Arpamar 是否有对应的选项/子命令的解析结果"""
-        return any([name in self._other_args, name in self._options, name in self._main_args])
+        return any(
+            [name in self._other_args, name in self._options, name in self._main_args, name in self._subcommands]
+        )
 
     def __getitem__(self, item: Union[str, Type[NonTextElement]]):
         return self.get(item)

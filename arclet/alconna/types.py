@@ -73,6 +73,7 @@ class ArgPattern:
         token: 匹配类型
         transform_action: 匹配成功后的转换方法
         origin_type: 针对action的类型检查
+        alias: 别名, 用于类型检查与参数打印
     """
 
     re_pattern: Pattern
@@ -80,15 +81,17 @@ class ArgPattern:
     token: PatternToken
     transform_action: Optional[Callable[[str], Any]]
     origin_type: Type
+    alias: str
 
-    __slots__ = "re_pattern", "pattern", "token", "origin_type", "transform_action"
+    __slots__ = "re_pattern", "pattern", "token", "origin_type", "transform_action", "alias"
 
     def __init__(
             self,
             regex_pattern: str,
             token: PatternToken = PatternToken.REGEX_MATCH,
             origin_type: Type = str,
-            transform_action: Optional[Callable] = lambda x: eval(x)
+            transform_action: Optional[Callable] = lambda x: eval(x),
+            alias: Optional[str] = None
     ):
         self.pattern = regex_pattern
         self.re_pattern = re.compile("^" + regex_pattern + "$")
@@ -98,6 +101,7 @@ class ArgPattern:
             self.transform_action = transform_action
         else:
             self.transform_action = None
+        self.alias = alias
 
     def __repr__(self):
         return self.pattern
@@ -118,7 +122,8 @@ class ArgPattern:
         pattern = self.pattern
         token = self.token.value
         type_mark = self.origin_type.__name__
-        return {"type": "ArgPattern", "pattern": pattern, "token": token, "origin_type": type_mark}
+        alias = self.alias
+        return {"type": "ArgPattern", "pattern": pattern, "token": token, "origin_type": type_mark, "alias": alias}
 
     def to_dict(self):
         return self.__getstate__()
@@ -128,10 +133,11 @@ class ArgPattern:
         pattern = data["pattern"]
         token = PatternToken(data["token"])
         type_mark = eval(data["origin_type"])
-        return cls(pattern, token, type_mark)
+        alias = data["alias"]
+        return cls(pattern, token, type_mark, alias=alias)
 
     def __setstate__(self, state):
-        self.__init__(state["pattern"], PatternToken(state["token"]), eval(state["origin_type"]))
+        self.__init__(state["pattern"], PatternToken(state["token"]), eval(state["origin_type"]), alias=state["alias"])
 
 
 class Force:
@@ -150,9 +156,9 @@ Bool = ArgPattern(
     r"(True|False|true|false)", token=PatternToken.REGEX_TRANSFORM, origin_type=bool,
     transform_action=lambda x: eval(x, {"true": True, "false": False})
 )
-Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", origin_type=tuple)
-AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", origin_type=tuple)
-AnyUrl = ArgPattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", origin_type=str)
+Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", origin_type=tuple, alias="email")
+AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", origin_type=tuple, alias="ip")
+AnyUrl = ArgPattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", origin_type=str, alias="url")
 AnyList = ArgPattern(r"(\[.+?\])", token=PatternToken.REGEX_TRANSFORM, origin_type=list)
 AnyTuple = ArgPattern(r"(\(.+?\))", token=PatternToken.REGEX_TRANSFORM, origin_type=tuple)
 AnySet = ArgPattern(r"(\{.+?\})", token=PatternToken.REGEX_TRANSFORM, origin_type=set)
@@ -164,7 +170,11 @@ class MultiArg(ArgPattern):
     arg_value: Union[ArgPattern, Type[NonTextElement]]
 
     def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement]]):
-        super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=tuple)
+        if isinstance(arg_value, ArgPattern):
+            alias_content = arg_value.alias or arg_value.origin_type.__name__
+        else:
+            alias_content = arg_value.__name__
+        super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=tuple, alias=f"*{alias_content}")
         self.arg_value = arg_value
 
     def __repr__(self):
@@ -176,8 +186,12 @@ class AntiArg(ArgPattern):
     arg_value: Union[ArgPattern, Type[NonTextElement]]
 
     def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement]]):
-        super().__init__(r"(.+?)", token=PatternToken.REGEX_MATCH, origin_type=str)
         self.arg_value = arg_value
+        if isinstance(arg_value, ArgPattern):
+            alias_content = arg_value.alias or arg_value.origin_type.__name__
+        else:
+            alias_content = arg_value.__name__
+        super().__init__(r"(.+?)", token=PatternToken.REGEX_MATCH, origin_type=str, alias=f"!{alias_content}")
 
     def __repr__(self):
         return f"!{self.arg_value}"
@@ -192,7 +206,6 @@ class UnionArg(ArgPattern):
     for_equal: List[Union[str, NonTextElement]]
 
     def __init__(self, arg_value: Sequence[Union[Type, ArgPattern, NonTextElement, str]], anti: bool = False):
-        super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=str)
         self.anti = anti
         self.arg_value = arg_value
 
@@ -209,9 +222,21 @@ class UnionArg(ArgPattern):
                 self.for_type_check.append(arg)
             else:
                 self.for_equal.append(arg)
+        alias_content = ", ".join(
+                    [a.alias or a.origin_type.__name__ for a in self.for_match] +
+                    [repr(a) for a in self.for_equal] +
+                    [a.__name__ for a in self.for_type_check]
+        )
+        super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=str, alias=f"Union[{alias_content}]")
 
     def __repr__(self):
-        return ("!" if self.anti else "") + "(" + "|".join([repr(a) for a in self.arg_value]) + ")"
+        return ("!" if self.anti else "") + (
+                "(" + "|".join(
+                    [repr(a) for a in self.for_match] +
+                    [repr(a) for a in self.for_equal] +
+                    [a.__name__ for a in self.for_type_check]
+                ) + ")"
+        )
 
 
 class SequenceArg(ArgPattern):
@@ -220,16 +245,23 @@ class SequenceArg(ArgPattern):
     arg_value: ArgPattern
 
     def __init__(self, arg_value: Union[ArgPattern, _AnyParam], form: str = "list"):
-        if form == "list":
-            super().__init__(r"\[(.+?)\]", token=PatternToken.REGEX_TRANSFORM, origin_type=list)
-        elif form == "tuple":
-            super().__init__(r"\((.+?)\)", token=PatternToken.REGEX_TRANSFORM, origin_type=tuple)
-        elif form == "set":
-            super().__init__(r"\{(.+?)\}", token=PatternToken.REGEX_TRANSFORM, origin_type=set)
-        else:
-            raise ValueError(f"invalid form: {form}")
         self.arg_value = arg_value if isinstance(arg_value, ArgPattern) else AnyStr
         self.form = form
+        alias_content = self.arg_value.alias or self.arg_value.origin_type.__name__
+        if form == "list":
+            super().__init__(
+                r"\[(.+?)\]", token=PatternToken.REGEX_TRANSFORM, origin_type=list, alias=f"List[{alias_content}]"
+            )
+        elif form == "tuple":
+            super().__init__(
+                r"\((.+?)\)", token=PatternToken.REGEX_TRANSFORM, origin_type=tuple, alias=f"Tuple[{alias_content}]"
+            )
+        elif form == "set":
+            super().__init__(
+                r"\{(.+?)\}", token=PatternToken.REGEX_TRANSFORM, origin_type=set, alias=f"Set[{alias_content}]"
+            )
+        else:
+            raise ValueError(f"invalid form: {form}")
 
     def __repr__(self):
         return f"{self.form}[{self.arg_value}]"
@@ -275,9 +307,13 @@ class MappingArg(ArgPattern):
     arg_value: ArgPattern
 
     def __init__(self, arg_key: ArgPattern, arg_value: Union[ArgPattern, _AnyParam]):
-        super().__init__(r"\{(.+?)\}", token=PatternToken.REGEX_TRANSFORM, origin_type=dict)
         self.arg_key = arg_key
         self.arg_value = arg_value if isinstance(arg_value, ArgPattern) else AnyStr
+        alias_content = f"{self.arg_key.alias or self.arg_key.origin_type.__name__}, " \
+                        f"{self.arg_value.alias or self.arg_value.origin_type.__name__}"
+        super().__init__(
+            r"\{(.+?)\}", token=PatternToken.REGEX_TRANSFORM, origin_type=dict, alias=f"Dict[{alias_content}]"
+        )
 
     def __repr__(self):
         return f"dict[{self.arg_key.origin_type.__name__}, {self.arg_value}]"
@@ -343,7 +379,7 @@ pattern_map = {
 
 
 def add_check(pattern: ArgPattern):
-    return pattern_map.setdefault(pattern.origin_type, pattern)
+    return pattern_map.setdefault(pattern.alias or pattern.origin_type, pattern)
 
 
 def argtype_validator(item: Any, extra: str = "allow") -> Union[ArgPattern, _AnyParam, Type[NonTextElement], Empty]:

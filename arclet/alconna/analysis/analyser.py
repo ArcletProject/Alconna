@@ -6,9 +6,6 @@ from ..exceptions import NullTextMessage
 from ..component import Option, Subcommand, Arpamar
 from ..util import split_once, split, chain_filter
 from ..types import NonTextElement, ArgPattern, MessageChain
-from ..manager import CommandManager
-
-command_manager = CommandManager()
 
 if TYPE_CHECKING:
     from ..main import Alconna
@@ -98,6 +95,18 @@ class Analyser(metaclass=ABCMeta):
             self.command_header = (elements, ArgPattern(pattern)) if elements else ArgPattern(pattern)
         else:
             self.command_header = ArgPattern(command_name)
+
+    @staticmethod
+    def default_params_generator(analyser: "Analyser"):
+        analyser.params = {}  # "main_args": analyser.alconna.args
+        for opts in analyser.alconna.options:
+            if isinstance(opts, Subcommand):
+                opts.sub_params.setdefault('sub_args', opts.args)
+                for sub_opts in opts.options:
+                    opts.sub_params.setdefault(sub_opts.name, sub_opts)
+                opts.sub_part_len = range(len(opts.options) + opts.nargs)
+            analyser.params[opts.name] = opts
+        analyser.part_len = range(len(analyser.params) + 1)
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>"
@@ -214,15 +223,3 @@ class Analyser(metaclass=ABCMeta):
     def add_param(self, opt):
         """临时增加解析用参数"""
         pass
-
-
-def default_params_generator(analyser: Analyser):
-    analyser.params = {}  # "main_args": analyser.alconna.args
-    for opts in analyser.alconna.options:
-        if isinstance(opts, Subcommand):
-            opts.sub_params.setdefault('sub_args', opts.args)
-            for sub_opts in opts.options:
-                opts.sub_params.setdefault(sub_opts.name, sub_opts)
-            opts.sub_part_len = range(len(opts.options) + opts.nargs)
-        analyser.params[opts.name] = opts
-    analyser.part_len = range(len(analyser.params) + 1)

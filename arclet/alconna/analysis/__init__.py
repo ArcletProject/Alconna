@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Union, Callable, Optional, List
 import traceback
 
-from .analyser import Analyser, default_params_generator
+from .analyser import Analyser
 from .arg_handlers import multi_arg_handler, anti_arg_handler, common_arg_handler, union_arg_handler
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..component import Arpamar, Option, Subcommand
@@ -17,7 +17,7 @@ def compile(alconna: "Alconna", params_generator: Optional[Callable[[Analyser], 
     if params_generator:
         params_generator(_analyser)
     else:
-        default_params_generator(_analyser)
+        Analyser.default_params_generator(_analyser)
     return _analyser
 
 
@@ -45,7 +45,7 @@ class _DummyAnalyser(Analyser):
     def analyse(self, message: Union[str, MessageChain] = None):
         pass
 
-    def create_arpamar(self, fail: bool = False):
+    def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False):
         pass
 
     def add_param(self, opt):

@@ -1,8 +1,8 @@
 """Alconna ArgAction相关"""
 import inspect
 from typing import Callable, Any, Optional, TYPE_CHECKING, Union, Coroutine, Dict
-from ..base import ArgAction
-from ..util import Singleton
+from arclet.alconna.base import ArgAction
+from arclet.alconna.util import Singleton
 
 
 class _StoreValue(ArgAction):

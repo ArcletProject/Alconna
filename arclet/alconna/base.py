@@ -182,9 +182,9 @@ class Args(metaclass=ArgsMeta):
             arg = f"<{k}"
             if isinstance(v['value'], _AnyParam):
                 arg += ": WildMatch"
-            elif isinstance(v['value'], UnionArg):
-                arg += f": {v['value']}"
-            elif not isinstance(v['value'], ArgPattern):
+            elif isinstance(v['value'], ArgPattern):
+                arg += f": {v['value'].alias or v['value'].origin_type.__name__}"
+            else:
                 try:
                     arg += f": Type_{v['value'].__name__}"
                 except AttributeError:
@@ -374,7 +374,7 @@ class CommandNode:
 
     def __init__(
             self, name: str,
-            args: Optional[Args] = None,
+            args: Union[Args, str, None] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
             separator: str = None,
             help_text: str = None,
@@ -392,7 +392,14 @@ class CommandNode:
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidParam("该指令的名字含有非法字符")
         self.name = name
-        self.args = args or Args()
+        if args is None:
+            self.args = Args()
+        elif isinstance(args, str):
+            self.args = Args.from_string_list(
+                [re.split("[:|=]", p) for p in re.split(r"\s*,\s*", args)], {}
+            )
+        else:
+            self.args = args
         self.__check_action__(action)
         self.separator = separator or " "
         self.help_text = help_text or self.name

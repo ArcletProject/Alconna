@@ -1,7 +1,7 @@
 from typing import Union, Dict, Any
 
 from ..types import MultiArg, ArgPattern, NonTextElement, PatternToken, AntiArg, Empty, UnionArg
-from ..analysis.analyser import Analyser
+from .analyser import Analyser
 from ..exceptions import ParamsUnmatched
 
 

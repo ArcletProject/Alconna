@@ -1,14 +1,13 @@
 """Alconna 主体"""
 from typing import Dict, List, Optional, Union, Type, Callable, Any
-from .analysis import Analyser, compile
+from .analysis.analyser import Analyser
+from .analysis import compile
 from .base import CommandNode, Args, ArgAction
 from .component import Option, Subcommand, Arpamar
 from .types import NonTextElement, MessageChain
-from .manager import CommandManager
+from .manager import command_manager
 from .builtin.actions import help_send
 from .builtin.analyser import DisorderCommandAnalyser
-
-command_manager = CommandManager()
 
 
 class Alconna(CommandNode):
@@ -57,10 +56,10 @@ class Alconna(CommandNode):
 
     def __init__(
             self,
-            headers: List[Union[str, NonTextElement]] = None,
             command: Optional[str] = None,
+            headers: List[Union[str, NonTextElement]] = None,
             options: List[Union[Option, Subcommand]] = None,
-            main_args: Optional[Args] = None,
+            main_args: Union[Args, str, None] = None,
             is_raise_exception: bool = False,
             actions: Optional[Union[ArgAction, Callable]] = None,
             namespace: Optional[str] = None,

@@ -1,15 +1,17 @@
 from typing import Union, Optional
 import traceback
 
-from ..component import Option, Subcommand, Arpamar
-from ..types import MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
-from ..analysis.analyser import Analyser
-from ..manager import CommandManager
-from ..analysis.arg_handlers import multi_arg_handler, common_arg_handler, anti_arg_handler, union_arg_handler
-from ..analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
-from ..exceptions import ParamsUnmatched, ArgumentMissing
-
-command_manager = CommandManager()
+from arclet.alconna.component import Option, Subcommand, Arpamar
+from arclet.alconna.types import (
+    MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
+)
+from arclet.alconna.analysis.analyser import Analyser
+from arclet.alconna.manager import command_manager
+from arclet.alconna.analysis.arg_handlers import (
+    multi_arg_handler, common_arg_handler, anti_arg_handler, union_arg_handler
+)
+from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
+from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing
 
 
 class DisorderCommandAnalyser(Analyser):
