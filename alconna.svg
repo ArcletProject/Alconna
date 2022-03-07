@@ -29,33 +29,33 @@
 <path fill="none" stroke="black" d="M373.35,-447.94C362.75,-423.04 344.66,-378.66 332.93,-339.39"/>
 </g>
 <!-- alconna_main -->
-<g id="node14" class="node">
+<g id="node13" class="node">
 <title>alconna_main</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#9c1111" stroke="black" cx="256.93" cy="-393.39" rx="43.62" ry="18"/>
 <text text-anchor="middle" x="256.93" y="-390.89" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.main</text>
 </g>
 <!-- alconna_analysis&#45;&gt;alconna_main -->
-<g id="edge3" class="edge">
+<g id="edge2" class="edge">
 <title>alconna_analysis&#45;&gt;alconna_main</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M347.92,-447.69C329.85,-437.11 307.74,-424.16 289.84,-413.67"/>
 <polygon fill="#a51d1d" stroke="black" points="346.23,-450.76 356.63,-452.79 349.77,-444.72 346.23,-450.76"/>
 <polygon fill="#a51d1d" stroke="black" points="291.31,-410.47 280.91,-408.44 287.77,-416.51 291.31,-410.47"/>
 </g>
 <!-- alconna_manager -->
-<g id="node15" class="node">
+<g id="node14" class="node">
 <title>alconna_manager</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#ac2b2b" stroke="black" cx="411.93" cy="-93.21" rx="38.37" ry="21.43"/>
 <text text-anchor="middle" x="411.93" y="-96.21" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.</text>
 <text text-anchor="middle" x="411.93" y="-85.21" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">manager</text>
 </g>
 <!-- alconna_analysis&#45;&gt;alconna_manager -->
-<g id="edge4" class="edge">
+<g id="edge3" class="edge">
 <title>alconna_analysis&#45;&gt;alconna_manager</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M332.93,-338.39C311.09,-257.27 315.79,-225.79 352.93,-150.43 359.3,-137.48 369.97,-125.93 380.48,-116.71"/>
 <polygon fill="#a51d1d" stroke="black" points="382.96,-119.21 388.43,-110.14 378.49,-113.82 382.96,-119.21"/>
 </g>
 <!-- alconna_analysis_analyser -->
-<g id="node4" class="node">
+<g id="node3" class="node">
 <title>alconna_analysis_analyser</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#c20a0a" stroke="black" cx="484.93" cy="-273.4" rx="39.7" ry="28.98"/>
 <text text-anchor="middle" x="484.93" y="-281.9" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.</text>
@@ -63,13 +63,13 @@
 <text text-anchor="middle" x="484.93" y="-259.9" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">analyser</text>
 </g>
 <!-- alconna_analysis_analyser&#45;&gt;alconna_analysis -->
-<g id="edge7" class="edge">
+<g id="edge4" class="edge">
 <title>alconna_analysis_analyser&#45;&gt;alconna_analysis</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M451.4,-289.1C435.74,-297.99 418.99,-310.99 411.84,-328.32"/>
 <polygon fill="#c20a0a" stroke="black" points="408.34,-327.81 408.93,-338.39 415.07,-329.76 408.34,-327.81"/>
 </g>
 <!-- alconna_analysis_arg_handlers -->
-<g id="node5" class="node">
+<g id="node4" class="node">
 <title>alconna_analysis_arg_handlers</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#b03a3a" stroke="black" cx="412.93" cy="-179.42" rx="50.82" ry="28.98"/>
 <text text-anchor="middle" x="412.93" y="-187.92" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.</text>
@@ -77,13 +77,13 @@
 <text text-anchor="middle" x="412.93" y="-165.92" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">arg_handlers</text>
 </g>
 <!-- alconna_analysis_analyser&#45;&gt;alconna_analysis_arg_handlers -->
-<g id="edge8" class="edge">
+<g id="edge5" class="edge">
 <title>alconna_analysis_analyser&#45;&gt;alconna_analysis_arg_handlers</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M465.63,-247.75C457.52,-237.39 447.95,-225.17 439.21,-214"/>
 <polygon fill="#c20a0a" stroke="black" points="441.95,-211.82 433.03,-206.1 436.44,-216.13 441.95,-211.82"/>
 </g>
 <!-- alconna_analysis_parts -->
-<g id="node6" class="node">
+<g id="node5" class="node">
 <title>alconna_analysis_parts</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#a13535" stroke="black" cx="560.93" cy="-179.42" rx="39.7" ry="28.98"/>
 <text text-anchor="middle" x="560.93" y="-187.92" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.</text>
@@ -91,7 +91,7 @@
 <text text-anchor="middle" x="560.93" y="-165.92" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">parts</text>
 </g>
 <!-- alconna_analysis_analyser&#45;&gt;alconna_analysis_parts -->
-<g id="edge9" class="edge">
+<g id="edge6" class="edge">
 <title>alconna_analysis_analyser&#45;&gt;alconna_analysis_parts</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M504.89,-248.23C513.9,-237.33 524.66,-224.31 534.34,-212.6"/>
 <polygon fill="#c20a0a" stroke="black" points="537.16,-214.68 540.83,-204.74 531.76,-210.22 537.16,-214.68"/>
@@ -103,83 +103,83 @@
 <polygon fill="#c20a0a" stroke="black" points="445.97,-113.17 435.95,-109.71 441.62,-118.66 445.97,-113.17"/>
 </g>
 <!-- alconna_analysis_arg_handlers&#45;&gt;alconna_analysis -->
-<g id="edge12" class="edge">
+<g id="edge9" class="edge">
 <title>alconna_analysis_arg_handlers&#45;&gt;alconna_analysis</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M407.6,-208.34C405.72,-219.51 403.85,-232.53 402.93,-244.41 400.93,-270.1 400.8,-276.71 402.93,-302.39 403.93,-314.52 409.22,-319.91 409.99,-328.44"/>
 <polygon fill="#b03a3a" stroke="black" points="406.51,-328.08 408.93,-338.39 413.47,-328.82 406.51,-328.08"/>
 <path fill="none" stroke="black" d="M408.93,-339.39C402.39,-377.74 392.54,-422.06 386.72,-447.27"/>
 </g>
 <!-- alconna_analysis_parts&#45;&gt;alconna_analysis -->
-<g id="edge14" class="edge">
+<g id="edge10" class="edge">
 <title>alconna_analysis_parts&#45;&gt;alconna_analysis</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M558.89,-208.48C556.09,-234.16 549.47,-272.59 533.93,-302.39 503.14,-361.42 445.77,-415.23 410.99,-444.5"/>
 <polygon fill="#a13535" stroke="black" points="408.55,-441.98 403.09,-451.06 413.02,-447.37 408.55,-441.98"/>
 </g>
 <!-- alconna_base -->
-<g id="node7" class="node">
+<g id="node6" class="node">
 <title>alconna_base</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#ef0606" stroke="black" cx="602.93" cy="-637.8" rx="43.62" ry="18"/>
 <text text-anchor="middle" x="602.93" y="-635.3" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.base</text>
 </g>
 <!-- alconna_base&#45;&gt;alconna -->
-<g id="edge16" class="edge">
+<g id="edge11" class="edge">
 <title>alconna_base&#45;&gt;alconna</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M617.48,-620.78C649.2,-586.42 727.83,-504.16 803.93,-447.39 829.47,-428.34 844.93,-435.36 865.93,-411.39 887.65,-386.59 924.6,-307.33 922.93,-274.4"/>
 <path fill="none" stroke="black" d="M922.93,-272.4C917.3,-228.53 904.54,-220.06 884.93,-180.42"/>
 </g>
 <!-- alconna_base&#45;&gt;alconna_analysis -->
-<g id="edge17" class="edge">
+<g id="edge12" class="edge">
 <title>alconna_base&#45;&gt;alconna_analysis</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M636.93,-553.81C624.49,-512.71 497.94,-487.16 427.93,-476.06"/>
 <polygon fill="#ef0606" stroke="black" points="428.44,-472.6 418.03,-474.53 427.37,-479.52 428.44,-472.6"/>
 <path fill="none" stroke="black" d="M616.89,-620.73C629.13,-604.64 643.95,-579.02 636.93,-555.81"/>
 </g>
 <!-- alconna_base&#45;&gt;alconna_analysis_analyser -->
-<g id="edge19" class="edge">
+<g id="edge13" class="edge">
 <title>alconna_base&#45;&gt;alconna_analysis_analyser</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M636.93,-553.81C616.41,-485.99 664.77,-459.54 636.93,-394.39"/>
 <path fill="none" stroke="black" d="M636.93,-392.39C625.48,-367.02 564.52,-324.68 523.37,-298.22"/>
 <polygon fill="#ef0606" stroke="black" points="525.22,-295.25 514.91,-292.82 521.46,-301.15 525.22,-295.25"/>
 </g>
 <!-- alconna_base&#45;&gt;alconna_analysis_parts -->
-<g id="edge20" class="edge">
+<g id="edge14" class="edge">
 <title>alconna_base&#45;&gt;alconna_analysis_parts</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M636.93,-392.39C618.63,-321.81 765.24,-345.9 750.93,-274.4"/>
 <path fill="none" stroke="black" d="M750.93,-272.4C733.11,-215.11 660.37,-193.47 610.25,-185.32"/>
 <polygon fill="#ef0606" stroke="black" points="610.64,-181.84 600.23,-183.82 609.6,-188.77 610.64,-181.84"/>
 </g>
 <!-- alconna_component -->
-<g id="node12" class="node">
+<g id="node11" class="node">
 <title>alconna_component</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#e90c0c" stroke="black" cx="410.93" cy="-554.81" rx="45.92" ry="21.43"/>
 <text text-anchor="middle" x="410.93" y="-557.81" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.</text>
 <text text-anchor="middle" x="410.93" y="-546.81" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">component</text>
 </g>
 <!-- alconna_base&#45;&gt;alconna_component -->
-<g id="edge22" class="edge">
+<g id="edge15" class="edge">
 <title>alconna_base&#45;&gt;alconna_component</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M573.35,-624.32C541.19,-610.76 489.54,-588.97 453.13,-573.61"/>
 <polygon fill="#ef0606" stroke="black" points="454.33,-570.32 443.76,-569.66 451.61,-576.77 454.33,-570.32"/>
 </g>
 <!-- alconna_base&#45;&gt;alconna_main -->
-<g id="edge23" class="edge">
+<g id="edge16" class="edge">
 <title>alconna_base&#45;&gt;alconna_main</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M560.93,-632.78C498.63,-626 385.84,-610.39 355.93,-583.8 315.84,-548.17 337.63,-519.08 316.93,-469.61"/>
 </g>
 <!-- alconna_builtin -->
-<g id="node8" class="node">
+<g id="node7" class="node">
 <title>alconna_builtin</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#ce3b3b" stroke="black" cx="120.93" cy="-468.61" rx="37.45" ry="21.43"/>
 <text text-anchor="middle" x="120.93" y="-471.61" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.</text>
 <text text-anchor="middle" x="120.93" y="-460.61" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">builtin</text>
 </g>
 <!-- alconna_builtin&#45;&gt;alconna -->
-<g id="edge24" class="edge">
+<g id="edge17" class="edge">
 <title>alconna_builtin&#45;&gt;alconna</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M118.73,-447.18C117.66,-432.37 117.3,-411.94 120.93,-394.39"/>
 </g>
 <!-- alconna_builtin&#45;&gt;alconna_main -->
-<g id="edge25" class="edge">
+<g id="edge18" class="edge">
 <title>alconna_builtin&#45;&gt;alconna_main</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M147.47,-453.32C168.9,-441.78 199.21,-425.46 222.5,-412.92"/>
 <polygon fill="#ce3b3b" stroke="black" points="224.22,-415.97 231.37,-408.15 220.9,-409.81 224.22,-415.97"/>
@@ -193,12 +193,12 @@
 <text text-anchor="middle" x="55.93" y="-541.31" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">actions</text>
 </g>
 <!-- alconna_builtin_actions&#45;&gt;alconna -->
-<g id="edge26" class="edge">
+<g id="edge19" class="edge">
 <title>alconna_builtin_actions&#45;&gt;alconna</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M49.1,-526.14C46.38,-508.72 45.91,-486.44 55.93,-469.61"/>
 </g>
 <!-- alconna_builtin_actions&#45;&gt;alconna_main -->
-<g id="edge27" class="edge">
+<g id="edge20" class="edge">
 <title>alconna_builtin_actions&#45;&gt;alconna_main</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M185.93,-467.61C201.29,-450.48 219.35,-431.88 233.41,-417.71"/>
 <polygon fill="#cc3333" stroke="black" points="236.18,-419.89 240.77,-410.33 231.23,-414.94 236.18,-419.89"/>
@@ -213,14 +213,14 @@
 <text text-anchor="middle" x="233.93" y="-541.31" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">analyser</text>
 </g>
 <!-- alconna_builtin_analyser&#45;&gt;alconna_main -->
-<g id="edge28" class="edge">
+<g id="edge21" class="edge">
 <title>alconna_builtin_analyser&#45;&gt;alconna_main</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M261.38,-534.66C287.97,-514.96 323.38,-485.04 316.93,-469.61"/>
 <path fill="none" stroke="black" d="M316.93,-467.61C308.97,-448.6 294.41,-430.64 281.63,-417.27"/>
 <polygon fill="#c24747" stroke="black" points="283.9,-414.59 274.37,-409.96 278.93,-419.52 283.9,-414.59"/>
 </g>
 <!-- alconna_builtin_construct -->
-<g id="node11" class="node">
+<g id="node10" class="node">
 <title>alconna_builtin_construct</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#c24747" stroke="black" cx="188.93" cy="-179.42" rx="40.11" ry="28.98"/>
 <text text-anchor="middle" x="188.93" y="-187.92" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.</text>
@@ -228,62 +228,62 @@
 <text text-anchor="middle" x="188.93" y="-165.92" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">construct</text>
 </g>
 <!-- alconna_builtin_construct&#45;&gt;alconna -->
-<g id="edge29" class="edge">
+<g id="edge22" class="edge">
 <title>alconna_builtin_construct&#45;&gt;alconna</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M181.28,-150.9C178.05,-133.12 177.33,-110.36 188.93,-94.21"/>
 </g>
 <!-- alconna_component&#45;&gt;alconna -->
-<g id="edge30" class="edge">
+<g id="edge23" class="edge">
 <title>alconna_component&#45;&gt;alconna</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M256.93,-338.39C265.11,-311.15 264.32,-301.86 256.93,-274.4"/>
 <path fill="none" stroke="black" d="M256.93,-272.4C242.67,-219.42 261.08,-200.16 237.93,-150.43 223.94,-120.38 169.59,-121.13 188.93,-94.21"/>
 <path fill="none" stroke="black" d="M374.4,-541.67C324.6,-522.84 237.73,-481.29 203.93,-411.39 196.96,-396.99 196.44,-389.53 203.93,-375.39 217.25,-350.23 248.73,-366.66 256.93,-339.39"/>
 </g>
 <!-- alconna_component&#45;&gt;alconna_analysis -->
-<g id="edge31" class="edge">
+<g id="edge24" class="edge">
 <title>alconna_component&#45;&gt;alconna_analysis</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M403.91,-533.43C400.35,-523.11 395.98,-510.4 392.06,-499.05"/>
 <polygon fill="#e90c0c" stroke="black" points="395.35,-497.83 388.78,-489.51 388.73,-500.11 395.35,-497.83"/>
 </g>
 <!-- alconna_component&#45;&gt;alconna_analysis_analyser -->
-<g id="edge33" class="edge">
+<g id="edge25" class="edge">
 <title>alconna_component&#45;&gt;alconna_analysis_analyser</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M416.29,-533.64C419.64,-521.04 424.04,-504.48 427.93,-489.82 444.49,-427.33 463.72,-354.64 475.07,-311.68"/>
 <polygon fill="#e90c0c" stroke="black" points="478.47,-312.51 477.65,-301.95 471.71,-310.72 478.47,-312.51"/>
 </g>
 <!-- alconna_component&#45;&gt;alconna_analysis_parts -->
-<g id="edge34" class="edge">
+<g id="edge26" class="edge">
 <title>alconna_component&#45;&gt;alconna_analysis_parts</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M442.32,-539.01C503,-508.08 627.94,-431.73 598.93,-339.39"/>
 <path fill="none" stroke="black" d="M598.93,-338.39C586.35,-297.92 575.44,-250.54 568.58,-218.3"/>
 <polygon fill="#e90c0c" stroke="black" points="571.98,-217.46 566.5,-208.4 565.13,-218.9 571.98,-217.46"/>
 </g>
 <!-- alconna_component&#45;&gt;alconna_main -->
-<g id="edge36" class="edge">
+<g id="edge27" class="edge">
 <title>alconna_component&#45;&gt;alconna_main</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M382.45,-538.05C359.7,-523.62 329.61,-499.92 316.93,-469.61"/>
 </g>
 <!-- alconna_exceptions -->
-<g id="node13" class="node">
+<g id="node12" class="node">
 <title>alconna_exceptions</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#f91010" stroke="black" cx="711.93" cy="-713.01" rx="45.01" ry="21.43"/>
 <text text-anchor="middle" x="711.93" y="-716.01" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.</text>
 <text text-anchor="middle" x="711.93" y="-705.01" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">exceptions</text>
 </g>
 <!-- alconna_exceptions&#45;&gt;alconna -->
-<g id="edge37" class="edge">
+<g id="edge28" class="edge">
 <title>alconna_exceptions&#45;&gt;alconna</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M922.93,-338.39C924.6,-310 926.54,-302.61 922.93,-274.4"/>
 </g>
 <!-- alconna_exceptions&#45;&gt;alconna_analysis_analyser -->
-<g id="edge39" class="edge">
+<g id="edge29" class="edge">
 <title>alconna_exceptions&#45;&gt;alconna_analysis_analyser</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M712.93,-392.39C708.09,-363.81 701.19,-351.66 674.93,-339.39"/>
 <path fill="none" stroke="black" d="M674.93,-338.39C627.78,-316.37 570.91,-298.25 531.75,-286.98"/>
 <polygon fill="#f91010" stroke="black" points="532.51,-283.56 521.94,-284.19 530.6,-290.29 532.51,-283.56"/>
 </g>
 <!-- alconna_exceptions&#45;&gt;alconna_analysis_arg_handlers -->
-<g id="edge40" class="edge">
+<g id="edge30" class="edge">
 <title>alconna_exceptions&#45;&gt;alconna_analysis_arg_handlers</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M730.66,-693.45C743.12,-679.69 758.35,-659.76 764.93,-638.8"/>
 <path fill="none" stroke="black" d="M712.93,-392.39C693.58,-278.13 550.52,-219.27 469.14,-194.74"/>
@@ -291,62 +291,62 @@
 <path fill="none" stroke="black" d="M764.93,-636.8C797.9,-531.66 739.6,-501.3 712.93,-394.39"/>
 </g>
 <!-- alconna_exceptions&#45;&gt;alconna_analysis_parts -->
-<g id="edge41" class="edge">
+<g id="edge31" class="edge">
 <title>alconna_exceptions&#45;&gt;alconna_analysis_parts</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M817.93,-467.61C820.66,-434.87 783.39,-441.36 769.93,-411.39 744.73,-355.32 769.18,-333.1 750.93,-274.4"/>
 <path fill="none" stroke="black" d="M764.93,-636.8C774.18,-611.6 784.62,-608.99 793.93,-583.8 811.9,-535.15 812.17,-521.15 817.93,-469.61"/>
 </g>
 <!-- alconna_exceptions&#45;&gt;alconna_base -->
-<g id="edge42" class="edge">
+<g id="edge32" class="edge">
 <title>alconna_exceptions&#45;&gt;alconna_base</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M686.92,-695.22C670.97,-684.5 650.2,-670.55 633.3,-659.2"/>
 <polygon fill="#f91010" stroke="black" points="635.12,-656.21 624.86,-653.54 631.21,-662.02 635.12,-656.21"/>
 </g>
 <!-- alconna_exceptions&#45;&gt;alconna_manager -->
-<g id="edge44" class="edge">
+<g id="edge33" class="edge">
 <title>alconna_exceptions&#45;&gt;alconna_manager</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M817.93,-467.61C826.18,-427.5 865.61,-443.58 890.93,-411.39 912.57,-383.87 927.85,-374.06 922.93,-339.39"/>
 <path fill="none" stroke="black" d="M922.93,-338.39C923.18,-328.66 853.82,-187.29 846.93,-180.42"/>
 </g>
 <!-- alconna_util -->
-<g id="node17" class="node">
+<g id="node16" class="node">
 <title>alconna_util</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#d02424" stroke="black" cx="817.93" cy="-393.39" rx="38.7" ry="18"/>
 <text text-anchor="middle" x="817.93" y="-390.89" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.util</text>
 </g>
 <!-- alconna_exceptions&#45;&gt;alconna_util -->
-<g id="edge45" class="edge">
+<g id="edge34" class="edge">
 <title>alconna_exceptions&#45;&gt;alconna_util</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M817.93,-467.61C819.19,-452.51 819.27,-435.61 819.01,-421.85"/>
 <polygon fill="#f91010" stroke="black" points="822.5,-421.49 818.73,-411.59 815.5,-421.68 822.5,-421.49"/>
 </g>
 <!-- alconna_main&#45;&gt;alconna -->
-<g id="edge46" class="edge">
+<g id="edge35" class="edge">
 <title>alconna_main&#45;&gt;alconna</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M254.47,-375.32C253.54,-364.75 253.43,-351.02 256.93,-339.39"/>
 </g>
 <!-- alconna_main&#45;&gt;alconna_analysis_analyser -->
-<g id="edge49" class="edge">
+<g id="edge37" class="edge">
 <title>alconna_main&#45;&gt;alconna_analysis_analyser</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M292.23,-374.12C333.15,-352.94 400.5,-318.09 443.76,-295.7"/>
 <polygon fill="#9c1111" stroke="black" points="290.35,-371.15 283.08,-378.86 293.57,-377.37 290.35,-371.15"/>
 <polygon fill="#9c1111" stroke="black" points="445.6,-298.69 452.87,-290.99 442.38,-292.48 445.6,-298.69"/>
 </g>
 <!-- alconna_main&#45;&gt;alconna_manager -->
-<g id="edge50" class="edge">
+<g id="edge38" class="edge">
 <title>alconna_main&#45;&gt;alconna_manager</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M264.14,-365.28C266.33,-356.98 268.74,-347.81 270.93,-339.39 292.66,-255.51 267.32,-220.04 318.93,-150.43 332.19,-132.53 353,-119.19 371.57,-110"/>
 <polygon fill="#9c1111" stroke="black" points="260.68,-364.65 261.51,-375.22 267.45,-366.45 260.68,-364.65"/>
 <polygon fill="#9c1111" stroke="black" points="373.18,-113.12 380.75,-105.7 370.21,-106.78 373.18,-113.12"/>
 </g>
 <!-- alconna_manager&#45;&gt;alconna -->
-<g id="edge51" class="edge">
+<g id="edge39" class="edge">
 <title>alconna_manager&#45;&gt;alconna</title><style>.edge>path:hover{stroke-width:8}</style>
 <path fill="none" stroke="black" d="M411.93,-71.82C411.93,-63.97 411.93,-54.86 411.93,-46.45"/>
 <polygon fill="#ac2b2b" stroke="black" points="415.43,-46.31 411.93,-36.31 408.43,-46.31 415.43,-46.31"/>
 </g>
 <!-- alconna_types -->
-<g id="node16" class="node">
+<g id="node15" class="node">
 <title>alconna_types</title><style>.edge>path:hover{stroke-width:8}</style>
 <ellipse fill="#f91010" stroke="black" cx="602.93" cy="-713.01" rx="45.15" ry="18"/>
 <text text-anchor="middle" x="602.93" y="-710.51" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#ffffff">alconna.types</text>

@@ -1,6 +1,7 @@
-from typing import Union, Optional, List, Any, Dict
+from typing import Union, Optional, List, Any, Dict, cast
+import asyncio
 
-from .analyser import Analyser, command_manager
+from .analyser import Analyser
 from ..component import Option, Subcommand
 from ..exceptions import ParamsUnmatched, ArgumentMissing
 from ..types import ArgPattern, AnyParam, AllParam, Empty

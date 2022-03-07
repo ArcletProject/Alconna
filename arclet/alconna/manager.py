@@ -3,8 +3,7 @@
 import re
 from typing import TYPE_CHECKING, Dict, Union, List, Tuple
 from .exceptions import DuplicateCommand, ExceedMaxCount
-import asyncio
-from . import analysis
+from .analysis import compile as compile_analysis
 from .util import Singleton
 
 if TYPE_CHECKING:
@@ -50,7 +49,7 @@ class CommandManager(metaclass=Singleton):
             self.__commands[command.namespace] = {}
         cid = command.name.replace(self.sign, "")
         if cid not in self.__commands[command.namespace]:
-            self.__commands[command.namespace][cid] = analysis.compile(command)
+            self.__commands[command.namespace][cid] = compile_analysis(command)
             self.current_count += 1
         else:
             raise DuplicateCommand("命令已存在")
@@ -216,3 +215,6 @@ class CommandManager(metaclass=Singleton):
         cmd = self.get_command(f"{command_parts[0]}.{command_parts[1]}")
         if cmd:
             return cmd.help_docstring
+
+
+command_manager = CommandManager()
