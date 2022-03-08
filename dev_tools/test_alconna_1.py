@@ -1,3 +1,5 @@
+from typing import Union
+
 from arclet.alconna import Alconna, Args, AlconnaString
 from arclet.alconna.component import Subcommand, Option, Arpamar
 from arclet.alconna.types import AnyIP, AnyDigit, AnyStr, AnyParam
@@ -194,4 +196,20 @@ choice = Alconna(
 )
 print(choice.parse("choice d"))
 print(choice.get_help())
+
+sub = Alconna(
+    command="test_sub_main",
+    options=[
+        Subcommand(
+            "sub",
+            options=[Option("--subOption", Args["subOption":Union[At, int]])],
+            args=Args.foo[str]
+        )
+    ]
+)
+print(sub.get_help())
+res = sub.parse("test_sub_main sub --subOption 123 a")
+print(res)
+print(res.sub.foo)
+
 

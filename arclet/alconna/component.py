@@ -142,9 +142,11 @@ class Arpamar:
         self._header: Optional[str] = None
         self._main_args: Dict[str, Any] = {}
 
+        self._cache_args = {}
+
     __slots__ = (
         "matched", "head_matched", "error_data", "error_info", "_options",
-        "_subcommands", "_other_args", "_header", "_main_args",
+        "_subcommands", "_other_args", "_header", "_main_args", "_cache_args"
     )
 
     @property
@@ -258,7 +260,32 @@ class Arpamar:
         return self.get(item)
 
     def __getattr__(self, item):
-        return self.get(item)
+        r_arg = self.all_matched_args.get(item)
+        if r_arg and not self._cache_args:
+            return r_arg
+        if item in self._options:
+            if not isinstance(self._options[item], dict):
+                self._cache_args = {}
+                return self._options[item]
+            else:
+                self._cache_args = self._options[item]
+                return self
+        if item in self._subcommands:
+            if not isinstance(self._subcommands[item], dict):
+                self._cache_args = {}
+                return self._subcommands[item]
+            else:
+                self._cache_args = self._subcommands[item]
+                return self
+        elif self._cache_args and item in self._cache_args:
+            _args = self._cache_args[item]
+            if not isinstance(_args, dict):
+                self._cache_args = {}
+                return _args
+            else:
+                self._cache_args = _args
+                return self
+        return
 
     def __repr__(self):
         if self.error_info:

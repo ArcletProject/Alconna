@@ -6,7 +6,7 @@ from graia.ariadne.app import Ariadne, MiraiSession
 
 bot = Ariadne(connect_info=MiraiSession(host="http://localhost:8080", verify_key="1234567890abcdef", account=123456789))
 
-add_check(ArgPattern("ariadne", PatternToken.REGEX_TRANSFORM, Ariadne, lambda x: bot))
+add_check(ArgPattern("ariadne", PatternToken.REGEX_TRANSFORM, Ariadne, lambda x: bot, 'app'))
 ObjectPattern(Plain, limit=("text",))
 ObjectPattern(Image, limit=("url",))
 ObjectPattern(At, limit=("target",))

@@ -12,7 +12,9 @@ print(analyse_args(arg, "arclet-alconna True"))
 print("\nArgs Magic construct:")
 arg1 = Args["round":AnyFloat, "test":bool:True]["aaa":str] << Args["perm":str:...] + ["month", int]
 arg1["foo"] = ["bar", ...]
+arg11 = Args.baz[int]
 print("arg1:", arg1)
+print("arg11:", arg11)
 
 print("\nArgs Feature: Default value")
 arg2 = Args["foo":int, "de":bool:True]
@@ -31,7 +33,9 @@ print("\nArgs Feature: Multi")
 arg4 = Args["*multi":str]
 print("arg4:", arg4)
 print(analyse_args(arg4, "a b c d"))
-
+arg44 = Args["**kwargs":str]
+print("arg44:", arg44)
+print(analyse_args(arg44, "a=b c=d"))
 
 print("\nArgs Feature: Anti")
 arg5 = Args["!anti":r"(.+?)/(.+?)\.py"]
@@ -46,3 +50,19 @@ print("arg6:", arg6)
 print(analyse_args(arg6, "1.2"))  # OK
 time.sleep(0.1)
 print(analyse_args(arg6, "1"))  # OK
+
+print("\nArgs Feature: Force")
+arg7 = Args["#bar":bool]
+print("arg7:", arg7)
+print(analyse_args(arg7, "True"))  # error
+
+print("\nArgs Feature: Optional")
+arg8 = Args["?bar":int]
+print("arg8:", arg8)
+print(analyse_args(arg8, "abc"))  # OK
+
+print("\nArgs Feature: KWord")
+arg9 = Args["@bar":int]
+print("arg9:", arg9)
+print(analyse_args(arg9, "bar=123"))  # OK
+print(analyse_args(arg9, "123"))  # error

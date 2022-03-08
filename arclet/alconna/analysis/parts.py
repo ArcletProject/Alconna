@@ -45,12 +45,16 @@ def analyse_args(
             _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
             if not _kwarg:
                 analyser.reduce_data(may_arg)
+                if analyser.is_raise_exception:
+                    raise ParamsUnmatched(f"{may_arg} missing its key. Do you forget to add '{key}='?")
                 continue
             may_arg = _kwarg[0]
             if may_arg == '':
                 may_arg = analyser.next_data(sep)
                 if isinstance(may_arg, str):
                     analyser.reduce_data(may_arg)
+                    if analyser.is_raise_exception:
+                        raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
                     continue
         if may_arg in analyser.params:
             analyser.reduce_data(may_arg)

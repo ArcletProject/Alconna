@@ -122,3 +122,7 @@ alc8 = Alconna(
 )
 print(alc8)
 print(alc8.parse("test_dict \"{'a':1, 'b':2}\""))
+
+alc9 = Alconna("test_str", main_args="@foo:str, bar:list, ?baz:int")
+print(alc9)
+print(alc9.parse("test_str foo=a \"[1]\""))
