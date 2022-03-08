@@ -13,11 +13,29 @@ class Test:
         """Test Function"""
         print(f"Hello {name} from {self.sender}")
 
+    class MySub:
+        """Sub Class"""
+        def __init__(self):
+            """Constructor"""
+            self.sender = "sub_command"
 
-alc = AlconnaFire(Test("alc"))
-alc.parse("Test talk")
-alc.parse("Test --help")
-alc.parse("Test talk")
+        def set(self, name="hello"):
+            """Test Function"""
+            print(f"SUBCOMMAND {name} from {self.sender}")
+
+        class SubConfig:
+            command = "subcmd"
+
+    class Config:
+        headers = ["!"]
+        command = "test_fire"
+        get_subcommand = True
+
+
+alc = AlconnaFire(Test)
+alc.parse("!test_fire alc talk")
+alc.parse("!test_fire --help")
+alc.parse("!test_fire talk ALC subcmd set")
 
 
 def test_function(name="world"):

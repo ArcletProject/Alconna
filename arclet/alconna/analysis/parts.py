@@ -1,4 +1,5 @@
-from typing import Union, Optional, List, Any, Dict, cast
+import re
+from typing import Union, Optional, List, Any, Dict, cast, Sequence
 import asyncio
 
 from .analyser import Analyser
@@ -36,14 +37,33 @@ def analyse_args(
         Dict: 解析结果
     """
     option_dict: Dict[str, Any] = {}
-    for key in opt_args.argument:
-        value = opt_args.argument[key]['value']
-        default = opt_args.argument[key]['default']
+    for key, arg in opt_args.argument.items():
+        value = arg['value']
+        default = arg['default']
         may_arg = analyser.next_data(sep)
-        if value.__class__ in analyser.arg_handlers:
+        if key in opt_args.kwonly:
+            _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
+            if not _kwarg:
+                analyser.reduce_data(may_arg)
+                continue
+            may_arg = _kwarg[0]
+            if may_arg == '':
+                may_arg = analyser.next_data(sep)
+                if isinstance(may_arg, str):
+                    analyser.reduce_data(may_arg)
+                    continue
+        if may_arg in analyser.params:
+            analyser.reduce_data(may_arg)
+            if default is None:
+                if key in opt_args.optional:
+                    continue
+                raise ArgumentMissing(f"param {key} is required")
+            else:
+                option_dict[key] = None if default is Empty else default
+        elif value.__class__ in analyser.arg_handlers:
             analyser.arg_handlers[value.__class__](
                 analyser, may_arg, key, value,
-                default, nargs, sep, option_dict
+                default, nargs, sep, option_dict, key in opt_args.optional
             )
         elif value is AnyParam:
             option_dict[key] = may_arg
@@ -67,22 +87,36 @@ def analyse_args(
                 analyser.reduce_data(may_arg)
             else:
                 analyser.reduce_data(may_arg)
+                if key in opt_args.optional:
+                    continue
                 if may_arg:
                     raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
                 else:
                     raise ArgumentMissing(f"param {key} is required")
     if action:
+        result_dict = option_dict.copy()
+        kwargs = {}
+        varargs = []
+        if opt_args.var_keyword:
+            kwargs = result_dict.pop(opt_args.var_keyword[0])
+            if not isinstance(kwargs, dict):
+                kwargs = {opt_args.var_keyword[0]: kwargs}
+        if opt_args.var_positional:
+            varargs = result_dict.pop(opt_args.var_positional[0])
+            if not isinstance(varargs, Sequence):
+                varargs = [varargs]
         if action.awaitable:
             if loop().is_running():
-                option_dict = cast(Dict, loop().create_task(
-                    action.handle_async(option_dict, analyser.is_raise_exception)
+                result_dict = cast(Dict, loop().create_task(
+                    action.handle_async(result_dict, varargs, kwargs, analyser.is_raise_exception)
                 ))
             else:
-                option_dict = loop().run_until_complete(
-                    action.handle_async(option_dict, analyser.is_raise_exception)
+                result_dict = loop().run_until_complete(
+                    action.handle_async(result_dict, varargs, kwargs, analyser.is_raise_exception)
                 )
         else:
-            option_dict = action.handle(option_dict, analyser.is_raise_exception)
+            result_dict = action.handle(result_dict, varargs, kwargs, analyser.is_raise_exception)
+        option_dict.update(result_dict)
     return option_dict
 
 
@@ -107,14 +141,14 @@ def analyse_option(
             if param.action.awaitable:
                 if loop().is_running():
                     r = loop().create_task(
-                        param.action.handle_async({}, analyser.is_raise_exception)
+                        param.action.handle_async({}, [], {}, analyser.is_raise_exception)
                     )
                 else:
                     r = loop().run_until_complete(
-                        param.action.handle_async({}, analyser.is_raise_exception)
+                        param.action.handle_async({}, [], {}, analyser.is_raise_exception)
                     )
             else:
-                r = param.action.handle({}, analyser.is_raise_exception)
+                r = param.action.handle({}, [], {}, analyser.is_raise_exception)
             return [name, r]
         return [name, Ellipsis]
     return [name, analyse_args(analyser, param.args, param.separator, param.nargs, param.action)]
@@ -140,14 +174,14 @@ def analyse_subcommand(
             if param.action.awaitable:
                 if loop().is_running():
                     r = loop().create_task(
-                        param.action.handle_async({}, analyser.is_raise_exception)
+                        param.action.handle_async({}, [], {}, analyser.is_raise_exception)
                     )
                 else:
                     r = loop().run_until_complete(
-                        param.action.handle_async({}, analyser.is_raise_exception)
+                        param.action.handle_async({}, [], {}, analyser.is_raise_exception)
                     )
             else:
-                r = param.action.handle({}, analyser.is_raise_exception)
+                r = param.action.handle({}, [], {}, analyser.is_raise_exception)
             return [name, r]
         return [name, Ellipsis]
 

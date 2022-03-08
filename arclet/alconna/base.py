@@ -43,6 +43,10 @@ class Args(metaclass=ArgsMeta):
     """
     extra: Literal["allow", "ignore", "reject"]
     argument: Dict[str, TArgs]
+    var_positional: Optional[Tuple[str, MultiArg]]
+    var_keyword: Optional[Tuple[str, MultiArg]]
+    optional: List[str]
+    kwonly: List[str]
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -99,6 +103,8 @@ class Args(metaclass=ArgsMeta):
                 de = inspect.Signature.empty
             if param.kind == param.VAR_POSITIONAL:
                 name = "*" + name
+            if param.kind == param.VAR_KEYWORD:
+                name = "**" + name
             _args.__merge__([name, anno, de])
         return _args, method
 
@@ -125,10 +131,16 @@ class Args(metaclass=ArgsMeta):
             kwargs: 传入key与value; default需要另外传入
         """
         self.extra = extra
+        self.var_positional = None
+        self.var_keyword = None
+        self.optional = []
+        self.kwonly = []
         self.argument = {
             k: {"value": argtype_validator(v), "default": None} for k, v in kwargs.items()
         }
         self.__check_vars__(args or [])
+
+    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional", "kwonly"
 
     def default(self, **kwargs: TADefault):
         """设置参数的默认值"""
@@ -152,21 +164,37 @@ class Args(metaclass=ArgsMeta):
             else:
                 name = name.lstrip("#")
                 _value = value if not isinstance(value, str) else ArgPattern(value)
-            if isinstance(_value, MutableSequence):
+            if isinstance(_value, (Sequence, MutableSequence)):
                 if len(_value) == 2 and Empty in _value:
                     _value.remove(Empty)
                     _value = _value[0]
                     default = Empty if default is None else default
                 else:
                     _value = UnionArg(_value, anti=name.startswith("!"))
-            if name.startswith("*"):
-                name = name.lstrip("*")
+            if name.startswith("**"):
+                name = name.lstrip("**").replace("@", "").replace("?", "")
+                if self.var_keyword:
+                    raise InvalidParam("不能同时设置多个键值对可变参数")
+                if not isinstance(_value, (_AnyParam, UnionArg)):
+                    _value = MultiArg(_value, flag='kwargs')
+                    self.var_keyword = (name, _value)
+            elif name.startswith("*"):
+                name = name.lstrip("*").replace("@", "").replace("?", "")
+                if self.var_positional:
+                    raise InvalidParam("不能同时设置多个非键值对可变参数")
                 if not isinstance(_value, (_AnyParam, UnionArg)):
                     _value = MultiArg(_value)
-            if name.startswith("!"):
+                    self.var_positional = (name, _value)
+            elif name.startswith("!"):
                 name = name.lstrip("!")
                 if not isinstance(_value, (_AnyParam, UnionArg)):
                     _value = AntiArg(_value)
+            if "?" in name:
+                name = name.replace("?", "")
+                self.optional.append(name)
+            if "@" in name:
+                name = name.replace("@", "")
+                self.kwonly.append(name)
             if default in ("...", Ellipsis):
                 default = Empty
             if _value is Empty:
@@ -179,16 +207,17 @@ class Args(metaclass=ArgsMeta):
         i = 0
         length = len(self.argument)
         for k, v in self.argument.items():
-            arg = f"<{k}"
+            arg = f"<{k}" if k not in self.optional else f"<{k}?"
+            _sep = "=" if k in self.kwonly else ":"
             if isinstance(v['value'], _AnyParam):
-                arg += ": WildMatch"
+                arg += f"{_sep}WildMatch"
             elif isinstance(v['value'], ArgPattern):
-                arg += f": {v['value'].alias or v['value'].origin_type.__name__}"
+                arg += f"{_sep}{v['value'].alias or v['value'].origin_type.__name__}"
             else:
                 try:
-                    arg += f": Type_{v['value'].__name__}"
+                    arg += f"{_sep}Type_{v['value'].__name__}"
                 except AttributeError:
-                    arg += f": Type_{repr(v['value'])}"
+                    arg += f"{_sep}Type_{repr(v['value'])}"
             if v['default'] is Empty:
                 arg += ", default=None"
             elif v['default'] is not None:
@@ -206,9 +235,7 @@ class Args(metaclass=ArgsMeta):
         return self.__setattr__(key, value)
 
     def __setattr__(self, key, value):
-        if key == "extra":
-            super().__setattr__(key, value)
-        elif isinstance(value, Dict):
+        if key in self.__ignore__:
             super().__setattr__(key, value)
         elif isinstance(value, Iterable):
             values = list(value)
@@ -261,7 +288,7 @@ class Args(metaclass=ArgsMeta):
         return self.to_dict()
 
     def to_dict(self) -> Dict[str, Any]:
-        result = {}
+        args = {}
         for k, v in self.argument.items():
             value = v['value']
             default = v['default']
@@ -269,13 +296,15 @@ class Args(metaclass=ArgsMeta):
                 value = value.__getstate__()
             else:
                 value = {"type": value.__name__}
-            result[k] = {"value": value, "default": default}
-        return result
+            args[k] = {"value": value, "default": default}
+        return {"argument": args, "extra": self.extra, "optional": self.optional, "kwonly": self.kwonly}
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):
-        args = cls()
-        for k, v in data.items():
+        args = cls(extra=data['extra'])
+        args.optional = data['optional']
+        args.kwonly = data['kwonly']
+        for k, v in data['argument'].items():
             value = v['value']
             default = v['default']
             v_type = value.get("type")
@@ -291,7 +320,12 @@ class Args(metaclass=ArgsMeta):
         return args
 
     def __setstate__(self, state):
-        for k, v in state.items():
+        self.extra = state["extra"]
+        self.optional = state['optional']
+        self.kwonly = state['kwonly']
+        self.var_positional = None
+        self.var_keyword = None
+        for k, v in state['argument'].items():
             value = v['value']
             default = v['default']
             v_type = value.get("type")
@@ -326,12 +360,12 @@ class ArgAction:
         self.action = action
         self.awaitable = inspect.iscoroutinefunction(action)
 
-    def handle(self, option_dict: dict, is_raise_exception: bool):
+    def handle(self, option_dict: dict, varargs: List, kwargs: Dict, is_raise_exception: bool):
         try:
-            additional_values = self.action(**option_dict)
+            additional_values = self.action(*option_dict.values(), *varargs, **kwargs)
             if additional_values is None:
-                additional_values = list(option_dict.values())
-            elif not isinstance(additional_values, Iterable):
+                return option_dict
+            if not isinstance(additional_values, Iterable):
                 additional_values = [additional_values]
             for i, k in enumerate(option_dict.keys()):
                 option_dict[k] = additional_values[i]
@@ -340,12 +374,12 @@ class ArgAction:
                 raise e
         return option_dict
 
-    async def handle_async(self, option_dict: dict, is_raise_exception: bool):
+    async def handle_async(self, option_dict: dict, varargs: List, kwargs: Dict, is_raise_exception: bool):
         try:
-            additional_values = await self.action(**option_dict)
+            additional_values = await self.action(*option_dict.values(), *varargs, **kwargs)
             if additional_values is None:
-                additional_values = list(option_dict.values())
-            elif not isinstance(additional_values, Iterable):
+                return option_dict
+            if not isinstance(additional_values, Iterable):
                 additional_values = [additional_values]
             for i, k in enumerate(option_dict.keys()):
                 option_dict[k] = additional_values[i]
@@ -423,12 +457,6 @@ class CommandNode:
     def separate(self, separator: str):
         self.separator = separator
         return self
-
-    # @deprecated("0.7.2")
-    # def help(self, help_text: str):
-    #     self.help_text = help_text
-    #     self.__generate_help__()
-    #     return self
 
     def __check_action__(self, action):
         if action:

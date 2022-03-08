@@ -1,6 +1,7 @@
 import time
 from arclet.alconna import Alconna, Option, Arpamar, Args, AnyParam, compile
-
+import cProfile
+import pstats
 
 class Plain:
     type = "Plain"
@@ -30,9 +31,20 @@ msg = [Plain(".test"), At(124)]
 count = 10000
 
 if __name__ == "__main__":
-    st = time.process_time()
+    st = time.time()
 
     for _ in range(count):
         s_ping.analyse(msg)
-    ed = time.process_time()
+    ed = time.time()
     print(f"Alconna: {count / (ed - st):.2f}msg/s")
+
+    prof = cProfile.Profile()
+    prof.enable()
+    for _ in range(count):
+        s_ping.analyse(msg)
+    prof.create_stats()
+
+    stats = pstats.Stats(prof)
+    stats.strip_dirs()
+    stats.sort_stats('tottime')
+    stats.print_stats(20)

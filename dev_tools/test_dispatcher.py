@@ -53,7 +53,8 @@ async def test_event(help_string: str, app: Ariadne, message: MessageChain):
     print(app)
     print(message.__repr__())
 
-frd = Friend(id=12345678, nickname="test", remark="none")
+
+frd = Friend.parse_obj({"id": 12345678, "nickname": "test", "remark": "none"})
 msg = MessageChain.create("!test --help")
 ev = FriendMessage(sender=frd, messageChain=msg)
 

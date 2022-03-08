@@ -15,6 +15,7 @@ from enum import Enum
 from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable, Pattern, Union, Sequence, \
     List, Dict, get_args, Literal, Tuple, get_origin
 from types import LambdaType
+from .exceptions import ParamsUnmatched
 
 _KT = TypeVar('_KT')
 _VT_co = TypeVar("_VT_co", covariant=True)
@@ -149,12 +150,13 @@ class Force:
         self.origin = origin
 
 
-AnyStr = ArgPattern(r"(.+?)", token=PatternToken.DIRECT, origin_type=str)
-AnyDigit = ArgPattern(r"(\-?\d+)", token=PatternToken.REGEX_TRANSFORM, origin_type=int)
-AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", token=PatternToken.REGEX_TRANSFORM, origin_type=float)
+AnyStr = ArgPattern(r"(.+?)", PatternToken.DIRECT, str)
+AnyDigit = ArgPattern(r"(\-?\d+)", PatternToken.REGEX_TRANSFORM, int, lambda x: int(x))
+AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", PatternToken.REGEX_TRANSFORM, float, lambda x: float(x))
 Bool = ArgPattern(
-    r"(True|False|true|false)", token=PatternToken.REGEX_TRANSFORM, origin_type=bool,
-    transform_action=lambda x: eval(x, {"true": True, "false": False})
+    r"(True|False|true|false)", PatternToken.REGEX_TRANSFORM, bool, lambda x: bool(
+        x.replace("false", "False").replace("true", "True")
+    )
 )
 Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", origin_type=tuple, alias="email")
 AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", origin_type=tuple, alias="ip")
@@ -167,18 +169,25 @@ AnyDict = ArgPattern(r"(\{.+?\})", token=PatternToken.REGEX_TRANSFORM, origin_ty
 
 class MultiArg(ArgPattern):
     """可变参数的匹配"""
+    flag: str
     arg_value: Union[ArgPattern, Type[NonTextElement]]
 
-    def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement]]):
+    def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement]], flag: Literal['args', 'kwargs'] = 'args'):
         if isinstance(arg_value, ArgPattern):
             alias_content = arg_value.alias or arg_value.origin_type.__name__
         else:
             alias_content = arg_value.__name__
-        super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=tuple, alias=f"*{alias_content}")
+        self.flag = flag
+        if flag == 'args':
+            super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=tuple, alias=f"*{alias_content}")
+        else:
+            super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=dict, alias=f"**{alias_content}")
         self.arg_value = arg_value
 
     def __repr__(self):
-        return f"({self.arg_value}, ...)"
+        if self.flag == 'args':
+            return f"({self.arg_value}, ...)"
+        return f"{{KEY:{self.arg_value}, ...}}"
 
 
 class AntiArg(ArgPattern):
@@ -223,9 +232,9 @@ class UnionArg(ArgPattern):
             else:
                 self.for_equal.append(arg)
         alias_content = ", ".join(
-                    [a.alias or a.origin_type.__name__ for a in self.for_match] +
-                    [repr(a) for a in self.for_equal] +
-                    [a.__name__ for a in self.for_type_check]
+            [a.alias or a.origin_type.__name__ for a in self.for_match] +
+            [repr(a) for a in self.for_equal] +
+            [a.__name__ for a in self.for_type_check]
         )
         super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=str, alias=f"Union[{alias_content}]")
 
@@ -248,56 +257,46 @@ class SequenceArg(ArgPattern):
         self.arg_value = arg_value if isinstance(arg_value, ArgPattern) else AnyStr
         self.form = form
         alias_content = self.arg_value.alias or self.arg_value.origin_type.__name__
+
+        def _act(text: str):
+            sequence = re.split(r"\s*,\s*", text)
+            result = []
+            for s in sequence:
+                if isinstance(self.arg_value, UnionArg):
+                    for pat in self.arg_value.for_match:
+                        if arg_find := pat.find(s):
+                            s = arg_find
+                            if pat.token == PatternToken.REGEX_TRANSFORM:
+                                s = pat.transform_action(s)
+                            break
+                    else:
+                        raise ParamsUnmatched(f"{s} is not matched in {self.arg_value}")
+                    result.append(s)
+                else:
+                    if self.arg_value.find(s):
+                        if self.arg_value.token == PatternToken.REGEX_TRANSFORM:
+                            s = self.arg_value.transform_action(s)
+                        result.append(s)
+                    else:
+                        raise ParamsUnmatched(f"{s} is not matched with {self.arg_value}")
+            if self.form == "list":
+                return result
+            elif self.form == "tuple":
+                return tuple(result)
+            elif self.form == "set":
+                return set(result)
+
         if form == "list":
-            super().__init__(
-                r"\[(.+?)\]", token=PatternToken.REGEX_TRANSFORM, origin_type=list, alias=f"List[{alias_content}]"
-            )
+            super().__init__(r"\[(.+?)\]", PatternToken.REGEX_TRANSFORM, list, _act, f"List[{alias_content}]")
         elif form == "tuple":
-            super().__init__(
-                r"\((.+?)\)", token=PatternToken.REGEX_TRANSFORM, origin_type=tuple, alias=f"Tuple[{alias_content}]"
-            )
+            super().__init__(r"\((.+?)\)", PatternToken.REGEX_TRANSFORM, tuple, _act, f"Tuple[{alias_content}]")
         elif form == "set":
-            super().__init__(
-                r"\{(.+?)\}", token=PatternToken.REGEX_TRANSFORM, origin_type=set, alias=f"Set[{alias_content}]"
-            )
+            super().__init__(r"\{(.+?)\}", PatternToken.REGEX_TRANSFORM, set, _act, f"Set[{alias_content}]")
         else:
             raise ValueError(f"invalid form: {form}")
 
     def __repr__(self):
         return f"{self.form}[{self.arg_value}]"
-
-    def find(self, text: str):
-        if not isinstance(text, str):
-            return
-        r = self.re_pattern.findall(text)
-        if not r:
-            return
-        sequence = re.split(r"\s*,\s*", r[0])
-        result = []
-        for s in sequence:
-            if isinstance(self.arg_value, UnionArg):
-                for pat in self.arg_value.for_match:
-                    if arg_find := pat.find(s):
-                        s = arg_find
-                        if pat.token == PatternToken.REGEX_TRANSFORM:
-                            s = pat.transform_action(s)
-                        break
-                else:
-                    return
-                result.append(s)
-            else:
-                if self.arg_value.find(s):
-                    if self.arg_value.token == PatternToken.REGEX_TRANSFORM:
-                        s = self.arg_value.transform_action(s)
-                    result.append(s)
-                else:
-                    return
-        if self.form == "list":
-            return result
-        elif self.form == "tuple":
-            return tuple(result)
-        elif self.form == "set":
-            return set(result)
 
 
 class MappingArg(ArgPattern):
@@ -308,53 +307,51 @@ class MappingArg(ArgPattern):
 
     def __init__(self, arg_key: ArgPattern, arg_value: Union[ArgPattern, _AnyParam]):
         self.arg_key = arg_key
+        if isinstance(self.arg_key, UnionArg):
+            raise TypeError("not support union arg in mapping key")
         self.arg_value = arg_value if isinstance(arg_value, ArgPattern) else AnyStr
-        alias_content = f"{self.arg_key.alias or self.arg_key.origin_type.__name__}, " \
-                        f"{self.arg_value.alias or self.arg_value.origin_type.__name__}"
-        super().__init__(
-            r"\{(.+?)\}", token=PatternToken.REGEX_TRANSFORM, origin_type=dict, alias=f"Dict[{alias_content}]"
-        )
 
-    def __repr__(self):
-        return f"dict[{self.arg_key.origin_type.__name__}, {self.arg_value}]"
-
-    def find(self, text: str):
-        if not isinstance(text, str):
-            return
-        r = self.re_pattern.findall(text)
-        if not r:
-            return
-        mapping = re.split(r"\s*,\s*", r[0])
-        result = {}
-        for m in mapping:
-            k, v = re.split(r"\s*[:=]\s*", m)
-            if isinstance(self.arg_key, UnionArg):
-                raise TypeError("not support union arg in mapping key")
-            else:
+        def _act(text: str):
+            mapping = re.split(r"\s*,\s*", text)
+            result = {}
+            for m in mapping:
+                k, v = re.split(r"\s*[:=]\s*", m)
                 if self.arg_key.find(k):
+                    if self.arg_key.token == PatternToken.DIRECT:
+                        try:
+                            k = eval(k)
+                        except NameError:
+                            pass
                     if self.arg_key.token == PatternToken.REGEX_TRANSFORM:
                         k = self.arg_key.transform_action(k)
                     real_key = k
                 else:
-                    return
-            if isinstance(self.arg_value, UnionArg):
-                for pat in self.arg_value.for_match:
-                    if arg_find := pat.find(v):
-                        v = arg_find
-                        if pat.token == PatternToken.REGEX_TRANSFORM:
-                            v = pat.transform_action(v)
-                        break
-                else:
-                    return
-                result[real_key] = v
-            else:
-                if self.arg_value.find(v):
-                    if self.arg_value.token == PatternToken.REGEX_TRANSFORM:
-                        v = self.arg_value.transform_action(v)
+                    raise ParamsUnmatched(f"{k} is not matched with {self.arg_key}")
+                if isinstance(self.arg_value, UnionArg):
+                    for pat in self.arg_value.for_match:
+                        if arg_find := pat.find(v):
+                            v = arg_find
+                            if pat.token == PatternToken.REGEX_TRANSFORM:
+                                v = pat.transform_action(v)
+                            break
+                    else:
+                        raise ParamsUnmatched(f"{v} is not matched in {self.arg_value}")
                     result[real_key] = v
                 else:
-                    return
-        return result
+                    if self.arg_value.find(v):
+                        if self.arg_value.token == PatternToken.REGEX_TRANSFORM:
+                            v = self.arg_value.transform_action(v)
+                        result[real_key] = v
+                    else:
+                        raise ParamsUnmatched(f"{v} is not matched with {self.arg_value}")
+            return result
+
+        alias_content = f"{self.arg_key.alias or self.arg_key.origin_type.__name__}, " \
+                        f"{self.arg_value.alias or self.arg_value.origin_type.__name__}"
+        super().__init__(r"\{(.+?)\}", PatternToken.REGEX_TRANSFORM, dict, _act, f"Dict[{alias_content}]")
+
+    def __repr__(self):
+        return f"dict[{self.arg_key.origin_type.__name__}, {self.arg_value}]"
 
 
 pattern_map = {

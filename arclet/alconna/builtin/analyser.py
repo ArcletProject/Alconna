@@ -80,11 +80,7 @@ class DisorderCommandAnalyser(Analyser):
                     self.main_args = analyse_args(
                         self, self.self_args, self.separator, self.alconna.nargs, self.alconna.action
                     )
-            except ParamsUnmatched:
-                if self.is_raise_exception:
-                    raise
-                return self.create_arpamar(fail=True)
-            except ArgumentMissing:
+            except (ParamsUnmatched, ArgumentMissing):
                 if self.is_raise_exception:
                     raise
                 return self.create_arpamar(fail=True)

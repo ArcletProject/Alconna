@@ -4,8 +4,7 @@ import warnings
 import logging
 from inspect import stack
 from typing import Union, Type, Callable, TypeVar
-from .exceptions import UnexpectedElement, NullTextMessage
-from .types import NonTextElement, Gettable
+from .types import NonTextElement
 
 R = TypeVar('R')
 raw_type = ["str", "dict", "Arpamar"]
@@ -103,6 +102,7 @@ def split(text: str, separate: str = " ", ):
                 quote = ""
             else:
                 cache.append(char)
+                continue
         elif char in ("\n", "\r"):
             continue
         elif not quote and char == separate and cache:
@@ -113,47 +113,6 @@ def split(text: str, separate: str = " ", ):
     if cache:
         result.append("".join(cache))
     return result
-
-
-def chain_filter(
-        message,
-        separate: str = " ",
-        exception_in_time: bool = False,
-):
-    """消息链过滤方法, 优先度 texts > white_elements > black_elements"""
-    i, _tc = 0, 0
-    raw_data = {}
-    for ele in message:
-        try:
-            if ele.__class__.__name__ in chain_texts:
-                raw_data[i] = split(ele.text.lstrip(' '), separate)
-                _tc += 1
-            elif ele.__class__.__name__ in elements_whitelist or ele.__class__.__name__ not in (
-                    *elements_blacklist, *raw_type
-            ):
-                raw_data[i] = ele
-            else:
-                if isinstance(ele, Gettable):
-                    if ele.get('type') in chain_texts:
-                        raw_data[i] = split(ele.get('text').lstrip(' '), separate)
-                        _tc += 1
-                    elif ele.get('type') in elements_whitelist or ele.get('type') not in elements_blacklist:
-                        raw_data[i] = ele
-                elif ele.__class__.__name__ == "str":
-                    raw_data[i] = split(ele.lstrip(' '), separate)
-                    _tc += 1
-                else:
-                    raise UnexpectedElement(f"{ele.__class__.__name__}({ele})")
-            i += 1
-        except UnexpectedElement:
-            if exception_in_time:
-                raise
-            continue
-    if _tc == 0:
-        if exception_in_time:
-            raise NullTextMessage("传入了一个无法获取文本的消息链")
-        return
-    return raw_data
 
 
 def deprecated(remove_ver: str) -> Callable[[Callable[..., R]], Callable[..., R]]:

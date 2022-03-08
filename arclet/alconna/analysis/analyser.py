@@ -2,10 +2,10 @@ import re
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable
 from ..base import Args
-from ..exceptions import NullTextMessage
+from ..exceptions import NullTextMessage, UnexpectedElement
 from ..component import Option, Subcommand, Arpamar
-from ..util import split_once, split, chain_filter
-from ..types import NonTextElement, ArgPattern, MessageChain
+from ..util import split_once, split, chain_texts, elements_whitelist, raw_type, elements_blacklist
+from ..types import NonTextElement, ArgPattern, MessageChain, Gettable
 
 if TYPE_CHECKING:
     from ..main import Alconna
@@ -203,11 +203,50 @@ class Analyser(metaclass=ABCMeta):
             self.raw_data[0] = split(data, self.separator)
             self.ndata = 1
         else:
-            result = chain_filter(data, self.separator, self.is_raise_exception)
-            if not result:
+            separate = self.separator
+            is_raise_exception = self.is_raise_exception
+            i, _tc = 0, 0
+            exc = None
+            raw_data: Dict[int, Any] = {}
+            for ele in data:
+                e_type = ele.__class__.__name__
+                if e_type in chain_texts and (res := split(ele.text.lstrip(' '), separate)):
+                    raw_data[i] = res
+                    _tc += 1
+                elif e_type in elements_whitelist:
+                    raw_data[i] = ele
+                elif e_type in raw_type:
+                    if isinstance(ele, Gettable):
+                        if ele.get('type') in chain_texts and (res := split(ele.get('text').lstrip(' '), separate)):
+                            raw_data[i] = res
+                            _tc += 1
+                        elif ele.get('type') in elements_whitelist or ele.get('type') not in elements_blacklist:
+                            raw_data[i] = ele
+                        else:
+                            exc = UnexpectedElement(f"{e_type}({ele})")
+                            continue
+                    elif e_type == "str" and (res := split(ele.lstrip(' '), separate)):
+                        raw_data[i] = res
+                        _tc += 1
+                    else:
+                        exc = UnexpectedElement(f"{e_type}({ele})")
+                        continue
+                elif e_type not in elements_blacklist:
+                    raw_data[i] = ele
+                else:
+                    exc = UnexpectedElement(f"{e_type}({ele})")
+                    continue
+                i += 1
+            if _tc == 0:
+                if is_raise_exception:
+                    raise NullTextMessage("传入了一个无法获取文本的消息链")
                 return self.create_arpamar(fail=True, exception=NullTextMessage("传入了一个无法获取文本的消息链"))
-            self.raw_data = result
-            self.ndata = len(result)
+            if exc:
+                if is_raise_exception:
+                    raise exc
+                return self.create_arpamar(fail=True, exception=exc)
+            self.raw_data = raw_data
+            self.ndata = i
 
     @abstractmethod
     def analyse(self, message: Union[str, MessageChain] = None):

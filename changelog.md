@@ -50,6 +50,17 @@
 5. 增强Format
 6. 修改help—action相关
 
+## Alconna 0.7.3:
+1. 优化结构
+2. 增加`AlconnaFire`的Config, 用来约束`AlconnaFire`的参数
+3. `AlconnaFire`现在可以解析子命令, 通过Config传入`get_subcommand=True`来启用
+4. 更好的parameter-helptext
+5. `util.chain_filter`重新归并到`Analyser.handle_message`里
+6. 增加`Force`类, 用以标记arg类型不需要进行转换; 或者在key前面加上`"#"`
+7. 支持传入键值对参数与可变键值对参数, 分别用`"@"`和`"**""`标记
+8. 支持将参数设为可选(即未解析成功时不报错而是跳过), 用`"?"`标记
+9. 修复bug
+
 # Alconna 0.6.x:
 
 ## Alconna 0.6.0:

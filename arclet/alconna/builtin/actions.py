@@ -11,7 +11,7 @@ class _StoreValue(ArgAction):
     def __init__(self, value: Any):
         super().__init__(lambda: value)
 
-    def handle(self, option_dict, is_raise_exception):
+    def handle(self, option_dict, varargs, kwargs, is_raise_exception):
         return self.action()
 
 
@@ -53,10 +53,10 @@ def help_send(command: str, help_string_call: Callable[[], str]):
         def __init__(self):
             super().__init__(HelpDispatch.help_send_action)
 
-        def handle(self, option_dict, is_raise_exception):
+        def handle(self, option_dict, varargs, kwargs, is_raise_exception):
             return require_help_send_action(command=command)(help_string_call())
 
-        async def handle_async(self, option_dict, is_raise_exception):
+        async def handle_async(self, option_dict, varargs, kwargs, is_raise_exception):
             return await require_help_send_action(command=command)(help_string_call())
 
     HelpDispatch.helpers[command] = _HELP()

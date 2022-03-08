@@ -1,8 +1,9 @@
+import re
 from typing import Union, Dict, Any
 
 from ..types import MultiArg, ArgPattern, NonTextElement, PatternToken, AntiArg, Empty, UnionArg
 from .analyser import Analyser
-from ..exceptions import ParamsUnmatched
+from ..exceptions import ParamsUnmatched, ArgumentMissing
 
 
 def multi_arg_handler(
@@ -13,7 +14,8 @@ def multi_arg_handler(
         default: Any,
         nargs: int,
         sep: str,
-        result_dict: Dict[str, Any]
+        result_dict: Dict[str, Any],
+        optional: bool
 ):
     _m_arg_base = value.arg_value
     if _m_arg_base.__class__ is ArgPattern:
@@ -26,45 +28,102 @@ def multi_arg_handler(
     _m_rest_arg = nargs - len(result_dict) - 1
     _m_all_args_count = analyser.rest_count(sep) - _m_rest_arg + 1
     analyser.reduce_data(may_arg)
-    result = []
+    if value.flag == 'args':
+        result = []
 
-    def __putback(data):
-        analyser.reduce_data(data)
-        for ii in range(min(len(result), _m_rest_arg)):
-            analyser.reduce_data(result.pop(-1))
+        def __putback(data):
+            analyser.reduce_data(data)
+            for ii in range(min(len(result), _m_rest_arg)):
+                analyser.reduce_data(result.pop(-1))
 
-    for i in range(_m_all_args_count):
-        _m_arg = analyser.next_data(sep)
-        if isinstance(_m_arg, str) and _m_arg in analyser.params:
-            __putback(_m_arg)
-            break
-        if _m_arg_base.__class__ is ArgPattern:
-            if not isinstance(_m_arg, str):
-                analyser.reduce_data(_m_arg)
-                break
-            _m_arg_find = _m_arg_base.find(_m_arg)
-            if not _m_arg_find:
-                analyser.reduce_data(_m_arg)
-                break
-            if _m_arg_base.token == PatternToken.REGEX_TRANSFORM and isinstance(_m_arg_find, str):
-                _m_arg_find = _m_arg_base.transform_action(_m_arg_find)
-            if _m_arg_find == _m_arg_base.pattern:
-                _m_arg_find = Ellipsis
-            result.append(_m_arg_find)
-        else:
-            if isinstance(_m_arg, str):
+        for i in range(_m_all_args_count):
+            _m_arg = analyser.next_data(sep)
+            if isinstance(_m_arg, str) and _m_arg in analyser.params:
                 __putback(_m_arg)
                 break
-            if _m_arg.__class__ is _m_arg_base:
-                result.append(_m_arg)
-            elif isinstance(value, type) and isinstance(may_arg, value):
-                result.append(_m_arg)
+            if _m_arg_base.__class__ is ArgPattern:
+                if not isinstance(_m_arg, str):
+                    analyser.reduce_data(_m_arg)
+                    break
+                _m_arg_find = _m_arg_base.find(_m_arg)
+                if not _m_arg_find:
+                    analyser.reduce_data(_m_arg)
+                    break
+                if _m_arg_base.token == PatternToken.REGEX_TRANSFORM and isinstance(_m_arg_find, str):
+                    _m_arg_find = _m_arg_base.transform_action(_m_arg_find)
+                if _m_arg_find == _m_arg_base.pattern:
+                    _m_arg_find = Ellipsis
+                result.append(_m_arg_find)
             else:
-                analyser.reduce_data(_m_arg)
+                if isinstance(_m_arg, str):
+                    __putback(_m_arg)
+                    break
+                if _m_arg.__class__ is _m_arg_base:
+                    result.append(_m_arg)
+                elif isinstance(value, type) and isinstance(may_arg, value):
+                    result.append(_m_arg)
+                else:
+                    analyser.reduce_data(_m_arg)
+                    break
+        if len(result) == 0:
+            result = [default] if default else []
+        result_dict[key] = tuple(result)
+    else:
+        result = {}
+
+        def __putback(data):
+            analyser.reduce_data(data)
+            for ii in range(min(len(result), _m_rest_arg)):
+                arg = result.popitem()
+                analyser.reduce_data(arg[0] + '=' + arg[1])
+
+        for i in range(_m_all_args_count):
+            _m_arg = analyser.next_data(sep)
+            if isinstance(_m_arg, str) and _m_arg in analyser.params:
+                __putback(_m_arg)
                 break
-    if len(result) == 0:
-        result = [None if default is Empty else default]
-    result_dict[key] = tuple(result)
+            if _m_arg_base.__class__ is ArgPattern:
+                if not isinstance(_m_arg, str):
+                    analyser.reduce_data(_m_arg)
+                    break
+                _kwarg = re.findall(r'^(.*)=(.*)$', _m_arg)
+                if not _kwarg:
+                    analyser.reduce_data(_m_arg)
+                    break
+                _key, _m_arg = _kwarg[0]
+                _m_arg_find = _m_arg_base.find(_m_arg)
+                if not _m_arg_find:
+                    analyser.reduce_data(_m_arg)
+                    break
+                if _m_arg_base.token == PatternToken.REGEX_TRANSFORM and isinstance(_m_arg_find, str):
+                    _m_arg_find = _m_arg_base.transform_action(_m_arg_find)
+                if _m_arg_find == _m_arg_base.pattern:
+                    _m_arg_find = Ellipsis
+                result[_key] = _m_arg_find
+            else:
+                if isinstance(_m_arg, str):
+                    _kwarg = re.findall(r'^(.*)=.*?$', _m_arg)
+                    if not _kwarg:
+                        __putback(_m_arg)
+                        break
+                    _key = _kwarg[0]
+                    _m_arg = analyser.next_data(sep)
+                    if isinstance(_m_arg, str):
+                        __putback(_m_arg)
+                        break
+                    if _m_arg.__class__ is _m_arg_base:
+                        result[_key] = _m_arg
+                    elif isinstance(value, type) and isinstance(may_arg, value):
+                        result[_key] = _m_arg
+                    else:
+                        analyser.reduce_data(_m_arg)
+                        break
+                else:
+                    analyser.reduce_data(_m_arg)
+                    break
+        if len(result) == 0:
+            result = [default] if default else []
+        result_dict[key] = result
 
 
 def anti_arg_handler(
@@ -75,7 +134,8 @@ def anti_arg_handler(
         default: Any,
         nargs: int,
         sep: str,
-        result_dict: Dict[str, Any]
+        result_dict: Dict[str, Any],
+        optional: bool
 ):
     _a_arg_base = value.arg_value
     if _a_arg_base.__class__ is ArgPattern:
@@ -85,6 +145,8 @@ def anti_arg_handler(
         else:
             analyser.reduce_data(may_arg)
             if default is None:
+                if optional:
+                    return
                 raise ParamsUnmatched(f"param {may_arg} is incorrect")
             result_dict[key] = None if default is Empty else default
     else:
@@ -95,10 +157,12 @@ def anti_arg_handler(
             analyser.reduce_data(may_arg)
         else:
             analyser.reduce_data(may_arg)
+            if key in may_arg.optional:
+                return
             if may_arg:
                 raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
             else:
-                raise ParamsUnmatched(f"param {key} is required")
+                raise ArgumentMissing(f"param {key} is required")
 
 
 def union_arg_handler(
@@ -109,7 +173,8 @@ def union_arg_handler(
         default: Any,
         nargs: int,
         sep: str,
-        result_dict: Dict[str, Any]
+        result_dict: Dict[str, Any],
+        optional: bool
 ):
     if not value.anti:
         not_equal = True
@@ -154,10 +219,12 @@ def union_arg_handler(
     if result:
         analyser.reduce_data(may_arg)
         if default is None:
+            if optional:
+                return
             if may_arg:
                 raise ParamsUnmatched(f"param {may_arg} is incorrect")
             else:
-                raise ParamsUnmatched(f"param {key} is required")
+                raise ArgumentMissing(f"param {key} is required")
         may_arg = None if default is Empty else default
     result_dict[key] = may_arg
 
@@ -170,17 +237,21 @@ def common_arg_handler(
         default: Any,
         nargs: int,
         sep: str,
-        result_dict: Dict[str, Any]
+        result_dict: Dict[str, Any],
+        optional: bool
 ):
     arg_find = value.find(may_arg)
     if not arg_find:
         analyser.reduce_data(may_arg)
         if default is None:
+            if optional:
+                return
             if may_arg:
                 raise ParamsUnmatched(f"param {may_arg} is incorrect")
             else:
-                raise ParamsUnmatched(f"param {key} is required")
-        arg_find = None if default is Empty else default
+                raise ArgumentMissing(f"param {key} is required")
+        else:
+            arg_find = None if default is Empty else default
     if value.token == PatternToken.REGEX_TRANSFORM and isinstance(arg_find, str):
         arg_find = value.transform_action(arg_find)
     if arg_find == value.pattern:
