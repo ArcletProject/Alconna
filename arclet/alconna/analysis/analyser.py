@@ -223,18 +223,21 @@ class Analyser(metaclass=ABCMeta):
                         elif ele.get('type') in elements_whitelist or ele.get('type') not in elements_blacklist:
                             raw_data[i] = ele
                         else:
-                            exc = UnexpectedElement(f"{e_type}({ele})")
+                            if is_raise_exception:
+                                exc = UnexpectedElement(f"{e_type}({ele})")
                             continue
                     elif e_type == "str" and (res := split(ele.lstrip(' '), separate)):
                         raw_data[i] = res
                         _tc += 1
                     else:
-                        exc = UnexpectedElement(f"{e_type}({ele})")
+                        if is_raise_exception:
+                            exc = UnexpectedElement(f"{e_type}({ele})")
                         continue
                 elif e_type not in elements_blacklist:
                     raw_data[i] = ele
                 else:
-                    exc = UnexpectedElement(f"{e_type}({ele})")
+                    if is_raise_exception:
+                        exc = UnexpectedElement(f"{e_type}({ele})")
                     continue
                 i += 1
             if _tc == 0:

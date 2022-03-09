@@ -47,6 +47,7 @@ class Args(metaclass=ArgsMeta):
     var_keyword: Optional[Tuple[str, MultiArg]]
     optional: List[str]
     kwonly: List[str]
+    hidden: List[str]
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -135,12 +136,13 @@ class Args(metaclass=ArgsMeta):
         self.var_keyword = None
         self.optional = []
         self.kwonly = []
+        self.hidden = []
         self.argument = {
             k: {"value": argtype_validator(v), "default": None} for k, v in kwargs.items()
         }
         self.__check_vars__(args or [])
 
-    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional", "kwonly"
+    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional", "kwonly", "hidden"
 
     def default(self, **kwargs: TADefault):
         """设置参数的默认值"""
@@ -191,10 +193,13 @@ class Args(metaclass=ArgsMeta):
                     _value = AntiArg(_value)
             if "?" in name:
                 name = name.replace("?", "")
-                self.optional.append(name)
+                self.optional.append(name.replace("@", "").lstrip("_"))
             if "@" in name:
                 name = name.replace("@", "")
-                self.kwonly.append(name)
+                self.kwonly.append(name.replace("?", "").lstrip("_"))
+            if name.startswith("_"):
+                name = name.lstrip("_")
+                self.hidden.append(name.replace("@", "").lstrip("?"))
             if default in ("...", Ellipsis):
                 default = Empty
             if _value is Empty:
@@ -209,19 +214,20 @@ class Args(metaclass=ArgsMeta):
         for k, v in self.argument.items():
             arg = f"<{k}" if k not in self.optional else f"<{k}?"
             _sep = "=" if k in self.kwonly else ":"
-            if isinstance(v['value'], _AnyParam):
-                arg += f"{_sep}WildMatch"
-            elif isinstance(v['value'], ArgPattern):
-                arg += f"{_sep}{v['value'].alias or v['value'].origin_type.__name__}"
-            else:
-                try:
-                    arg += f"{_sep}Type_{v['value'].__name__}"
-                except AttributeError:
-                    arg += f"{_sep}Type_{repr(v['value'])}"
-            if v['default'] is Empty:
-                arg += ", default=None"
-            elif v['default'] is not None:
-                arg += f", default={v['default']}"
+            if k not in self.hidden:
+                if isinstance(v['value'], _AnyParam):
+                    arg += f"{_sep}WildMatch"
+                elif isinstance(v['value'], ArgPattern):
+                    arg += f"{_sep}{v['value'].alias or v['value'].origin_type.__name__}"
+                else:
+                    try:
+                        arg += f"{_sep}Type_{v['value'].__name__}"
+                    except AttributeError:
+                        arg += f"{_sep}Type_{repr(v['value'])}"
+                if v['default'] is Empty:
+                    arg += ", default=None"
+                elif v['default'] is not None:
+                    arg += f", default={v['default']}"
             argument_string += arg + ">"
             i += 1
             if i != length:
