@@ -233,7 +233,7 @@ class Analyser(metaclass=ABCMeta):
                         if is_raise_exception:
                             exc = UnexpectedElement(f"{e_type}({ele})")
                         continue
-                elif e_type not in elements_blacklist:
+                elif e_type not in elements_blacklist + chain_texts:
                     raw_data[i] = ele
                 else:
                     if is_raise_exception:
