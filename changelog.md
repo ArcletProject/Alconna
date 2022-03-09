@@ -63,14 +63,11 @@
 10. `Arpamar`可以通过`XXX.opt.arg1`、`XXX.sub.sub_opt.arg2`等方式获取参数值
 11. 修复bug
 
-## Alconna 0.7.4:
+## Alconna 0.7.4 - 0.7.4.3:
 1. 加入`Alconna.local_args`, 可用来注入额外参数
 2. `actions`关键字改为`action`
-3. 修复bug
-
-## Alconna 0.7.4.1 - 0.7.4.2:
-1. 加入`_`前缀，用来隐藏该参数的类型注解
-2. 修复bug
+3. 加入`_`前缀，用来隐藏该参数的类型注解
+4. 修复bug
 
 # Alconna 0.6.x:
 

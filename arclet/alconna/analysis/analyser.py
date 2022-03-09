@@ -73,7 +73,7 @@ class Analyser(metaclass=ABCMeta):
 
     def __handle_main_args(self, main_args: Args, nargs: int = None):
         nargs = nargs or len(main_args)
-        if nargs > 0:
+        if nargs > 0 and nargs > len(main_args.optional):
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
         _de_count = 0
         for k, a in main_args.argument.items():
@@ -210,9 +210,12 @@ class Analyser(metaclass=ABCMeta):
             raw_data: Dict[int, Any] = {}
             for ele in data:
                 e_type = ele.__class__.__name__
-                if e_type in chain_texts and (res := split(ele.text.lstrip(' '), separate)):
-                    raw_data[i] = res
-                    _tc += 1
+                if e_type in chain_texts:
+                    if res := split(ele.text.lstrip(' '), separate):
+                        raw_data[i] = res
+                        _tc += 1
+                    else:
+                        continue
                 elif e_type in elements_whitelist:
                     raw_data[i] = ele
                 elif e_type in raw_type:
