@@ -114,7 +114,7 @@ ddd = Alconna(
                 Option(
                     "--round| -r",
                     args=Args(decimal=AnyDigit),
-                    actions=lambda x: x + "a",
+                    action=lambda x: x + "a",
                     help_text="保留n位小数"
                 )
             ],
@@ -155,7 +155,7 @@ wild = Alconna(
     headers=[At(12345)],
     command="丢漂流瓶",
     main_args=Args["wild":AnyParam],
-    actions=test_act,
+    action=test_act,
     help_text="丢漂流瓶"
 )
 # print(wild.parse("丢漂流瓶 aaa bbb ccc").all_matched_args)

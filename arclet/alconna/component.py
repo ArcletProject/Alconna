@@ -13,7 +13,7 @@ class Option(CommandNode):
             name: str,
             args: Optional[Args] = None,
             alias: str = None,
-            actions: Optional[Union[ArgAction, Callable]] = None,
+            action: Optional[Union[ArgAction, Callable]] = None,
             separator: str = None,
             help_text: str = None,
 
@@ -21,7 +21,7 @@ class Option(CommandNode):
         if "|" in name:
             name, alias = name.replace(' ', '').split('|')
         self.alias = alias or name
-        super().__init__(name, args, actions, separator, help_text)
+        super().__init__(name, args, action, separator, help_text)
 
     def __generate_help__(self):
         """预处理 help 文档"""
@@ -68,12 +68,12 @@ class Subcommand(CommandNode):
             name: str,
             options: Optional[Iterable[Option]] = None,
             args: Optional[Args] = None,
-            actions: Optional[Union[ArgAction, Callable]] = None,
+            action: Optional[Union[ArgAction, Callable]] = None,
             separator: str = None,
             help_text: str = None,
     ):
         self.options = list(options or [])
-        super().__init__(name, args, actions, separator, help_text)
+        super().__init__(name, args, action, separator, help_text)
         self.sub_params = {}
         self.sub_part_len = range(self.nargs)
 

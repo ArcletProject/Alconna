@@ -187,7 +187,7 @@ class AlconnaDecorate:
             if not self.__storage.get('func'):
                 self.__storage['func'] = func
             self.__storage['options'].append(
-                Option(name, args=args, alias=alias, actions=action, separator=sep, help_text=help or name)
+                Option(name, args=args, alias=alias, action=action, separator=sep, help_text=help or name)
             )
             return func
 
@@ -357,9 +357,9 @@ def _from_string(
             if opt_action_value:
                 val = eval(opt_action_value[0], {"true": True, "false": False})
                 if isinstance(val, bool):
-                    _options.append(Option(opt_head, alias=opt_alias, args=_opt_args, actions=store_bool(val)))
+                    _options.append(Option(opt_head, alias=opt_alias, args=_opt_args, action=store_bool(val)))
                 else:
-                    _options.append(Option(opt_head, alias=opt_alias, args=_opt_args, actions=store_const(val)))
+                    _options.append(Option(opt_head, alias=opt_alias, args=_opt_args, action=store_const(val)))
             else:
                 _options.append(Option(opt_head, alias=opt_alias, args=_opt_args))
             _options[-1].help_text = opt_help_string[0]
@@ -427,7 +427,7 @@ class FuncMounter(AlconnaMounter):
             command=config.get("command", func_name),
             main_args=_args,
             help_text=config.get("description", func.__doc__ or func_name),
-            actions=func,
+            action=func,
             is_raise_exception=config.get("raise_exception", True),
             namespace=config.get("namespace", None),
         )
@@ -491,9 +491,9 @@ def visit_subcommand(obj: Any):
                 help_text = func.__doc__ or name
                 _opt_args, method = Args.from_callable(func, extra='ignore')
                 if method:
-                    _options.append(Option(name, args=_opt_args, actions=_TargetAction(func), help_text=help_text))
+                    _options.append(Option(name, args=_opt_args, action=_TargetAction(func), help_text=help_text))
                 else:
-                    _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+                    _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
             sub.options = _options
             sub.actions = _InstanceAction()
             sub.__generate_help__()
@@ -508,7 +508,7 @@ def visit_subcommand(obj: Any):
                 _opt_args, method = Args.from_callable(func, extra='ignore')
                 if method:
                     func = partial(func, sub.sub_instance)
-                _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+                _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
             sub.options = _options
             sub.__generate_help__()
             result.append(sub)
@@ -564,9 +564,9 @@ class ClassMounter(AlconnaMounter):
                 help_text = func.__doc__ or name
                 _opt_args, method = Args.from_callable(func, extra=config.get("extra"))
                 if method:
-                    _options.append(Option(name, args=_opt_args, actions=_TargetAction(func), help_text=help_text))
+                    _options.append(Option(name, args=_opt_args, action=_TargetAction(func), help_text=help_text))
                 else:
-                    _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+                    _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
             super().__init__(
                 headers=config.get('headers', None),
                 namespace=config.get('namespace', None),
@@ -575,7 +575,7 @@ class ClassMounter(AlconnaMounter):
                 options=_options,
                 help_text=config.get('description', main_help_text),
                 is_raise_exception=config.get('raise_exception', True),
-                actions=main_action,
+                action=main_action,
             )
         else:
             self.instance = mount_cls()
@@ -586,7 +586,7 @@ class ClassMounter(AlconnaMounter):
                 _opt_args, method = Args.from_callable(func, extra=config.get("extra"))
                 if method:
                     func = partial(func, self.instance)
-                _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+                _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
             super().__init__(
                 headers=config.get('headers', None),
                 namespace=config.get('namespace', None),
@@ -621,7 +621,7 @@ class ModuleMounter(AlconnaMounter):
             _opt_args, method = Args.from_callable(func, extra=config.get("extra"))
             if method:
                 func = partial(func, func.__self__)
-            _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+            _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
         super().__init__(
             headers=config.get('headers', None),
             namespace=config.get('namespace', None),
@@ -661,7 +661,7 @@ class ObjectMounter(AlconnaMounter):
                 continue
             help_text = func.__doc__ or name
             _opt_args, _ = Args.from_callable(func, extra=config.get("extra"))
-            _options.append(Option(name, args=_opt_args, actions=ArgAction(func), help_text=help_text))
+            _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
         if len(init.args) > 1:
             main_args = Args.from_callable(obj.__init__, extra=config.get("extra"))[0]
             for k, a in main_args.argument.items():
@@ -683,7 +683,7 @@ class ObjectMounter(AlconnaMounter):
                 options=_options,
                 help_text=config.get("description", main_help_text),
                 is_raise_exception=config.get("raise_exception", True),
-                actions=main_action,
+                action=main_action,
                 namespace=config.get('namespace', None)
             )
         else:

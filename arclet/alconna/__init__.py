@@ -24,7 +24,7 @@ disable_command = command_manager.set_disable
 enable_command = command_manager.set_enable
 get_command = command_manager.get_command
 get_commands = command_manager.get_commands
-alconna_version = (0, 7, 3)
+alconna_version = (0, 7, 4)
 
 if TYPE_CHECKING:
     from .builtin.actions import version

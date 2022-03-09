@@ -126,3 +126,6 @@ print(alc8.parse("test_dict \"{'a':1, 'b':2}\""))
 alc9 = Alconna("test_str", main_args="@foo:str, bar:list, ?baz:int")
 print(alc9)
 print(alc9.parse("test_str foo=a \"[1]\""))
+
+alc10 = Alconna("test_bool", main_args="foo:str", action=store_bool(True))
+print(alc10.parse("test_bool a"))

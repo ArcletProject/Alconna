@@ -53,6 +53,7 @@ class Alconna(CommandNode):
     custom_types: Dict[str, Type] = {}
     namespace: str
     __cls_name__: str = "Alconna"
+    local_args: dict = {}
 
     def __init__(
             self,
@@ -61,7 +62,7 @@ class Alconna(CommandNode):
             options: List[Union[Option, Subcommand]] = None,
             main_args: Union[Args, str, None] = None,
             is_raise_exception: bool = False,
-            actions: Optional[Union[ArgAction, Callable]] = None,
+            action: Optional[Union[ArgAction, Callable]] = None,
             namespace: Optional[str] = None,
             separator: str = " ",
             help_text: str = None,
@@ -76,7 +77,7 @@ class Alconna(CommandNode):
             options: 命令选项，你的命令可选择的所有 option ，包括子命令与单独的选项
             main_args: 主参数，填入后当且仅当命令中含有该参数时才会成功解析
             is_raise_exception: 当解析失败时是否抛出异常，默认为 False
-            actions: 命令解析后针对主参数的回调函数
+            action: 命令解析后针对主参数的回调函数
             namespace: 命令命名空间，默认为 'Alconna'
             separator: 命令参数分隔符，默认为空格
             help_text: 帮助文档，默认为 'Unknown Information'
@@ -91,13 +92,13 @@ class Alconna(CommandNode):
         super().__init__(
             f"ALCONNA::{command or headers[0]}",
             main_args,
-            actions,
+            action,
             separator,
             help_text or "Unknown Information"
         )
         self.is_raise_exception = is_raise_exception
         self.namespace = namespace or self.__cls_name__
-        self.options.append(Option("--help", alias="-h", actions=help_send(self.name, self.get_help)))
+        self.options.append(Option("--help", alias="-h", action=help_send(self.name, self.get_help)))
         self.analyser_type = analyser_type
         command_manager.register(self)
         self.__class__.__cls_name__ = "Alconna"

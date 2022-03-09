@@ -109,18 +109,23 @@ def analyse_args(
             varargs = result_dict.pop(opt_args.var_positional[0])
             if not isinstance(varargs, Sequence):
                 varargs = [varargs]
+        addition_kwargs = analyser.alconna.local_args.copy()
+        addition_kwargs.update(kwargs)
         if action.awaitable:
             if loop().is_running():
-                result_dict = cast(Dict, loop().create_task(
-                    action.handle_async(result_dict, varargs, kwargs, analyser.is_raise_exception)
+                option_dict = cast(Dict, loop().create_task(
+                    action.handle_async(result_dict, varargs, addition_kwargs, analyser.is_raise_exception)
                 ))
             else:
-                result_dict = loop().run_until_complete(
-                    action.handle_async(result_dict, varargs, kwargs, analyser.is_raise_exception)
+                option_dict = loop().run_until_complete(
+                    action.handle_async(result_dict, varargs, addition_kwargs, analyser.is_raise_exception)
                 )
         else:
-            result_dict = action.handle(result_dict, varargs, kwargs, analyser.is_raise_exception)
-        option_dict.update(result_dict)
+            option_dict = action.handle(result_dict, varargs, addition_kwargs, analyser.is_raise_exception)
+        if opt_args.var_keyword:
+            option_dict.update({opt_args.var_keyword[0]: kwargs})
+        if opt_args.var_positional:
+            option_dict.update({opt_args.var_positional[0]: varargs})
     return option_dict
 
 
@@ -145,14 +150,18 @@ def analyse_option(
             if param.action.awaitable:
                 if loop().is_running():
                     r = loop().create_task(
-                        param.action.handle_async({}, [], {}, analyser.is_raise_exception)
+                        param.action.handle_async(
+                            {}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception
+                        )
                     )
                 else:
                     r = loop().run_until_complete(
-                        param.action.handle_async({}, [], {}, analyser.is_raise_exception)
+                        param.action.handle_async(
+                            {}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception
+                        )
                     )
             else:
-                r = param.action.handle({}, [], {}, analyser.is_raise_exception)
+                r = param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)
             return [name, r]
         return [name, Ellipsis]
     return [name, analyse_args(analyser, param.args, param.separator, param.nargs, param.action)]
@@ -178,14 +187,18 @@ def analyse_subcommand(
             if param.action.awaitable:
                 if loop().is_running():
                     r = loop().create_task(
-                        param.action.handle_async({}, [], {}, analyser.is_raise_exception)
+                        param.action.handle_async(
+                            {}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception
+                        )
                     )
                 else:
                     r = loop().run_until_complete(
-                        param.action.handle_async({}, [], {}, analyser.is_raise_exception)
+                        param.action.handle_async(
+                            {}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception
+                        )
                     )
             else:
-                r = param.action.handle({}, [], {}, analyser.is_raise_exception)
+                r = param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)
             return [name, r]
         return [name, Ellipsis]
 
