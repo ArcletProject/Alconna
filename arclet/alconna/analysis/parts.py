@@ -1,5 +1,5 @@
 import re
-from typing import Union, Optional, List, Any, Dict, cast, Sequence
+from typing import Iterable, Union, Optional, List, Any, Dict, cast, Sequence
 import asyncio
 
 from .analyser import Analyser
@@ -67,7 +67,8 @@ def analyse_args(
         elif value.__class__ in analyser.arg_handlers:
             analyser.arg_handlers[value.__class__](
                 analyser, may_arg, key, value,
-                default, nargs, sep, option_dict, key in opt_args.optional
+                default, nargs, sep, option_dict, 
+                key in opt_args.optional
             )
         elif value is AnyParam:
             option_dict[key] = may_arg
@@ -107,8 +108,10 @@ def analyse_args(
                 kwargs = {opt_args.var_keyword[0]: kwargs}
         if opt_args.var_positional:
             varargs = result_dict.pop(opt_args.var_positional[0])
-            if not isinstance(varargs, Sequence):
+            if not isinstance(varargs, Iterable):
                 varargs = [varargs]
+            elif not isinstance(varargs, list):
+                varargs = list(varargs)
         addition_kwargs = analyser.alconna.local_args.copy()
         addition_kwargs.update(kwargs)
         if action.awaitable:

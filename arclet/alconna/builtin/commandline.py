@@ -228,7 +228,7 @@ def command_using(arpamar: Arpamar):
     if result.matched:
         print(
             f"Your command is successfully matched!"
-            f"\nThe results："
+            f"\nThe results: "
             f"\n - Header: {result.header}"
             f"\n - Command: {result.main_args}"
             f"\n - Options: {result.options}"

@@ -29,8 +29,13 @@ class Gettable(Protocol):
         ...
 
 
-NonTextElement = TypeVar("NonTextElement")
-MessageChain = TypeVar("MessageChain")
+DataUnit = TypeVar("DataUnit")
+
+
+class DataCollection(Protocol):
+
+    def __iter__(self) -> DataUnit:
+        ...
 
 
 class PatternToken(str, Enum):
@@ -80,9 +85,9 @@ class ArgPattern:
     re_pattern: Pattern
     pattern: str
     token: PatternToken
-    transform_action: Optional[Callable[[str], Any]]
+    transform_action: Callable[[str], Any]
     origin_type: Type
-    alias: str
+    alias: Optional[str]
 
     __slots__ = "re_pattern", "pattern", "token", "origin_type", "transform_action", "alias"
 
@@ -91,17 +96,14 @@ class ArgPattern:
             regex_pattern: str,
             token: PatternToken = PatternToken.REGEX_MATCH,
             origin_type: Type = str,
-            transform_action: Optional[Callable] = lambda x: eval(x),
+            transform_action: Callable = lambda x: eval(x),
             alias: Optional[str] = None
     ):
         self.pattern = regex_pattern
         self.re_pattern = re.compile("^" + regex_pattern + "$")
         self.token = token
         self.origin_type = origin_type
-        if self.token == PatternToken.REGEX_TRANSFORM:
-            self.transform_action = transform_action
-        else:
-            self.transform_action = None
+        self.transform_action = transform_action
         self.alias = alias
 
     def __repr__(self):
@@ -170,9 +172,9 @@ AnyDict = ArgPattern(r"(\{.+?\})", token=PatternToken.REGEX_TRANSFORM, origin_ty
 class MultiArg(ArgPattern):
     """可变参数的匹配"""
     flag: str
-    arg_value: Union[ArgPattern, Type[NonTextElement]]
+    arg_value: Any
 
-    def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement]], flag: Literal['args', 'kwargs'] = 'args'):
+    def __init__(self, arg_value: Union[ArgPattern, Type], flag: Literal['args', 'kwargs'] = 'args'):
         if isinstance(arg_value, ArgPattern):
             alias_content = arg_value.alias or arg_value.origin_type.__name__
         else:
@@ -192,9 +194,9 @@ class MultiArg(ArgPattern):
 
 class AntiArg(ArgPattern):
     """反向参数的匹配"""
-    arg_value: Union[ArgPattern, Type[NonTextElement]]
+    arg_value: Any
 
-    def __init__(self, arg_value: Union[ArgPattern, Type[NonTextElement]]):
+    def __init__(self, arg_value: Union[ArgPattern, Type]):
         self.arg_value = arg_value
         if isinstance(arg_value, ArgPattern):
             alias_content = arg_value.alias or arg_value.origin_type.__name__
@@ -209,12 +211,12 @@ class AntiArg(ArgPattern):
 class UnionArg(ArgPattern):
     """多项参数的匹配"""
     anti: bool
-    arg_value: Sequence[Union[Type, ArgPattern, NonTextElement, str]]
+    arg_value: Sequence[Union[Type, ArgPattern, object, str]]
     for_type_check: List[Type]
     for_match: List[ArgPattern]
-    for_equal: List[Union[str, NonTextElement]]
+    for_equal: List[Union[str, object]]
 
-    def __init__(self, arg_value: Sequence[Union[Type, ArgPattern, NonTextElement, str]], anti: bool = False):
+    def __init__(self, arg_value: Sequence[Union[Type, ArgPattern, object, str]], anti: bool = False):
         self.anti = anti
         self.arg_value = arg_value
 
@@ -239,12 +241,11 @@ class UnionArg(ArgPattern):
         super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=str, alias=f"Union[{alias_content}]")
 
     def __repr__(self):
-        return ("!" if self.anti else "") + (
-                "(" + "|".join(
-                    [repr(a) for a in self.for_match] +
-                    [repr(a) for a in self.for_equal] +
-                    [a.__name__ for a in self.for_type_check]
-                ) + ")"
+        return ("!" if self.anti else "") + ("(" + "|".join(
+            [repr(a) for a in self.for_match] +
+            [repr(a) for a in self.for_equal] +
+            [a.__name__ for a in self.for_type_check]
+        ) + ")"
         )
 
 
@@ -379,13 +380,13 @@ def add_check(pattern: ArgPattern):
     return pattern_map.setdefault(pattern.alias or pattern.origin_type, pattern)
 
 
-def argtype_validator(item: Any, extra: str = "allow") -> Union[ArgPattern, _AnyParam, Type[NonTextElement], Empty]:
+def argtype_validator(item: Any, extra: str = "allow"):
     """对 Args 里参数类型的检查， 将一般数据类型转为 Args 使用的类型"""
     if isinstance(item, Force):
         return item.origin if not isinstance(item.origin, str) else ArgPattern(item.origin)
     try:
         if pattern_map.get(item):
-            return pattern_map.get(item)
+            return pattern_map[item]
     except TypeError:
         pass
     if item.__class__.__name__ in "_GenericAlias":
@@ -450,7 +451,8 @@ class ObjectPattern(ArgPattern):
 
         Args:
             origin: 原始对象
-            headless: 是否只匹配对象的属性
+            limit: 指定该对象初始化时需要的参数
+            head: 是否需要匹配一个头部
             flag: 匹配类型
             suppliers: 对象属性的匹配方法
         """

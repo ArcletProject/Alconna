@@ -4,7 +4,7 @@ from .analysis.analyser import Analyser
 from .analysis import compile
 from .base import CommandNode, Args, ArgAction
 from .component import Option, Subcommand, Arpamar
-from .types import NonTextElement, MessageChain
+from .types import DataCollection, DataUnit
 from .manager import command_manager
 from .builtin.actions import help_send
 from .builtin.analyser import DisorderCommandAnalyser
@@ -46,7 +46,7 @@ class Alconna(CommandNode):
         - main_args: 命令主参数
     """
 
-    headers: List[Union[str, NonTextElement]]
+    headers: List[Union[str, Any]]
     command: str
     options: List[Union[Option, Subcommand]]
     analyser_type: Type[Analyser]
@@ -58,15 +58,15 @@ class Alconna(CommandNode):
     def __init__(
             self,
             command: Optional[str] = None,
-            headers: List[Union[str, NonTextElement]] = None,
-            options: List[Union[Option, Subcommand]] = None,
+            headers: Optional[List[Union[str, DataUnit]]] = None,
+            options: Optional[List[Union[Option, Subcommand]]] = None,
             main_args: Union[Args, str, None] = None,
             is_raise_exception: bool = False,
             action: Optional[Union[ArgAction, Callable]] = None,
             namespace: Optional[str] = None,
             separator: str = " ",
-            help_text: str = None,
-            analyser_type: Optional[Type[Analyser]] = DisorderCommandAnalyser,
+            help_text: Optional[str] = None,
+            analyser_type: Type[Analyser] = DisorderCommandAnalyser,
     ):
         """
         以标准形式构造 Alconna
@@ -90,7 +90,7 @@ class Alconna(CommandNode):
         self.command = command or ""
         self.options = options or []
         super().__init__(
-            f"ALCONNA::{command or headers[0]}",
+            f"ALCONNA::{command or self.headers[0]}",
             main_args,
             action,
             separator,
@@ -175,14 +175,14 @@ class Alconna(CommandNode):
             sep: str = " ",
             args: Optional[Args] = None,
             alias: Optional[str] = None,
-            help_text: str = None,
+            help_text: Optional[str] = None,
     ):
         """链式注册一个 Option"""
         opt = Option(name, args=args, alias=alias, separator=sep, help_text=help_text)
         self.options.append(opt)
         return self
 
-    def set_action(self, action: Union[Callable, str, ArgAction], custom_types: Dict[str, Type] = None):
+    def set_action(self, action: Union[Callable, str, ArgAction], custom_types: Optional[Dict[str, Type]] = None):
         """设置针对main_args的action"""
         if isinstance(action, str):
             ns = {}
@@ -191,7 +191,7 @@ class Alconna(CommandNode):
         self.__check_action__(action)
         return self
 
-    def parse(self, message: Union[str, MessageChain], static: bool = True) -> Arpamar:
+    def parse(self, message: Union[str, DataCollection], static: bool = True) -> Arpamar:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         if static:
             analyser = command_manager.require(self)

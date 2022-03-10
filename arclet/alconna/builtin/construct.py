@@ -6,8 +6,8 @@ import inspect
 from functools import partial
 from types import FunctionType, MethodType, ModuleType
 from typing import Dict, Any, Optional, Callable, Union, TypeVar, List, Type, FrozenSet, Literal, get_args, Tuple, \
-    Iterable
-from arclet.alconna.types import MessageChain
+    Iterable, cast
+from arclet.alconna.types import DataCollection
 from arclet.alconna.builtin.actions import store_bool, store_const
 from arclet.alconna.main import Alconna
 from arclet.alconna.component import Option, Subcommand
@@ -23,7 +23,7 @@ def default_parser(
         local_arg: Optional[Dict[str, Any]],
         loop: Optional[AbstractEventLoop]
 ) -> Any:
-    return func(**args, **local_arg)
+    return func(**{**args, **(local_arg or {})}, loop=loop)
 
 
 class ALCCommand:
@@ -33,7 +33,7 @@ class ALCCommand:
     command: Alconna
     parser_func: PARSER_TYPE
     local_args: Dict[str, Any]
-    exec_target: Callable = None
+    exec_target: Callable
     loop: AbstractEventLoop
 
     def __init__(
@@ -55,7 +55,7 @@ class ALCCommand:
         Args:
             local_args (Optional[Dict[str, Any]]): 本地参数
         """
-        self.local_args = local_args
+        self.local_args = local_args or {}
 
     def set_parser(self, parser_func: PARSER_TYPE):
         """
@@ -67,7 +67,7 @@ class ALCCommand:
         self.parser_func = parser_func
         return self
 
-    def __call__(self, message: Union[str, MessageChain]) -> Any:
+    def __call__(self, message: Union[str, DataCollection]) -> Any:
         if not self.exec_target:
             raise Exception("This must behind a @xxx.command()")
         result = self.command.parse(message)
@@ -146,7 +146,7 @@ class AlconnaDecorate:
         def wrapper(func: Callable[..., Any]) -> ALCCommand:
             if not self.__storage.get('func'):
                 self.__storage['func'] = func
-            command_name = name or self.__storage.get('func').__name__
+            command_name = name or self.__storage['func'].__name__
             help_string = self.__storage.get('func').__doc__
             command = Alconna(
                 command=command_name,
@@ -156,7 +156,7 @@ class AlconnaDecorate:
                 help_text=help_string or command_name
             )
             self.building = False
-            return ALCCommand(command, self.__storage.get('func'), self.loop).set_parser(self.default_parser)
+            return ALCCommand(command, self.__storage['func'], self.loop).set_parser(self.default_parser)
 
         return wrapper
 
@@ -229,7 +229,7 @@ class AlconnaDecorate:
 
 def _from_format(
         format_string: str,
-        format_args: Dict[str, Union[TAValue, Args, Option, List[Option]]] = None,
+        format_args: Optional[Dict[str, Union[TAValue, Args, Option, List[Option]]]] = None,
 ) -> "Alconna":
     """
     以格式化字符串的方式构造 Alconna
@@ -284,8 +284,6 @@ def _from_format(
                 else:
                     if isinstance(value, Option):
                         options.append(value)
-                    elif isinstance(value, List):
-                        options[-1].options.extend(value)
                     elif isinstance(value, Args):
                         options[-1].args = value
                     else:
@@ -312,7 +310,7 @@ def _from_format(
 def _from_string(
         command: str,
         *option: str,
-        custom_types: Dict[str, Type] = None,
+        custom_types: Optional[Dict[str, Type]] = None,
         sep: str = " "
 ) -> "Alconna":
     """
@@ -406,7 +404,7 @@ class AlconnaMounter(Alconna):
     def _parse_action(self, message):
         ...
 
-    def parse(self, message: Union[str, MessageChain], static: bool = True):
+    def parse(self, message: Union[str, DataCollection], static: bool = True):
         message = self._parse_action(message) or message
         super(AlconnaMounter, self).parse(message, static)
 
@@ -418,10 +416,10 @@ class FuncMounter(AlconnaMounter):
         func_name = func.__name__
         if func_name.startswith("_"):
             raise ValueError("function name can not start with '_'")
-        _args, method = Args.from_callable(func, extra=config.get("extra"))
-        if method:
+        _args, method = Args.from_callable(func, extra=config.get("extra", "ignore"))
+        if method and isinstance(func, MethodType):
             self.instance = func.__self__
-            func = partial(func, func.__self__)
+            func = cast(FunctionType, partial(func, self.instance))
         super(FuncMounter, self).__init__(
             headers=config.get("headers", None),
             command=config.get("command", func_name),
@@ -438,6 +436,10 @@ def visit_subcommand(obj: Any):
     subcommands: List[Tuple[str, Type]] = inspect.getmembers(
         obj, predicate=lambda x: inspect.isclass(x) and not x.__name__.endswith("Config")
     )
+
+    class _MountSubcommand(Subcommand):
+        sub_instance: object
+
     for cls_name, subcommand_cls in subcommands:
         if cls_name.startswith("_"):
             continue
@@ -451,7 +453,7 @@ def visit_subcommand(obj: Any):
 
         if len(init.args + init.kwonlyargs) > 1:
             sub_args = Args.from_callable(subcommand_cls.__init__, extra='ignore')[0]
-            sub = Subcommand(
+            sub = _MountSubcommand(
                 config.get("command", cls_name),
                 help_text=config.get("description", sub_help_text),
                 args=sub_args
@@ -495,11 +497,11 @@ def visit_subcommand(obj: Any):
                 else:
                     _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
             sub.options = _options
-            sub.actions = _InstanceAction()
+            sub.action = _InstanceAction(lambda: None)
             sub.__generate_help__()
             result.append(sub)
         else:
-            sub = Subcommand(config.get("command", cls_name), help_text=config.get("description", sub_help_text))
+            sub = _MountSubcommand(config.get("command", cls_name), help_text=config.get("description", sub_help_text))
             sub.sub_instance = subcommand_cls()
             for name, func in members:
                 if name.startswith("_"):
@@ -532,7 +534,7 @@ class ClassMounter(AlconnaMounter):
         main_help_text = mount_cls.__doc__ or mount_cls.__init__.__doc__ or mount_cls.__name__
 
         if len(init.args + init.kwonlyargs) > 1:
-            main_args = Args.from_callable(mount_cls.__init__, extra=config.get("extra"))[0]
+            main_args = Args.from_callable(mount_cls.__init__, extra=config.get("extra", "ignore"))[0]
 
             instance_handle = self._instance_action
 
@@ -557,12 +559,12 @@ class ClassMounter(AlconnaMounter):
                     self.action = inject(self.origin)
                     return await super().handle_async(option_dict, varargs, kwargs, is_raise_exception)
 
-            main_action = _InstanceAction()
+            main_action = _InstanceAction(lambda: None)
             for name, func in members:
                 if name.startswith("_"):
                     continue
                 help_text = func.__doc__ or name
-                _opt_args, method = Args.from_callable(func, extra=config.get("extra"))
+                _opt_args, method = Args.from_callable(func, extra=config.get("extra", "ignore"))
                 if method:
                     _options.append(Option(name, args=_opt_args, action=_TargetAction(func), help_text=help_text))
                 else:
@@ -583,7 +585,7 @@ class ClassMounter(AlconnaMounter):
                 if name.startswith("_"):
                     continue
                 help_text = func.__doc__ or name
-                _opt_args, method = Args.from_callable(func, extra=config.get("extra"))
+                _opt_args, method = Args.from_callable(func, extra=config.get("extra", "ignore"))
                 if method:
                     func = partial(func, self.instance)
                 _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
@@ -618,7 +620,7 @@ class ModuleMounter(AlconnaMounter):
             if name.startswith("_") or func.__name__.startswith("_"):
                 continue
             help_text = func.__doc__ or name
-            _opt_args, method = Args.from_callable(func, extra=config.get("extra"))
+            _opt_args, method = Args.from_callable(func, extra=config.get("extra", "ignore"))
             if method:
                 func = partial(func, func.__self__)
             _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
@@ -660,10 +662,10 @@ class ObjectMounter(AlconnaMounter):
             if name.startswith("_"):
                 continue
             help_text = func.__doc__ or name
-            _opt_args, _ = Args.from_callable(func, extra=config.get("extra"))
+            _opt_args, _ = Args.from_callable(func, extra=config.get("extra", "ignore"))
             _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
         if len(init.args) > 1:
-            main_args = Args.from_callable(obj.__init__, extra=config.get("extra"))[0]
+            main_args = Args.from_callable(obj.__init__, extra=config.get("extra", "ignore"))[0]
             for k, a in main_args.argument.items():
                 if hasattr(self.instance, k):
                     a['default'] = getattr(self.instance, k)
@@ -675,7 +677,7 @@ class ObjectMounter(AlconnaMounter):
                 def handle(self, option_dict, varargs, kwargs, is_raise_exception: bool):
                     return instance_handle(option_dict, varargs, kwargs)
 
-            main_action = _InstanceAction()
+            main_action = _InstanceAction(lambda: None)
             super().__init__(
                 headers=config.get('headers', None),
                 command=config.get('command', obj_name),
@@ -703,7 +705,7 @@ def _from_object(
         config: Optional[Dict[config_key, Any]] = None,
 ) -> AlconnaMounter:
     """
-    通过解析传入的对象，生成 Alconna 实例的方法，或者说是Fire-like的方式
+    通过解析传入的对象，生成 Alconna 实例的方法, 或者说是Fire-like的方式
 
     Examples:
 
@@ -714,7 +716,7 @@ def _from_object(
     >>> alc = AlconnaFire(test_func)
     >>> alc.parse("test_func 1 2 3")
     """
-    if inspect.isroutine(target):
+    if inspect.isfunction(target) or inspect.ismethod(target):
         r = FuncMounter(target, config)
     elif inspect.isclass(target):
         r = ClassMounter(target, config)
@@ -724,8 +726,8 @@ def _from_object(
         if target:
             r = ObjectMounter(target, config)
         else:
-            r = ModuleMounter(inspect.getmodule(inspect.stack()[1][0]), config)
-    command = command or (sys.argv[1:] if len(sys.argv) > 1 else None)
+            r = ModuleMounter(inspect.getmodule(inspect.stack()[1][0]) or sys.modules["__main__"], config)
+    command = command or (" ".join(sys.argv[1:]) if len(sys.argv) > 1 else None)
     if command:
         r.parse(command)
     return r

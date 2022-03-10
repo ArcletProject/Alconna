@@ -1,6 +1,6 @@
 """Alconna 的组件相关"""
 from typing import Union, Dict, List, Any, Optional, Callable, Type, Iterable
-from .types import NonTextElement
+from .types import DataUnit
 from .base import CommandNode, Args, ArgAction
 
 
@@ -12,10 +12,10 @@ class Option(CommandNode):
             self,
             name: str,
             args: Optional[Args] = None,
-            alias: str = None,
+            alias: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            separator: str = None,
-            help_text: str = None,
+            separator: Optional[str] = None,
+            help_text: Optional[str] = None,
 
     ):
         if "|" in name:
@@ -69,8 +69,8 @@ class Subcommand(CommandNode):
             options: Optional[Iterable[Option]] = None,
             args: Optional[Args] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            separator: str = None,
-            help_text: str = None,
+            separator: Optional[str] = None,
+            help_text: Optional[str] = None,
     ):
         self.options = list(options or [])
         super().__init__(name, args, action, separator, help_text)
@@ -133,13 +133,13 @@ class Arpamar:
     def __init__(self):
         self.matched: bool = False
         self.head_matched: bool = False
-        self.error_data: List[Union[str, NonTextElement]] = []
-        self.error_info: Optional[str] = None
+        self.error_data: List[Union[str, Any]] = []
+        self.error_info: Optional[Union[str, BaseException]] = None
 
         self._options: Dict[str, Any] = {}
         self._subcommands: Dict[str, Any] = {}
         self._other_args: Dict[str, Any] = {}
-        self._header: Optional[str] = None
+        self._header: Optional[Union[str, bool]] = None
         self._main_args: Dict[str, Any] = {}
 
         self._cache_args = {}
@@ -183,7 +183,7 @@ class Arpamar:
 
     def encapsulate_result(
             self,
-            header: Optional[str],
+            header: Union[str, bool, None],
             main_args: Dict[str, Any],
             options: Dict[str, Any],
             subcommands: Dict[str, Any]
@@ -221,7 +221,7 @@ class Arpamar:
                             else:
                                 self._other_args[f"{k}_{kk}_{kkk}"] = vvv
 
-    def get(self, name: Union[str, Type[NonTextElement]]) -> Union[Dict, str, NonTextElement]:
+    def get(self, name: Union[str, Type[DataUnit]]) -> Union[Dict, str, DataUnit, None]:
         """根据选项或者子命令的名字返回对应的数据"""
         if isinstance(name, str):
             if name in self._options:
@@ -256,7 +256,7 @@ class Arpamar:
             [name in self._other_args, name in self._options, name in self._main_args, name in self._subcommands]
         )
 
-    def __getitem__(self, item: Union[str, Type[NonTextElement]]):
+    def __getitem__(self, item: Union[str, Type[DataUnit]]):
         return self.get(item)
 
     def __getattr__(self, item):

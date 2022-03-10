@@ -39,7 +39,7 @@ def require_help_send_action(action: Optional[Callable[[str], Any]] = None, comm
         return HelpDispatch.helpers[command].action
     if command is None:
         HelpDispatch.help_send_action = action
-        for helper in HelpDispatch.helpers:
+        for helper in HelpDispatch.helpers.values():
             helper.awaitable = inspect.iscoroutinefunction(action)
     else:
         HelpDispatch.helpers[command].action = action
@@ -54,10 +54,14 @@ def help_send(command: str, help_string_call: Callable[[], str]):
             super().__init__(HelpDispatch.help_send_action)
 
         def handle(self, option_dict, varargs, kwargs, is_raise_exception):
-            return require_help_send_action(command=command)(help_string_call())
+            action = require_help_send_action(command=command)
+            if action:
+                return action(help_string_call())
 
         async def handle_async(self, option_dict, varargs, kwargs, is_raise_exception):
-            return await require_help_send_action(command=command)(help_string_call())
+            action = require_help_send_action(command=command)
+            if action:
+                return await action(help_string_call())
 
     HelpDispatch.helpers[command] = _HELP()
     return HelpDispatch.helpers[command]

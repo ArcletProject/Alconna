@@ -3,7 +3,7 @@ import traceback
 
 from arclet.alconna.component import Option, Subcommand, Arpamar
 from arclet.alconna.types import (
-    MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
+    DataCollection, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
 )
 from arclet.alconna.analysis.analyser import Analyser
 from arclet.alconna.manager import command_manager
@@ -26,7 +26,7 @@ class DisorderCommandAnalyser(Analyser):
                 opt.sub_params.setdefault(sub_opts.name, sub_opts)
         self.params[opt.name] = opt
 
-    def analyse(self, message: Union[str, MessageChain] = None):
+    def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:
         if command_manager.is_disable(self.alconna):
             return self.create_arpamar(fail=True)
         if self.ndata == 0:
@@ -46,7 +46,7 @@ class DisorderCommandAnalyser(Analyser):
                     data = self.recover_raw_data()
                     data[0] = cmd
                     self.reset()
-                    return self.analyse(data)
+                    return self.analyse(data)  # type: ignore
                 self.reset()
                 return self.analyse(cmd)
             except ValueError:

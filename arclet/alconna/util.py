@@ -3,8 +3,8 @@ import functools
 import warnings
 import logging
 from inspect import stack
-from typing import Union, Type, Callable, TypeVar
-from .types import NonTextElement
+from typing import Union, Type, Callable, TypeVar, Optional
+from .types import DataUnit
 
 R = TypeVar('R')
 raw_type = ["str", "dict", "Arpamar"]
@@ -22,40 +22,40 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-def get_module_name() -> str:
+def get_module_name() -> Optional[str]:
     """获取当前模块名"""
     for frame in stack():
         if name := frame.frame.f_locals.get("__name__"):
             return name
 
 
-def get_module_filename() -> str:
+def get_module_filename() -> Optional[str]:
     """获取当前模块的文件名"""
     for frame in stack():
         if frame.frame.f_locals.get("__name__"):
             return frame.filename.split("/")[-1].split(".")[0]
 
 
-def get_module_filepath() -> str:
+def get_module_filepath() -> Optional[str]:
     """获取当前模块的路径"""
     for frame in stack():
         if frame.frame.f_locals.get("__name__"):
             return ".".join(frame.filename.split("/")[1:]).replace('.py', '')
 
 
-def set_chain_texts(*text: Union[str, Type[NonTextElement]]):
+def set_chain_texts(*text: Union[str, Type[DataUnit]]):
     """设置文本类元素的集合"""
     global chain_texts
     chain_texts = [t if isinstance(t, str) else t.__name__ for t in text]
 
 
-def set_black_elements(*element: Union[str, Type[NonTextElement]]):
+def set_black_elements(*element: Union[str, Type[DataUnit]]):
     """设置消息元素的黑名单"""
     global elements_blacklist
     elements_blacklist = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
 
 
-def set_white_elements(*element: Union[str, Type[NonTextElement]]):
+def set_white_elements(*element: Union[str, Type[DataUnit]]):
     """设置消息元素的白名单"""
     global elements_whitelist
     elements_whitelist = [ele if isinstance(ele, str) else ele.__name__ for ele in element]

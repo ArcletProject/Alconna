@@ -1,7 +1,7 @@
 """Alconna 负责记录命令的部分"""
 
 import re
-from typing import TYPE_CHECKING, Dict, Union, List, Tuple
+from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
 from .exceptions import DuplicateCommand, ExceedMaxCount
 from .analysis import compile as compile_analysis
 from .util import Singleton
@@ -108,7 +108,7 @@ class CommandManager(metaclass=Singleton):
         if isinstance(target, str):
             namespace, name = self._command_part(target)
             try:
-                target = self.__commands[namespace][name]
+                target = self.__commands[namespace][name].alconna
             except KeyError:
                 raise ValueError("命令不存在")
         if shortcut in self.__shortcuts:
@@ -125,7 +125,7 @@ class CommandManager(metaclass=Singleton):
             if info != (namespace + "." + name):
                 raise ValueError("目标命令错误")
             try:
-                target = self.__commands[namespace][name]
+                target = self.__commands[namespace][name].alconna
             except KeyError:
                 raise ValueError("目标命令不存在")
             else:
@@ -153,7 +153,7 @@ class CommandManager(metaclass=Singleton):
             return None
         return self.__commands[command_parts[0]][command_parts[1]].alconna
 
-    def get_commands(self, namespace: str = None) -> List["Alconna"]:
+    def get_commands(self, namespace: Optional[str] = None) -> List["Alconna"]:
         """获取命令列表"""
         if namespace is None:
             return [alc.alconna for alc in self.__commands[self.default_namespace].values()]
@@ -161,7 +161,7 @@ class CommandManager(metaclass=Singleton):
             return []
         return [alc.alconna for alc in self.__commands[namespace].values()]
 
-    def broadcast(self, command: str, namespace: str = None):
+    def broadcast(self, command: str, namespace: Optional[str] = None):
         """广播命令"""
         may_command_head = command.split(" ")[0]
         if namespace is None:
@@ -180,10 +180,10 @@ class CommandManager(metaclass=Singleton):
 
     def all_command_help(
             self,
-            namespace: str = None,
-            header: str = None,
-            pages: str = None,
-            footer: str = None,
+            namespace: Optional[str] = None,
+            header: Optional[str] = None,
+            pages: Optional[str] = None,
+            footer: Optional[str] = None,
             max_length: int = -1,
             page: int = 1,
     ) -> str:
@@ -209,7 +209,7 @@ class CommandManager(metaclass=Singleton):
                 ) + "]") if alc.headers != [''] else "") + alc.command + " : " + alc.help_text
         return f"{header}{command_string}\n{footer}"
 
-    def command_help(self, command: str) -> str:
+    def command_help(self, command: str) -> Optional[str]:
         """获取单个命令的帮助"""
         command_parts = self._command_part(command)
         cmd = self.get_command(f"{command_parts[0]}.{command_parts[1]}")

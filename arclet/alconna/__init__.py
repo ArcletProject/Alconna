@@ -5,7 +5,7 @@ from .util import split_once, split, set_chain_texts, set_black_elements, set_wh
 from .base import CommandNode, Args, ArgAction
 from .component import Option, Subcommand, Arpamar
 from .types import (
-    NonTextElement, MessageChain, AnyParam, AllParam, Empty,
+    DataUnit, DataCollection, AnyParam, AllParam, Empty,
     AnyStr, AnyIP, AnyUrl, AnyDigit, AnyFloat, Bool, PatternToken, Email, ObjectPattern,
     add_check
 )

@@ -1,14 +1,14 @@
 import re
 from typing import Union, Dict, Any
 
-from ..types import MultiArg, ArgPattern, NonTextElement, PatternToken, AntiArg, Empty, UnionArg
+from ..types import MultiArg, ArgPattern, DataUnit, PatternToken, AntiArg, Empty, UnionArg
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing
 
 
 def multi_arg_handler(
         analyser: Analyser,
-        may_arg: Union[str, NonTextElement],
+        may_arg: Union[str, DataUnit],
         key: str,
         value: MultiArg,
         default: Any,
@@ -74,7 +74,7 @@ def multi_arg_handler(
         def __putback(data):
             analyser.reduce_data(data)
             for ii in range(min(len(result), _m_rest_arg)):
-                arg = result.popitem()
+                arg = result.popitem()  # type: ignore
                 analyser.reduce_data(arg[0] + '=' + arg[1])
 
         for i in range(_m_all_args_count):
@@ -128,7 +128,7 @@ def multi_arg_handler(
 
 def anti_arg_handler(
         analyser: Analyser,
-        may_arg: Union[str, NonTextElement],
+        may_arg: Union[str, DataUnit],
         key: str,
         value: AntiArg,
         default: Any,
@@ -157,7 +157,7 @@ def anti_arg_handler(
             analyser.reduce_data(may_arg)
         else:
             analyser.reduce_data(may_arg)
-            if key in may_arg.optional:
+            if optional:
                 return
             if may_arg:
                 raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
@@ -167,7 +167,7 @@ def anti_arg_handler(
 
 def union_arg_handler(
         analyser: Analyser,
-        may_arg: Union[str, NonTextElement],
+        may_arg: Union[str, DataUnit],
         key: str,
         value: UnionArg,
         default: Any,
@@ -191,7 +191,7 @@ def union_arg_handler(
                     if pat.token == PatternToken.REGEX_TRANSFORM and isinstance(may_arg, str):
                         may_arg = pat.transform_action(may_arg)
                     if may_arg == pat.pattern:
-                        may_arg = Ellipsis
+                        may_arg = Ellipsis  # type: ignore
                     break
         if not_match:
             for t in value.for_type_check:
@@ -225,13 +225,13 @@ def union_arg_handler(
                 raise ParamsUnmatched(f"param {may_arg} is incorrect")
             else:
                 raise ArgumentMissing(f"param {key} is required")
-        may_arg = None if default is Empty else default
+        may_arg = None if default is Empty else default  # type: ignore
     result_dict[key] = may_arg
 
 
 def common_arg_handler(
         analyser: Analyser,
-        may_arg: Union[str, NonTextElement],
+        may_arg: Union[str, DataUnit],
         key: str,
         value: ArgPattern,
         default: Any,

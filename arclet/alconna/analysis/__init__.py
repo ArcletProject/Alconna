@@ -5,7 +5,7 @@ from .analyser import Analyser
 from .arg_handlers import multi_arg_handler, anti_arg_handler, common_arg_handler, union_arg_handler
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..component import Arpamar, Option, Subcommand
-from ..types import MessageChain, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
+from ..types import DataCollection, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
 from ..base import Args
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ def compile(alconna: "Alconna", params_generator: Optional[Callable[[Analyser], 
     return _analyser
 
 
-def analyse(alconna: "Alconna", command: Union[str, MessageChain]) -> Arpamar:
+def analyse(alconna: "Alconna", command: Union[str, DataCollection]) -> Arpamar:
     return compile(alconna).analyse(command)
 
 
@@ -42,7 +42,7 @@ class _DummyAnalyser(Analyser):
         cls.params = {}
         return super().__new__(cls)
 
-    def analyse(self, message: Union[str, MessageChain] = None):
+    def analyse(self, message: Union[str, DataCollection, None] = None):
         pass
 
     def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False):
@@ -54,7 +54,7 @@ class _DummyAnalyser(Analyser):
 
 def analyse_args(
         args: Args,
-        command: Union[str, MessageChain],
+        command: Union[str, DataCollection],
         sep: str = " "
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
@@ -71,7 +71,7 @@ def analyse_args(
 def analyse_header(
         headers: List[str],
         command_name: str,
-        command: Union[str, MessageChain],
+        command: Union[str, DataCollection],
         sep: str = " "
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
@@ -90,7 +90,7 @@ def analyse_header(
 
 def analyse_option(
         option: Option,
-        command: Union[str, MessageChain],
+        command: Union[str, DataCollection],
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
@@ -105,7 +105,7 @@ def analyse_option(
 
 def analyse_subcommand(
         subcommand: Subcommand,
-        command: Union[str, MessageChain],
+        command: Union[str, DataCollection],
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()

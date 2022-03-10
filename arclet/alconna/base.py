@@ -7,11 +7,11 @@ from typing import Union, Tuple, Type, Dict, Iterable, overload, Callable, Any, 
     MutableSequence
 from .exceptions import InvalidParam, NullTextMessage
 from .types import (
-    ArgPattern, _AnyParam, Empty, NonTextElement, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argtype_validator,
+    ArgPattern, _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argtype_validator,
 )
 
-TAValue = Union[ArgPattern, Type[NonTextElement], _AnyParam, MultiArg, AntiArg, UnionArg]
-TADefault = Union[Any, NonTextElement, Empty]
+TAValue = Union[ArgPattern, Type[DataUnit], _AnyParam, MultiArg, AntiArg, UnionArg]
+TADefault = Union[Any, DataUnit, Empty]
 TArgs = Dict[str, Union[TAValue, TADefault]]
 
 
@@ -112,15 +112,24 @@ class Args(metaclass=ArgsMeta):
     @overload
     def __init__(
             self,
-            args: Optional[Union[slice, Sequence]] = None,
+            args: Optional[Union[List[slice], Sequence]] = None,
             extra: Literal["allow", "ignore", "reject"] = "allow",
             **kwargs: ...
     ):
         ...
 
+    @overload
     def __init__(
             self,
-            args: ... = None,
+            args: ...,
+            extra: Literal["allow", "ignore", "reject"] = "allow",
+            **kwargs: TAValue
+    ):
+        ...
+
+    def __init__(
+            self,
+            args: Optional[Union[List[slice], Sequence]] = None,
             extra: Literal["allow", "ignore", "reject"] = "allow",
             **kwargs: TAValue
     ):
@@ -221,7 +230,7 @@ class Args(metaclass=ArgsMeta):
                     arg += f"{_sep}{v['value'].alias or v['value'].origin_type.__name__}"
                 else:
                     try:
-                        arg += f"{_sep}Type_{v['value'].__name__}"
+                        arg += f"{_sep}Type_{v['value'].__name__}"  # type: ignore
                     except AttributeError:
                         arg += f"{_sep}Type_{repr(v['value'])}"
                 if v['default'] is Empty:
@@ -252,7 +261,10 @@ class Args(metaclass=ArgsMeta):
 
     def __getitem__(self, item) -> Union["Args", Tuple[TAValue, TADefault]]:
         if isinstance(item, str):
-            return self.argument[item].get('value'), self.argument[item].get('default')
+            if self.argument.get(item):
+                return self.argument[item]['value'], self.argument[item]['default']  # type: ignore
+            else:
+                raise KeyError(f"{item} 不存在")
         if isinstance(item, slice):
             slices = [item]
             self.__check_vars__(slices)
@@ -301,7 +313,7 @@ class Args(metaclass=ArgsMeta):
             if isinstance(value, (ArgPattern, _AnyParam)):
                 value = value.__getstate__()
             else:
-                value = {"type": value.__name__}
+                value = {"type": value.__name__}  # type: ignore
             args[k] = {"value": value, "default": default}
         return {"argument": args, "extra": self.extra, "optional": self.optional, "kwonly": self.kwonly}
 
@@ -356,12 +368,12 @@ class ArgAction:
     awaitable: bool
     action: Callable[..., Any]
 
-    def __init__(self, action: Callable = None):
+    def __init__(self, action: Callable):
         """
         ArgAction的构造函数
 
         Args:
-            action: (...) -> Iterable
+            action: (...) -> Sequence
         """
         self.action = action
         self.awaitable = inspect.iscoroutinefunction(action)
@@ -371,7 +383,7 @@ class ArgAction:
             additional_values = self.action(*option_dict.values(), *varargs, **kwargs)
             if additional_values is None:
                 return option_dict
-            if not isinstance(additional_values, Iterable):
+            if not isinstance(additional_values, Sequence):
                 additional_values = [additional_values]
             for i, k in enumerate(option_dict.keys()):
                 option_dict[k] = additional_values[i]
@@ -385,7 +397,7 @@ class ArgAction:
             additional_values = await self.action(*option_dict.values(), *varargs, **kwargs)
             if additional_values is None:
                 return option_dict
-            if not isinstance(additional_values, Iterable):
+            if not isinstance(additional_values, Sequence):
                 additional_values = [additional_values]
             for i, k in enumerate(option_dict.keys()):
                 option_dict[k] = additional_values[i]
@@ -416,8 +428,8 @@ class CommandNode:
             self, name: str,
             args: Union[Args, str, None] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            separator: str = None,
-            help_text: str = None,
+            separator: Optional[str] = None,
+            help_text: Optional[str] = None,
     ):
         """
         初始化命令体
