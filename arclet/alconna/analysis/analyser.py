@@ -3,9 +3,10 @@ from abc import ABCMeta, abstractmethod
 from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable
 from ..base import Args
 from ..exceptions import NullTextMessage, UnexpectedElement
-from ..component import Option, Subcommand, Arpamar
-from ..util import split_once, split, chain_texts, elements_whitelist, raw_type, elements_blacklist
-from ..types import DataUnit, ArgPattern, DataCollection, Gettable
+from ..component import Option, Subcommand
+from ..arpamar import Arpamar
+from ..util import split_once, split, elements_blacklist, chain_texts
+from ..types import DataUnit, ArgPattern, DataCollection
 
 if TYPE_CHECKING:
     from ..main import Alconna
@@ -73,7 +74,7 @@ class Analyser(metaclass=ABCMeta):
 
     def __handle_main_args__(self, main_args: Args, nargs: Optional[int] = None):
         nargs = nargs or len(main_args)
-        if nargs > 0 and nargs > len(main_args.optional):
+        if nargs > 0 and nargs > main_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
         _de_count = 0
         for k, a in main_args.argument.items():
@@ -205,45 +206,43 @@ class Analyser(metaclass=ABCMeta):
         else:
             separate = self.separator
             is_raise_exception = self.is_raise_exception
-            i, _tc = 0, 0
+            i, __t = 0, False
             exc = None
             raw_data: Dict[int, Any] = {}
-            for ele in data:  # type: ignore
-                e_type = ele.__class__.__name__
-                if e_type in chain_texts:
-                    if res := split(ele.text.lstrip(' '), separate):
-                        raw_data[i] = res
-                        _tc += 1
-                    else:
+            for unit in data:  # type: ignore
+                if text := getattr(unit, 'text', None):
+                    res = split(text.lstrip(' '), separate)
+                    if not res:
                         continue
-                elif e_type in elements_whitelist:
-                    raw_data[i] = ele
-                elif e_type in raw_type:
-                    if isinstance(ele, Gettable):
-                        if ele.get('type') in chain_texts and (res := split(ele.get('text'), separate)):
-                            raw_data[i] = res
-                            _tc += 1
-                        elif ele.get('type') in elements_whitelist or ele.get('type') not in elements_blacklist:
-                            raw_data[i] = ele
-                        else:
-                            if is_raise_exception:
-                                exc = UnexpectedElement(f"{e_type}({ele})")
+                    raw_data[i] = res
+                    __t = True
+                elif (utype := getattr(unit, 'type', None)) and utype not in elements_blacklist:
+                    raw_data[i] = unit
+                elif isinstance(unit, str):
+                    res = split(unit.lstrip(' '), separate)
+                    if not res:
+                        continue
+                    raw_data[i] = res
+                    __t = True
+                elif isinstance(unit, dict):
+                    if unit.get('type') in chain_texts:
+                        res = split(unit.get('text'), separate)  # type: ignore
+                        if not res:
                             continue
-                    elif e_type == "str" and (res := split(ele.lstrip(' '), separate)):
                         raw_data[i] = res
-                        _tc += 1
+                        __t = True
+                    elif unit.get('type') not in elements_blacklist:
+                        raw_data[i] = unit
                     else:
                         if is_raise_exception:
-                            exc = UnexpectedElement(f"{e_type}({ele})")
+                            exc = UnexpectedElement(f"{unit}")
                         continue
-                elif e_type not in elements_blacklist + chain_texts:
-                    raw_data[i] = ele
                 else:
                     if is_raise_exception:
-                        exc = UnexpectedElement(f"{e_type}({ele})")
+                        exc = UnexpectedElement(f"{unit.type}({unit})")
                     continue
                 i += 1
-            if _tc == 0:
+            if __t is False:
                 if is_raise_exception:
                     raise NullTextMessage("传入了一个无法获取文本的消息链")
                 return self.create_arpamar(fail=True, exception=NullTextMessage("传入了一个无法获取文本的消息链"))

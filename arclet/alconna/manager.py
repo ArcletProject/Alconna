@@ -172,7 +172,8 @@ class CommandManager(metaclass=Singleton):
                     if re.match("^" + k + ".*" + "$", str(command)):
                         return self.__commands[n][k].analyse(command)
         else:
-            if self.__commands[namespace].get(may_command_head):
+            commands = self.__commands[namespace]
+            if commands.get(may_command_head):
                 return self.__commands[namespace][may_command_head].analyse(command)
             for k in self.__commands[namespace]:
                 if re.match("^" + k + ".*" + "$", str(command)):

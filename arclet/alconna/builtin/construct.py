@@ -8,7 +8,7 @@ from types import FunctionType, MethodType, ModuleType
 from typing import Dict, Any, Optional, Callable, Union, TypeVar, List, Type, FrozenSet, Literal, get_args, Tuple, \
     Iterable, cast
 from arclet.alconna.types import DataCollection
-from arclet.alconna.builtin.actions import store_bool, store_const
+from arclet.alconna.builtin.actions import store_value
 from arclet.alconna.main import Alconna
 from arclet.alconna.component import Option, Subcommand
 from arclet.alconna.base import Args, TAValue, ArgAction
@@ -354,10 +354,7 @@ def _from_string(
                 opt_help_string = [opt_head]
             if opt_action_value:
                 val = eval(opt_action_value[0], {"true": True, "false": False})
-                if isinstance(val, bool):
-                    _options.append(Option(opt_head, alias=opt_alias, args=_opt_args, action=store_bool(val)))
-                else:
-                    _options.append(Option(opt_head, alias=opt_alias, args=_opt_args, action=store_const(val)))
+                _options.append(Option(opt_head, alias=opt_alias, args=_opt_args, action=store_value(val)))
             else:
                 _options.append(Option(opt_head, alias=opt_alias, args=_opt_args))
             _options[-1].help_text = opt_help_string[0]
@@ -369,16 +366,35 @@ config_key = Literal["headers", "raise_exception", "description", "get_subcomman
 
 
 def visit_config(obj: Any, config_keys: Iterable[str]):
-    config = inspect.getmembers(
-        obj, predicate=lambda x: inspect.isclass(x) and x.__name__.endswith("Config")
-    )
     result = {}
-    if config:
-        config = config[0][1]
-        configs = list(filter(lambda x: not x.startswith("_"), dir(config)))
-        for key in config_keys:
-            if key in configs:
-                result[key] = getattr(config, key)
+    if not isinstance(obj, (FunctionType, MethodType)):
+        config = inspect.getmembers(
+            obj, predicate=lambda x: inspect.isclass(x) and x.__name__.endswith("Config")
+        )
+        if config:
+            config = config[0][1]
+            configs = list(filter(lambda x: not x.startswith("_"), dir(config)))
+            for key in config_keys:
+                if key in configs:
+                    result[key] = getattr(config, key)
+    else:
+        codes, _ = inspect.getsourcelines(obj)
+        _get_config = False
+        _start_indent = 0
+        for line in codes:
+            indent = len(line) - len(line.lstrip())
+            if line.lstrip().startswith("class") and line.lstrip().rstrip('\n').endswith("Config:"):
+                _get_config = True
+                _start_indent = indent
+                continue
+            if _get_config:
+                if indent == _start_indent:
+                    break
+                if line.lstrip().startswith('def'):
+                    continue
+                _contents = re.split(r"\s*=\s*", line.strip())
+                if len(_contents) == 2 and _contents[0] in config_keys:
+                    result[_contents[0]] = eval(_contents[1])
     return result
 
 
@@ -406,7 +422,7 @@ class AlconnaMounter(Alconna):
 
     def parse(self, message: Union[str, DataCollection], static: bool = True):
         message = self._parse_action(message) or message
-        super(AlconnaMounter, self).parse(message, static)
+        return super(AlconnaMounter, self).parse(message, static)
 
 
 class FuncMounter(AlconnaMounter):

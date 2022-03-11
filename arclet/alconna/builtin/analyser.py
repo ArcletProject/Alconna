@@ -1,7 +1,8 @@
 from typing import Union, Optional
 import traceback
 
-from arclet.alconna.component import Option, Subcommand, Arpamar
+from arclet.alconna.component import Option, Subcommand
+from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.types import (
     DataCollection, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
 )

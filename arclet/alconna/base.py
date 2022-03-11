@@ -3,16 +3,23 @@
 import re
 import inspect
 from types import LambdaType
-from typing import Union, Tuple, Type, Dict, Iterable, overload, Callable, Any, Optional, Sequence, List, Literal, \
-    MutableSequence
+from typing import Union, Tuple, Type, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, \
+    MutableSequence, TypedDict
 from .exceptions import InvalidParam, NullTextMessage
 from .types import (
     ArgPattern, _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argtype_validator,
 )
 
-TAValue = Union[ArgPattern, Type[DataUnit], _AnyParam, MultiArg, AntiArg, UnionArg]
+TAValue = Union[ArgPattern, Type[DataUnit], _AnyParam]
 TADefault = Union[Any, DataUnit, Empty]
-TArgs = Dict[str, Union[TAValue, TADefault]]
+
+
+class ArgUnit(TypedDict):
+    value: TAValue
+    default: TADefault
+    optional: bool
+    kwonly: bool
+    hidden: bool
 
 
 class ArgsMeta(type):
@@ -42,12 +49,10 @@ class Args(metaclass=ArgsMeta):
         argument: 存放参数内容的容器
     """
     extra: Literal["allow", "ignore", "reject"]
-    argument: Dict[str, TArgs]
+    argument: Dict[str, ArgUnit]
     var_positional: Optional[Tuple[str, MultiArg]]
     var_keyword: Optional[Tuple[str, MultiArg]]
-    optional: List[str]
-    kwonly: List[str]
-    hidden: List[str]
+    optional_count: int
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -97,7 +102,7 @@ class Args(metaclass=ArgsMeta):
             anno = param.annotation
             de = param.default
             if anno == inspect.Signature.empty:
-                anno = type(de) if de is not inspect.Signature.empty else AnyParam
+                anno = type(de) if de not in (inspect.Signature.empty, None) else AnyParam
             if de is inspect.Signature.empty:
                 de = None
             elif de is None:
@@ -108,24 +113,6 @@ class Args(metaclass=ArgsMeta):
                 name = "**" + name
             _args.__merge__([name, anno, de])
         return _args, method
-
-    @overload
-    def __init__(
-            self,
-            args: Optional[Union[List[slice], Sequence]] = None,
-            extra: Literal["allow", "ignore", "reject"] = "allow",
-            **kwargs: ...
-    ):
-        ...
-
-    @overload
-    def __init__(
-            self,
-            args: ...,
-            extra: Literal["allow", "ignore", "reject"] = "allow",
-            **kwargs: TAValue
-    ):
-        ...
 
     def __init__(
             self,
@@ -143,15 +130,13 @@ class Args(metaclass=ArgsMeta):
         self.extra = extra
         self.var_positional = None
         self.var_keyword = None
-        self.optional = []
-        self.kwonly = []
-        self.hidden = []
-        self.argument = {
+        self.optional_count = 0
+        self.argument = {  # type: ignore
             k: {"value": argtype_validator(v), "default": None} for k, v in kwargs.items()
         }
         self.__check_vars__(args or [])
 
-    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional", "kwonly", "hidden"
+    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional_count"
 
     def default(self, **kwargs: TADefault):
         """设置参数的默认值"""
@@ -200,20 +185,23 @@ class Args(metaclass=ArgsMeta):
                 name = name.lstrip("!")
                 if not isinstance(_value, (_AnyParam, UnionArg)):
                     _value = AntiArg(_value)
-            if "?" in name:
-                name = name.replace("?", "")
-                self.optional.append(name.replace("@", "").lstrip("_"))
-            if "@" in name:
-                name = name.replace("@", "")
-                self.kwonly.append(name.replace("?", "").lstrip("_"))
-            if name.startswith("_"):
-                name = name.lstrip("_")
-                self.hidden.append(name.replace("@", "").lstrip("?"))
             if default in ("...", Ellipsis):
                 default = Empty
             if _value is Empty:
                 raise InvalidParam(f"{name} 的参数值不能为Empty")
-            self.argument[name] = {"value": _value, "default": default}
+            _addition = {'optional': False, 'hidden': False, 'kwonly': False}
+            if "?" in name:
+                name = name.replace("?", "")
+                _addition['optional'] = True
+                self.optional_count += 1
+            if "@" in name:
+                name = name.replace("@", "")
+                _addition['kwonly'] = True
+            if name.startswith("_"):
+                name = name.lstrip("_")
+                _addition['hidden'] = True
+            self.argument[name] = {"value": _value, "default": default}  # type: ignore
+            self.argument[name].update(_addition)  # type: ignore
 
     def params(self, sep: str = " "):
         """预处理参数的 help doc"""
@@ -221,16 +209,16 @@ class Args(metaclass=ArgsMeta):
         i = 0
         length = len(self.argument)
         for k, v in self.argument.items():
-            arg = f"<{k}" if k not in self.optional else f"<{k}?"
-            _sep = "=" if k in self.kwonly else ":"
-            if k not in self.hidden:
+            arg = f"<{k}" if not v.get('optional') else f"<{k}?"
+            _sep = "=" if v.get('kwonly') else ":"
+            if not v.get('hidden'):
                 if isinstance(v['value'], _AnyParam):
                     arg += f"{_sep}WildMatch"
                 elif isinstance(v['value'], ArgPattern):
                     arg += f"{_sep}{v['value'].alias or v['value'].origin_type.__name__}"
                 else:
                     try:
-                        arg += f"{_sep}Type_{v['value'].__name__}"  # type: ignore
+                        arg += f"{_sep}Type_{v['value'].__name__}"
                     except AttributeError:
                         arg += f"{_sep}Type_{repr(v['value'])}"
                 if v['default'] is Empty:
@@ -262,7 +250,7 @@ class Args(metaclass=ArgsMeta):
     def __getitem__(self, item) -> Union["Args", Tuple[TAValue, TADefault]]:
         if isinstance(item, str):
             if self.argument.get(item):
-                return self.argument[item]['value'], self.argument[item]['default']  # type: ignore
+                return self.argument[item]['value'], self.argument[item]['default']
             else:
                 raise KeyError(f"{item} 不存在")
         if isinstance(item, slice):
@@ -313,15 +301,13 @@ class Args(metaclass=ArgsMeta):
             if isinstance(value, (ArgPattern, _AnyParam)):
                 value = value.__getstate__()
             else:
-                value = {"type": value.__name__}  # type: ignore
+                value = {"type": value.__name__}
             args[k] = {"value": value, "default": default}
-        return {"argument": args, "extra": self.extra, "optional": self.optional, "kwonly": self.kwonly}
+        return {"argument": args, "extra": self.extra}
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):
         args = cls(extra=data['extra'])
-        args.optional = data['optional']
-        args.kwonly = data['kwonly']
         for k, v in data['argument'].items():
             value = v['value']
             default = v['default']
@@ -334,13 +320,11 @@ class Args(metaclass=ArgsMeta):
                 value = AllParam
             else:
                 value = eval(v_type)
-            args.argument[k] = {"value": value, "default": default}
+            args.argument[k] = {"value": value, "default": default}  # type: ignore
         return args
 
     def __setstate__(self, state):
         self.extra = state["extra"]
-        self.optional = state['optional']
-        self.kwonly = state['kwonly']
         self.var_positional = None
         self.var_keyword = None
         for k, v in state['argument'].items():
@@ -355,7 +339,7 @@ class Args(metaclass=ArgsMeta):
                 value = AllParam
             else:
                 value = eval(v_type)
-            self.argument[k] = {"value": value, "default": default}
+            self.argument[k] = {"value": value, "default": default}  # type: ignore
 
 
 class ArgAction:
@@ -384,8 +368,11 @@ class ArgAction:
             if additional_values is None:
                 return option_dict
             if not isinstance(additional_values, Sequence):
-                additional_values = [additional_values]
+                option_dict['result'] = additional_values
+                return option_dict
             for i, k in enumerate(option_dict.keys()):
+                if i == len(additional_values):
+                    break
                 option_dict[k] = additional_values[i]
         except Exception as e:
             if is_raise_exception:
@@ -398,8 +385,11 @@ class ArgAction:
             if additional_values is None:
                 return option_dict
             if not isinstance(additional_values, Sequence):
-                additional_values = [additional_values]
+                option_dict['result'] = additional_values
+                return option_dict
             for i, k in enumerate(option_dict.keys()):
+                if i == len(additional_values):
+                    break
                 option_dict[k] = additional_values[i]
         except Exception as e:
             if is_raise_exception:

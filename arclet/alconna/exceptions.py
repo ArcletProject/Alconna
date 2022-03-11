@@ -27,3 +27,12 @@ class DuplicateCommand(Exception):
 
 class ExceedMaxCount(Exception):
     """注册的命令数量超过最大长度"""
+
+
+class CancelBehave(Exception):
+    """被停止"""
+
+
+class OutBoundsInput(Exception):
+    """输入超出范围"""
+    pass

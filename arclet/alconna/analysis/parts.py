@@ -1,5 +1,5 @@
 import re
-from typing import Iterable, Union, Optional, List, Any, Dict, cast, Sequence
+from typing import Iterable, Union, Optional, List, Any, Dict, cast
 import asyncio
 
 from .analyser import Analyser
@@ -40,8 +40,10 @@ def analyse_args(
     for key, arg in opt_args.argument.items():
         value = arg['value']
         default = arg['default']
+        kwonly = arg['kwonly']
+        optional = arg['optional']
         may_arg = analyser.next_data(sep)
-        if key in opt_args.kwonly:
+        if kwonly:
             _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
             if not _kwarg:
                 analyser.reduce_data(may_arg)
@@ -59,7 +61,7 @@ def analyse_args(
         if may_arg in analyser.params:
             analyser.reduce_data(may_arg)
             if default is None:
-                if key in opt_args.optional:
+                if optional:
                     continue
                 raise ArgumentMissing(f"param {key} is required")
             else:
@@ -68,10 +70,11 @@ def analyse_args(
             analyser.arg_handlers[value.__class__](
                 analyser, may_arg, key, value,
                 default, nargs, sep, option_dict, 
-                key in opt_args.optional
+                optional
             )
         elif value is AnyParam:
-            option_dict[key] = may_arg
+            if may_arg:
+                option_dict[key] = may_arg
         elif value is AllParam:
             rest_data = analyser.recover_raw_data()
             if not rest_data:
@@ -92,7 +95,7 @@ def analyse_args(
                 analyser.reduce_data(may_arg)
             else:
                 analyser.reduce_data(may_arg)
-                if key in opt_args.optional:
+                if optional:
                     continue
                 if may_arg:
                     raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")

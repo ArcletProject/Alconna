@@ -12,21 +12,10 @@ from collections.abc import (
     Mapping as ABCMapping,
 )
 from enum import Enum
-from typing import TypeVar, Type, Callable, Optional, Protocol, Any, runtime_checkable, Pattern, Union, Sequence, \
+from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Union, Sequence, \
     List, Dict, get_args, Literal, Tuple, get_origin
 from types import LambdaType
 from .exceptions import ParamsUnmatched
-
-_KT = TypeVar('_KT')
-_VT_co = TypeVar("_VT_co", covariant=True)
-
-
-@runtime_checkable
-class Gettable(Protocol):
-    """表示拥有 get 方法的对象"""
-
-    def get(self, key: _KT) -> _VT_co:
-        ...
 
 
 DataUnit = TypeVar("DataUnit")
@@ -246,7 +235,7 @@ class UnionArg(ArgPattern):
             [repr(a) for a in self.for_equal] +
             [a.__name__ for a in self.for_type_check]
         ) + ")"
-        )
+                                             )
 
 
 class SequenceArg(ArgPattern):

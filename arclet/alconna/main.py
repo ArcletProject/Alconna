@@ -3,7 +3,8 @@ from typing import Dict, List, Optional, Union, Type, Callable, Any
 from .analysis.analyser import Analyser
 from .analysis import compile
 from .base import CommandNode, Args, ArgAction
-from .component import Option, Subcommand, Arpamar
+from .component import Option, Subcommand
+from .arpamar import Arpamar, ArpamarBehavior
 from .types import DataCollection, DataUnit
 from .manager import command_manager
 from .builtin.actions import help_send
@@ -67,6 +68,7 @@ class Alconna(CommandNode):
             separator: str = " ",
             help_text: Optional[str] = None,
             analyser_type: Type[Analyser] = DisorderCommandAnalyser,
+            behaviors: Optional[List[ArpamarBehavior]] = None,
     ):
         """
         以标准形式构造 Alconna
@@ -102,6 +104,7 @@ class Alconna(CommandNode):
         self.analyser_type = analyser_type
         command_manager.register(self)
         self.__class__.__cls_name__ = "Alconna"
+        self.behaviors = behaviors
 
     def __class_getitem__(cls, item):
         if isinstance(item, str):
@@ -113,6 +116,10 @@ class Alconna(CommandNode):
         command_manager.delete(self)
         self.namespace = namespace
         command_manager.register(self)
+        return self
+
+    def reset_behaviors(self, behaviors: List[ArpamarBehavior]):
+        self.behaviors = behaviors
         return self
 
     def __generate_help__(self) -> "Alconna":
@@ -198,7 +205,7 @@ class Alconna(CommandNode):
         else:
             analyser = compile(self)
         result = analyser.handle_message(message)
-        return result or analyser.analyse()
+        return (result or analyser.analyse()).update(self.behaviors)
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""

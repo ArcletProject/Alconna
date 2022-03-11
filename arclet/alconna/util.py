@@ -7,10 +7,8 @@ from typing import Union, Type, Callable, TypeVar, Optional
 from .types import DataUnit
 
 R = TypeVar('R')
-raw_type = ["str", "dict", "Arpamar"]
 chain_texts = ["Plain", "Text"]
 elements_blacklist = ["Source", "File", "Quote"]
-elements_whitelist = []
 
 
 class Singleton(type):
@@ -53,12 +51,6 @@ def set_black_elements(*element: Union[str, Type[DataUnit]]):
     """设置消息元素的黑名单"""
     global elements_blacklist
     elements_blacklist = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
-
-
-def set_white_elements(*element: Union[str, Type[DataUnit]]):
-    """设置消息元素的白名单"""
-    global elements_whitelist
-    elements_whitelist = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
 
 
 def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变本来的字符串
