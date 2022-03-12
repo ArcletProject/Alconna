@@ -98,7 +98,7 @@ class ArgPattern:
     def __repr__(self):
         return self.pattern
 
-    @lru_cache(maxsize=512)
+    @lru_cache(maxsize=None)
     def find(self, text: str):
         """
         匹配文本, 返回匹配结果

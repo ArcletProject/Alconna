@@ -132,7 +132,8 @@ class Args(metaclass=ArgsMeta):
         self.var_keyword = None
         self.optional_count = 0
         self.argument = {  # type: ignore
-            k: {"value": argtype_validator(v), "default": None} for k, v in kwargs.items()
+            k: {"value": argtype_validator(v), "default": None, 'optional': False, 'hidden': False, 'kwonly': False}
+            for k, v in kwargs.items()
         }
         self.__check_vars__(args or [])
 
@@ -202,34 +203,6 @@ class Args(metaclass=ArgsMeta):
                 _addition['hidden'] = True
             self.argument[name] = {"value": _value, "default": default}  # type: ignore
             self.argument[name].update(_addition)  # type: ignore
-
-    def params(self, sep: str = " "):
-        """预处理参数的 help doc"""
-        argument_string = ""
-        i = 0
-        length = len(self.argument)
-        for k, v in self.argument.items():
-            arg = f"<{k}" if not v.get('optional') else f"<{k}?"
-            _sep = "=" if v.get('kwonly') else ":"
-            if not v.get('hidden'):
-                if isinstance(v['value'], _AnyParam):
-                    arg += f"{_sep}WildMatch"
-                elif isinstance(v['value'], ArgPattern):
-                    arg += f"{_sep}{v['value'].alias or v['value'].origin_type.__name__}"
-                else:
-                    try:
-                        arg += f"{_sep}Type_{v['value'].__name__}"
-                    except AttributeError:
-                        arg += f"{_sep}Type_{repr(v['value'])}"
-                if v['default'] is Empty:
-                    arg += ", default=None"
-                elif v['default'] is not None:
-                    arg += f", default={v['default']}"
-            argument_string += arg + ">"
-            i += 1
-            if i != length:
-                argument_string += sep
-        return argument_string
 
     def __len__(self):
         return len(self.argument)
@@ -362,7 +335,13 @@ class ArgAction:
         self.action = action
         self.awaitable = inspect.iscoroutinefunction(action)
 
-    def handle(self, option_dict: dict, varargs: List, kwargs: Dict, is_raise_exception: bool):
+    def handle(
+            self,
+            option_dict: dict,
+            varargs: List,
+            kwargs: Dict,
+            is_raise_exception: bool
+    ):
         try:
             additional_values = self.action(*option_dict.values(), *varargs, **kwargs)
             if additional_values is None:
@@ -379,7 +358,13 @@ class ArgAction:
                 raise e
         return option_dict
 
-    async def handle_async(self, option_dict: dict, varargs: List, kwargs: Dict, is_raise_exception: bool):
+    async def handle_async(
+            self,
+            option_dict: dict,
+            varargs: List,
+            kwargs: Dict,
+            is_raise_exception: bool
+    ):
         try:
             additional_values = await self.action(*option_dict.values(), *varargs, **kwargs)
             if additional_values is None:
@@ -445,11 +430,8 @@ class CommandNode:
         self.__check_action__(action)
         self.separator = separator or " "
         self.help_text = help_text or self.name
-        self.__generate_help__()
-
         self.nargs = len(self.args.argument)
 
-    help_docstring: str
     nargs: int
     scale: Tuple[int, int]
 
@@ -457,10 +439,6 @@ class CommandNode:
         self.args.__merge__(Args[item])
         self.nargs = len(self.args.argument)
         return self
-
-    def __generate_help__(self):
-        """预处理 help 文档"""
-        self.help_docstring = f"# {self.help_text}\n  {self.name}{self.separator}{self.args.params(self.separator)}\n"
 
     def separate(self, separator: str):
         self.separator = separator

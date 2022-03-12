@@ -7,7 +7,8 @@ from .component import Option, Subcommand
 from .arpamar import Arpamar, ArpamarBehavior
 from .types import DataCollection, DataUnit
 from .manager import command_manager
-from .builtin.actions import help_send
+from .visitor import AlconnaNodeVisitor, AbstractHelpTextFormatter
+from .builtin.formatter import DefaultHelpTextFormatter
 from .builtin.analyser import DisorderCommandAnalyser
 
 
@@ -55,6 +56,8 @@ class Alconna(CommandNode):
     namespace: str
     __cls_name__: str = "Alconna"
     local_args: dict = {}
+    formatter: AbstractHelpTextFormatter
+    default_analyser = DisorderCommandAnalyser
 
     def __init__(
             self,
@@ -67,8 +70,9 @@ class Alconna(CommandNode):
             namespace: Optional[str] = None,
             separator: str = " ",
             help_text: Optional[str] = None,
-            analyser_type: Type[Analyser] = DisorderCommandAnalyser,
+            analyser_type: Optional[Type[Analyser]] = None,
             behaviors: Optional[List[ArpamarBehavior]] = None,
+            formatter: Optional[AbstractHelpTextFormatter] = None,
     ):
         """
         以标准形式构造 Alconna
@@ -100,11 +104,12 @@ class Alconna(CommandNode):
         )
         self.is_raise_exception = is_raise_exception
         self.namespace = namespace or self.__cls_name__
-        self.options.append(Option("--help", alias="-h", action=help_send(self.name, self.get_help)))
-        self.analyser_type = analyser_type
+        self.options.append(Option("--help", alias="-h"))
+        self.analyser_type = analyser_type or self.default_analyser
         command_manager.register(self)
         self.__class__.__cls_name__ = "Alconna"
         self.behaviors = behaviors
+        self.formatter = formatter or DefaultHelpTextFormatter()
 
     def __class_getitem__(cls, item):
         if isinstance(item, str):
@@ -122,44 +127,9 @@ class Alconna(CommandNode):
         self.behaviors = behaviors
         return self
 
-    def __generate_help__(self) -> "Alconna":
-        """预处理 help 文档"""
-        help_string = ("\n" + self.help_text) if self.help_text else ""
-        headers = []
-        if self.headers != [""]:
-            for i in self.headers:
-                if isinstance(i, str):
-                    headers.append(i + self.command)
-                else:
-                    headers.extend((f"{i}", self.command))
-        elif self.command:
-            headers.append(self.command)
-        command_string = f"{'|'.join(headers)}{self.separator}"
-        option_string = "".join(
-            [
-                opt.help_docstring for opt in
-                filter(lambda x: isinstance(x, Option), self.options)
-                if opt.name != "--help"
-            ]
-        )
-        subcommand_string = "".join(
-            [
-                sub.help_docstring for sub in
-                filter(lambda x: isinstance(x, Subcommand), self.options)
-            ]
-        )
-        option_help = "可用的选项有:\n" if option_string else ""
-        subcommand_help = "可用的子命令有:\n" if subcommand_string else ""
-        self.help_docstring = (
-            f"{command_string}{self.args.params(self.separator)}{help_string}\n"
-            f"{subcommand_help}{subcommand_string}"
-            f"{option_help}{option_string}"
-        )
-        return self
-
     def get_help(self) -> str:
         """返回 help 文档"""
-        return self.help_docstring
+        return AlconnaNodeVisitor(self).format_node(self.formatter)
 
     @classmethod
     def set_custom_types(cls, **types: Type):

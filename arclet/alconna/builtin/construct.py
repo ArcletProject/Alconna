@@ -358,7 +358,6 @@ def _from_string(
             else:
                 _options.append(Option(opt_head, alias=opt_alias, args=_opt_args))
             _options[-1].help_text = opt_help_string[0]
-            _options[-1].__generate_help__()
     return Alconna(headers=headers, main_args=_args, options=_options, help_text=help_string[0])
 
 
@@ -514,7 +513,6 @@ def visit_subcommand(obj: Any):
                     _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
             sub.options = _options
             sub.action = _InstanceAction(lambda: None)
-            sub.__generate_help__()
             result.append(sub)
         else:
             sub = _MountSubcommand(config.get("command", cls_name), help_text=config.get("description", sub_help_text))
@@ -528,7 +526,6 @@ def visit_subcommand(obj: Any):
                     func = partial(func, sub.sub_instance)
                 _options.append(Option(name, args=_opt_args, action=ArgAction(func), help_text=help_text))
             sub.options = _options
-            sub.__generate_help__()
             result.append(sub)
     return result
 
@@ -619,7 +616,6 @@ class ClassMounter(AlconnaMounter):
             for k, a in self.args.argument.items():
                 if hasattr(self.instance, k):
                     a['default'] = getattr(self.instance, k)
-            self.__generate_help__()
 
 
 class ModuleMounter(AlconnaMounter):

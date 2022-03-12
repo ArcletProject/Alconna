@@ -2,10 +2,9 @@ import re
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable
 from ..base import Args
-from ..exceptions import NullTextMessage, UnexpectedElement
 from ..component import Option, Subcommand
 from ..arpamar import Arpamar
-from ..util import split_once, split, elements_blacklist, chain_texts
+from ..util import split_once, split
 from ..types import DataUnit, ArgPattern, DataCollection
 
 if TYPE_CHECKING:
@@ -42,12 +41,18 @@ class Analyser(metaclass=ABCMeta):
     self_args: Args  # 自身参数
     ARGHANDLER_TYPE = Callable[["Analyser", Union[str, DataUnit], str, Type, Any, int, str, Dict[str, Any], bool], Any]
     arg_handlers: Dict[Type, ARGHANDLER_TYPE]
+    chain_texts: List[str]  # 链式命令的文本
+    elements_blacklist: List[str]  # 元素黑名单
 
     def __init_subclass__(cls, **kwargs):
         cls.arg_handlers = {}
         for base in reversed(cls.__bases__):
             if issubclass(base, Analyser):
                 cls.arg_handlers.update(getattr(base, "arg_handlers", {}))
+        if not hasattr(cls, "chain_texts"):
+            raise TypeError("Analyser subclass must define chain_texts")
+        if not hasattr(cls, "elements_blacklist"):
+            raise TypeError("Analyser subclass must define elements_blacklist")
 
     @classmethod
     def add_arg_handler(cls, arg_type: Type, handler: Optional[ARGHANDLER_TYPE] = None):
@@ -125,15 +130,13 @@ class Analyser(metaclass=ABCMeta):
         self.head_matched = False
         self.ndata = 0
 
-    def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Union[str, Any]:
+    def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
-        _text: str = ""  # 重置
-        _rest_text: str = ""
-
         if self.current_index == self.ndata:
-            return ""
+            return "", True
         _current_data = self.raw_data[self.current_index]
         if isinstance(_current_data, list):
+            _rest_text: str = ""
             _text = _current_data[self.content_index]
             if separate and separate != self.separator:
                 _text, _rest_text = split_once(_text, separate)
@@ -145,10 +148,10 @@ class Analyser(metaclass=ABCMeta):
             if len(_current_data) == self.content_index:
                 self.current_index += 1
                 self.content_index = 0
-            return _text
+            return _text, True
         if pop:
             self.current_index += 1
-        return _current_data
+        return _current_data, False
 
     def rest_count(self, separate: Optional[str] = None) -> int:
         """获取剩余的数据个数"""
@@ -167,17 +170,18 @@ class Analyser(metaclass=ABCMeta):
 
     def reduce_data(self, data: Union[str, Any]):
         """把pop的数据放回 (实际只是‘指针’移动)"""
-        if data:
-            if self.current_index == self.ndata:
-                self.current_index -= 1
-                if isinstance(data, str):
-                    self.content_index = len(self.raw_data[self.current_index]) - 1
+        if not data:
+            return
+        if self.current_index == self.ndata:
+            self.current_index -= 1
+            if isinstance(data, str):
+                self.content_index = len(self.raw_data[self.current_index]) - 1
+        else:
+            _current_data = self.raw_data[self.current_index]
+            if isinstance(_current_data, list) and isinstance(data, str):
+                self.content_index -= 1
             else:
-                _current_data = self.raw_data[self.current_index]
-                if isinstance(_current_data, list) and isinstance(data, str):
-                    self.content_index -= 1
-                else:
-                    self.current_index -= 1
+                self.current_index -= 1
 
     def recover_raw_data(self) -> List[Union[str, Any]]:
         """将处理过的命令数据大概还原"""
@@ -193,65 +197,10 @@ class Analyser(metaclass=ABCMeta):
         self.content_index = 0
         return _result
 
+    @abstractmethod
     def handle_message(self, data: Union[str, DataCollection]) -> Optional[Arpamar]:
-        """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
-        if isinstance(data, str):
-            self.is_str = True
-            if not data.lstrip():
-                if self.is_raise_exception:
-                    raise NullTextMessage("传入了空的字符串")
-                return self.create_arpamar(fail=True, exception=NullTextMessage("传入了空的字符串"))
-            self.raw_data[0] = split(data, self.separator)
-            self.ndata = 1
-        else:
-            separate = self.separator
-            is_raise_exception = self.is_raise_exception
-            i, __t = 0, False
-            exc = None
-            raw_data: Dict[int, Any] = {}
-            for unit in data:  # type: ignore
-                if text := getattr(unit, 'text', None):
-                    res = split(text.lstrip(' '), separate)
-                    if not res:
-                        continue
-                    raw_data[i] = res
-                    __t = True
-                elif (utype := getattr(unit, 'type', None)) and utype not in elements_blacklist:
-                    raw_data[i] = unit
-                elif isinstance(unit, str):
-                    res = split(unit.lstrip(' '), separate)
-                    if not res:
-                        continue
-                    raw_data[i] = res
-                    __t = True
-                elif isinstance(unit, dict):
-                    if unit.get('type') in chain_texts:
-                        res = split(unit.get('text'), separate)  # type: ignore
-                        if not res:
-                            continue
-                        raw_data[i] = res
-                        __t = True
-                    elif unit.get('type') not in elements_blacklist:
-                        raw_data[i] = unit
-                    else:
-                        if is_raise_exception:
-                            exc = UnexpectedElement(f"{unit}")
-                        continue
-                else:
-                    if is_raise_exception:
-                        exc = UnexpectedElement(f"{unit.type}({unit})")
-                    continue
-                i += 1
-            if __t is False:
-                if is_raise_exception:
-                    raise NullTextMessage("传入了一个无法获取文本的消息链")
-                return self.create_arpamar(fail=True, exception=NullTextMessage("传入了一个无法获取文本的消息链"))
-            if exc:
-                if is_raise_exception:
-                    raise exc
-                return self.create_arpamar(fail=True, exception=exc)
-            self.raw_data = raw_data
-            self.ndata = i
+        """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
+        pass
 
     @abstractmethod
     def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:

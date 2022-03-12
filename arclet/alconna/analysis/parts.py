@@ -42,7 +42,7 @@ def analyse_args(
         default = arg['default']
         kwonly = arg['kwonly']
         optional = arg['optional']
-        may_arg = analyser.next_data(sep)
+        may_arg, _str = analyser.next_data(sep)
         if kwonly:
             _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
             if not _kwarg:
@@ -52,8 +52,8 @@ def analyse_args(
                 continue
             may_arg = _kwarg[0]
             if may_arg == '':
-                may_arg = analyser.next_data(sep)
-                if isinstance(may_arg, str):
+                may_arg, _str = analyser.next_data(sep)
+                if _str:
                     analyser.reduce_data(may_arg)
                     if analyser.is_raise_exception:
                         raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
@@ -69,7 +69,7 @@ def analyse_args(
         elif value.__class__ in analyser.arg_handlers:
             analyser.arg_handlers[value.__class__](
                 analyser, may_arg, key, value,
-                default, nargs, sep, option_dict, 
+                default, nargs, sep, option_dict,
                 optional
             )
         elif value is AnyParam:
@@ -115,8 +115,12 @@ def analyse_args(
                 varargs = [varargs]
             elif not isinstance(varargs, list):
                 varargs = list(varargs)
-        addition_kwargs = analyser.alconna.local_args.copy()
-        addition_kwargs.update(kwargs)
+        if opt_args.var_keyword:
+            addition_kwargs = analyser.alconna.local_args.copy()
+            addition_kwargs.update(kwargs)
+        else:
+            addition_kwargs = kwargs
+            result_dict.update(analyser.alconna.local_args)
         if action.awaitable:
             if loop().is_running():
                 option_dict = cast(Dict, loop().create_task(
@@ -147,7 +151,7 @@ def analyse_option(
         param: 目标Option
     """
 
-    name = analyser.next_data(param.separator)
+    name, _ = analyser.next_data(param.separator)
     if name not in (param.name, param.alias):  # 先匹配选项名称
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.name.lstrip("-")
@@ -184,7 +188,7 @@ def analyse_subcommand(
         analyser: 使用的分析器
         param: 目标Subcommand
     """
-    name = analyser.next_data(param.separator)
+    name, _ = analyser.next_data(param.separator)
     if param.name != name:
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = name.lstrip("-")
@@ -212,8 +216,8 @@ def analyse_subcommand(
     args = None
     need_args = True if param.nargs > 0 else False
     for _ in param.sub_part_len:
-        text = analyser.next_data(param.separator, pop=False)
-        sub_param = param.sub_params.get(text, None) if isinstance(text, str) else Ellipsis
+        text, _str = analyser.next_data(param.separator, pop=False)
+        sub_param = param.sub_params.get(text, None) if _str else Ellipsis
         if not sub_param and text != "":
             for sp in param.sub_params:
                 if text.startswith(getattr(param.sub_params[sp], 'alias', sp)):
@@ -247,13 +251,13 @@ def analyse_header(
     """
     command = analyser.command_header
     separator = analyser.separator
-    head_text = analyser.next_data(separator)
+    head_text, _str = analyser.next_data(separator)
     if isinstance(command, ArgPattern):
-        if isinstance(head_text, str) and (_head_find := command.find(head_text)):
+        if _str and (_head_find := command.find(head_text)):
             analyser.head_matched = True
             return _head_find if _head_find != head_text else True
     else:
-        may_command = analyser.next_data(separator)
+        may_command, _str = analyser.next_data(separator)
         if _head_find := command[1].find(may_command) and head_text in command[0]:
             analyser.head_matched = True
             return _head_find if _head_find != head_text else True

@@ -22,16 +22,6 @@ class Option(CommandNode):
         self.alias = alias or name
         super().__init__(name, args, action, separator, help_text)
 
-    def __generate_help__(self):
-        """预处理 help 文档"""
-        alias = f"{self.alias}, " if self.alias != self.name else ""
-        self.help_docstring = (
-            f"# {self.help_text}"
-            f"\n  {alias}{self.name}{self.separator}"
-            f"{self.args.params(self.separator)}\n"
-        )
-        return self
-
     def to_dict(self) -> Dict[str, Any]:
         return {**super().to_dict(), "alias": self.alias}
 
@@ -75,17 +65,6 @@ class Subcommand(CommandNode):
         super().__init__(name, args, action, separator, help_text)
         self.sub_params = {}
         self.sub_part_len = range(self.nargs)
-
-    def __generate_help__(self):
-        """预处理 help 文档"""
-        option_string = " ".join([option.help_docstring for option in self.options])
-        option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
-        self.help_docstring = (
-            f"# {self.help_text}\n"
-            f"  {self.name}{self.separator}{self.args.params(self.separator)}\n"
-            f"{option_help}{option_string}"
-        )
-        return self
 
     def to_dict(self) -> Dict[str, Any]:
         return {**super().to_dict(), "options": [option.to_dict() for option in self.options]}

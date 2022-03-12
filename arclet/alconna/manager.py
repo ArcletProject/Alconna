@@ -146,7 +146,7 @@ class CommandManager(metaclass=Singleton):
 
     def get_command(self, command: str) -> Union["Alconna", None]:
         """获取命令"""
-        command_parts = command.split(".")
+        command_parts = self._command_part(command)
         if command_parts[0] not in self.__commands:
             return None
         if command_parts[1] not in self.__commands[command_parts[0]]:
@@ -215,7 +215,7 @@ class CommandManager(metaclass=Singleton):
         command_parts = self._command_part(command)
         cmd = self.get_command(f"{command_parts[0]}.{command_parts[1]}")
         if cmd:
-            return cmd.help_docstring
+            return cmd.get_help()
 
 
 command_manager = CommandManager()

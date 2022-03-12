@@ -3,12 +3,9 @@ import functools
 import warnings
 import logging
 from inspect import stack
-from typing import Union, Type, Callable, TypeVar, Optional
-from .types import DataUnit
+from typing import Callable, TypeVar, Optional
 
 R = TypeVar('R')
-chain_texts = ["Plain", "Text"]
-elements_blacklist = ["Source", "File", "Quote"]
 
 
 class Singleton(type):
@@ -39,18 +36,6 @@ def get_module_filepath() -> Optional[str]:
     for frame in stack():
         if frame.frame.f_locals.get("__name__"):
             return ".".join(frame.filename.split("/")[1:]).replace('.py', '')
-
-
-def set_chain_texts(*text: Union[str, Type[DataUnit]]):
-    """设置文本类元素的集合"""
-    global chain_texts
-    chain_texts = [t if isinstance(t, str) else t.__name__ for t in text]
-
-
-def set_black_elements(*element: Union[str, Type[DataUnit]]):
-    """设置消息元素的黑名单"""
-    global elements_blacklist
-    elements_blacklist = [ele if isinstance(ele, str) else ele.__name__ for ele in element]
 
 
 def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变本来的字符串
@@ -96,7 +81,8 @@ def split(text: str, separate: str = " ", ):
                 cache.append(char)
                 continue
         elif char in ("\n", "\r"):
-            continue
+            result.append("".join(cache))
+            cache = []
         elif not quote and char == separate and cache:
             result.append("".join(cache))
             cache = []

@@ -37,12 +37,12 @@ def multi_arg_handler(
                 analyser.reduce_data(result.pop(-1))
 
         for i in range(_m_all_args_count):
-            _m_arg = analyser.next_data(sep)
-            if isinstance(_m_arg, str) and _m_arg in analyser.params:
+            _m_arg, _m_str = analyser.next_data(sep)
+            if _m_str and _m_arg in analyser.params:
                 __putback(_m_arg)
                 break
             if _m_arg_base.__class__ is ArgPattern:
-                if not isinstance(_m_arg, str):
+                if not _m_str:
                     analyser.reduce_data(_m_arg)
                     break
                 _m_arg_find = _m_arg_base.find(_m_arg)
@@ -55,7 +55,7 @@ def multi_arg_handler(
                     _m_arg_find = Ellipsis
                 result.append(_m_arg_find)
             else:
-                if isinstance(_m_arg, str):
+                if _m_str:
                     __putback(_m_arg)
                     break
                 if _m_arg.__class__ is _m_arg_base:
@@ -78,12 +78,12 @@ def multi_arg_handler(
                 analyser.reduce_data(arg[0] + '=' + arg[1])
 
         for i in range(_m_all_args_count):
-            _m_arg = analyser.next_data(sep)
-            if isinstance(_m_arg, str) and _m_arg in analyser.params:
+            _m_arg, _m_str = analyser.next_data(sep)
+            if _m_str and _m_arg in analyser.params:
                 __putback(_m_arg)
                 break
             if _m_arg_base.__class__ is ArgPattern:
-                if not isinstance(_m_arg, str):
+                if not _m_str:
                     analyser.reduce_data(_m_arg)
                     break
                 _kwarg = re.findall(r'^(.*)=(.*)$', _m_arg)
@@ -101,14 +101,14 @@ def multi_arg_handler(
                     _m_arg_find = Ellipsis
                 result[_key] = _m_arg_find
             else:
-                if isinstance(_m_arg, str):
+                if _m_str:
                     _kwarg = re.findall(r'^(.*)=.*?$', _m_arg)
                     if not _kwarg:
                         __putback(_m_arg)
                         break
                     _key = _kwarg[0]
-                    _m_arg = analyser.next_data(sep)
-                    if isinstance(_m_arg, str):
+                    _m_arg, _m_str = analyser.next_data(sep)
+                    if _m_str:
                         __putback(_m_arg)
                         break
                     if _m_arg.__class__ is _m_arg_base:

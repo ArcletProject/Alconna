@@ -31,8 +31,11 @@ class AnalyseError(Exception):
 
 
 class _DummyAnalyser(Analyser):
+    chain_texts = ["Plain", "Text"]
+    elements_blacklist = ["Source", "File", "Quote"]
 
     def __new__(cls, *args, **kwargs):
+
         cls.add_arg_handler(MultiArg, multi_arg_handler)
         cls.add_arg_handler(ArgPattern, common_arg_handler)
         cls.add_arg_handler(AntiArg, anti_arg_handler)
@@ -42,6 +45,9 @@ class _DummyAnalyser(Analyser):
         cls.add_arg_handler(MappingArg, common_arg_handler)
         cls.params = {}
         return super().__new__(cls)
+
+    def handle_message(self, data: Union[str, DataCollection]) -> Optional[Arpamar]:
+        pass
 
     def analyse(self, message: Union[str, DataCollection, None] = None):
         pass
