@@ -1,38 +1,47 @@
-"""Alconna 的简单封装"""
-import traceback
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import Literal, Dict, Callable, Optional, Coroutine, Union, AsyncIterator
+import asyncio
 
-from arclet.alconna import (
-    Alconna,
-    Arpamar,
-    MessageChain,
-    NonTextElement,
-    ParamsUnmatched,
-    compile,
-    require_help_send_action,
-)
-from graia.broadcast.entities.dispatcher import BaseDispatcher
+from arclet.alconna.arpamar import Arpamar
+from arclet.alconna import Alconna
+from arclet.alconna.proxy import AlconnaMessageProxy, AlconnaProperty
+from arclet.alconna.manager import command_manager
+
 from graia.broadcast.entities.event import Dispatchable
 from graia.broadcast.exceptions import ExecutionStop
+from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
+from graia.broadcast.utilles import run_always_await_safely
 
 from graia.ariadne import get_running
 from graia.ariadne.app import Ariadne
 from graia.ariadne.dispatcher import ContextDispatcher
 from graia.ariadne.event.message import GroupMessage, MessageEvent
+from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.util import resolve_dispatchers_mixin
-from graia.ariadne.message.chain import MessageChain as GraiaMessageChain
-
-if TYPE_CHECKING:
-    ArpamarProperty = type("ArpamarProperty", (str, MessageChain, NonTextElement), {})
-else:
-    ArpamarProperty = type("ArpamarProperty", (), {})
 
 
-class AlconnaHelpMessageDispatcher(BaseDispatcher):
+class AriadneAMP(AlconnaMessageProxy):
+    pre_treatments: Dict[Alconna, Callable[[MessageChain, Arpamar, Optional[str]], AlconnaProperty]]
+
+    def add_proxy(
+            self,
+            command: Union[str, Alconna],
+            pre_treatment: Optional[
+                Callable[[MessageChain, Arpamar, Optional[str]], Coroutine[None, None, AlconnaProperty]]
+            ] = None,
+    ):
+        if isinstance(command, str):
+            command = command_manager.get_command(command)
+        self.pre_treatments.setdefault(command, pre_treatment or self.default_pre_treatment)
+
+    async def fetch_message(self) -> AsyncIterator[MessageChain]:
+        pass
+
+
+class AlconnaHelpDispatcher(BaseDispatcher):
     mixin = [ContextDispatcher]
 
-    def __init__(self, alconna: Alconna, help_string: str, source_event: MessageEvent):
+    def __init__(self, alconna: "Alconna", help_string: str, source_event: MessageEvent):
         self.command = alconna
         self.help_string = help_string
         self.source_event = source_event
@@ -40,7 +49,7 @@ class AlconnaHelpMessageDispatcher(BaseDispatcher):
     async def catch(self, interface: "DispatcherInterface"):
         if interface.name == "help_string" and interface.annotation == str:
             return self.help_string
-        if interface.annotation == Alconna:
+        if isinstance(interface.annotation, Alconna):
             return self.command
         if issubclass(interface.annotation, MessageEvent) or interface.annotation == MessageEvent:
             return self.source_event
@@ -52,7 +61,7 @@ class AlconnaHelpMessage(Dispatchable):
     如果触发的某个命令的帮助选项, 当AlconnaDisptcher的reply_help为False时, 会发送该事件
     """
 
-    command: Alconna
+    command: "Alconna"
     """命令"""
 
     help_string: str
@@ -63,86 +72,69 @@ class AlconnaHelpMessage(Dispatchable):
 
 
 class AlconnaDispatcher(BaseDispatcher):
-    """
-    Alconna的调度器形式
-    """
+    proxy = AriadneAMP(loop=asyncio.get_event_loop())
 
     def __init__(
-        self,
-        *,
-        alconna: Alconna,
-        reply_help: bool = False,
-        skip_for_unmatch: bool = True,
-        help_handler: Optional[Callable[[str], GraiaMessageChain]] = None,
+            self,
+            *,
+            alconna: "Alconna",
+            help_flag: Literal["reply", "post", "stay"] = "stay",
+            skip_for_unmatch: bool = True,
+            help_handler: Optional[Callable[[str], MessageChain]] = None,
     ):
         """
         构造 Alconna调度器
         Args:
             alconna (Alconna): Alconna实例
-            reply_help (bool): 是否自助回复帮助信息给指令的发起者. 当为 False 时, 会广播一个'AlconnaHelpMessage'事件以交给用户处理帮助信息.
+            help_flag ("reply", "post", "stay"): 帮助信息发送方式
             skip_for_unmatch (bool): 当指令匹配失败时是否跳过对应的事件监听器, 默认为 True
         """
         super().__init__()
-        self.analyser = compile(alconna)
-        self.reply_help = reply_help
+        self.command = alconna
+        self.help_flag = help_flag
         self.skip_for_unmatch = skip_for_unmatch
-        self.help_handler = help_handler or (lambda x: GraiaMessageChain.create(x))
+        self.help_handler = help_handler or (lambda x: MessageChain.create(x))
 
-    help_handler: Callable[[str], GraiaMessageChain]
-
-    async def beforeExecution(self, interface: "DispatcherInterface[MessageEvent]"):
-        """预处理消息链并存入 local_storage"""
+    async def beforeExecution(self, interface: DispatcherInterface):
         event: MessageEvent = interface.event
+        app: Ariadne = get_running()
 
-        if self.reply_help:
-            app: Ariadne = get_running()
+        async def reply_help_message(
+                origin: MessageChain,
+                result: Arpamar,
+                help_text: Optional[str] = None
+        ):
 
-            async def _send_help_string(help_string: str):
-                message = self.help_handler(help_string)
-                if not isinstance(message, GraiaMessageChain):
-                    message = GraiaMessageChain.create(message)
-                if isinstance(event, GroupMessage):
-                    await app.sendGroupMessage(event.sender.group, message)
-                else:
-                    await app.sendMessage(event.sender, message)
+            if result.matched is False and help_text:
+                if self.help_flag == "reply":
+                    help_text = await run_always_await_safely(self.help_handler, help_text)
+                    if isinstance(event, GroupMessage):
+                        await app.sendGroupMessage(event.sender.group, help_text)
+                    else:
+                        await app.sendMessage(event.sender, help_text)
+                    return AlconnaProperty(origin, result, None)
+                if self.help_flag == "post":
+                    dispatchers = resolve_dispatchers_mixin(
+                        [AlconnaHelpDispatcher(self.command, help_text, event), event.Dispatcher]
+                    )
+                    for listener in interface.broadcast.default_listener_generator(AlconnaHelpMessage):
+                        await interface.broadcast.Executor(listener, dispatchers=dispatchers)
+                    return AlconnaProperty(origin, result, None)
+            return AlconnaProperty(origin, result, help_text)
 
-            require_help_send_action(_send_help_string, self.analyser.alconna.name)
-        else:
+        message = await interface.lookup_param("message", MessageChain, None)
+        self.proxy.add_proxy(self.command, reply_help_message)
+        self.proxy.push_message(message)
 
-            async def _post_help(help_string: str):
-                dispatchers = resolve_dispatchers_mixin(
-                    [
-                        AlconnaHelpMessageDispatcher(self.analyser.alconna, help_string, event),
-                        event.Dispatcher,
-                    ]
-                )
-                for listener in interface.broadcast.default_listener_generator(AlconnaHelpMessage):
-                    await interface.broadcast.Executor(listener, dispatchers=dispatchers)
+    async def catch(self, interface: DispatcherInterface):
+        res = await self.proxy.export(self.command)
+        if not res.result.matched and not res.help_text:
+            if "-h" in str(res.origin):
+                raise ExecutionStop
+            if self.skip_for_unmatch:
+                raise ExecutionStop
 
-            require_help_send_action(_post_help, self.analyser.alconna.name)
-
-        local_storage = interface.local_storage
-        chain: GraiaMessageChain = await interface.lookup_param("message_chain", GraiaMessageChain, None)
-        try:
-            result = self.analyser.analyse(chain)
-        except ParamsUnmatched:
-            traceback.print_exc()
-            raise ExecutionStop
-        if not result.matched and self.skip_for_unmatch:
-            raise ExecutionStop
-        local_storage["arpamar"] = result
-
-    async def catch(self, interface: DispatcherInterface[MessageEvent]):
-        local_storage = interface.local_storage
-        arpamar: Arpamar = local_storage["arpamar"]
-        if issubclass(interface.annotation, Arpamar):
-            return arpamar
-        if issubclass(interface.annotation, Alconna):
-            return self.analyser.alconna
-        if isinstance(interface.annotation, dict) and arpamar.options.get(interface.name):
-            return arpamar.options[interface.name]
-        if interface.name in arpamar.all_matched_args:
-            if isinstance(arpamar.all_matched_args[interface.name], interface.annotation):
-                return arpamar.all_matched_args[interface.name]
-        if issubclass(interface.annotation, ArpamarProperty):
-            return arpamar.get(interface.name)
+        if interface.annotation == AlconnaProperty:
+            return res
+        if interface.annotation == Arpamar:
+            return res.result

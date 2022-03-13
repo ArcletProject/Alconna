@@ -69,6 +69,15 @@
 3. 加入`_`前缀，用来隐藏该参数的类型注解
 4. 修复bug
 
+## Alconna 0.7.5
+1. 内部类型改进, `MessageChain` -> `DataCollection`
+2. 加入`ArpamarBehavior`, 用以解析后的预处理, 并提供三个预制的`behavior`:
+- `set_default`: 当某个选项未被输入时, 使用该行为添加一个默认值
+- `exclusion`: 当指定的两个选项同时出现时报错
+- `cool_down`: 限制命令调用频率
+3. 加入`NodeVisitor`与`HelpFormatter`, 并将原先给CommandNode的help生成转移给Formatter
+4. 加入`AlconnaMessageProxy`, 用作对外适配接口
+
 # Alconna 0.6.x:
 
 ## Alconna 0.6.0:
