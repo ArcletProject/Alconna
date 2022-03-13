@@ -15,6 +15,7 @@ class Test:
 
     class MySub:
         """Sub Class"""
+
         def __init__(self):
             """Constructor"""
             self.sender = "sub_command"
@@ -45,3 +46,19 @@ def test_function(name="world"):
 
 alc1 = AlconnaFire(test_function)
 alc1.parse("test_function --help")
+
+
+class Test1:
+    def __init__(self):
+        ...
+
+    def calculator(self, a, b, c, *nums: int, **kwargs: str):
+        """calculator"""
+        print(a, b, c)
+        print(nums, kwargs)
+        print(sum(nums))
+
+
+alc = AlconnaFire(Test1)
+alc.parse("Test1 --help")
+alc.parse("Test1 calculator 1 2 3 4 5 d=4 f=5")

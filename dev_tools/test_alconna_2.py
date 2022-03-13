@@ -4,7 +4,7 @@ from arclet.alconna.builtin.construct import AlconnaString, AlconnaFormat
 from arclet.alconna.types import AnyStr, AnyDigit
 from arclet.alconna import Alconna, Args, Option
 from arclet.alconna import command_manager
-from arclet.alconna.builtin.actions import store_bool
+from arclet.alconna.builtin.actions import store_value
 from devtools import debug
 from inspect import getsource
 
@@ -48,7 +48,7 @@ def test(wild, text: str, num: int, boolean: bool):
 alc1 = AlconnaString(
     "test_type <wild> <text:str> <num:digit> <boolean:bool:False> #测试",
     "--foo <boolean:bool:False> #测试选项",
-).set_action(store_bool(True))
+).set_action(store_value(True))
 print(alc1)
 print(alc1.get_help())
 print(alc1.parse("test_type abcd 'testing a text' 2 --foo"))
@@ -127,5 +127,5 @@ alc9 = Alconna("test_str", main_args="@foo:str, bar:list, ?baz:int")
 print(alc9)
 print(alc9.parse("test_str foo=a \"[1]\""))
 
-alc10 = Alconna("test_bool", main_args="foo:str", action=store_bool(True))
+alc10 = Alconna("test_bool", main_args="foo:str", action=store_value(True))
 print(alc10.parse("test_bool a"))
