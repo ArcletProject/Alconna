@@ -24,8 +24,7 @@ class DisorderCommandAnalyser(Analyser):
 
     """
 
-    chain_texts = ["Plain", "Text"]
-    elements_blacklist = ["Source", "File", "Quote"]
+    filter_out = ["Source", "File", "Quote"]
 
     def add_param(self, opt: Union[Option, Subcommand]):
         if isinstance(opt, Subcommand):
@@ -55,14 +54,14 @@ class DisorderCommandAnalyser(Analyser):
                         continue
                     raw_data[i] = res
                     __t = True
-                elif unit.__class__.__name__ not in self.elements_blacklist:
-                    raw_data[i] = unit
                 elif isinstance(unit, str):
                     res = split(unit.lstrip(' '), separate)
                     if not res:
                         continue
                     raw_data[i] = res
                     __t = True
+                elif unit.__class__.__name__ not in self.filter_out:
+                    raw_data[i] = unit
                 else:
                     if self.is_raise_exception:
                         exc = UnexpectedElement(f"{unit.type}({unit})")
@@ -107,14 +106,14 @@ class DisorderCommandAnalyser(Analyser):
 
         for _ in self.part_len:
             _text, _str = self.next_data(self.separator, pop=False)
-            _param = self.params.get(_text, Ellipsis) if _str else None
-            if _param is Ellipsis and _text != "":
+            _param = self.params.get(_text, None) if _str else Ellipsis
+            if not _param and _text != "":
                 for p in self.params:
                     if _text.startswith(getattr(self.params[p], 'alias', p)):
                         _param = self.params[p]
                         break
             try:
-                if not _param:
+                if not _param or _param is Ellipsis:
                     if not self.main_args:
                         self.main_args = analyse_args(
                             self, self.self_args, self.separator, self.alconna.nargs, self.alconna.action

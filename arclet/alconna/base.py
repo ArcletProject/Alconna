@@ -275,15 +275,17 @@ class Args(metaclass=ArgsMeta):
                 value = value.__getstate__()
             else:
                 value = {"type": value.__name__}
-            args[k] = {"value": value, "default": default}
+            _res = v.copy()
+            _res.update({"value": value, "default": default})
+            args[k] = _res
         return {"argument": args, "extra": self.extra}
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]):
         args = cls(extra=data['extra'])
         for k, v in data['argument'].items():
-            value = v['value']
-            default = v['default']
+            value = v.pop('value')
+            default = v.pop('default')
             v_type = value.get("type")
             if v_type == "ArgPattern":
                 value = ArgPattern.from_dict(value)
@@ -293,7 +295,7 @@ class Args(metaclass=ArgsMeta):
                 value = AllParam
             else:
                 value = eval(v_type)
-            args.argument[k] = {"value": value, "default": default}  # type: ignore
+            args.argument[k] = {**v, "value": value, "default": default}  # type: ignore
         return args
 
     def __setstate__(self, state):
@@ -301,8 +303,8 @@ class Args(metaclass=ArgsMeta):
         self.var_positional = None
         self.var_keyword = None
         for k, v in state['argument'].items():
-            value = v['value']
-            default = v['default']
+            value = v.pop('value')
+            default = v.pop('default')
             v_type = value.get("type")
             if v_type == "ArgPattern":
                 value = ArgPattern.from_dict(value)
@@ -312,7 +314,7 @@ class Args(metaclass=ArgsMeta):
                 value = AllParam
             else:
                 value = eval(v_type)
-            self.argument[k] = {"value": value, "default": default}  # type: ignore
+            args.argument[k] = {**v, "value": value, "default": default}  # type: ignore
 
 
 class ArgAction:

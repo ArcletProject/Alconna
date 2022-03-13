@@ -31,8 +31,7 @@ class AnalyseError(Exception):
 
 
 class _DummyAnalyser(Analyser):
-    chain_texts = ["Plain", "Text"]
-    elements_blacklist = ["Source", "File", "Quote"]
+    filter_out = ["Source", "File", "Quote"]
 
     def __new__(cls, *args, **kwargs):
 

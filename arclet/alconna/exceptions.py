@@ -30,9 +30,9 @@ class ExceedMaxCount(Exception):
 
 
 class CancelBehave(Exception):
-    """被停止"""
+    """行为执行被停止"""
 
 
-class OutBoundsInput(Exception):
-    """输入超出范围"""
+class OutBoundsBehavior(Exception):
+    """越界行为"""
     pass

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
 from .exceptions import DuplicateCommand, ExceedMaxCount
 from .analysis import compile as compile_analysis
 from .util import Singleton
+from .types import DataCollection
 
 if TYPE_CHECKING:
     from .main import Alconna
@@ -12,6 +13,9 @@ if TYPE_CHECKING:
 
 
 class CommandManager(metaclass=Singleton):
+    """
+    命令管理器
+    """
     sign: str = "ALCONNA::"
     default_namespace: str = "Alconna"
     __shortcuts: Dict[str, Tuple[str, str, bool]] = {}
@@ -161,22 +165,23 @@ class CommandManager(metaclass=Singleton):
             return []
         return [alc.alconna for alc in self.__commands[namespace].values()]
 
-    def broadcast(self, command: str, namespace: Optional[str] = None):
+    def broadcast(self, command: Union[str, DataCollection], namespace: Optional[str] = None):
         """广播命令"""
+        command = str(command)
         may_command_head = command.split(" ")[0]
         if namespace is None:
             for n in self.__commands:
                 if self.__commands[n].get(may_command_head):
                     return self.__commands[n][may_command_head].analyse(command)
                 for k in self.__commands[n]:
-                    if re.match("^" + k + ".*" + "$", str(command)):
+                    if re.match("^" + k + ".*" + "$", command):
                         return self.__commands[n][k].analyse(command)
         else:
             commands = self.__commands[namespace]
             if commands.get(may_command_head):
                 return self.__commands[namespace][may_command_head].analyse(command)
             for k in self.__commands[namespace]:
-                if re.match("^" + k + ".*" + "$", str(command)):
+                if re.match("^" + k + ".*" + "$", command):
                     return self.__commands[namespace][k].analyse(command)
 
     def all_command_help(

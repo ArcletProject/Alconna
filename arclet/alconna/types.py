@@ -22,6 +22,10 @@ DataUnit = TypeVar("DataUnit")
 
 
 class DataCollection(Protocol):
+    """数据集合协议"""
+
+    def __str__(self) -> str:
+        ...
 
     def __iter__(self) -> DataUnit:
         ...
@@ -366,7 +370,9 @@ pattern_map = {
 
 
 def add_check(pattern: ArgPattern):
-    return pattern_map.setdefault(pattern.alias or pattern.origin_type, pattern)
+    if pattern.alias:
+        pattern_map.setdefault(pattern.alias, pattern)
+    return pattern_map.setdefault(pattern.origin_type, pattern)
 
 
 def argtype_validator(item: Any, extra: str = "allow"):
@@ -548,7 +554,7 @@ class ObjectPattern(ArgPattern):
             _re_pattern = rf"(?P<self>{head})" if head else rf"(?P<self>{self.origin.__name__})"
         super().__init__(
             _re_pattern,
-            token=PatternToken.REGEX_MATCH, origin_type=self.origin
+            token=PatternToken.REGEX_MATCH, origin_type=self.origin, alias=head or self.origin.__name__,
         )
         add_check(self)
 

@@ -5,7 +5,7 @@ from typing import Callable, Any, Optional, TYPE_CHECKING, Union, Coroutine, Dic
 from arclet.alconna.base import ArgAction
 from arclet.alconna.util import Singleton
 from arclet.alconna.arpamar import ArpamarBehavior
-from arclet.alconna.exceptions import CancelBehave, OutBoundsInput
+from arclet.alconna.exceptions import CancelBehave, OutBoundsBehavior
 
 
 class _StoreValue(ArgAction):
@@ -25,6 +25,7 @@ def store_value(value: Any):
 
 class HelpActionManager(metaclass=Singleton):
     """帮助信息"""
+    cache: Dict[str, Callable] = {}
     helpers: Dict[str, ArgAction] = {}
     send_action: Callable[[str], Union[Any, Coroutine]] = lambda x: print(x)
 
@@ -40,8 +41,11 @@ def require_help_send_action(action: Optional[Callable[[str], Any]] = None, comm
         for helper in HelpActionManager.helpers.values():
             helper.awaitable = inspect.iscoroutinefunction(action)
     else:
-        HelpActionManager.helpers[command].action = action
-        HelpActionManager.helpers[command].awaitable = inspect.iscoroutinefunction(action)
+        if not HelpActionManager.helpers.get(command):
+            HelpActionManager.cache[command] = action
+        else:
+            HelpActionManager.helpers[command].action = action
+            HelpActionManager.helpers[command].awaitable = inspect.iscoroutinefunction(action)
 
 
 def help_send(command: str, help_string_call: Callable[[], str]):
@@ -61,7 +65,11 @@ def help_send(command: str, help_string_call: Callable[[], str]):
             if action:
                 return await action(help_string_call())
 
-    HelpActionManager.helpers[command] = _HELP()
+    HelpActionManager.helpers.setdefault(command, _HELP())
+    if command in HelpActionManager.cache:
+        HelpActionManager.helpers[command].action = HelpActionManager.cache[command]
+        HelpActionManager.helpers[command].awaitable = inspect.iscoroutinefunction(HelpActionManager.cache[command])
+        del HelpActionManager.cache[command]
     return HelpActionManager.helpers[command]
 
 
@@ -109,7 +117,7 @@ def exclusion(target_path: str, other_path: str):
     class _EXCLUSION(ArpamarBehavior):
         def operate(self, interface: "ArpamarBehaviorInterface"):
             if interface.require(target_path) and interface.require(other_path):
-                raise OutBoundsInput("两个路径不能同时存在")
+                raise OutBoundsBehavior("两个路径不能同时存在")
 
     return _EXCLUSION()
 
@@ -127,7 +135,7 @@ def cool_down(seconds: float):
             current_time = datetime.now()
             if (current_time - self.last_time).total_seconds() < seconds:
                 interface.change_const("matched", False)
-                interface.change_const("error_info", OutBoundsInput("操作过于频繁"))
+                interface.change_const("error_info", OutBoundsBehavior("操作过于频繁"))
             else:
                 self.last_time = current_time
 

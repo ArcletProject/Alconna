@@ -41,18 +41,15 @@ class Analyser(metaclass=ABCMeta):
     self_args: Args  # 自身参数
     ARGHANDLER_TYPE = Callable[["Analyser", Union[str, DataUnit], str, Type, Any, int, str, Dict[str, Any], bool], Any]
     arg_handlers: Dict[Type, ARGHANDLER_TYPE]
-    chain_texts: List[str]  # 链式命令的文本
-    elements_blacklist: List[str]  # 元素黑名单
+    filter_out: List[str]  # 元素黑名单
 
     def __init_subclass__(cls, **kwargs):
         cls.arg_handlers = {}
         for base in reversed(cls.__bases__):
             if issubclass(base, Analyser):
                 cls.arg_handlers.update(getattr(base, "arg_handlers", {}))
-        if not hasattr(cls, "chain_texts"):
-            raise TypeError("Analyser subclass must define chain_texts")
-        if not hasattr(cls, "elements_blacklist"):
-            raise TypeError("Analyser subclass must define elements_blacklist")
+        if not hasattr(cls, "filter_out"):
+            raise TypeError("Analyser subclass must define filter_out")
 
     @classmethod
     def add_arg_handler(cls, arg_type: Type, handler: Optional[ARGHANDLER_TYPE] = None):
