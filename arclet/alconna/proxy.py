@@ -47,7 +47,10 @@ class AlconnaMessageProxy(metaclass=abc.ABCMeta):
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None):
         self.loop = loop or asyncio.get_event_loop()
         self.pre_treatments = {}
-        self.export_results = Queue(loop=self.loop)
+        try:
+            self.export_results = Queue(loop=self.loop)
+        except TypeError:
+            self.export_results = Queue()
         self.default_pre_treatment = lambda o, r, h, s: AlconnaProperty(o, r, h, s)
 
     def add_proxy(
