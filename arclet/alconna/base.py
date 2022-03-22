@@ -24,24 +24,42 @@ class ArgUnit(TypedDict):
 
 class ArgsMeta(type):
 
+    def __init__(cls, name, bases, attrs):
+        super().__init__(name, bases, attrs)
+        cls.last_key = ''
+        cls.selecting = False
+
     def __getattr__(cls, name):
+        if name == 'shape':
+            return super().__getattribute__(name)
         cls.last_key = name
+        cls.selecting = True
         return cls
 
     def __getitem__(cls, item):
         if isinstance(item, slice):
             return cls(args=[item])
+        elif isinstance(item, str):
+            return cls(args=[(item, item)])
         elif not isinstance(item, tuple):
-            return cls(args=[(cls.last_key, item)])
+            if cls.selecting:
+                cls.selecting = False
+                return cls(args=[(cls.last_key, item)])
+            return cls(args=[(item,)])
         slices = list(filter(lambda x: isinstance(x, slice), item))
         args = cls(args=slices)
-        items = list(filter(lambda x: not isinstance(x, slice), item))
+        items = list(filter(lambda x: isinstance(x, (list, tuple)), item))
+        items += list(map(lambda x: (x, ), filter(lambda x: isinstance(x, str), item)))
         if items:
-            args.__setitem__(cls.last_key, items)
+            if cls.selecting:
+                args.__setitem__(cls.last_key, items)
+                cls.selecting = False
+            else:
+                args.__check_vars__(items)
         return args
 
 
-class Args(metaclass=ArgsMeta):
+class Args(metaclass=ArgsMeta):  # type: ignore
     """
     对命令参数的封装
 
@@ -151,7 +169,7 @@ class Args(metaclass=ArgsMeta):
             if isinstance(sl, slice):
                 name, value, default = sl.start, sl.stop, sl.step
             else:
-                name, value, default = sl[0], sl[1] if len(sl) > 1 else None, sl[2] if len(sl) > 2 else None
+                name, value, default = sl[0], sl[1] if len(sl) > 1 else sl[0], sl[2] if len(sl) > 2 else None
             if not isinstance(name, str):
                 raise InvalidParam("参数的名字只能是字符串")
             if name == "":
@@ -232,6 +250,7 @@ class Args(metaclass=ArgsMeta):
         elif isinstance(item, Iterable):
             slices = list(filter(lambda x: isinstance(x, slice), item))
             items = list(filter(lambda x: isinstance(x, Sequence), item))
+            items += list(map(lambda x: (x,), filter(lambda x: isinstance(x, str), item)))
             if items:
                 self.__check_vars__(items)
             self.__check_vars__(slices)
@@ -275,7 +294,7 @@ class Args(metaclass=ArgsMeta):
                 value = value.__getstate__()
             else:
                 value = {"type": value.__name__}
-            _res = v.copy()
+            _res: dict = v.copy()  # type: ignore
             _res.update({"value": value, "default": default})
             args[k] = _res
         return {"argument": args, "extra": self.extra}

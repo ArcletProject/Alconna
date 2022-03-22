@@ -17,10 +17,8 @@ async def test(app: Ariadne, text: Plain, img: Image, at: At, music: MusicShare)
     print(locals())
     msg = MessageChain.create([at, text, img])
     print(repr(msg))
-    print(await app.sendFriendMessage(at.target, msg))
+    print(await app.sendGroupMessage(at.target, msg))
 
 
 alc = AlconnaFire(test)
-alc.parse("""test ariadne 'hello world!' https://www.baidu.com/img/bd_logo1.png 123456 "{'kind':'QQMusic',
-'title':'音乐标题','summary':'音乐摘要','jumpUrl':'http://www.baidu.com',
-'pictureUrl':'http://www.baidu.com/img/bd_logo1.png','musicUrl':'http://www.baidu.com/audio/bd.mp3','brief':'简介'}" """)
+alc.parse("test ariadne 'hello world!' https://www.baidu.com/img/bd_logo1.png 123456 \"{'kind':'QQMusic','title':'音乐标题','summary':'音乐摘要','jumpUrl':'http://www.baidu.com','pictureUrl':'http://www.baidu.com/img/bd_logo1.png','musicUrl':'http://www.baidu.com/audio/bd.mp3','brief':'简介'}\"")

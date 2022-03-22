@@ -1,10 +1,10 @@
-from typing import Union, Optional
+from typing import Union, Optional, Dict, Any
 import traceback
 
 from arclet.alconna.component import Option, Subcommand
 from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.types import (
-    DataCollection, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
+    MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
 )
 from arclet.alconna.visitor import AlconnaNodeVisitor
 from arclet.alconna.analysis.analyser import Analyser
@@ -13,11 +13,17 @@ from arclet.alconna.analysis.arg_handlers import (
     multi_arg_handler, common_arg_handler, anti_arg_handler, union_arg_handler
 )
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
-from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing
-from .actions import help_send
+from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, NullTextMessage, UnexpectedElement
+from arclet.alconna.util import split
+from arclet.alconna.builtin.actions import help_send
+
+from graia.ariadne.message.chain import MessageChain
+from graia.ariadne.message.element import Plain
+# from graia.amnesia.message import MessageChain
+# from graia.amnesia.element import Text, Unknown
 
 
-class DisorderCommandAnalyser(Analyser):
+class GraiaCommandAnalyser(Analyser):
     """
     无序的分析器
 
@@ -31,7 +37,51 @@ class DisorderCommandAnalyser(Analyser):
                 opt.sub_params.setdefault(sub_opts.name, sub_opts)
         self.params[opt.name] = opt
 
-    def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:
+    def handle_message(self, data: MessageChain) -> Optional[Arpamar]:
+        """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
+        separate = self.separator
+        i, __t, exc = 0, False, None
+        raw_data: Dict[int, Any] = {}
+        for unit in data:
+            # using graia.amnesia.message and graia.amnesia.elements
+            # if isinstance(unit, Text):
+            #     res = split(unit.text.lstrip(' '), separate)
+            #     if not res:
+            #         continue
+            #     raw_data[i] = res
+            #     __t = True
+            # elif isinstance(unit, Unknown):
+            #     if self.is_raise_exception:
+            #         exc = UnexpectedElement(f"{unit.type}({unit})")
+            #     continue
+            # elif unit.__class__.__name__ not in self.filter_out:
+            #     raw_data[i] = unit
+            if isinstance(unit, Plain):
+                res = split(unit.text.lstrip(' '), separate)
+                if not res:
+                    continue
+                raw_data[i] = res
+                __t = True
+            elif unit.type not in self.filter_out:
+                raw_data[i] = unit
+            else:
+                if self.is_raise_exception:
+                    exc = UnexpectedElement(f"{unit.type}({unit})")
+                continue
+            i += 1
+
+        if __t is False:
+            if self.is_raise_exception:
+                raise NullTextMessage("传入了一个无法获取文本的消息链")
+            return self.create_arpamar(fail=True, exception=NullTextMessage("传入了一个无法获取文本的消息链"))
+        if exc:
+            if self.is_raise_exception:
+                raise exc
+            return self.create_arpamar(fail=True, exception=exc)
+        self.raw_data = raw_data
+        self.ndata = i
+
+    def analyse(self, message: Union[MessageChain, None] = None) -> Arpamar:
         if command_manager.is_disable(self.alconna):
             return self.create_arpamar(fail=True)
         if self.ndata == 0:
@@ -54,13 +104,14 @@ class DisorderCommandAnalyser(Analyser):
                     self.reset()
                     return self.analyse(data)  # type: ignore
                 self.reset()
-                return self.analyse(cmd)
+                return self.analyse(MessageChain.create(cmd))
             except ValueError:
                 return self.create_arpamar(fail=True, exception=e)
 
         for _ in self.part_len:
             _text, _str = self.next_data(self.separator, pop=False)
-            if not (_param := self.params.get(_text, None) if _str else Ellipsis) and _text != "":
+            _param = self.params.get(_text, None) if _str else Ellipsis
+            if not _param and _text != "":
                 for p in self.params:
                     if _text.startswith(getattr(self.params[p], 'alias', p)):
                         _param = self.params[p]
@@ -138,10 +189,10 @@ class DisorderCommandAnalyser(Analyser):
         return result
 
 
-DisorderCommandAnalyser.add_arg_handler(MultiArg, multi_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(AntiArg, anti_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(UnionArg, union_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(ArgPattern, common_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(ObjectPattern, common_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(SequenceArg, common_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(MappingArg, common_arg_handler)
+GraiaCommandAnalyser.add_arg_handler(MultiArg, multi_arg_handler)
+GraiaCommandAnalyser.add_arg_handler(AntiArg, anti_arg_handler)
+GraiaCommandAnalyser.add_arg_handler(UnionArg, union_arg_handler)
+GraiaCommandAnalyser.add_arg_handler(ArgPattern, common_arg_handler)
+GraiaCommandAnalyser.add_arg_handler(ObjectPattern, common_arg_handler)
+GraiaCommandAnalyser.add_arg_handler(SequenceArg, common_arg_handler)
+GraiaCommandAnalyser.add_arg_handler(MappingArg, common_arg_handler)

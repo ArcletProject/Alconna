@@ -1,6 +1,9 @@
 import re
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable
+
+from arclet.alconna import NullTextMessage, UnexpectedElement
+
 from ..base import Args
 from ..component import Option, Subcommand
 from ..arpamar import Arpamar
@@ -27,7 +30,12 @@ class Analyser(metaclass=ABCMeta):
     raw_data: Dict[int, Union[List[str], Any]]  # 原始数据
     ndata: int  # 原始数据的长度
     params: Dict[str, Union[Option, Subcommand, Args]]  # 参数
-    command_header: Union[ArgPattern, Tuple[List[Any], ArgPattern]]  # 命令头部
+    # 命令头部
+    command_header: Union[
+        ArgPattern,
+        Tuple[Union[Tuple[List[Any], ArgPattern], List[Any]], ArgPattern],
+        List[Tuple[Any, ArgPattern]]
+    ]
     separator: str  # 分隔符
     is_raise_exception: bool  # 是否抛出异常
     options: Dict[str, Any]  # 存放解析到的所有选项
@@ -85,17 +93,33 @@ class Analyser(metaclass=ABCMeta):
         if _de_count and _de_count == nargs:
             self.default_main_only = True
 
-    def __init_header__(self, command_name: str, headers: List[Union[str, Any]]):
+    def __init_header__(
+            self,
+            command_name: str,
+            headers: Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]]
+    ):
         if headers != [""]:
-            elements = []
-            ch_text = ""
-            for h in headers:
-                if isinstance(h, str):
-                    ch_text += re.escape(h) + "|"
+            if isinstance(headers[0], tuple):
+                mixins = []
+                for h in headers:  
+                    mixins.append((h[0], ArgPattern(re.escape(h[1]) + command_name)))  # type: ignore
+                self.command_header = mixins
+            else:
+                elements = []
+                ch_text = ""
+                for h in headers:
+                    if isinstance(h, str):
+                        ch_text += re.escape(h) + "|"
+                    else:
+                        elements.append(h)
+                if not elements:
+                    self.command_header = ArgPattern("(?:{})".format(ch_text[:-1]) + command_name)
+                elif not ch_text:
+                    self.command_header = (elements, ArgPattern(command_name))
                 else:
-                    elements.append(h)
-            pattern = "(?:{})".format(ch_text[:-1]) + command_name
-            self.command_header = (elements, ArgPattern(pattern)) if elements else ArgPattern(pattern)
+                    self.command_header = (
+                        (elements, ArgPattern("(?:{})".format(ch_text[:-1]))), ArgPattern(command_name)
+                    )
         else:
             self.command_header = ArgPattern(command_name)
 
@@ -113,6 +137,9 @@ class Analyser(metaclass=ABCMeta):
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>"
+
+    def __del__(self):
+        self.reset()
 
     def reset(self):
         """重置分析器"""
@@ -194,10 +221,48 @@ class Analyser(metaclass=ABCMeta):
         self.content_index = 0
         return _result
 
-    @abstractmethod
     def handle_message(self, data: Union[str, DataCollection]) -> Optional[Arpamar]:
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
-        pass
+        if isinstance(data, str):
+            self.is_str = True
+            if not (res := split(data.lstrip(), self.separator)):
+                if self.is_raise_exception:
+                    raise NullTextMessage("传入了空的字符串")
+                return self.create_arpamar(fail=True, exception=NullTextMessage("传入了空的字符串"))
+            self.raw_data = {0: res}
+            self.ndata = 1
+        else:
+            separate = self.separator
+            i, __t, exc = 0, False, None
+            raw_data: Dict[int, Any] = {}
+            for unit in data:  # type: ignore
+                if text := getattr(unit, 'text', None):
+                    if not (res := split(text.lstrip(' '), separate)):
+                        continue
+                    raw_data[i] = res
+                    __t = True
+                elif isinstance(unit, str):
+                    if not (res := split(unit.lstrip(' '), separate)):
+                        continue
+                    raw_data[i] = res
+                    __t = True
+                elif unit.__class__.__name__ not in self.filter_out:
+                    raw_data[i] = unit
+                else:
+                    if self.is_raise_exception:
+                        exc = UnexpectedElement(f"{unit.type}({unit})")
+                    continue
+                i += 1
+            if __t is False:
+                if self.is_raise_exception:
+                    raise NullTextMessage("传入了一个无法获取文本的消息链")
+                return self.create_arpamar(fail=True, exception=NullTextMessage("传入了一个无法获取文本的消息链"))
+            if exc:
+                if self.is_raise_exception:
+                    raise exc
+                return self.create_arpamar(fail=True, exception=exc)
+            self.raw_data = raw_data
+            self.ndata = i
 
     @abstractmethod
     def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:

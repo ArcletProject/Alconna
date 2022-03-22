@@ -6,9 +6,9 @@ from arclet.alconna.visitor import AbstractHelpTextFormatter
 
 class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
     def format(self, trace: Dict[str, Union[str, List, Dict]]) -> str:
-        parts: List[Dict[str, Any]] = trace.pop('sub_nodes')
+        parts = trace.pop('sub_nodes')
         header = self.header(trace)
-        body = self.body(parts)
+        body = self.body(parts)  # type: ignore
         return f"{header}\n{body}"
 
     def param(self, parameter: Dict[str, Any]) -> str:
@@ -70,6 +70,8 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
                 f"  {sub['name']}{sub['separator']}{self.parameters(sub['parameters'], sub['separator'])}\n"
                 f"{option_help}{option_string}"
             )
+        else:
+            return f"unknown node type:{node_type}"
 
     def body(self, parts: List[Dict[str, Any]]) -> str:
         option_string = "".join(

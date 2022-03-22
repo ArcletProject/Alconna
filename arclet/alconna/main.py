@@ -1,5 +1,5 @@
 """Alconna 主体"""
-from typing import Dict, List, Optional, Union, Type, Callable, Any
+from typing import Dict, List, Optional, Union, Type, Callable, Any, Tuple
 from .analysis.analyser import Analyser
 from .analysis import compile
 from .base import CommandNode, Args, ArgAction
@@ -48,7 +48,7 @@ class Alconna(CommandNode):
         - main_args: 命令主参数
     """
 
-    headers: List[Union[str, Any]]
+    headers: Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]]  # type: ignore
     command: str
     options: List[Union[Option, Subcommand]]
     analyser_type: Type[Analyser]
@@ -57,14 +57,14 @@ class Alconna(CommandNode):
     __cls_name__: str = "Alconna"
     local_args: dict = {}
     formatter: AbstractHelpTextFormatter
-    default_analyser = DisorderCommandAnalyser
+    default_analyser: Type[Analyser] = DisorderCommandAnalyser  # type: ignore
 
     def __init__(
             self,
             command: Optional[str] = None,
-            headers: Optional[List[Union[str, DataUnit]]] = None,
-            options: Optional[List[Union[Option, Subcommand]]] = None,
             main_args: Union[Args, str, None] = None,
+            headers: Optional[Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]]] = None,
+            options: Optional[List[Union[Option, Subcommand]]] = None,
             is_raise_exception: bool = False,
             action: Optional[Union[ArgAction, Callable]] = None,
             namespace: Optional[str] = None,
@@ -109,7 +109,7 @@ class Alconna(CommandNode):
         command_manager.register(self)
         self.__class__.__cls_name__ = "Alconna"
         self.behaviors = behaviors
-        self.formatter = formatter or DefaultHelpTextFormatter()
+        self.formatter = formatter or DefaultHelpTextFormatter()  # type: ignore
 
     def __class_getitem__(cls, item):
         if isinstance(item, str):
@@ -155,8 +155,10 @@ class Alconna(CommandNode):
             help_text: Optional[str] = None,
     ):
         """链式注册一个 Option"""
-        opt = Option(name, args=args, alias=alias, separator=sep, help_text=help_text)
+        command_manager.delete(self)
+        opt = Option(name, args, alias=alias, separator=sep, help_text=help_text)
         self.options.append(opt)
+        command_manager.register(self)
         return self
 
     def set_action(self, action: Union[Callable, str, ArgAction], custom_types: Optional[Dict[str, Type]] = None):
@@ -189,6 +191,32 @@ class Alconna(CommandNode):
             "namespace": self.namespace,
             "help_text": self.help_text,
         }
+
+    def __truediv__(self, other):
+        self.reset_namespace(other)
+        return self
+
+    def __rtruediv__(self, other):
+        self.reset_namespace(other)
+        return self
+
+    def __rmatmul__(self, other):
+        self.reset_namespace(other)
+        return self
+
+    def __matmul__(self, other):
+        self.reset_namespace(other)
+        return self
+
+    def __radd__(self, other):
+        if isinstance(other, Option):
+            command_manager.delete(self)
+            self.options.append(other)
+            command_manager.register(self)
+        return self
+
+    def __add__(self, other):
+        return self.__radd__(other)
 
     def __getstate__(self):
         return self.to_dict()

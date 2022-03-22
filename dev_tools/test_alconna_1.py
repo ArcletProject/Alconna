@@ -1,7 +1,8 @@
 from typing import Union
 
 from arclet.alconna import Alconna, Args, AlconnaString
-from arclet.alconna.component import Subcommand, Option, Arpamar
+from arclet.alconna.component import Subcommand, Option
+from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.types import AnyIP, AnyDigit, AnyStr, AnyParam
 from graia.ariadne.message.chain import MessageChain
 

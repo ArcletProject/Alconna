@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union, Callable, Optional, List
+from typing import TYPE_CHECKING, Union, Callable, Optional, List, Any, Tuple
 import traceback
 
 from .analyser import Analyser
@@ -45,9 +45,6 @@ class _DummyAnalyser(Analyser):
         cls.params = {}
         return super().__new__(cls)
 
-    def handle_message(self, data: Union[str, DataCollection]) -> Optional[Arpamar]:
-        pass
-
     def analyse(self, message: Union[str, DataCollection, None] = None):
         pass
 
@@ -75,7 +72,7 @@ def analyse_args(
 
 
 def analyse_header(
-        headers: List[str],
+        headers: Union[List[Union[str, Any]], List[Tuple[Any, str]]],
         command_name: str,
         command: Union[str, DataCollection],
         sep: str = " "

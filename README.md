@@ -27,9 +27,9 @@ pip install --upgrade arclet-alconna
 from arclet.alconna import Alconna, Option, Subcommand, Args
 
 cmd = Alconna(
-    command="/pip",
+    "/pip",
     options=[
-        Subcommand("install", options=[Option("-u| --upgrade")], args=Args["pak_name": str]),
+        Subcommand("install", options=[Option("-u| --upgrade")], args=Args.pak_name[str]),
         Option("list"),
     ]
 )
@@ -55,8 +55,8 @@ print(result.get('install'))  # 或者 result.install
 假设有个Alconna如下:
 ```python
 Alconna(
-    headers=["/"],
     command="name",
+    headers=["/"],
     options=[
         Subcommand(
             "sub_name",
@@ -64,7 +64,7 @@ Alconna(
             sub_main_arg="sub_main_arg"
         ),
         Option("opt", opt_arg="opt_arg")
-    ]
+    ],
     main_args="main_args"
 )
 ```

@@ -10,7 +10,7 @@ class Option(CommandNode):
     def __init__(
             self,
             name: str,
-            args: Optional[Args] = None,
+            args: Union[Args, str, None] = None,
             alias: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
             separator: Optional[str] = None,
@@ -56,7 +56,7 @@ class Subcommand(CommandNode):
             self,
             name: str,
             options: Optional[Iterable[Option]] = None,
-            args: Optional[Args] = None,
+            args: Union[Args, str, None] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
             separator: Optional[str] = None,
             help_text: Optional[str] = None,

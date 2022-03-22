@@ -17,7 +17,6 @@ from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Un
 from types import LambdaType
 from .exceptions import ParamsUnmatched
 
-
 DataUnit = TypeVar("DataUnit")
 
 
@@ -182,7 +181,7 @@ class MultiArg(ArgPattern):
     def __repr__(self):
         if self.flag == 'args':
             return f"({self.arg_value}, ...)"
-        return f"{{KEY:{self.arg_value}, ...}}"
+        return f"{{KEY={self.arg_value}, ...}}"
 
 
 class AntiArg(ArgPattern):
@@ -209,6 +208,8 @@ class UnionArg(ArgPattern):
     for_match: List[ArgPattern]
     for_equal: List[Union[str, object]]
 
+    __validator__: Callable = lambda x: x if isinstance(x, Sequence) else [x]
+
     def __init__(self, arg_value: Sequence[Union[Type, ArgPattern, object, str]], anti: bool = False):
         self.anti = anti
         self.arg_value = arg_value
@@ -231,15 +232,22 @@ class UnionArg(ArgPattern):
             [repr(a) for a in self.for_equal] +
             [a.__name__ for a in self.for_type_check]
         )
-        super().__init__(r"(.+?)", token=PatternToken.DIRECT, origin_type=str, alias=f"Union[{alias_content}]")
+        super().__init__(
+            r"(.+?)",
+            token=PatternToken.DIRECT,
+            origin_type=str,
+            alias=f"{'!' if self.anti else ''}Union[{alias_content}]"
+        )
 
     def __repr__(self):
         return ("!" if self.anti else "") + ("(" + "|".join(
             [repr(a) for a in self.for_match] +
             [repr(a) for a in self.for_equal] +
             [a.__name__ for a in self.for_type_check]
-        ) + ")"
-                                             )
+        ) + ")")
+
+    def __class_getitem__(cls, item):
+        return cls(cls.__validator__(item))
 
 
 class SequenceArg(ArgPattern):
@@ -255,24 +263,24 @@ class SequenceArg(ArgPattern):
         def _act(text: str):
             sequence = re.split(r"\s*,\s*", text)
             result = []
-            for s in sequence:
-                if isinstance(self.arg_value, UnionArg):
+            if isinstance(self.arg_value, UnionArg):
+                for s in sequence:
                     for pat in self.arg_value.for_match:
                         if arg_find := pat.find(s):
-                            s = arg_find
                             if pat.token == PatternToken.REGEX_TRANSFORM:
-                                s = pat.transform_action(s)
+                                arg_find = pat.transform_action(arg_find)
+                            result.append(arg_find)
                             break
                     else:
                         raise ParamsUnmatched(f"{s} is not matched in {self.arg_value}")
-                    result.append(s)
-                else:
-                    if self.arg_value.find(s):
-                        if self.arg_value.token == PatternToken.REGEX_TRANSFORM:
-                            s = self.arg_value.transform_action(s)
-                        result.append(s)
-                    else:
+
+            else:
+                for s in sequence:
+                    if not (arg_find := self.arg_value.find(s)):
                         raise ParamsUnmatched(f"{s} is not matched with {self.arg_value}")
+                    if self.arg_value.token == PatternToken.REGEX_TRANSFORM:
+                        arg_find = self.arg_value.transform_action(arg_find)
+                    result.append(arg_find)
             if self.form == "list":
                 return result
             elif self.form == "tuple":
@@ -310,34 +318,25 @@ class MappingArg(ArgPattern):
             result = {}
             for m in mapping:
                 k, v = re.split(r"\s*[:=]\s*", m)
-                if self.arg_key.find(k):
-                    if self.arg_key.token == PatternToken.DIRECT:
-                        try:
-                            k = eval(k)
-                        except NameError:
-                            pass
-                    if self.arg_key.token == PatternToken.REGEX_TRANSFORM:
-                        k = self.arg_key.transform_action(k)
-                    real_key = k
-                else:
+                if not (real_key := self.arg_key.find(k)):
                     raise ParamsUnmatched(f"{k} is not matched with {self.arg_key}")
+                if self.arg_key.token == PatternToken.REGEX_TRANSFORM:
+                    real_key = self.arg_key.transform_action(real_key)
                 if isinstance(self.arg_value, UnionArg):
                     for pat in self.arg_value.for_match:
                         if arg_find := pat.find(v):
-                            v = arg_find
                             if pat.token == PatternToken.REGEX_TRANSFORM:
-                                v = pat.transform_action(v)
+                                arg_find = pat.transform_action(arg_find)
+                            result[real_key] = arg_find
                             break
                     else:
                         raise ParamsUnmatched(f"{v} is not matched in {self.arg_value}")
-                    result[real_key] = v
                 else:
-                    if self.arg_value.find(v):
-                        if self.arg_value.token == PatternToken.REGEX_TRANSFORM:
-                            v = self.arg_value.transform_action(v)
-                        result[real_key] = v
-                    else:
+                    if not (arg_find := self.arg_value.find(v)):
                         raise ParamsUnmatched(f"{v} is not matched with {self.arg_value}")
+                    if self.arg_value.token == PatternToken.REGEX_TRANSFORM:
+                        arg_find = self.arg_value.transform_action(arg_find)
+                    result[real_key] = arg_find
             return result
 
         alias_content = f"{self.arg_key.alias or self.arg_key.origin_type.__name__}, " \
@@ -353,19 +352,18 @@ pattern_map = {
     int: AnyDigit,
     float: AnyFloat,
     bool: Bool,
-    Ellipsis: Empty,
-    object: AnyParam,
     list: AnyList,
     tuple: AnyTuple,
     set: AnySet,
     dict: AnyDict,
     Any: AnyParam,
+    Ellipsis: AnyParam,
+    object: AnyParam,
     "url": AnyUrl,
     "ip": AnyIP,
     "email": Email,
-    "": Empty,
-    "..": AnyParam,
-    "...": AllParam
+    "...": AnyParam,
+    "": Empty
 }
 
 
@@ -380,11 +378,11 @@ def argtype_validator(item: Any, extra: str = "allow"):
     if isinstance(item, Force):
         return item.origin if not isinstance(item.origin, str) else ArgPattern(item.origin)
     try:
-        if pattern_map.get(item):
-            return pattern_map[item]
+        if pat := pattern_map.get(item, None):
+            return pat
     except TypeError:
         pass
-    if item.__class__.__name__ in "_GenericAlias":
+    if not inspect.isclass(item) and item.__class__.__name__ in "_GenericAlias":
         origin = get_origin(item)
         if origin in (Union, Literal):
             args = list(set([argtype_validator(t, extra) for t in get_args(item)]))
@@ -393,7 +391,7 @@ def argtype_validator(item: Any, extra: str = "allow"):
             if len(args) < 2:
                 args = args[0]
             return args
-        elif origin in (dict, ABCMapping, ABCMutableMapping):
+        if origin in (dict, ABCMapping, ABCMutableMapping):
             arg_key = argtype_validator(get_args(item)[0], 'ignore')
             arg_value = argtype_validator(get_args(item)[1], 'ignore')
             if isinstance(arg_value, list):
@@ -403,7 +401,7 @@ def argtype_validator(item: Any, extra: str = "allow"):
                 else:
                     arg_value = UnionArg(arg_value)
             return MappingArg(arg_key=arg_key, arg_value=arg_value)
-        elif origin in (ABCMutableSequence, ABCSequence, list, ABCIterable, tuple, ABCMutableSet, ABCSet, set):
+        if origin in (ABCMutableSequence, ABCSequence, list, ABCIterable, tuple, ABCMutableSet, ABCSet, set):
             args = argtype_validator(get_args(item)[0], 'ignore')
             if isinstance(args, list):
                 if len(args) == 2 and Empty in args:
@@ -429,6 +427,9 @@ def argtype_validator(item: Any, extra: str = "allow"):
     elif extra == "reject":
         raise TypeError(f"{item} is not allowed in Args")
     return item
+
+
+UnionArg.__validator__ = lambda x: [argtype_validator(t, "ignore") for t in (x if isinstance(x, Sequence) else [x])]
 
 
 class ObjectPattern(ArgPattern):
@@ -531,7 +532,8 @@ class ObjectPattern(ArgPattern):
                 if isinstance(pat, ObjectPattern):
                     raise NotImplementedError(f"{pat} is not supported")
                 self._require_map[name] = pat.find
-                self._transform_map[name] = pat.transform_action
+                if pat.token == PatternToken.REGEX_TRANSFORM:
+                    self._transform_map[name] = pat.transform_action
                 if flag == "http":
                     _re_pattern += f"{name}=(?P<{name}>{pat.pattern.strip('()')})&"
                 elif flag == "part":

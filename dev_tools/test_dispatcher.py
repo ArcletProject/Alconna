@@ -1,8 +1,8 @@
-from graia.ariadne.message.chain import MessageChain
+from arclet.alconna.graia import Alconna, AlconnaDispatcher, AlconnaHelpMessage
+from arclet.alconna import all_command_help, Args, Arpamar
 
-from alconna_dispatcher import AlconnaDispatcher, Alconna, Arpamar, AlconnaHelpMessage
-from arclet.alconna import all_command_help, Args
 from graia.broadcast import Broadcast
+from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.event.message import FriendMessage
 from graia.ariadne.model import Friend
 from graia.ariadne.app import Ariadne
@@ -32,19 +32,35 @@ alc1 = Alconna(
 ariadne_ctx.set(bot)
 
 
-@bcc.receiver(FriendMessage, dispatchers=[AlconnaDispatcher(alconna=alc, help_flag='reply', skip_for_unmatch=True)])
-async def test(friend: Friend, result: Arpamar, foo: dict):
+@bcc.receiver(
+    FriendMessage, dispatchers=[
+        AlconnaDispatcher(alconna=alc, help_flag='post', skip_for_unmatch=True)
+    ]
+)
+async def test(friend: Friend, result: Arpamar):
     print("test:", result)
     print("listener:", friend)
-    print(foo)
     print(all_command_help())
 
 
-@bcc.receiver(FriendMessage, dispatchers=[AlconnaDispatcher(alconna=alc1, help_flag='reply')])
-async def test(friend: Friend, result: Arpamar, foo: dict):
+@bcc.receiver(
+    FriendMessage, dispatchers=[
+        AlconnaDispatcher(alconna=alc1, help_flag='reply')
+    ]
+)
+async def test(friend: Friend, result: Arpamar):
     print("sign:", result)
     print("listener:", friend)
-    print(foo)
+
+
+@bcc.receiver(
+    FriendMessage, dispatchers=[
+        AlconnaDispatcher(alconna=alc1, help_flag='post')
+    ]
+)
+async def test2(friend: Friend, result: Arpamar):
+    print("sign:", result)
+    print("listener:", friend)
 
 
 @bcc.receiver(AlconnaHelpMessage)
@@ -55,13 +71,12 @@ async def test_event(help_string: str, app: Ariadne, message: MessageChain):
 
 
 frd = Friend.parse_obj({"id": 12345678, "nickname": "test", "remark": "none"})
-msg = MessageChain.create("!test --help")
+msg = MessageChain.create(f"!test --help")
 ev = FriendMessage(sender=frd, messageChain=msg)
-
-bcc.postEvent(ev)
 
 
 async def main():
+    bcc.postEvent(ev)
     await asyncio.sleep(0.1)
 
 

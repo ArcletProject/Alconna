@@ -290,14 +290,19 @@ def _from_format(
                         options[-1].args.argument.update({key: value})
                         options[-1].nargs += 1
         except KeyError:
+            may_parts = re.split(r"[:|=]", key.replace(" ", ''))
+            if len(may_parts) == 1:
+                _arg = Args[may_parts[0]:Any]
+            else:
+                _arg = Args.from_string_list([may_parts], {})
             if _string_stack:
                 if _key_ref > 1:
-                    options[-1].args.__merge__([key, Any])
+                    options[-1].args.__merge__(_arg)
                     options[-1].nargs += 1
                 else:
-                    options.append(Option(_string_stack.pop(-1), Args(**{key: Any})))
+                    options.append(Option(_string_stack.pop(-1), _arg))
             else:
-                main_args.__merge__([key, Any])
+                main_args.__merge__(_arg)
     alc = Alconna(command=command, options=options, main_args=main_args)
     return alc
 

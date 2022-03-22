@@ -97,14 +97,14 @@ def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[s
             if not option and not subcommand:
                 raise CancelBehave
             if option and subcommand is None:
-                options: dict = interface.require(f"options")
-                options.setdefault(option, value)
+                if options := interface.require(f"options"):
+                    options.setdefault(option, value)
             if subcommand and option is None:
-                subcommands: dict = interface.require("subcommands")
-                subcommands.setdefault(subcommand, value)
+                if subcommands := interface.require("subcommands"):
+                    subcommands.setdefault(subcommand, value)
             if option and subcommand:
-                sub_options: dict = interface.require(f"subcommands.{subcommand}")
-                sub_options.setdefault(option, value)
+                if sub_options := interface.require(f"subcommands.{subcommand}"):
+                    sub_options.setdefault(option, value)
 
     return _SET_DEFAULT()
 

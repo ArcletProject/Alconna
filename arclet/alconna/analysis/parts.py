@@ -240,7 +240,7 @@ def analyse_subcommand(
 
 def analyse_header(
         analyser: Analyser,
-) -> Union[str, bool]:
+) -> Union[str, bool, None]:
     """
     分析命令头部
 
@@ -257,8 +257,27 @@ def analyse_header(
             analyser.head_matched = True
             return _head_find if _head_find != head_text else True
     else:
-        may_command, _str = analyser.next_data(separator)
-        if _head_find := command[1].find(may_command) and head_text in command[0]:
-            analyser.head_matched = True
-            return _head_find if _head_find != head_text else True
-    return analyser.head_matched
+        may_command, _m_str = analyser.next_data(separator)
+        if _m_str:
+            if isinstance(command, List) and not _str:
+                for _command in command:
+                    if (_head_find := _command[1].find(may_command)) and head_text == _command[0]:
+                        analyser.head_matched = True
+                        return _head_find if _head_find != may_command else True
+            elif isinstance(command[0], list) and not _str:
+                if (_head_find := command[1].find(may_command)) and head_text in command[0]:  # type: ignore
+                    analyser.head_matched = True
+                    return _head_find if _head_find != may_command else True
+            elif _str:
+                if (_command_find := command[1].find(may_command)) and (  # type: ignore
+                    _head_find := command[0][1].find(head_text)
+                    ):  
+                        analyser.head_matched = True
+                        return _command_find if _command_find != may_command else True
+            else:
+                if (_command_find := command[1].find(may_command)) and head_text in command[0][0]:  # type: ignore
+                    analyser.head_matched = True
+                    return _command_find if _command_find != may_command else True
+
+    if not analyser.head_matched:
+        raise ParamsUnmatched(f"{head_text} dose not matched")
