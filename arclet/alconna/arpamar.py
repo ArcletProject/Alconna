@@ -103,10 +103,10 @@ class Arpamar:
 
         self._cache_args = {}
 
-    __slots__ = (
+    __slots__ = [
         "matched", "head_matched", "error_data", "error_info", "_options",
         "_subcommands", "_other_args", "_header", "_main_args", "_cache_args"
-    )
+    ]
 
     @property
     def main_args(self):

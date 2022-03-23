@@ -3,7 +3,7 @@ import asyncio
 import inspect
 from asyncio.queues import Queue
 from functools import lru_cache
-from typing import Optional, Union, Callable, Dict, AsyncIterator, Coroutine, Any, Tuple
+from typing import Optional, Union, Callable, Dict, AsyncIterator, Coroutine, Any, Tuple, TypeVar, Generic
 from .types import DataCollection
 from .main import Alconna
 from .arpamar import Arpamar
@@ -21,16 +21,19 @@ async def run_always_await(callable_target, *args, **kwargs):
         return await callable_target(*args, **kwargs)
     return callable_target(*args, **kwargs)
 
+T_Origin = TypeVar('T_Origin')
+T_Source = TypeVar('T_Source')
 
-class AlconnaProperty:
+
+class AlconnaProperty(Generic[T_Origin, T_Source]):
     """对解析结果的封装"""
 
     def __init__(
             self,
-            origin: Union[str, DataCollection],
+            origin: T_Origin,
             result: Arpamar,
             help_text: Optional[str] = None,
-            source: Optional[Any] = None,
+            source: Optional[T_Source] = None,
     ):
         self.origin = origin
         self.result = result
@@ -42,23 +45,31 @@ class AlconnaMessageProxy(metaclass=abc.ABCMeta):
     """消息解析的代理"""
     loop: asyncio.AbstractEventLoop
     export_results: Queue
-    pre_treatments: Dict[Alconna, Callable[[Union[str, DataCollection], Arpamar, Optional[str]], AlconnaProperty]]
+    pre_treatments: Dict[
+        Alconna,
+        Callable[
+            [Union[str, DataCollection], Arpamar, Optional[str]],
+            AlconnaProperty[Union[str, DataCollection], str]
+        ]
+    ]
 
     def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None):
         self.loop = loop or asyncio.get_event_loop()
         self.pre_treatments = {}
-        try:
-            self.export_results = Queue(loop=self.loop)
-        except TypeError:
-            self.export_results = Queue()
+        self.export_results = Queue()
         self.default_pre_treatment = lambda o, r, h, s: AlconnaProperty(o, r, h, s)
 
     def add_proxy(
             self,
             command: Union[str, Alconna],
             pre_treatment: Optional[
-                Callable[[Union[str, DataCollection], Arpamar, Optional[str]],
-                         Union[AlconnaProperty, Coroutine[None, None, AlconnaProperty]]]
+                Callable[
+                    [Union[str, DataCollection], Arpamar, Optional[str]],
+                    Union[
+                        AlconnaProperty[Union[str, DataCollection], str],
+                        Coroutine[None, None, AlconnaProperty[Union[str, DataCollection], str]]
+                    ]
+                ]
             ] = None,
     ):
         if isinstance(command, str):
@@ -74,7 +85,7 @@ class AlconnaMessageProxy(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @staticmethod
-    def later_condition(result: AlconnaProperty) -> bool:
+    def later_condition(result: AlconnaProperty[Union[str, DataCollection], str]) -> bool:
         if not result.result.matched and not result.help_text:
             return False
         return True

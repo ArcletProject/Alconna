@@ -3,7 +3,7 @@ import asyncio
 
 from arclet.alconna import Alconna
 from arclet.alconna.arpamar import Arpamar
-from arclet.alconna.proxy import AlconnaMessageProxy
+from arclet.alconna.proxy import AlconnaMessageProxy, AlconnaProperty
 from arclet.alconna.manager import command_manager
 
 from graia.broadcast.entities.event import Dispatchable
@@ -20,13 +20,11 @@ from graia.ariadne.event.message import GroupMessage, MessageEvent
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.util import resolve_dispatchers_mixin
 
-from .proxy import GraiaAlconnaPropetry
-
 
 class AriadneAMP(AlconnaMessageProxy):
     pre_treatments: Dict[Alconna, Callable[
         [MessageChain, Arpamar, Optional[str], Optional[MessageEvent]],
-        Coroutine[None, None, GraiaAlconnaPropetry]
+        Coroutine[None, None, AlconnaProperty[MessageChain, MessageEvent]]
     ]]
 
     def add_proxy(
@@ -35,7 +33,7 @@ class AriadneAMP(AlconnaMessageProxy):
             pre_treatment: Optional[
                 Callable[
                     [MessageChain, Arpamar, Optional[str], Optional[MessageEvent]],
-                    Coroutine[None, None, GraiaAlconnaPropetry]
+                    Coroutine[None, None, AlconnaProperty[MessageChain, MessageEvent]]
                 ]
             ] = None,
     ):
@@ -49,7 +47,7 @@ class AriadneAMP(AlconnaMessageProxy):
         pass
 
     @staticmethod
-    def later_condition(result: GraiaAlconnaPropetry) -> bool:
+    def later_condition(result: AlconnaProperty[MessageChain, MessageEvent]) -> bool:
         return True
 
 
@@ -87,7 +85,7 @@ class AlconnaHelpMessage(Dispatchable):
 
 
 class _AlconnaLocalStorage(TypedDict):
-    alconna_result: GraiaAlconnaPropetry
+    alconna_result: AlconnaProperty[MessageChain, MessageEvent]
 
 
 class AlconnaDispatcher(BaseDispatcher):
@@ -123,7 +121,7 @@ class AlconnaDispatcher(BaseDispatcher):
                 result: Arpamar,
                 help_text: Optional[str] = None,
                 source: Optional[MessageEvent] = None,
-        ):
+        ) -> AlconnaProperty[MessageChain, MessageEvent]:
 
             if result.matched is False and help_text:
                 if self.help_flag == "reply":
@@ -132,15 +130,15 @@ class AlconnaDispatcher(BaseDispatcher):
                         await app.sendGroupMessage(source.sender.group, help_text)
                     else:
                         await app.sendMessage(source.sender, help_text)
-                    return GraiaAlconnaPropetry(origin, result, None, source)
+                    return AlconnaProperty(origin, result, None, source)
                 if self.help_flag == "post":
                     dispatchers = resolve_dispatchers_mixin(
                         [AlconnaHelpDispatcher(self.command, help_text, source), source.Dispatcher]
                     )
                     for listener in interface.broadcast.default_listener_generator(AlconnaHelpMessage):
                         await interface.broadcast.Executor(listener, dispatchers=dispatchers)
-                    return GraiaAlconnaPropetry(origin, result, None, source)
-            return GraiaAlconnaPropetry(origin, result, help_text, source)
+                    return AlconnaProperty(origin, result, None, source)
+            return AlconnaProperty(origin, result, help_text, source)
 
         message = await interface.lookup_param("message", MessageChain, None)
         self.proxy.add_proxy(self.command, reply_help_message)
@@ -157,11 +155,18 @@ class AlconnaDispatcher(BaseDispatcher):
             if self.skip_for_unmatch:
                 raise ExecutionStop
 
-        if interface.annotation == GraiaAlconnaPropetry:
+        if issubclass(interface.annotation, AlconnaProperty):
             return res
         if interface.annotation == Arpamar:
             return res.result
         if interface.annotation == str and interface.name == "help_text":
             return res.help_text
+        if issubclass(interface.annotation, Alconna):
+            return self.command
+        if isinstance(interface.annotation, dict) and res.result.options.get(interface.name):
+            return res.result.options[interface.name]
+        if interface.name in res.result.all_matched_args:
+            if isinstance(res.result.all_matched_args[interface.name], interface.annotation):
+                return res.result.all_matched_args[interface.name]
         if issubclass(interface.annotation, MessageEvent) or interface.annotation == MessageEvent:
             return Force(res.source)

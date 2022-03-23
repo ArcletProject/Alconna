@@ -78,13 +78,14 @@
 3. 加入`NodeVisitor`与`HelpFormatter`, 并将原先给CommandNode的help生成转移给Formatter
 4. 加入`AlconnaMessageProxy`, 用作对外适配接口
 
-## Alconna 0.7.6
+## Alconna 0.7.6 - 0.7.6.1
 1. 增加对`Graia`系的原生支持, 位于`arclet.alconna.graia`
 2. header现在可支持非文字类元素与文字混用的解析, 原来的方式请改用`元组(非文本元素, 文本)`
 3. 增加`Alconna` 对 `/`与`@` 运算符的支持, 作用为重置命名空间
 4. 增加`Alconna` 对 `+` 运算符的支持, 作用为增加选项
 5. `Args` 可直接传入 `str`, 即`Args["foo":"foo"]` -> `Args["foo"]`
 6. `Format`中的format slot可以直接写入类型, 如`"{name: str}"`
+7. 修复Bug
 
 # Alconna 0.6.x:
 
