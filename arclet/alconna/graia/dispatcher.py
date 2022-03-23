@@ -18,6 +18,7 @@ from graia.ariadne.app import Ariadne
 from graia.ariadne.dispatcher import ContextDispatcher
 from graia.ariadne.event.message import GroupMessage, MessageEvent
 from graia.ariadne.message.chain import MessageChain
+from graia.ariadne.message.element import Quote
 from graia.ariadne.util import resolve_dispatchers_mixin
 
 from .proxy import GraiaAlconnaPropetry
@@ -100,6 +101,7 @@ class AlconnaDispatcher(BaseDispatcher):
             help_flag: Literal["reply", "post", "stay"] = "stay",
             skip_for_unmatch: bool = True,
             help_handler: Optional[Callable[[str], MessageChain]] = None,
+            allow_quote: bool = False,
     ):
         """
         构造 Alconna调度器
@@ -107,12 +109,14 @@ class AlconnaDispatcher(BaseDispatcher):
             alconna (Alconna): Alconna实例
             help_flag ("reply", "post", "stay"): 帮助信息发送方式
             skip_for_unmatch (bool): 当指令匹配失败时是否跳过对应的事件监听器, 默认为 True
+            allow_quote (bool): 是否允许引用回复消息触发对应的命令, 默认为 False
         """
         super().__init__()
         self.command = alconna
         self.help_flag = help_flag
         self.skip_for_unmatch = skip_for_unmatch
         self.help_handler = help_handler or (lambda x: MessageChain.create(x))
+        self.allow_quote = allow_quote
 
     async def beforeExecution(self, interface: DispatcherInterface):
         event: MessageEvent = interface.event
@@ -142,7 +146,9 @@ class AlconnaDispatcher(BaseDispatcher):
                     return GraiaAlconnaPropetry(origin, result, None, source)
             return GraiaAlconnaPropetry(origin, result, help_text, source)
 
-        message = await interface.lookup_param("message", MessageChain, None)
+        message: MessageChain = await interface.lookup_param("message", MessageChain, None)
+        if not self.allow_quote and message.has(Quote):
+            raise ExecutionStop
         self.proxy.add_proxy(self.command, reply_help_message)
         await self.proxy.push_message(message, event, self.command)
         local_storage: _AlconnaLocalStorage = interface.local_storage  # type: ignore
