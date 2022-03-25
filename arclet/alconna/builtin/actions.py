@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Callable, Any, Optional, TYPE_CHECKING, Union, Coroutine, Dict
 from arclet.alconna.base import ArgAction
 from arclet.alconna.util import Singleton
-from arclet.alconna.arpamar import ArpamarBehavior
+from arclet.alconna.arpamar.behavior import ArpamarBehavior
 from arclet.alconna.exceptions import CancelBehave, OutBoundsBehavior
 
 
@@ -23,10 +23,29 @@ def store_value(value: Any):
     return _StoreValue(value)
 
 
+class HelpAction(ArgAction):
+    help_string_call: Callable
+
+    def __init__(self, help_call, command=None):
+        super().__init__(HelpActionManager.send_action)
+        self.help_string_call = help_call
+        self.command = command
+
+    def handle(self, option_dict, varargs, kwargs, is_raise_exception):
+        action = require_help_send_action(command=self.command)
+        if action:
+            return action(self.help_string_call())
+
+    async def handle_async(self, option_dict, varargs, kwargs, is_raise_exception):
+        action = require_help_send_action(command=self.command)
+        if action:
+            return await action(self.help_string_call())
+
+
 class HelpActionManager(metaclass=Singleton):
     """帮助信息"""
     cache: Dict[str, Callable] = {}
-    helpers: Dict[str, ArgAction] = {}
+    helpers: Dict[str, HelpAction] = {}
     send_action: Callable[[str], Union[Any, Coroutine]] = lambda x: print(x)
 
 
@@ -50,22 +69,11 @@ def require_help_send_action(action: Optional[Callable[[str], Any]] = None, comm
 
 def help_send(command: str, help_string_call: Callable[[], str]):
     """发送帮助信息"""
+    if command not in HelpActionManager.helpers:
+        HelpActionManager.helpers[command] = HelpAction(help_string_call, command)
+    else:
+        HelpActionManager.helpers[command].help_string_call = help_string_call
 
-    class _HELP(ArgAction):
-        def __init__(self):
-            super().__init__(HelpActionManager.send_action)
-
-        def handle(self, option_dict, varargs, kwargs, is_raise_exception):
-            action = require_help_send_action(command=command)
-            if action:
-                return action(help_string_call())
-
-        async def handle_async(self, option_dict, varargs, kwargs, is_raise_exception):
-            action = require_help_send_action(command=command)
-            if action:
-                return await action(help_string_call())
-
-    HelpActionManager.helpers.setdefault(command, _HELP())
     if command in HelpActionManager.cache:
         HelpActionManager.helpers[command].action = HelpActionManager.cache[command]
         HelpActionManager.helpers[command].awaitable = inspect.iscoroutinefunction(HelpActionManager.cache[command])
@@ -75,7 +83,7 @@ def help_send(command: str, help_string_call: Callable[[], str]):
 
 if TYPE_CHECKING:
     from arclet.alconna import alconna_version
-    from arclet.alconna.arpamar import ArpamarBehaviorInterface
+    from arclet.alconna.arpamar.behavior import ArpamarBehaviorInterface
 
 
     def version(value: Optional[tuple]):

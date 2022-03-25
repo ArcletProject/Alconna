@@ -1,15 +1,18 @@
 """Alconna 主体"""
-from typing import Dict, List, Optional, Union, Type, Callable, Any, Tuple
+from typing import Dict, List, Optional, Union, Type, Callable, Any, Tuple, TypeVar, overload
 from .analysis.analyser import Analyser
 from .analysis import compile
 from .base import CommandNode, Args, ArgAction
 from .component import Option, Subcommand
 from .arpamar import Arpamar, ArpamarBehavior
+from .arpamar.duplication import AlconnaDuplication
 from .types import DataCollection, DataUnit
 from .manager import command_manager
 from .visitor import AlconnaNodeVisitor, AbstractHelpTextFormatter
 from .builtin.formatter import DefaultHelpTextFormatter
 from .builtin.analyser import DisorderCommandAnalyser
+
+T_Duplication = TypeVar('T_Duplication', bound=AlconnaDuplication)
 
 
 class Alconna(CommandNode):
@@ -104,7 +107,7 @@ class Alconna(CommandNode):
         )
         self.is_raise_exception = is_raise_exception
         self.namespace = namespace or self.__cls_name__
-        self.options.append(Option("--help", alias="-h"))
+        self.options.append(Option("--help", alias="-h", help_text="显示帮助信息"))
         self.analyser_type = analyser_type or self.default_analyser
         command_manager.register(self)
         self.__class__.__cls_name__ = "Alconna"
@@ -170,13 +173,40 @@ class Alconna(CommandNode):
         self.__check_action__(action)
         return self
 
-    def parse(self, message: Union[str, DataCollection], static: bool = True) -> Arpamar:
+    @overload
+    def parse(
+            self,
+            message: Union[str, DataCollection],
+            duplication: Type[T_Duplication],
+            static: bool = True,
+
+    ) -> T_Duplication:
+        ...
+
+    @overload
+    def parse(
+            self,
+            message: Union[str, DataCollection],
+            static: bool = True
+    ) -> Arpamar:
+        ...
+
+    def parse(
+            self,
+            message: Union[str, DataCollection],
+            duplication: Optional[Type[T_Duplication]] = None,
+            static: bool = True,
+    ):
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         if static:
             analyser = command_manager.require(self)
         else:
             analyser = compile(self)
         result = analyser.handle_message(message)
+        if duplication:
+            arp = (result or analyser.analyse()).update(self.behaviors)
+            dup = duplication(self).set_target(arp)
+            return dup
         return (result or analyser.analyse()).update(self.behaviors)
 
     def to_dict(self) -> Dict[str, Any]:

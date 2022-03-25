@@ -19,7 +19,9 @@ class Option(CommandNode):
     ):
         if "|" in name:
             name, alias = name.replace(' ', '').split('|')
-        self.alias = alias or name
+        if alias and len(alias) > len(name):
+            alias, name = name, alias
+        self.alias = alias if alias else name
         super().__init__(name, args, action, separator, help_text)
 
     def to_dict(self) -> Dict[str, Any]:

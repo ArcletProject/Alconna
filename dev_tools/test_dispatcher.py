@@ -1,5 +1,6 @@
 from arclet.alconna.graia import Alconna, AlconnaDispatcher, AlconnaHelpMessage
-from arclet.alconna import all_command_help, Args, Arpamar
+from arclet.alconna import all_command_help, Args, Arpamar, AlconnaDuplication
+from arclet.alconna import ArgsStub
 
 from graia.broadcast import Broadcast
 from graia.ariadne.message.chain import MessageChain
@@ -29,6 +30,11 @@ alc1 = Alconna(
     main_args=Args["sth":str:1123]
 )
 
+
+class Jrrp(AlconnaDuplication):
+    sth_args: ArgsStub
+
+
 ariadne_ctx.set(bot)
 
 
@@ -48,8 +54,8 @@ async def test(friend: Friend, result: Arpamar):
         AlconnaDispatcher(alconna=alc1, help_flag='reply')
     ]
 )
-async def test(friend: Friend, result: Arpamar):
-    print("sign:", result)
+async def test(friend: Friend, result: Jrrp):
+    print("sign:", result.sth_args)
     print("listener:", friend)
 
 
@@ -71,7 +77,7 @@ async def test_event(help_string: str, app: Ariadne, message: MessageChain):
 
 
 frd = Friend.parse_obj({"id": 12345678, "nickname": "test", "remark": "none"})
-msg = MessageChain.create(f"!test --help")
+msg = MessageChain.create(f"!jrrp")
 ev = FriendMessage(sender=frd, messageChain=msg)
 
 

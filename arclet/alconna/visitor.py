@@ -104,7 +104,7 @@ class AlconnaNodeVisitor:
         for node in alconna.options:
             real_name = node.name.lstrip('-')
             if isinstance(node, Option):
-                if "option" + real_name in self.name_list:
+                if "option:" + real_name in self.name_list:
                     raise DuplicateCommand("该选项已经存在")
                 self.name_list.append("option:" + real_name)
             elif isinstance(node, Subcommand):
@@ -121,6 +121,7 @@ class AlconnaNodeVisitor:
                     self.name_list.append(f"subcommand:{real_name}:{real_sub_name}")
                     sub_new_id = max(self.node_map) + 1
                     self.node_map[sub_new_id] = _BaseNode(sub_new_id, sub_node, 'option')
+                    self.node_map[sub_new_id].additional_info['alias'] = sub_node.alias
                     self.node_map[new_id].sub_nodes.append(sub_new_id)
             else:
                 self.node_map[new_id] = _BaseNode(new_id, node, 'option')

@@ -210,9 +210,12 @@ class CommandManager(metaclass=Singleton):
             header += "\t" + pages % (page, max_page)
             for name in list(cmds.keys())[(page - 1) * max_length: page * max_length]:
                 alc = cmds[name].alconna
-                command_string += "\n - " + (("[" + "|".join(
-                    [f"{h}" for h in alc.headers]
-                ) + "]") if alc.headers != [''] else "") + alc.command + " : " + alc.help_text
+                command_string += "\n - " + (
+                    (
+                        "[" + "|".join([f"{h}" for h in alc.headers]) + "]"
+                        if len(alc.headers) > 1 else f"{alc.headers[0]}"
+                    ) if alc.headers != [''] else ""
+                ) + alc.command + " : " + alc.help_text
         return f"{header}{command_string}\n{footer}"
 
     def command_help(self, command: str) -> Optional[str]:

@@ -73,11 +73,16 @@ class DisorderCommandAnalyser(Analyser):
                         )
                 elif isinstance(_param, Option):
                     if _param.name == "--help":
+                        _record = self.current_index, self.content_index
+                        _help_param = self.recover_raw_data()
+                        _help_param[0] = _help_param[0].replace("--help", "", 1).lstrip()
+                        self.current_index, self.content_index = _record
+
                         def _get_help():
                             visitor = AlconnaNodeVisitor(self.alconna)
                             return visitor.format_node(
                                 self.alconna.formatter,
-                                visitor.require(self.recover_raw_data())
+                                visitor.require(_help_param)
                             )
 
                         _param.action = help_send(

@@ -1,8 +1,9 @@
-from typing import Literal, Dict, Callable, Optional, Coroutine, Union, AsyncIterator, TypedDict
+from typing import Literal, Dict, Callable, Optional, Coroutine, Union, AsyncIterator, TypedDict, Type
 import asyncio
 
 from arclet.alconna import Alconna
 from arclet.alconna.arpamar import Arpamar
+from arclet.alconna.arpamar.duplication import AlconnaDuplication
 from arclet.alconna.proxy import AlconnaMessageProxy, AlconnaProperty
 from arclet.alconna.manager import command_manager
 
@@ -11,7 +12,7 @@ from graia.broadcast.exceptions import ExecutionStop
 from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from graia.broadcast.utilles import run_always_await_safely
-from graia.broadcast import Force
+from graia.broadcast.entities.signatures import Force
 
 from graia.ariadne import get_running
 from graia.ariadne.app import Ariadne
@@ -20,6 +21,8 @@ from graia.ariadne.event.message import GroupMessage, MessageEvent
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.message.element import Quote
 from graia.ariadne.util import resolve_dispatchers_mixin
+
+from loguru import logger
 
 
 class AriadneAMP(AlconnaMessageProxy):
@@ -45,6 +48,7 @@ class AriadneAMP(AlconnaMessageProxy):
         self.pre_treatments.setdefault(command, pre_treatment or self.default_pre_treatment)  # type: ignore
 
     async def fetch_message(self) -> AsyncIterator[MessageChain]:
+        yield NotImplemented
         pass
 
     @staticmethod
@@ -90,7 +94,7 @@ class _AlconnaLocalStorage(TypedDict):
 
 
 class AlconnaDispatcher(BaseDispatcher):
-    proxy = AriadneAMP(loop=asyncio.get_event_loop())
+    proxy = AriadneAMP(loop=asyncio.new_event_loop())
 
     def __init__(
             self,
@@ -99,7 +103,7 @@ class AlconnaDispatcher(BaseDispatcher):
             help_flag: Literal["reply", "post", "stay"] = "stay",
             skip_for_unmatch: bool = True,
             help_handler: Optional[Callable[[str], MessageChain]] = None,
-            allow_quote: bool = False,
+            allow_quote: bool = False
     ):
         """
         构造 Alconna调度器
@@ -126,14 +130,15 @@ class AlconnaDispatcher(BaseDispatcher):
                 help_text: Optional[str] = None,
                 source: Optional[MessageEvent] = None,
         ) -> AlconnaProperty[MessageChain, MessageEvent]:
+            source = source or event
 
             if result.matched is False and help_text:
                 if self.help_flag == "reply":
-                    help_text = await run_always_await_safely(self.help_handler, help_text)
+                    help_message: MessageChain = await run_always_await_safely(self.help_handler, help_text)
                     if isinstance(source, GroupMessage):
-                        await app.sendGroupMessage(source.sender.group, help_text)
+                        await app.sendGroupMessage(source.sender.group, help_message)
                     else:
-                        await app.sendMessage(source.sender, help_text)
+                        await app.sendMessage(source.sender, help_message)  # type: ignore
                     return AlconnaProperty(origin, result, None, source)
                 if self.help_flag == "post":
                     dispatchers = resolve_dispatchers_mixin(
@@ -148,12 +153,16 @@ class AlconnaDispatcher(BaseDispatcher):
         if not self.allow_quote and message.has(Quote):
             raise ExecutionStop
         self.proxy.add_proxy(self.command, reply_help_message)
-        await self.proxy.push_message(message, event, self.command)
+        try:
+            await self.proxy.push_message(message, event, self.command)  # type: ignore
+        except Exception as e:
+            logger.warning(f"{self.command} error: {e}")
+            raise ExecutionStop
         local_storage: _AlconnaLocalStorage = interface.local_storage  # type: ignore
         local_storage['alconna_result'] = await self.proxy.export_results.get()
 
     async def catch(self, interface: DispatcherInterface):
-        local_storage: _AlconnaLocalStorage = interface.local_storage
+        local_storage: _AlconnaLocalStorage = interface.local_storage  # type: ignore
         res = local_storage['alconna_result']
         if not res.result.matched and not res.help_text:
             if "-h" in str(res.origin):
@@ -161,6 +170,8 @@ class AlconnaDispatcher(BaseDispatcher):
             if self.skip_for_unmatch:
                 raise ExecutionStop
 
+        if issubclass(interface.annotation, AlconnaDuplication):
+            return interface.annotation(self.command).set_target(res.result)
         if issubclass(interface.annotation, AlconnaProperty):
             return res
         if interface.annotation == Arpamar:
@@ -169,10 +180,9 @@ class AlconnaDispatcher(BaseDispatcher):
             return res.help_text
         if issubclass(interface.annotation, Alconna):
             return self.command
-        if isinstance(interface.annotation, dict) and res.result.options.get(interface.name):
-            return res.result.options[interface.name]
         if interface.name in res.result.all_matched_args:
             if isinstance(res.result.all_matched_args[interface.name], interface.annotation):
                 return res.result.all_matched_args[interface.name]
+            return Force()
         if issubclass(interface.annotation, MessageEvent) or interface.annotation == MessageEvent:
             return Force(res.source)
