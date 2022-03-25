@@ -20,9 +20,11 @@ pip install --upgrade arclet-alconna
 
 ## 文档
 
-[文档 in GitHub](https://arcletproject.github.io/docs/alconna/tutorial)
+文档链接: [👉指路](https://arcletproject.github.io/docs/alconna/tutorial)
 
-## Example
+相关文档: [📚文档](https://graiax.cn/make_ero_bot/tutorials/6_4_alconna.html#_6-4-0-%E5%87%A1%E4%BA%8B%E9%83%BD%E8%A6%81%E5%85%88%E5%AE%89%E8%A3%85)
+
+## 简单使用
 ```python
 from arclet.alconna import Alconna, Option, Subcommand, Args
 
@@ -42,6 +44,10 @@ print(result.get('install'))  # 或者 result.install
 ```
 {'pak_name': 'cesloi', 'upgrade': Ellipsis}
 ```
+
+## 讨论
+
+QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## 用法
 通过阅读Alconna的签名可以得知，Alconna支持四大类参数：
