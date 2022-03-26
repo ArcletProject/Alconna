@@ -31,7 +31,7 @@ class AlconnaDuplication:
 
     @property
     def args(self) -> Optional[ArgsStub]:
-        return getattr(self, self.__stubs__.get("main_args", "args"), None)
+        return getattr(self, self.__stubs__.get("main_args", "mainArgs"), None)
 
     def __init__(self, alconna: 'Alconna'):
         self.__stubs__ = {"options": [], "subcommands": []}
@@ -71,7 +71,7 @@ def generate_duplication(command: "Alconna") -> AlconnaDuplication:
         (AlconnaDuplication,),
         {
             "__annotations__": {
-                **{"args": ArgsStub},
+                **{"mainArgs": ArgsStub},
                 **{opt.name.lstrip('-'): OptionStub for opt in options},
                 **{sub.name.lstrip('-'): SubcommandStub for sub in subcommands},
             }
