@@ -11,6 +11,9 @@ T = TypeVar('T')
 class BaseStub(metaclass=ABCMeta):
     available: bool
     value: Any
+    _origin: Any
+
+    __ignore__ = ['available', 'value', '_origin', 'origin', '__ignore__']
 
     @abstractmethod
     def set_result(self, result: Any) -> None:
@@ -30,9 +33,11 @@ class BaseStub(metaclass=ABCMeta):
 
 class ArgsStub(BaseStub):
     _args_result: Dict[str, Any]
+    _origin: Args
 
     def __init__(self, args: Args):
-        self._args = args
+        self._origin = args
+        self._args_result = {}
         for key, value in args.argument.items():
             if isinstance(value['value'], _AnyParam):
                 self.__annotations__[key] = Any
@@ -41,12 +46,15 @@ class ArgsStub(BaseStub):
             else:
                 self.__annotations__[key] = value['value']
             setattr(self, key, value['default'])
-        self._args_result = {}
         self.available = False
 
     def set_result(self, result: Dict[str, Any]):
         self._args_result = result
         self.available = True
+
+    @property
+    def origin(self) -> Args:
+        return self._origin
 
     @property
     def first_arg(self) -> Any:
@@ -75,8 +83,12 @@ class ArgsStub(BaseStub):
     def __len__(self):
         return len(self._args_result)
 
-    def __getattr__(self, item):
-        return self._args_result[item]
+    def __getattribute__(self, item):
+        if item in super(ArgsStub, self).__getattribute__('__ignore__'):
+            return super().__getattribute__(item)
+        if item in super().__getattribute__('_args_result'):
+            return self._args_result.get(item, None)
+        return super().__getattribute__(item)
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -91,12 +103,13 @@ class OptionStub(BaseStub):
     args: ArgsStub
     alias: str
     name: str
+    _origin: Option
 
     def __init__(self, option: Option):
         self.args = ArgsStub(option.args)
         self.alias = option.alias.lstrip('-')
         self.name = option.name.lstrip('-')
-        self._option = option
+        self._origin = option
         self.available = False
         self.value = None
 
@@ -107,11 +120,16 @@ class OptionStub(BaseStub):
             self.value = result
         self.available = True
 
+    @property
+    def origin(self) -> Option:
+        return self._origin
+
 
 class SubcommandStub(BaseStub):
     args: ArgsStub
     options: List[OptionStub]
     name: str
+    _origin: Subcommand
 
     def __init__(self, subcommand: Subcommand):
         self.args = ArgsStub(subcommand.args)
@@ -119,6 +137,7 @@ class SubcommandStub(BaseStub):
         self.name = subcommand.name.lstrip('-')
         self.available = False
         self.value = None
+        self._origin = subcommand
 
     def set_result(self, result: Any):
         result = result.copy()
@@ -136,3 +155,7 @@ class SubcommandStub(BaseStub):
 
     def option(self, name: str) -> OptionStub:
         return next(opt for opt in self.options if opt.name == name)
+
+    @property
+    def origin(self) -> Subcommand:
+        return self._origin

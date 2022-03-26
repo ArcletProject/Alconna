@@ -75,7 +75,7 @@ class DisorderCommandAnalyser(Analyser):
                     if _param.name == "--help":
                         _record = self.current_index, self.content_index
                         _help_param = self.recover_raw_data()
-                        _help_param[0] = _help_param[0].replace("--help", "", 1).lstrip()
+                        _help_param[0] = _help_param[0].replace("--help", "", 1).replace("-h", "", 1).lstrip()
                         self.current_index, self.content_index = _record
 
                         def _get_help():

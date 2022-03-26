@@ -1,9 +1,10 @@
-from typing import Literal, Dict, Callable, Optional, Coroutine, Union, AsyncIterator, TypedDict, Type
+from typing import Literal, Dict, Callable, Optional, Coroutine, Union, AsyncIterator, TypedDict
 import asyncio
 
 from arclet.alconna import Alconna
 from arclet.alconna.arpamar import Arpamar
-from arclet.alconna.arpamar.duplication import AlconnaDuplication
+from arclet.alconna.arpamar.duplication import AlconnaDuplication, generate_duplication
+from arclet.alconna.arpamar.stub import ArgsStub, OptionStub, SubcommandStub
 from arclet.alconna.proxy import AlconnaMessageProxy, AlconnaProperty
 from arclet.alconna.manager import command_manager
 
@@ -169,11 +170,19 @@ class AlconnaDispatcher(BaseDispatcher):
                 raise ExecutionStop
             if self.skip_for_unmatch:
                 raise ExecutionStop
-
+        default_duplication = generate_duplication(self.command)
+        if interface.annotation == AlconnaDuplication:
+            return default_duplication.set_target(res.result)
         if issubclass(interface.annotation, AlconnaDuplication):
             return interface.annotation(self.command).set_target(res.result)
         if issubclass(interface.annotation, AlconnaProperty):
             return res
+        if interface.annotation == ArgsStub:
+            return default_duplication.args  # type: ignore
+        if interface.annotation == OptionStub:
+            return default_duplication.option(interface.name)
+        if interface.annotation == SubcommandStub:
+            return default_duplication.subcommand(interface.name)
         if interface.annotation == Arpamar:
             return res.result
         if interface.annotation == str and interface.name == "help_text":

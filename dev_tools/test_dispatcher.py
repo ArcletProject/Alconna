@@ -31,10 +31,6 @@ alc1 = Alconna(
 )
 
 
-class Jrrp(AlconnaDuplication):
-    sth_args: ArgsStub
-
-
 ariadne_ctx.set(bot)
 
 
@@ -54,8 +50,8 @@ async def test(friend: Friend, result: Arpamar):
         AlconnaDispatcher(alconna=alc1, help_flag='reply')
     ]
 )
-async def test(friend: Friend, result: Jrrp):
-    print("sign:", result.sth_args)
+async def test(friend: Friend, sth: ArgsStub):
+    print("sign:", sth.origin)
     print("listener:", friend)
 
 

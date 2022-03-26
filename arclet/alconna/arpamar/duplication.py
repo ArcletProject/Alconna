@@ -29,6 +29,10 @@ class AlconnaDuplication:
     def header(self):
         return self.__target.header
 
+    @property
+    def args(self) -> Optional[ArgsStub]:
+        return getattr(self, self.__stubs__.get("main_args", "args"), None)
+
     def __init__(self, alconna: 'Alconna'):
         self.__stubs__ = {"options": [], "subcommands": []}
         for key, value in self.__annotations__.items():
