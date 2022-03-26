@@ -87,7 +87,7 @@
 6. `Format`中的format slot可以直接写入类型, 如`"{name: str}"`
 7. 修复Bug
 
-## Alconna 0.7.7
+## Alconna 0.7.7 - 0.7.7.2
 1. 加入`Argparser`风格的HelpFormatter
 2. 加入`AlconnaDuplication`, 旨在提供更好的解析结果使用
 3. option的name与alias现在会根据长度自动倒换
