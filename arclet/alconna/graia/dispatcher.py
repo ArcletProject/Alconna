@@ -171,14 +171,17 @@ class AlconnaDispatcher(BaseDispatcher):
             if self.skip_for_unmatch:
                 raise ExecutionStop
         default_duplication = generate_duplication(self.command)
+        default_duplication.set_target(res.result)
         if interface.annotation == AlconnaDuplication:
-            return default_duplication.set_target(res.result)
+            return default_duplication
         if issubclass(interface.annotation, AlconnaDuplication):
             return interface.annotation(self.command).set_target(res.result)
         if issubclass(interface.annotation, AlconnaProperty):
             return res
         if interface.annotation == ArgsStub:
-            return default_duplication.args  # type: ignore
+            arg = ArgsStub(self.command.args)
+            arg.set_result(res.result.main_args)
+            return arg
         if interface.annotation == OptionStub:
             return default_duplication.option(interface.name)
         if interface.annotation == SubcommandStub:

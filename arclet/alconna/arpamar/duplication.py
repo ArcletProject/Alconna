@@ -12,26 +12,24 @@ class AlconnaDuplication:
     __target: 'Arpamar'
 
     @property
-    def target(self) -> "Arpamar":
+    def origin(self) -> "Arpamar":
         return self.__target
+
+    @property
+    def header(self):
+        return self.__target.header
 
     def set_target(self, target: 'Arpamar'):
         self.__target = target
         if self.__stubs__.get("main_args"):
             getattr(self, self.__stubs__["main_args"]).set_result(target.main_args)  # type: ignore
         for key in self.__stubs__["options"]:
-            getattr(self, key).set_result(target.options[key])
+            if key in target.options:
+                getattr(self, key).set_result(target.options[key])
         for key in self.__stubs__["subcommands"]:
-            getattr(self, key).set_result(target.subcommands[key])
+            if key in target.options:
+                getattr(self, key).set_result(target.subcommands[key])
         return self
-
-    @property
-    def header(self):
-        return self.__target.header
-
-    @property
-    def args(self) -> Optional[ArgsStub]:
-        return getattr(self, self.__stubs__.get("main_args", "mainArgs"), None)
 
     def __init__(self, alconna: 'Alconna'):
         self.__stubs__ = {"options": [], "subcommands": []}
@@ -71,8 +69,8 @@ def generate_duplication(command: "Alconna") -> AlconnaDuplication:
         (AlconnaDuplication,),
         {
             "__annotations__": {
-                **{"mainArgs": ArgsStub},
-                **{opt.name.lstrip('-'): OptionStub for opt in options},
+                **{"args": ArgsStub},
+                **{opt.name.lstrip('-'): OptionStub for opt in options if opt.name.lstrip('-') != "help"},
                 **{sub.name.lstrip('-'): SubcommandStub for sub in subcommands},
             }
         }

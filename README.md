@@ -1,4 +1,9 @@
+<div align="center"> 
+
 # Alconna
+
+</div>
+
 ![Alconna](https://img.shields.io/badge/Arclet-Alconna-2564c2.svg)
 ![latest release](https://img.shields.io/github/release/ArcletProject/Alconna)
 [![Licence](https://img.shields.io/github/license/ArcletProject/Alconna)](https://github.com/ArcletProject/Alconna/blob/master/LICENSE)
@@ -31,13 +36,12 @@ from arclet.alconna import Alconna, Option, Subcommand, Args
 cmd = Alconna(
     "/pip",
     options=[
-        Subcommand("install", options=[Option("-u| --upgrade")], args=Args.pak_name[str]),
+        Subcommand("install", [Option("-u| --upgrade")], Args.pak_name[str]),
         Option("list"),
     ]
 )
 
-msg = "/pip install cesloi --upgrade"
-result = cmd.parse(msg) # 该方法返回一个Arpamar类的实例
+result = cmd.parse("/pip install cesloi --upgrade") # 该方法返回一个Arpamar类的实例
 print(result.get('install'))  # 或者 result.install
 ```
 其结果为
@@ -62,6 +66,7 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 ```python
 Alconna(
     command="name",
+    main_args="main_args",
     headers=["/"],
     options=[
         Subcommand(
@@ -71,7 +76,6 @@ Alconna(
         ),
         Option("opt", opt_arg="opt_arg")
     ],
-    main_args="main_args"
 )
 ```
 则它可以解析如下命令:
