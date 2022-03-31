@@ -4,8 +4,8 @@ from arclet.alconna import ArgsStub
 
 from graia.broadcast import Broadcast
 from graia.ariadne.message.chain import MessageChain
-from graia.ariadne.event.message import FriendMessage
-from graia.ariadne.model import Friend
+from graia.ariadne.event.message import GroupMessage
+from graia.ariadne.model import Member, Group
 from graia.ariadne.app import Ariadne
 from graia.ariadne.adapter import MiraiSession
 from graia.ariadne.context import ariadne_ctx
@@ -35,50 +35,61 @@ ariadne_ctx.set(bot)
 
 
 @bcc.receiver(
-    FriendMessage, dispatchers=[
+    GroupMessage, dispatchers=[
         AlconnaDispatcher(alconna=alc, help_flag='post', skip_for_unmatch=True)
     ]
 )
-async def test(friend: Friend, result: Arpamar):
+async def test(group: Group, result: Arpamar):
     print("test:", result)
-    print("listener:", friend)
+    print("listener:", group)
     print(all_command_help())
 
 
-@bcc.receiver(
-    FriendMessage, dispatchers=[
-        AlconnaDispatcher(alconna=alc1, help_flag='reply')
-    ]
-)
-async def test(friend: Friend, sth: ArgsStub):
-    print("sign:", sth.origin)
-    print("listener:", friend)
+# @bcc.receiver(
+#     FriendMessage, dispatchers=[
+#         AlconnaDispatcher(alconna=alc1, help_flag='stay')
+#     ]
+# )
+# async def test(friend: Friend, sth: ArgsStub):
+#     print("sign:", sth.origin)
+#     print("listener:", friend)
 
 
 @bcc.receiver(
-    FriendMessage, dispatchers=[
+    GroupMessage, dispatchers=[
         AlconnaDispatcher(alconna=alc1, help_flag='post')
     ]
 )
-async def test2(friend: Friend, result: Arpamar):
+async def test2(group: Group, result: Arpamar):
     print("sign:", result)
-    print("listener:", friend)
+    print("listener:", group)
 
 
 @bcc.receiver(AlconnaHelpMessage)
-async def test_event(help_string: str, app: Ariadne, message: MessageChain):
+async def test_event(help_string: str, app: Ariadne, event: GroupMessage):
     print(help_string)
     print(app)
-    print(message.__repr__())
+    print(event.sender.group)
 
 
-frd = Friend.parse_obj({"id": 12345678, "nickname": "test", "remark": "none"})
-msg = MessageChain.create(f"!jrrp")
-ev = FriendMessage(sender=frd, messageChain=msg)
+m1 = Member(id=12345678, memberName="test1", permission="MEMBER", group=Group(id=987654321, name="test", permission="OWNER"))
+m2 = Member(id=54322411, memberName="test2", permission="MEMBER", group=Group(id=123456789, name="test", permission="OWNER"))
+m3 = Member(id=42425665, memberName="test3", permission="MEMBER", group=Group(id=987654321, name="test", permission="OWNER"))
+#frd = Friend.parse_obj({"id": 12345678, "nickname": "test", "remark": "none"})
+#frd1 = Friend.parse_obj({"id": 54322411, "nickname": "test1", "remark": "none1"})
+msg = MessageChain.create(f"!test --help")
+msg1 = MessageChain.create(f"!jrrp --help")
+ev = GroupMessage(sender=m1, messageChain=msg)
+ev1 = GroupMessage(sender=m2, messageChain=msg)
+ev2 = GroupMessage(sender=m3, messageChain=msg)
 
 
 async def main():
     bcc.postEvent(ev)
+    await asyncio.sleep(0.1)
+    bcc.postEvent(ev1)
+    await asyncio.sleep(0.1)
+    bcc.postEvent(ev2)
     await asyncio.sleep(0.1)
 
 

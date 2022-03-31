@@ -5,27 +5,29 @@ from .base import CommandNode, Args, ArgAction
 
 class Option(CommandNode):
     """命令选项, 可以使用别名"""
-    alias: str
+    aliases: List[str]
 
     def __init__(
             self,
             name: str,
             args: Union[Args, str, None] = None,
-            alias: Optional[str] = None,
+            alias: Optional[List[str]] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
             separator: Optional[str] = None,
             help_text: Optional[str] = None,
 
     ):
+        self.aliases = alias if alias else []
         if "|" in name:
-            name, alias = name.replace(' ', '').split('|')
-        if alias and len(alias) > len(name):
-            alias, name = name, alias
-        self.alias = alias if alias else name
+            aliases = name.replace(' ', '').split('|')
+            aliases.sort(key=len, reverse=True)
+            name = aliases[0]
+            self.aliases.extend(aliases[1:])
+        self.aliases.insert(0, name)
         super().__init__(name, args, action, separator, help_text)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {**super().to_dict(), "alias": self.alias}
+        return {**super().to_dict(), "aliases": self.aliases}
 
     def __getstate__(self):
         return self.to_dict()
@@ -33,16 +35,16 @@ class Option(CommandNode):
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Option":
         name = data['name']
-        alias = data['alias']
+        aliases = data['aliases']
         args = Args.from_dict(data['args'])
-        opt = cls(name, args, alias=alias, separator=data['separator'], help_text=data['help_text'])
+        opt = cls(name, args, alias=aliases, separator=data['separator'], help_text=data['help_text'])
         return opt
 
     def __setstate__(self, state):
         self.__init__(
             state['name'],
             Args.from_dict(state['args']),
-            alias=state['alias'],
+            alias=state['aliases'],
             separator=state['separator'],
             help_text=state['help_text']
         )
@@ -51,7 +53,7 @@ class Option(CommandNode):
 class Subcommand(CommandNode):
     """子命令, 次于主命令, 可解析 SubOption"""
     options: List[Option]
-    sub_params: Dict[str, Union[Args, Option]]
+    sub_params: Dict[str, Option]
     sub_part_len: range
 
     def __init__(

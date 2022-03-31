@@ -49,8 +49,9 @@ class ArgsStub(BaseStub):
         self.available = False
 
     def set_result(self, result: Dict[str, Any]):
-        self._args_result = result
-        self.available = True
+        if result:
+            self._args_result = result
+            self.available = True
 
     @property
     def origin(self) -> Args:
@@ -101,13 +102,13 @@ class ArgsStub(BaseStub):
 
 class OptionStub(BaseStub):
     args: ArgsStub
-    alias: str
+    aliases: List[str]
     name: str
     _origin: Option
 
     def __init__(self, option: Option):
         self.args = ArgsStub(option.args)
-        self.alias = option.alias.lstrip('-')
+        self.aliases = [alias.lstrip('-') for alias in option.aliases]
         self.name = option.name.lstrip('-')
         self._origin = option
         self.available = False

@@ -15,6 +15,7 @@ from enum import Enum
 from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Union, Sequence, \
     List, Dict, get_args, Literal, Tuple, get_origin
 from types import LambdaType
+from pathlib import Path
 from .exceptions import ParamsUnmatched
 
 DataUnit = TypeVar("DataUnit")
@@ -102,11 +103,13 @@ class ArgPattern:
         return self.pattern
 
     @lru_cache(maxsize=None)
-    def find(self, text: str):
+    def find(self, text: Union[str, Any]):
         """
         匹配文本, 返回匹配结果
         """
         if not isinstance(text, str):
+            if isinstance(text, self.origin_type):
+                return text
             return
         if self.token == PatternToken.DIRECT:
             return text
@@ -142,6 +145,47 @@ class Force:
         if isinstance(origin, (Force, ArgPattern)):
             raise TypeError("Force can not be used to force a Force or ArgPattern")
         self.origin = origin
+
+
+T_Target = TypeVar("T_Target")
+T_Origin = TypeVar("T_Origin")
+
+
+class TypePattern:
+    def __init__(
+            self,
+            target_types: List[Type[T_Target]],
+            origin_type: Type[T_Origin],
+            action: Optional[Callable] = None,
+            alias: Optional[str] = None,
+            previous: Optional["TypePattern"] = None
+    ):
+        self.origin_type = origin_type
+        self.target_types = target_types
+        self.action: Callable[[Union[T_Target, ...]], T_Origin] = action or (lambda x: origin_type(x))
+        self.alias = alias
+        self.previous = previous
+
+    @lru_cache(maxsize=None)
+    def find(self, obj: Any) -> T_Origin:
+        """
+        匹配文本, 返回匹配结果
+        """
+        if not isinstance(obj, tuple(self.target_types)):
+            if isinstance(obj, self.origin_type):
+                return obj
+            if self.previous:
+                obj = self.previous.find(obj)
+            else:
+                return
+        return self.action(obj)
+
+    def __repr__(self):
+        if self.previous:
+            return self.previous.__repr__() + ", "\
+                   + '|'.join([x.__name__ for x in self.target_types]) \
+                   + " -> " + self.origin_type.__name__
+        return f"{'|'.join([x.__name__ for x in self.target_types])} -> {self.origin_type.__name__}"
 
 
 AnyStr = ArgPattern(r"(.+?)", PatternToken.DIRECT, str)
@@ -203,14 +247,14 @@ class AntiArg(ArgPattern):
 class UnionArg(ArgPattern):
     """多项参数的匹配"""
     anti: bool
-    arg_value: Sequence[Union[Type, ArgPattern, object, str]]
+    arg_value: Sequence[Union[Type, ArgPattern, TypePattern, object, str]]
     for_type_check: List[Type]
-    for_match: List[ArgPattern]
+    for_match: List[Union[ArgPattern, TypePattern]]
     for_equal: List[Union[str, object]]
 
     __validator__: Callable = lambda x: x if isinstance(x, Sequence) else [x]
 
-    def __init__(self, arg_value: Sequence[Union[Type, ArgPattern, object, str]], anti: bool = False):
+    def __init__(self, arg_value: Sequence[Union[Type, TypePattern, ArgPattern, object, str]], anti: bool = False):
         self.anti = anti
         self.arg_value = arg_value
 
@@ -219,7 +263,7 @@ class UnionArg(ArgPattern):
         self.for_equal = []
 
         for arg in arg_value:
-            if isinstance(arg, ArgPattern):
+            if isinstance(arg, (ArgPattern, TypePattern)):
                 self.for_match.append(arg)
             elif isinstance(arg, str):
                 self.for_equal.append(arg)
@@ -367,10 +411,68 @@ pattern_map = {
 }
 
 
-def add_check(pattern: ArgPattern):
-    if pattern.alias:
-        pattern_map.setdefault(pattern.alias, pattern)
-    return pattern_map.setdefault(pattern.origin_type, pattern)
+def add_check(
+        pattern: Union[ArgPattern, TypePattern],
+        origin_type: Optional[type] = None,
+        alias: Optional[str] = None,
+        cover: bool = False
+):
+    if cover:
+        if alias:
+            pattern_map[alias] = pattern
+        if pattern.alias:
+            pattern_map[pattern.alias] = pattern
+        if origin_type:
+            pattern_map[origin_type] = pattern
+        else:
+            pattern_map[pattern.origin_type] = pattern
+    else:
+        if origin_type:
+            if al_pat := pattern_map.get(origin_type):
+                if isinstance(al_pat, UnionArg):
+                    pattern_map[origin_type] = UnionArg([*al_pat.arg_value, pattern])
+                else:
+                    pattern_map[origin_type] = UnionArg([al_pat, pattern])
+            else:
+                pattern_map[origin_type] = pattern
+        else:
+            if al_pat := pattern_map.get(pattern.origin_type):
+                if isinstance(al_pat, UnionArg):
+                    pattern_map[pattern.origin_type] = UnionArg([*al_pat.arg_value, pattern])
+                else:
+                    pattern_map[pattern.origin_type] = UnionArg([al_pat, pattern])
+            else:
+                pattern_map[pattern.origin_type] = pattern
+        if alias:
+            if al_pat := pattern_map.get(alias):
+                if isinstance(al_pat, UnionArg):
+                    pattern_map[alias] = UnionArg([*al_pat.arg_value, pattern])
+                else:
+                    pattern_map[alias] = UnionArg([al_pat, pattern])
+            else:
+                pattern_map[alias] = pattern
+        if pattern.alias:
+            if al_pat := pattern_map.get(pattern.alias):
+                if isinstance(al_pat, UnionArg):
+                    pattern_map[pattern.alias] = UnionArg([*al_pat.arg_value, pattern])
+                else:
+                    pattern_map[pattern.alias] = UnionArg([al_pat, pattern])
+            else:
+                pattern_map[pattern.alias] = pattern
+
+
+StrPath = TypePattern([str], Path, lambda v: Path(v), alias="path")
+AnyPathFile = TypePattern(
+    [Path],
+    bytes,
+    lambda x: x.read_bytes() if x.exists() and x.is_file() else None,
+    alias='file',
+    previous=StrPath
+)
+add_check(AnyPathFile)
+
+
+# add_check(TypePattern([str], bytes, lambda x: open(x, 'rb').read(), alias='file', previous=PathPattern))
 
 
 def argtype_validator(item: Any, extra: str = "allow"):

@@ -164,7 +164,6 @@ class AlconnaDecorate:
             self,
             name: str,
             args: Optional[Args] = None,
-            alias: Optional[str] = None,
             help: Optional[str] = None,
             action: Optional[Callable] = None,
             sep: str = " "
@@ -175,7 +174,6 @@ class AlconnaDecorate:
         Args:
             name (str): 选项名称
             args (Optional[Args]): 选项参数
-            alias (Optional[str]): 选项别名
             help (Optional[str]): 选项帮助信息
             action (Optional[Callable]): 选项动作
             sep (str): 参数分隔符
@@ -187,7 +185,7 @@ class AlconnaDecorate:
             if not self.__storage.get('func'):
                 self.__storage['func'] = func
             self.__storage['options'].append(
-                Option(name, args=args, alias=alias, action=action, separator=sep, help_text=help or name)
+                Option(name, args=args, action=action, separator=sep, help_text=help or name)
             )
             return func
 
@@ -348,10 +346,6 @@ def _from_string(
     for opt in option:
         if opt.startswith("--"):
             opt_head, opt_others = split_once(opt, sep)
-            try:
-                opt_head, opt_alias = opt_head.split("|")
-            except ValueError:
-                opt_alias = opt_head
             opt_args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", opt_others)]
             _opt_args = Args.from_string_list(opt_args, custom_types.copy())
             opt_action_value = re.findall(r"\[(.+?)]$", opt_others)
@@ -359,9 +353,9 @@ def _from_string(
                 opt_help_string = [opt_head]
             if opt_action_value:
                 val = eval(opt_action_value[0], {"true": True, "false": False})
-                _options.append(Option(opt_head, alias=opt_alias, args=_opt_args, action=store_value(val)))
+                _options.append(Option(opt_head, args=_opt_args, action=store_value(val)))
             else:
-                _options.append(Option(opt_head, alias=opt_alias, args=_opt_args))
+                _options.append(Option(opt_head, args=_opt_args))
             _options[-1].help_text = opt_help_string[0]
     return Alconna(headers=headers, main_args=_args, options=_options, help_text=help_string[0])
 
@@ -424,9 +418,9 @@ class AlconnaMounter(Alconna):
     def _parse_action(self, message):
         ...
 
-    def parse(self, message: Union[str, DataCollection], static: bool = True):
+    def parse(self, message: Union[str, DataCollection], duplication: Optional[Any] = None, static: bool = True):  # noqa
         message = self._parse_action(message) or message
-        return super(AlconnaMounter, self).parse(message, static)
+        return super(AlconnaMounter, self).parse(message, duplication=duplication, static=static)
 
 
 class FuncMounter(AlconnaMounter):

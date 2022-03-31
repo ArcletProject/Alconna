@@ -12,7 +12,7 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
         return f"{header}\n{body}"
 
     def param(self, parameter: Dict[str, Any]) -> str:
-        arg = f"<{parameter['name']}" if not parameter['optional'] else f"<{parameter['name']}?"
+        arg = f"<{parameter['name']}" if not parameter['optional'] else f"[{parameter['name']}"
         _sep = "=" if parameter['kwonly'] else ":"
         if not parameter['hidden']:
             if isinstance(parameter['value'], _AnyParam):
@@ -28,7 +28,7 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
                 arg += ", default=None"
             elif parameter['default'] is not None:
                 arg += f", default={parameter['default']}"
-        return arg + ">"
+        return arg + (">" if not parameter['optional'] else f"]")
 
     def parameters(self, params: List[Dict[str, Any]], separator: str = " ") -> str:
         param_texts = []
@@ -55,11 +55,11 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
 
     def part(self, sub: Dict[str, Any], node_type: str) -> str:
         if node_type == 'option':
-            alias = sub['additional_info'].get('alias')
-            alias_text = f"{alias}, " if alias != sub['name'] else ""
+            aliases = sub['additional_info'].get('aliases')
+            alias_text = ", ".join(aliases)
             return (
                 f"# {sub['description']}\n"
-                f"  {alias_text}{sub['name']}{sub['separator']}"
+                f"  {alias_text}{sub['separator']}"
                 f"{self.parameters(sub['parameters'], sub['separator'])}\n"
             )
         elif node_type == 'subcommand':
@@ -149,11 +149,11 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
 
     def part(self, sub: Dict[str, Any], node_type: str) -> str:
         if node_type == 'option':
-            alias = sub['additional_info'].get('alias')
-            alias_text = f"{alias}, " if alias != sub['name'] else ""
+            aliases = sub['additional_info'].get('aliases')
+            alias_text = ", ".join(aliases)
             return (
                 f"# {sub['description']}\n"
-                f"  {alias_text}{sub['name']}{sub['separator']}"
+                f"  {alias_text}{sub['separator']}"
                 f"{self.parameters(sub['parameters'], sub['separator'])}\n"
             )
         elif node_type == 'subcommand':
@@ -173,10 +173,10 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
         options = []
         opt_description = []
         for opt in filter(lambda x: x['type'] == 'option', parts):
-            alias = opt['additional_info'].get('alias')
-            alias_text = f", {alias}" if alias != opt['name'] else ""
+            aliases = opt['additional_info'].get('aliases')
+            alias_text = ", ".join(aliases)
             args = f"{self.parameters(opt['parameters'], opt['separator'])}"
-            options.append(f"  {opt['name']}{alias_text}{opt['separator']}{args}")
+            options.append(f"  {alias_text}{opt['separator']}{args}")
             opt_description.append(opt['description'])
         if options:
             max_len = max(map(lambda x: len(x), options))

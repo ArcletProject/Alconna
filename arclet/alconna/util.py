@@ -75,6 +75,8 @@ def split(text: str, separate: str = " ", ):
         if char in ("'", '"'):
             if not quote:
                 quote = char
+                if index and text[index - 1] == "\\":
+                    cache.append(char)
             elif char == quote and index and text[index - 1] != "\\":
                 quote = ""
             else:

@@ -29,7 +29,8 @@ class Analyser(metaclass=ABCMeta):
     is_str: bool  # 是否是字符串
     raw_data: Dict[int, Union[List[str], Any]]  # 原始数据
     ndata: int  # 原始数据的长度
-    params: Dict[str, Union[Option, Subcommand, Args]]  # 参数
+    command_params: Dict[str, Union[Option, Subcommand]]  # 参数
+    param_ids: List[str]
     # 命令头部
     command_header: Union[
         ArgPattern,
@@ -125,15 +126,21 @@ class Analyser(metaclass=ABCMeta):
 
     @staticmethod
     def default_params_generator(analyser: "Analyser"):
-        analyser.params = {}  # "main_args": analyser.alconna.args
+        analyser.param_ids = []
+        analyser.command_params = {}  # "main_args": analyser.alconna.args
         for opts in analyser.alconna.options:
             if isinstance(opts, Subcommand):
-                opts.sub_params.setdefault('sub_args', opts.args)
+                analyser.param_ids.append(opts.name)
+                # opts.sub_params.setdefault('sub_args', opts.args)
                 for sub_opts in opts.options:
                     opts.sub_params.setdefault(sub_opts.name, sub_opts)
-                opts.sub_part_len = range(len(opts.options) + opts.nargs)
-            analyser.params[opts.name] = opts
-        analyser.part_len = range(len(analyser.params) + 1)
+                    analyser.param_ids.extend(sub_opts.aliases)
+                # opts.sub_part_len = range(len(opts.options) + opts.nargs)
+                opts.sub_part_len = range(len(opts.options) + 1)
+            else:
+                analyser.param_ids.extend(opts.aliases)
+            analyser.command_params[opts.name] = opts
+        analyser.part_len = range(len(analyser.command_params) + 1)
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>"

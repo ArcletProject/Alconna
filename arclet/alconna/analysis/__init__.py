@@ -42,7 +42,7 @@ class _DummyAnalyser(Analyser):
         cls.add_arg_handler(ObjectPattern, common_arg_handler)
         cls.add_arg_handler(SequenceArg, common_arg_handler)
         cls.add_arg_handler(MappingArg, common_arg_handler)
-        cls.params = {}
+        cls.command_params = {}
         return super().__new__(cls)
 
     def analyse(self, message: Union[str, DataCollection, None] = None):

@@ -1,7 +1,7 @@
 import re
 from typing import Union, Dict, Any
 
-from ..types import MultiArg, ArgPattern, DataUnit, PatternToken, AntiArg, Empty, UnionArg
+from ..types import MultiArg, ArgPattern, DataUnit, PatternToken, AntiArg, Empty, UnionArg, TypePattern
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing
 
@@ -38,7 +38,7 @@ def multi_arg_handler(
 
         for i in range(_m_all_args_count):
             _m_arg, _m_str = analyser.next_data(sep)
-            if _m_str and _m_arg in analyser.params:
+            if _m_str and _m_arg in analyser.param_ids:
                 __putback(_m_arg)
                 break
             if _m_arg_base.__class__ is ArgPattern:
@@ -79,7 +79,7 @@ def multi_arg_handler(
 
         for i in range(_m_all_args_count):
             _m_arg, _m_str = analyser.next_data(sep)
-            if _m_str and _m_arg in analyser.params:
+            if _m_str and _m_arg in analyser.command_params:
                 __putback(_m_arg)
                 break
             if _m_arg_base.__class__ is ArgPattern:
@@ -140,7 +140,7 @@ def anti_arg_handler(
     _a_arg_base = value.arg_value
     if _a_arg_base.__class__ is ArgPattern:
         arg_find = _a_arg_base.find(may_arg)
-        if not arg_find and isinstance(may_arg, str):
+        if not arg_find:   # and isinstance(may_arg, str):
             result_dict[key] = may_arg
         else:
             analyser.reduce_data(may_arg)
@@ -188,6 +188,8 @@ def union_arg_handler(
                 if arg_find := pat.find(may_arg):
                     not_match = False
                     may_arg = arg_find
+                    if isinstance(pat, TypePattern):
+                        break
                     if pat.token == PatternToken.REGEX_TRANSFORM and isinstance(may_arg, str):
                         may_arg = pat.transform_action(may_arg)
                     if may_arg == pat.pattern:

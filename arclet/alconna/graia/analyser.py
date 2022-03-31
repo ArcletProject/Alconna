@@ -35,7 +35,7 @@ class GraiaCommandAnalyser(Analyser):
         if isinstance(opt, Subcommand):
             for sub_opts in opt.options:
                 opt.sub_params.setdefault(sub_opts.name, sub_opts)
-        self.params[opt.name] = opt
+        self.command_params[opt.name] = opt
 
     def handle_message(self, data: MessageChain) -> Optional[Arpamar]:
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
@@ -110,11 +110,11 @@ class GraiaCommandAnalyser(Analyser):
 
         for _ in self.part_len:
             _text, _str = self.next_data(self.separator, pop=False)
-            _param = self.params.get(_text, None) if _str else Ellipsis
-            if not _param and _text != "":
-                for p in self.params:
-                    if _text.startswith(getattr(self.params[p], 'alias', p)):
-                        _param = self.params[p]
+            if not (_param := self.command_params.get(_text, None) if _str else Ellipsis) and _text != "":
+                for p in self.command_params:
+                    if _text.split(self.command_params[p].separator)[0] in \
+                            getattr(self.command_params[p], 'aliases', [p]):
+                        _param = self.command_params[p]
                         break
             try:
                 if not _param or _param is Ellipsis:

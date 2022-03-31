@@ -107,7 +107,7 @@ class Alconna(CommandNode):
         )
         self.is_raise_exception = is_raise_exception
         self.namespace = namespace or self.__cls_name__
-        self.options.append(Option("--help", alias="-h", help_text="显示帮助信息"))
+        self.options.append(Option("--help", alias=["-h"], help_text="显示帮助信息"))
         self.analyser_type = analyser_type or self.default_analyser
         command_manager.register(self)
         self.__class__.__cls_name__ = "Alconna"
@@ -154,12 +154,11 @@ class Alconna(CommandNode):
             name: str,
             sep: str = " ",
             args: Optional[Args] = None,
-            alias: Optional[str] = None,
             help_text: Optional[str] = None,
     ):
         """链式注册一个 Option"""
         command_manager.delete(self)
-        opt = Option(name, args, alias=alias, separator=sep, help_text=help_text)
+        opt = Option(name, args, separator=sep, help_text=help_text)
         self.options.append(opt)
         command_manager.register(self)
         return self

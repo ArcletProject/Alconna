@@ -7,10 +7,11 @@ from typing import Union, Tuple, Type, Dict, Iterable, Callable, Any, Optional, 
     MutableSequence, TypedDict
 from .exceptions import InvalidParam, NullTextMessage
 from .types import (
-    ArgPattern, _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argtype_validator,
+    ArgPattern,
+    _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argtype_validator, TypePattern
 )
 
-TAValue = Union[ArgPattern, Type[DataUnit], _AnyParam]
+TAValue = Union[ArgPattern, TypePattern, Type[DataUnit], _AnyParam]
 TADefault = Union[Any, DataUnit, Empty]
 
 

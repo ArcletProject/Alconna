@@ -5,7 +5,7 @@ import asyncio
 from .analyser import Analyser
 from ..component import Option, Subcommand
 from ..exceptions import ParamsUnmatched, ArgumentMissing
-from ..types import ArgPattern, AnyParam, AllParam, Empty
+from ..types import ArgPattern, AnyParam, AllParam, Empty, TypePattern
 from ..base import Args, ArgAction
 
 
@@ -58,7 +58,7 @@ def analyse_args(
                     if analyser.is_raise_exception:
                         raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
                     continue
-        if may_arg in analyser.params:
+        if may_arg in analyser.param_ids:
             analyser.reduce_data(may_arg)
             if default is None:
                 if optional:
@@ -72,6 +72,20 @@ def analyse_args(
                 default, nargs, sep, option_dict,
                 optional
             )
+        elif value.__class__ is TypePattern:
+            arg_find = value.find(may_arg)
+            if not arg_find:
+                analyser.reduce_data(may_arg)
+                if default is None:
+                    if optional:
+                        continue
+                    if may_arg:
+                        raise ParamsUnmatched(f"param {may_arg} is incorrect")
+                    else:
+                        raise ArgumentMissing(f"param {key} is required")
+                else:
+                    arg_find = None if default is Empty else default
+            option_dict[key] = arg_find
         elif value is AnyParam:
             if may_arg:
                 option_dict[key] = may_arg
@@ -152,7 +166,7 @@ def analyse_option(
     """
 
     name, _ = analyser.next_data(param.separator)
-    if name not in (param.name, param.alias):  # 先匹配选项名称
+    if name not in param.aliases:  # 先匹配选项名称
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.name.lstrip("-")
     if param.nargs == 0:
@@ -220,8 +234,8 @@ def analyse_subcommand(
         sub_param = param.sub_params.get(text, None) if _str else Ellipsis
         if not sub_param and text != "":
             for sp in param.sub_params:
-                if text.startswith(getattr(param.sub_params[sp], 'alias', sp)):
-                    sub_param = param.sub_params[sp]
+                if text.split(param.sub_params[sp].separator)[0] in param.sub_params[sp].aliases:
+                    _param = param.sub_params[sp]
                     break
         if isinstance(sub_param, Option):
             opt_n, opt_v = analyse_option(analyser, sub_param)

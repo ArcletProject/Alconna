@@ -121,11 +121,11 @@ class AlconnaNodeVisitor:
                     self.name_list.append(f"subcommand:{real_name}:{real_sub_name}")
                     sub_new_id = max(self.node_map) + 1
                     self.node_map[sub_new_id] = _BaseNode(sub_new_id, sub_node, 'option')
-                    self.node_map[sub_new_id].additional_info['alias'] = sub_node.alias
+                    self.node_map[sub_new_id].additional_info['aliases'] = sub_node.aliases
                     self.node_map[new_id].sub_nodes.append(sub_new_id)
             else:
                 self.node_map[new_id] = _BaseNode(new_id, node, 'option')
-                self.node_map[new_id].additional_info['alias'] = node.alias
+                self.node_map[new_id].additional_info['aliases'] = node.aliases
             self.node_map[0].sub_nodes.append(new_id)
 
     def require(self, path: Optional[Union[str, List[str]]] = None) -> _BaseNode:
