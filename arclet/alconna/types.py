@@ -472,10 +472,7 @@ AnyPathFile = TypePattern(
 add_check(AnyPathFile)
 
 
-# add_check(TypePattern([str], bytes, lambda x: open(x, 'rb').read(), alias='file', previous=PathPattern))
-
-
-def argtype_validator(item: Any, extra: str = "allow"):
+def argument_type_validator(item: Any, extra: str = "allow"):
     """对 Args 里参数类型的检查， 将一般数据类型转为 Args 使用的类型"""
     if isinstance(item, Force):
         return item.origin if not isinstance(item.origin, str) else ArgPattern(item.origin)
@@ -487,15 +484,15 @@ def argtype_validator(item: Any, extra: str = "allow"):
     if not inspect.isclass(item) and item.__class__.__name__ in "_GenericAlias":
         origin = get_origin(item)
         if origin in (Union, Literal):
-            args = list(set([argtype_validator(t, extra) for t in get_args(item)]))
+            args = list(set([argument_type_validator(t, extra) for t in get_args(item)]))
             if len(args) < 1:
                 return item
             if len(args) < 2:
                 args = args[0]
             return args
         if origin in (dict, ABCMapping, ABCMutableMapping):
-            arg_key = argtype_validator(get_args(item)[0], 'ignore')
-            arg_value = argtype_validator(get_args(item)[1], 'ignore')
+            arg_key = argument_type_validator(get_args(item)[0], 'ignore')
+            arg_value = argument_type_validator(get_args(item)[1], 'ignore')
             if isinstance(arg_value, list):
                 if len(arg_value) == 2 and Empty in arg_value:
                     arg_value.remove(Empty)
@@ -504,7 +501,7 @@ def argtype_validator(item: Any, extra: str = "allow"):
                     arg_value = UnionArg(arg_value)
             return MappingArg(arg_key=arg_key, arg_value=arg_value)
         if origin in (ABCMutableSequence, ABCSequence, list, ABCIterable, tuple, ABCMutableSet, ABCSet, set):
-            args = argtype_validator(get_args(item)[0], 'ignore')
+            args = argument_type_validator(get_args(item)[0], 'ignore')
             if isinstance(args, list):
                 if len(args) == 2 and Empty in args:
                     args.remove(Empty)
@@ -531,7 +528,9 @@ def argtype_validator(item: Any, extra: str = "allow"):
     return item
 
 
-UnionArg.__validator__ = lambda x: [argtype_validator(t, "ignore") for t in (x if isinstance(x, Sequence) else [x])]
+UnionArg.__validator__ = lambda x: [
+    argument_type_validator(t, "ignore") for t in (x if isinstance(x, Sequence) else [x])
+]
 
 
 class ObjectPattern(ArgPattern):

@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Union
+import re
 
 from arclet.alconna.types import Empty, ArgPattern, _AnyParam
 from arclet.alconna.visitor import AbstractHelpTextFormatter
@@ -9,7 +10,7 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
         parts = trace.pop('sub_nodes')
         header = self.header(trace)
         body = self.body(parts)  # type: ignore
-        return f"{header}\n{body}"
+        return header % body
 
     def param(self, parameter: Dict[str, Any]) -> str:
         arg = f"<{parameter['name']}" if not parameter['optional'] else f"[{parameter['name']}"
@@ -38,6 +39,16 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
 
     def header(self, root: Dict[str, Any]) -> str:
         help_string = ("\n" + root['description']) if root.get('description') else ""
+        if usage := re.findall(r".*Usage:(.+?);", help_string, flags=re.S):
+            help_string = help_string.replace("Usage:" + usage[0] + ";", "")
+            usage = '\n用法:\n' + usage[0]
+        else:
+            usage = ""
+        if example := re.findall(r".*Example:(.+?);", help_string, flags=re.S):
+            help_string = help_string.replace("Example:" + example[0] + ";", "")
+            example = '\n使用示例:\n' + example[0]
+        else:
+            example = ""
         headers = root['additional_info'].get('headers')
         command = root['additional_info'].get('command')
         headers_text = []
@@ -51,7 +62,10 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
             headers_text.append(command)
         command_string = f"{'|'.join(headers_text)}{root['separator']}" \
             if headers_text else root['name'] + root['separator']
-        return f"{command_string}{self.parameters(root['parameters'], root['separator'])}{help_string}"
+        return (
+            f"{command_string}{self.parameters(root['parameters'], root['separator'])}"
+            f"{help_string}{usage}\n%s{example}"
+        )
 
     def part(self, sub: Dict[str, Any], node_type: str) -> str:
         if node_type == 'option':
@@ -100,28 +114,31 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
     def format(self, trace: Dict[str, Union[str, List, Dict]]) -> str:
         parts: List[dict] = trace.pop('sub_nodes')  # type: ignore
         sub_names = [i['name'] for i in parts]
-        topic = trace['name'].replace("ALCONNA::", "") + " " + " ".join([f"[{i}]" for i in sub_names])  # type: ignore
+        topic = trace['name'].replace("ALCONNA::", "") + " " + " ".join(
+            [f"[{i}]" for i in sub_names if i != "--help"]  # type: ignore
+        )
         header = self.header(trace)
         body = self.body(parts)  # type: ignore
-        return f"{topic}\n{header}\n{body}"
+        return topic + '\n' + header % body
 
     def param(self, parameter: Dict[str, Any]) -> str:
+        # FOO(str), BAR=(int)
         arg = f"{parameter['name'].upper()}" if not parameter['optional'] else f"[{parameter['name'].upper()}"
-        _sep = "=" if parameter['kwonly'] else ":"
+        _sep = "=(%s)" if parameter['kwonly'] else "(%s)"
         if not parameter['hidden']:
             if isinstance(parameter['value'], _AnyParam):
-                arg += f"{_sep}WildMatch"
+                arg += _sep % "Any"
             elif isinstance(parameter['value'], ArgPattern):
-                arg += f"{_sep}{parameter['value'].alias or parameter['value'].origin_type.__name__}"
+                arg += _sep % f"{parameter['value'].alias or parameter['value'].origin_type.__name__}"
             else:
                 try:
-                    arg += f"{_sep}Type_{parameter['value'].__name__}"
+                    arg += _sep % f"Type_{parameter['value'].__name__}"
                 except AttributeError:
-                    arg += f"{_sep}Type_{repr(parameter['value'])}"
+                    arg += _sep % f"Type_{repr(parameter['value'])}"
             if parameter['default'] is Empty:
-                arg += ", default=None"
+                arg += "=None"
             elif parameter['default'] is not None:
-                arg += f", default={parameter['default']}"
+                arg += f"={parameter['default']}"
         return (arg + "") if not parameter['optional'] else (arg + "]")
 
     def parameters(self, params: List[Dict[str, Any]], separator: str = " ") -> str:
@@ -132,6 +149,16 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
 
     def header(self, root: Dict[str, Any]) -> str:
         help_string = ("\n描述: " + root['description'] + "\n") if root.get('description') else ""
+        if usage := re.findall(r".*Usage:(.+?);", help_string, flags=re.S):
+            help_string = help_string.replace("Usage:" + usage[0] + ";", "")
+            usage = '\n用法:' + usage[0] + '\n'
+        else:
+            usage = ""
+        if example := re.findall(r".*Example:(.+?);", help_string, flags=re.S):
+            help_string = help_string.replace("Example:" + example[0] + ";", "")
+            example = '\n样例:' + example[0] + '\n'
+        else:
+            example = ""
         headers = root['additional_info'].get('headers')
         command = root['additional_info'].get('command')
         headers_text = []
@@ -145,7 +172,10 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
             headers_text.append(command)
         command_string = f"{'|'.join(headers_text)}{root['separator']}" \
             if headers_text else root['name'] + root['separator']
-        return f"{help_string}命令: {command_string}{self.parameters(root['parameters'], root['separator'])}\n"
+        return (
+            f"\n命令: {command_string}{help_string}{usage}"
+            f"{self.parameters(root['parameters'], root['separator'])}\n%s{example}"
+        )
 
     def part(self, sub: Dict[str, Any], node_type: str) -> str:
         if node_type == 'option':

@@ -8,7 +8,7 @@ from typing import Union, Tuple, Type, Dict, Iterable, Callable, Any, Optional, 
 from .exceptions import InvalidParam, NullTextMessage
 from .types import (
     ArgPattern,
-    _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argtype_validator, TypePattern
+    _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argument_type_validator, TypePattern
 )
 
 TAValue = Union[ArgPattern, TypePattern, Type[DataUnit], _AnyParam]
@@ -41,6 +41,9 @@ class ArgsMeta(type):
         if isinstance(item, slice):
             return cls(args=[item])
         elif isinstance(item, str):
+            if cls.selecting:
+                cls.selecting = False
+                return cls(args=[(cls.last_key, item)])
             return cls(args=[(item, item)])
         elif not isinstance(item, tuple):
             if cls.selecting:
@@ -49,14 +52,15 @@ class ArgsMeta(type):
             return cls(args=[(item,)])
         slices = list(filter(lambda x: isinstance(x, slice), item))
         args = cls(args=slices)
-        items = list(filter(lambda x: isinstance(x, (list, tuple)), item))
-        items += list(map(lambda x: (x, ), filter(lambda x: isinstance(x, str), item)))
+        iters = list(filter(lambda x: isinstance(x, (list, tuple)), item))
+        items = list(filter(lambda x: not isinstance(x, slice), item))
+        iters += list(map(lambda x: (x, ), filter(lambda x: isinstance(x, str), item)))
         if items:
             if cls.selecting:
                 args.__setitem__(cls.last_key, items)
                 cls.selecting = False
             else:
-                args.__check_vars__(items)
+                args.__check_vars__(iters)
         return args
 
 
@@ -92,8 +96,11 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 raise NullTextMessage
 
             default = arg[2].strip(" ") if _le > 2 else None
-            value = AllParam if arg[0].startswith("...") else (arg[1].strip(" ") if _le > 1 else AnyParam)
-            name = arg[0].replace("...", "")
+            value = AllParam if arg[0].startswith("...") else (
+                AnyParam if arg[0].startswith("..") else (
+                    arg[1].strip(" ") if _le > 1 else arg[0].lstrip(".-"))
+                )
+            name = arg[0].replace("...", "").replace("..", "")
 
             if not isinstance(value, AnyParam.__class__):
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
@@ -151,7 +158,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.var_keyword = None
         self.optional_count = 0
         self.argument = {  # type: ignore
-            k: {"value": argtype_validator(v), "default": None, 'optional': False, 'hidden': False, 'kwonly': False}
+            k: {"value": argument_type_validator(v), "default": None, 'optional': False, 'hidden': False, 'kwonly': False}
             for k, v in kwargs.items()
         }
         self.__check_vars__(args or [])
@@ -176,7 +183,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             if name == "":
                 raise InvalidParam("该参数的指示名不能为空")
             if not name.startswith("#"):
-                _value = argtype_validator(value, self.extra)
+                _value = argument_type_validator(value, self.extra)
             else:
                 name = name.lstrip("#")
                 _value = value if not isinstance(value, str) else ArgPattern(value)

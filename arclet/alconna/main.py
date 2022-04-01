@@ -76,21 +76,25 @@ class Alconna(CommandNode):
             analyser_type: Optional[Type[Analyser]] = None,
             behaviors: Optional[List[ArpamarBehavior]] = None,
             formatter: Optional[AbstractHelpTextFormatter] = None,
+            is_fuzzy_match: bool = False
     ):
         """
         以标准形式构造 Alconna
 
         Args:
-            headers: 呼叫该命令的命令头，一般是你的机器人的名字或者符号，与 command 至少有一个填写
-            command: 命令名称，你的命令的名字，与 headers 至少有一个填写
-            options: 命令选项，你的命令可选择的所有 option ，包括子命令与单独的选项
-            main_args: 主参数，填入后当且仅当命令中含有该参数时才会成功解析
-            is_raise_exception: 当解析失败时是否抛出异常，默认为 False
+            headers: 呼叫该命令的命令头, 一般是你的机器人的名字或者符号, 与 command 至少有一个填写
+            command: 命令名称, 你的命令的名字, 与 headers 至少有一个填写
+            options: 命令选项, 你的命令可选择的所有 option, 包括子命令与单独的选项
+            main_args: 主参数, 填入后当且仅当命令中含有该参数时才会成功解析
+            is_raise_exception: 当解析失败时是否抛出异常, 默认为 False
             action: 命令解析后针对主参数的回调函数
-            namespace: 命令命名空间，默认为 'Alconna'
-            separator: 命令参数分隔符，默认为空格
-            help_text: 帮助文档，默认为 'Unknown Information'
-            analyser_type: 命令解析器类型，默认为 DisorderCommandAnalyser
+            namespace: 命令命名空间, 默认为 'Alconna'
+            separator: 命令参数分隔符, 默认为空格
+            help_text: 帮助文档, 默认为 'Unknown Information'
+            analyser_type: 命令解析器类型, 默认为 DisorderCommandAnalyser
+            behaviors: 命令解析行为，默认为 None
+            formatter: 命令帮助文本格式器, 默认为 DefaultHelpTextFormatter
+            is_fuzzy_match: 是否开启模糊匹配, 默认为 False
         """
         # headers与command二者必须有其一
         if all((not headers, not command)):
@@ -113,6 +117,7 @@ class Alconna(CommandNode):
         self.__class__.__cls_name__ = "Alconna"
         self.behaviors = behaviors
         self.formatter = formatter or DefaultHelpTextFormatter()  # type: ignore
+        self.is_fuzzy_match = is_fuzzy_match
 
     def __class_getitem__(cls, item):
         if isinstance(item, str):

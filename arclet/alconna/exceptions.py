@@ -36,3 +36,8 @@ class CancelBehave(Exception):
 class OutBoundsBehavior(Exception):
     """越界行为"""
     pass
+
+
+class FuzzyMatchSuccess(Exception):
+    """模糊匹配成功"""
+    pass

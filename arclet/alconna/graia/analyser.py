@@ -13,7 +13,8 @@ from arclet.alconna.analysis.arg_handlers import (
     multi_arg_handler, common_arg_handler, anti_arg_handler, union_arg_handler
 )
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
-from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, NullTextMessage, UnexpectedElement
+from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, NullTextMessage, UnexpectedElement, \
+    FuzzyMatchSuccess
 from arclet.alconna.util import split
 from arclet.alconna.builtin.actions import help_send
 
@@ -107,6 +108,20 @@ class GraiaCommandAnalyser(Analyser):
                 return self.analyse(MessageChain.create(cmd))
             except ValueError:
                 return self.create_arpamar(fail=True, exception=e)
+        except FuzzyMatchSuccess as Fuzzy:
+            self.raw_data = {self.current_index: ["--help"]}
+            self.content_index = 0
+            self.ndata += 1
+            _param = self.command_params["--help"]
+
+            def _get_help(exp=Fuzzy):
+                return str(exp)
+
+            _param.action = help_send(
+                self.alconna.name, _get_help
+            )
+            analyse_option(self, _param)
+            return self.create_arpamar(fail=True)
 
         for _ in self.part_len:
             _text, _str = self.next_data(self.separator, pop=False)

@@ -95,6 +95,52 @@ def split(text: str, separate: str = " ", ):
     return result
 
 
+def is_chinese(string: str) -> bool:
+    """中文Unicode码范围参考：https://www.iteye.com/topic/558050     """
+    r = [
+        # 标准CJK文字
+        (0x3400, 0x4DB5), (0x4E00, 0x9FA5), (0x9FA6, 0x9FBB), (0xF900, 0xFA2D),
+        (0xFA30, 0xFA6A), (0xFA70, 0xFAD9), (0x20000, 0x2A6D6), (0x2F800, 0x2FA1D),
+        # 全角ASCII、全角中英文标点、半宽片假名、半宽平假名、半宽韩文字母
+        (0xFF00, 0xFFEF),
+        # CJK部首补充
+        (0x2E80, 0x2EFF),
+        # CJK标点符号
+        (0x3000, 0x303F),
+        # CJK笔划
+        (0x31C0, 0x31EF)]
+    for c in string:
+        if any(s <= ord(c) <= e for s, e in r):
+            return True
+    return False
+
+
+def levenshtein_norm(source: str, target: str) -> float:
+    """编辑距离算法, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似"""
+    return 1 - float(levenshtein(source, target)) / max(len(source), len(target))
+
+
+def levenshtein(source: str, target: str) -> int:
+    s_range = range(len(source) + 1)
+    t_range = range(len(target) + 1)
+    matrix = [[(i if j == 0 else j) for j in t_range] for i in s_range]
+
+    for i in s_range[1:]:
+        for j in t_range[1:]:
+            del_distance = matrix[i - 1][j] + 1
+            ins_distance = matrix[i][j - 1] + 1
+            if is_chinese(source) or is_chinese(target):
+                if abs(ord(source[i - 1]) - ord(target[j - 1])) <= 2:
+                    sub_trans_cost = 0
+                else:
+                    sub_trans_cost = 1
+            else:
+                sub_trans_cost = 0 if source[i - 1] == target[j - 1] else 1
+            sub_distance = matrix[i - 1][j - 1] + sub_trans_cost
+            matrix[i][j] = min(del_distance, ins_distance, sub_distance)
+    return matrix[len(source)][len(target)]
+
+
 def deprecated(remove_ver: str) -> Callable[[Callable[..., R]], Callable[..., R]]:
     """标注一个方法 / 函数已被弃用"""
 

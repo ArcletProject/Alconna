@@ -323,8 +323,8 @@ def _from_string(
 
     >>> from arclet.alconna import AlconnaString
     >>> alc = AlconnaString(
-    ... "test <message:str> #HELP_STRING",
-    ... "--foo|-f <val:bool:True>", "--bar [134]"
+    ... "test <message:str:bcef> #HELP_STRING",
+    ... "--foo|-f <val:bool>", "-bar <bar:str> [baz:int]", "-qux &",
     ... )
     >>> alc.parse("test abcd --foo True")
     """
@@ -335,6 +335,10 @@ def _from_string(
     if re.match(r"^\[(.+?)]$", head):
         headers = head.strip("[]").split("|")
     args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", others)]
+    for p in re.findall(r"\[(.+?)]", others):
+        res = re.split("[:|=]", p)
+        res[0] = f"?{res[0]}"
+        args.append(res)
     if not (help_string := re.findall(r"#(.+)", others)):
         help_string = headers
     if not custom_types:
@@ -344,20 +348,23 @@ def _from_string(
     custom_types.update(getattr(inspect.getmodule(inspect.stack()[1][0]), "__dict__", {}))
     _args = Args.from_string_list(args, custom_types.copy())
     for opt in option:
-        if opt.startswith("--"):
-            opt_head, opt_others = split_once(opt, sep)
-            opt_args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", opt_others)]
-            _opt_args = Args.from_string_list(opt_args, custom_types.copy())
-            opt_action_value = re.findall(r"\[(.+?)]$", opt_others)
-            if not (opt_help_string := re.findall(r"#(.+)", opt_others)):
-                opt_help_string = [opt_head]
-            if opt_action_value:
-                val = eval(opt_action_value[0], {"true": True, "false": False})
-                _options.append(Option(opt_head, args=_opt_args, action=store_value(val)))
-            else:
-                _options.append(Option(opt_head, args=_opt_args))
-            _options[-1].help_text = opt_help_string[0]
-    return Alconna(headers=headers, main_args=_args, options=_options, help_text=help_string[0])
+        opt_head, opt_others = split_once(opt, sep)
+        opt_args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", opt_others)]
+        for p in re.findall(r"\[(.+?)]", opt_others):
+            res = re.split("[:|=]", p)
+            res[0] = f"?{res[0]}"
+            opt_args.append(res)
+        _opt_args = Args.from_string_list(opt_args, custom_types.copy())
+        opt_action_value = re.findall(r"&(.+?)(?:#.+?)?$", opt_others)
+        if not (opt_help_string := re.findall(r"#(.+)$", opt_others)):
+            opt_help_string = [opt_head]
+        if opt_action_value:
+            val = eval(opt_action_value[0].rstrip(), {"true": True, "false": False})
+            _options.append(Option(opt_head, args=_opt_args, action=store_value(val)))
+        else:
+            _options.append(Option(opt_head, args=_opt_args))
+        _options[-1].help_text = opt_help_string[0]
+    return Alconna(headers=headers, main_args=_args, options=_options, help_text=help_string[0], is_fuzzy_match=True)
 
 
 config_key = Literal["headers", "raise_exception", "description", "get_subcommand", "extra", "namespace", "command"]

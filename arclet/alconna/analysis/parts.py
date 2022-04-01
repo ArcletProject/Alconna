@@ -4,9 +4,10 @@ import asyncio
 
 from .analyser import Analyser
 from ..component import Option, Subcommand
-from ..exceptions import ParamsUnmatched, ArgumentMissing
+from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from ..types import ArgPattern, AnyParam, AllParam, Empty, TypePattern
 from ..base import Args, ArgAction
+from ..util import levenshtein_norm
 
 
 def loop() -> asyncio.AbstractEventLoop:
@@ -164,7 +165,6 @@ def analyse_option(
         analyser: 使用的分析器
         param: 目标Option
     """
-
     name, _ = analyser.next_data(param.separator)
     if name not in param.aliases:  # 先匹配选项名称
         raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
@@ -284,14 +284,36 @@ def analyse_header(
                     return _head_find if _head_find != may_command else True
             elif _str:
                 if (_command_find := command[1].find(may_command)) and (  # type: ignore
-                    _head_find := command[0][1].find(head_text)
-                    ):  
-                        analyser.head_matched = True
-                        return _command_find if _command_find != may_command else True
+                        _head_find := command[0][1].find(head_text)
+                ):
+                    analyser.head_matched = True
+                    return _command_find if _command_find != may_command else True
             else:
                 if (_command_find := command[1].find(may_command)) and head_text in command[0][0]:  # type: ignore
                     analyser.head_matched = True
                     return _command_find if _command_find != may_command else True
 
     if not analyser.head_matched:
+        if _str and analyser.alconna.is_fuzzy_match:
+            headers_text = []
+            if analyser.alconna.headers and analyser.alconna.headers != [""]:
+                for i in analyser.alconna.headers:
+                    if isinstance(i, str):
+                        headers_text.append(i + analyser.alconna.command)
+                    else:
+                        headers_text.extend((f"{i}", analyser.alconna.command))
+            elif analyser.alconna.command:
+                headers_text.append(analyser.alconna.command)
+            if isinstance(command, ArgPattern):
+                source = head_text
+            else:
+                source = head_text + analyser.separator + str(may_command)  # noqa
+            for ht in headers_text:
+                res = levenshtein_norm(source, ht)
+                if res > 0.7:
+                    analyser.head_matched = True
+                    raise FuzzyMatchSuccess(
+                        f"{source} is not matched. "
+                        f"Are you mean \"{ht}\"?"
+                    )
         raise ParamsUnmatched(f"{head_text} dose not matched")
