@@ -9,8 +9,3 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
-  - package-ecosystem: "poetry"
-    directory: "/"
-    # Check for updates once a week
-    schedule:
-      interval: "weekly"
