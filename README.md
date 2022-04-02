@@ -36,7 +36,7 @@ from arclet.alconna import Alconna, Option, Subcommand, Args
 cmd = Alconna(
     "/pip",
     options=[
-        Subcommand("install", [Option("-u| --upgrade")], Args.pak_name[str]),
+        Subcommand("install", [Option("-u|--upgrade")], Args.pak_name[str]),
         Option("list"),
     ]
 )
@@ -53,39 +53,42 @@ print(result.get('install'))  # 或者 result.install
 
 QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
-## 用法
-通过阅读Alconna的签名可以得知，Alconna支持四大类参数：
- - `headers` : 呼叫该命令的命令头，一般是你的机器人的名字或者符号，与command至少有一个填写. 例如: /, !
- - `command` : 命令名称，你的命令的名字，与headers至少有一个填写
- - `options` : 命令选项，你的命令可选择的所有option,是一个包含Subcommand与Option的列表
- - `main_args` : 主参数，填入后当且仅当命令中含有该参数时才会成功解析
+## 特点
+* 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`
+* 精简、多样的构造方法
+* 强大的自动类型转换功能
+* 可传入同步与异步的action函数
+* 高度自定义的HelpFormat、Analyser
+* Duplication、FuzzyMatch等一众特性
 
-解析时，先判断命令头(即 headers + command),再判断options与main argument, 这里options与main argument在输入指令时是不分先后的
-
-假设有个Alconna如下:
+类型转换示范:
 ```python
-Alconna(
-    command="name",
-    main_args="main_args",
-    headers=["/"],
-    options=[
-        Subcommand(
-            "sub_name",
-            Option("sub_opt", sub_opt_arg="sub_arg"), 
-            sub_main_arg="sub_main_arg"
-        ),
-        Option("opt", opt_arg="opt_arg")
-    ],
-)
-```
-则它可以解析如下命令:
-```
-/name sub_name sub_opt sub_arg sub_main_arg opt arg main_args
-/name sub_name sub_main_arg opt arg main_argument
-/name main_args opt arg
-/name main_args
-```
-解析成功的命令的参数会保存在analysis_message方法返回的`Arpamar`实例中
+from arclet.alconna import Alconna, Args
+from pathlib import Path
 
-## 性能参考
-在 i5-10210U 处理器上, `Alconna` 的性能大约为 `31000~101000 msg/s`, 取决于 `Alconna` 的复杂程度
+read = Alconna(
+    "read", Args["data":bytes], 
+    action=lambda data: print(type(data))
+)
+
+read.parse(["read", b'hello'])
+read.parse("read test_fire.py")
+read.parse(["read", Path("test_fire.py")])
+
+'''
+<class 'bytes'>
+<class 'bytes'>
+<class 'bytes'>
+'''
+```
+
+模糊匹配示范:
+```python
+from arclet.alconna import Alconna
+alc = Alconna('!test_fuzzy', "foo:str", is_fuzzy_match=True)
+alc.parse("！test_fuzy foo bar")
+
+'''
+！test_fuzy not matched. Are you mean "!test_fuzzy"?
+'''
+```

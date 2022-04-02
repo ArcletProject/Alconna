@@ -105,3 +105,9 @@ print("alc12:", alc12.parse("test_str1 abcd 1234"))
 
 alc13 = Alconna("image", Args["@?--width":int:1920, "@?--height":int:1080])
 print("alc13:", alc13.parse("image --height=720"))
+
+alc14 = Alconna(main_args="foo:str", headers=['!test_fuzzy'], is_fuzzy_match=True)
+print(alc14.parse("test_fuzy foo bar"))
+
+alc15 = AlconnaString("my_string", "--foo <foo:str:'123'> [bar:bool]", "--bar &True")
+print(alc15.parse("my_string --foo 123 --bar"))

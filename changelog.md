@@ -1,3 +1,14 @@
+# Alconna 0.8.x:
+
+## Alconna 0.8.0:
+1. `Option`的`alias`现在需要传入List[str]，而不是str。
+2. `help_text`内置两个预选板块`Usage`和`Example`, 编写规则为`"xxx Usage:xxx; Example:xxx;"`。
+3. 加入`TypePattern`, 作用为简单的类型转换器, 其可以设置前置转换器, 即可以`str -> Path -> bytes`。
+4. 加入命令的模糊匹配, 在`Alconna`中传入`is_fuzzy_match`参数, 可以设置是否模糊匹配。
+5. `AlconnaString`参数规则修改, 现在`<xx>`表示必选, `[xx]`表示可选, `&xx`表示action的值。
+6. `ArgparseHelpTextFormatter`相关格式修改
+
+
 # Alconna 0.7.x:
 
 ## Alconna 0.7.0:
@@ -87,12 +98,11 @@
 6. `Format`中的format slot可以直接写入类型, 如`"{name: str}"`
 7. 修复Bug
 
-## Alconna 0.7.7 - 0.7.7.2
+## Alconna 0.7.7 - 0.7.7.4
 1. 加入`Argparser`风格的HelpFormatter
 2. 加入`AlconnaDuplication`, 旨在提供更好的解析结果使用
 3. option的name与alias现在会根据长度自动倒换
 4. 修复Bug
-
 
 # Alconna 0.6.x:
 
@@ -164,7 +174,6 @@
 1. help选项可用传入一自定义函数已达到直接发送帮助说明的效果
 2. 规范format方法；from_string现在可以用#加入帮助说明
 3. 加入commandManager，帮助管理所有命令；支持解析原始消息链
-
 
 # Alconna 0.4.x
 

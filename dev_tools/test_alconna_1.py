@@ -5,6 +5,7 @@ from arclet.alconna.component import Subcommand, Option
 from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.types import AnyIP, AnyDigit, AnyStr, AnyParam
 from graia.ariadne.message.chain import MessageChain
+from arclet.alconna.builtin.formatter import ArgParserHelpTextFormatter
 
 from graia.ariadne.message.element import At
 
@@ -55,7 +56,8 @@ pip = Alconna(
         Option("--exists-action", Args["action":str], help_text="添加行为"),
         Option("--trusted-host", Args["host_name":"url"], help_text="选择可信赖地址")
     ],
-    help_text="简单的pip指令"
+    help_text="简单的pip指令",
+    formatter=ArgParserHelpTextFormatter()
 )
 print(pip.get_help())
 msg = "/pip install ces --upgrade -t 6 --trusted-host http://pypi.douban.com/simple"
