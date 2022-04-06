@@ -27,7 +27,7 @@ class AlconnaDuplication:
             if key in target.options:
                 getattr(self, key).set_result(target.options[key])
         for key in self.__stubs__["subcommands"]:
-            if key in target.options:
+            if key in target.subcommands:
                 getattr(self, key).set_result(target.subcommands[key])
         return self
 

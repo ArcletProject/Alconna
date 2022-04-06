@@ -8,6 +8,9 @@
 5. `AlconnaString`参数规则修改, 现在`<xx>`表示必选, `[xx]`表示可选, `&xx`表示action的值。
 6. `ArgparseHelpTextFormatter`相关格式修改
 
+## Alconna 0.8.1:
+修复了一些严重的bug。
+
 
 # Alconna 0.7.x:
 

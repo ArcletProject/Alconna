@@ -122,8 +122,6 @@ class AlconnaDispatcher(BaseDispatcher):
         self.allow_quote = allow_quote
 
     async def beforeExecution(self, interface: DispatcherInterface):
-        event: MessageEvent = interface.event
-        app: Ariadne = get_running()
 
         async def reply_help_message(
                 origin: MessageChain,
@@ -131,8 +129,7 @@ class AlconnaDispatcher(BaseDispatcher):
                 help_text: Optional[str] = None,
                 source: Optional[MessageEvent] = None,
         ) -> AlconnaProperty[MessageChain, MessageEvent]:
-            source = source or event
-
+            app: Ariadne = get_running()
             if result.matched is False and help_text:
                 if self.help_flag == "reply":
                     help_message: MessageChain = await run_always_await_safely(self.help_handler, help_text)
@@ -143,10 +140,10 @@ class AlconnaDispatcher(BaseDispatcher):
                     return AlconnaProperty(origin, result, None, source)
                 if self.help_flag == "post":
                     dispatchers = resolve_dispatchers_mixin(
-                        [AlconnaHelpDispatcher(self.command, help_text, source), source.Dispatcher]
-                    )
+                        [source.Dispatcher]) + [AlconnaHelpDispatcher(self.command, help_text, source)]
                     for listener in interface.broadcast.default_listener_generator(AlconnaHelpMessage):
                         await interface.broadcast.Executor(listener, dispatchers=dispatchers)
+                        listener.oplog.clear()
                     return AlconnaProperty(origin, result, None, source)
             return AlconnaProperty(origin, result, help_text, source)
 
@@ -154,22 +151,25 @@ class AlconnaDispatcher(BaseDispatcher):
         if not self.allow_quote and message.has(Quote):
             raise ExecutionStop
         self.proxy.add_proxy(self.command, reply_help_message)
+        event: MessageEvent = interface.event
         try:
             await self.proxy.push_message(message, event, self.command)  # type: ignore
         except Exception as e:
             logger.warning(f"{self.command} error: {e}")
             raise ExecutionStop
-        local_storage: _AlconnaLocalStorage = interface.local_storage  # type: ignore
-        local_storage['alconna_result'] = await self.proxy.export_results.get()
+        finally:
+            local_storage: _AlconnaLocalStorage = interface.local_storage  # type: ignore
+            res = await self.proxy.export_results.get()
+            if not res.result.matched and not res.help_text:
+                if "-h" in str(res.origin):
+                    raise ExecutionStop
+                if self.skip_for_unmatch:
+                    raise ExecutionStop
+            local_storage['alconna_result'] = res
 
     async def catch(self, interface: DispatcherInterface):
         local_storage: _AlconnaLocalStorage = interface.local_storage  # type: ignore
         res = local_storage['alconna_result']
-        if not res.result.matched and not res.help_text:
-            if "-h" in str(res.origin):
-                raise ExecutionStop
-            if self.skip_for_unmatch:
-                raise ExecutionStop
         default_duplication = generate_duplication(self.command)
         default_duplication.set_target(res.result)
         if interface.annotation == AlconnaDuplication:

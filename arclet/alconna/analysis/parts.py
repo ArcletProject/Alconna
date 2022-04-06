@@ -8,6 +8,7 @@ from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from ..types import ArgPattern, AnyParam, AllParam, Empty, TypePattern
 from ..base import Args, ArgAction
 from ..util import levenshtein_norm
+from ..manager import command_manager
 
 
 def loop() -> asyncio.AbstractEventLoop:
@@ -308,6 +309,9 @@ def analyse_header(
                 source = head_text
             else:
                 source = head_text + analyser.separator + str(may_command)  # noqa
+            if command_manager.find(source):
+                analyser.head_matched = False
+                raise ParamsUnmatched(f"{head_text} dose not matched")
             for ht in headers_text:
                 res = levenshtein_norm(source, ht)
                 if res > 0.7:

@@ -3,7 +3,6 @@
 import re
 from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
 from .exceptions import DuplicateCommand, ExceedMaxCount
-from .analysis import compile as compile_analysis
 from .util import Singleton
 from .types import DataCollection
 
@@ -45,18 +44,27 @@ class CommandManager(metaclass=Singleton):
             command_parts.insert(0, self.default_namespace)
         return command_parts[0], command_parts[1]
 
-    def register(self, command: "Alconna") -> None:
+    def register(self, delegate: "Analyser") -> None:
         """注册命令"""
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
-        if command.namespace not in self.__commands:
-            self.__commands[command.namespace] = {}
-        cid = command.name.replace(self.sign, "")
-        if cid not in self.__commands[command.namespace]:
-            self.__commands[command.namespace][cid] = compile_analysis(command)
+        if delegate.alconna.namespace not in self.__commands:
+            self.__commands[delegate.alconna.namespace] = {}
+        cid = delegate.alconna.name.replace(self.sign, "")
+        if cid not in self.__commands[delegate.alconna.namespace]:
+            self.__commands[delegate.alconna.namespace][cid] = delegate
             self.current_count += 1
         else:
             raise DuplicateCommand("命令已存在")
+
+    def find(self, command: str) -> Optional["Alconna"]:
+        """查找命令"""
+        namespace, name = self._command_part(command)
+        try:
+            ana = self.__commands[namespace][name]
+        except KeyError:
+            return None
+        return ana.alconna
 
     def require(self, command: Union["Alconna", str]) -> "Analyser":
         """获取解析器"""

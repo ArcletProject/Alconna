@@ -80,7 +80,7 @@ m3 = Member(id=42425665, memberName="test3", permission="MEMBER", group=Group(id
 msg = MessageChain.create(f"!test --help")
 msg1 = MessageChain.create(f"!jrrp --help")
 ev = GroupMessage(sender=m1, messageChain=msg)
-ev1 = GroupMessage(sender=m2, messageChain=msg)
+ev1 = GroupMessage(sender=m2, messageChain=msg1)
 ev2 = GroupMessage(sender=m3, messageChain=msg)
 
 

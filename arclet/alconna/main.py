@@ -113,7 +113,7 @@ class Alconna(CommandNode):
         self.namespace = namespace or self.__cls_name__
         self.options.append(Option("--help", alias=["-h"], help_text="显示帮助信息"))
         self.analyser_type = analyser_type or self.default_analyser
-        command_manager.register(self)
+        command_manager.register(compile(self))
         self.__class__.__cls_name__ = "Alconna"
         self.behaviors = behaviors
         self.formatter = formatter or DefaultHelpTextFormatter()  # type: ignore
