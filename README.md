@@ -27,7 +27,7 @@ pip install --upgrade arclet-alconna
 
 文档链接: [👉指路](https://arcletproject.github.io/docs/alconna/tutorial)
 
-相关文档: [📚文档](https://graiax.cn/make_ero_bot/tutorials/6_4_alconna.html#_6-4-0-%E5%87%A1%E4%BA%8B%E9%83%BD%E8%A6%81%E5%85%88%E5%AE%89%E8%A3%85)
+相关文档: [📚文档](https://graiax.cn/guide/alconna.html#alconna)
 
 ## 简单使用
 ```python

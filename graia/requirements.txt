@@ -1,0 +1,3 @@
+arclet-alconna>=0.8.0.3
+graia-ariadne>=0.6.10
+graia-broadcast>=0.16.1
