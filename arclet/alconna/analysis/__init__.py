@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Union, Callable, Optional, List, Any, Tuple
 import traceback
 
 from .analyser import Analyser
-from .arg_handlers import multi_arg_handler, anti_arg_handler, common_arg_handler, union_arg_handler
+from .arg_handlers import multi_arg_handler, anti_arg_handler, common_arg_handler
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..component import Option, Subcommand
 from ..arpamar import Arpamar
@@ -38,11 +38,12 @@ class _DummyAnalyser(Analyser):
         cls.add_arg_handler(MultiArg, multi_arg_handler)
         cls.add_arg_handler(ArgPattern, common_arg_handler)
         cls.add_arg_handler(AntiArg, anti_arg_handler)
-        cls.add_arg_handler(UnionArg, union_arg_handler)
+        cls.add_arg_handler(UnionArg, common_arg_handler)
         cls.add_arg_handler(ObjectPattern, common_arg_handler)
         cls.add_arg_handler(SequenceArg, common_arg_handler)
         cls.add_arg_handler(MappingArg, common_arg_handler)
         cls.command_params = {}
+        cls.param_ids = []
         return super().__new__(cls)
 
     def analyse(self, message: Union[str, DataCollection, None] = None):
@@ -57,8 +58,7 @@ class _DummyAnalyser(Analyser):
 
 def analyse_args(
         args: Args,
-        command: Union[str, DataCollection],
-        sep: str = " "
+        command: Union[str, DataCollection]
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
@@ -66,7 +66,7 @@ def analyse_args(
     _analyser.is_raise_exception = True
     try:
         _analyser.handle_message(command)
-        return ala(_analyser, args, sep, len(args))
+        return ala(_analyser, args, len(args))
     except Exception as e:
         traceback.print_exception(AnalyseError, e, e.__traceback__)
 

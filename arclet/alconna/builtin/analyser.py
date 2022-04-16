@@ -10,7 +10,7 @@ from arclet.alconna.visitor import AlconnaNodeVisitor
 from arclet.alconna.analysis.analyser import Analyser
 from arclet.alconna.manager import command_manager
 from arclet.alconna.analysis.arg_handlers import (
-    multi_arg_handler, common_arg_handler, anti_arg_handler, union_arg_handler
+    multi_arg_handler, common_arg_handler, anti_arg_handler
 )
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
@@ -84,7 +84,7 @@ class DisorderCommandAnalyser(Analyser):
                 if not _param or _param is Ellipsis:
                     if not self.main_args:
                         self.main_args = analyse_args(
-                            self, self.self_args, self.separator, self.alconna.nargs, self.alconna.action
+                            self, self.self_args, self.alconna.nargs, self.alconna.action
                         )
                 elif isinstance(_param, Option):
                     if _param.name == "--help":
@@ -128,7 +128,7 @@ class DisorderCommandAnalyser(Analyser):
         if self.default_main_only and not self.main_args:
             self.main_args = analyse_args(
                 self, self.self_args,
-                self.separator, self.alconna.nargs, self.alconna.action
+                self.alconna.nargs, self.alconna.action
             )
 
         if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):
@@ -160,7 +160,7 @@ class DisorderCommandAnalyser(Analyser):
 
 DisorderCommandAnalyser.add_arg_handler(MultiArg, multi_arg_handler)
 DisorderCommandAnalyser.add_arg_handler(AntiArg, anti_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(UnionArg, union_arg_handler)
+DisorderCommandAnalyser.add_arg_handler(UnionArg, common_arg_handler)
 DisorderCommandAnalyser.add_arg_handler(ArgPattern, common_arg_handler)
 DisorderCommandAnalyser.add_arg_handler(ObjectPattern, common_arg_handler)
 DisorderCommandAnalyser.add_arg_handler(SequenceArg, common_arg_handler)

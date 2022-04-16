@@ -23,21 +23,21 @@ class Alconna(CommandNode):
 
     Examples:
 
-    >>> from arclet.alconna import Alconna
-    >>> alc = Alconna(
-    ...     headers=["h1", "h2"],
-    ...     command="name",
-    ...     options=[
-    ...         Option("opt", Args["opt_arg":"opt_arg"]),
-    ...         Subcommand(
-    ...             "sub_name",
-    ...             Option("sub_opt", Args["sub_arg":"sub_arg"]),
-    ...             args=Args["sub_main_args":"sub_main_args"]
-    ...         )
-    ...     ],
-    ...     main_args=Args["main_args":"main_args"],
-    ...  )
-    >>> alc.parse("name opt opt_arg")
+        >>> from arclet.alconna import Alconna
+        >>> alc = Alconna(
+        ...     headers=["h1", "h2"],
+        ...     command="name",
+        ...     options=[
+        ...         Option("opt", Args["opt_arg":"opt_arg"]),
+        ...         Subcommand(
+        ...             "sub_name",
+        ...             Option("sub_opt", Args["sub_arg":"sub_arg"]),
+        ...             args=Args["sub_main_args":"sub_main_args"]
+        ...         )
+        ...     ],
+        ...     main_args=Args["main_args":"main_args"],
+        ...  )
+        >>> alc.parse("name opt opt_arg")
 
 
     其中
@@ -128,24 +128,25 @@ class Alconna(CommandNode):
         """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
-        command_manager.register(self)
+        command_manager.register(compile(self))
         return self
 
     def reset_behaviors(self, behaviors: List[ArpamarBehavior]):
+        """重新设置解析行为器"""
         self.behaviors = behaviors
         return self
 
     def get_help(self) -> str:
-        """返回 help 文档"""
+        """返回该命令的帮助信息"""
         return AlconnaNodeVisitor(self).format_node(self.formatter)
 
     @classmethod
     def set_custom_types(cls, **types: Type):
-        """设置自定义类型"""
+        """设置Alconna内的自定义类型"""
         cls.custom_types = types
 
     def shortcut(self, short_key: str, command: str, reserve_args: bool = False):
-        """添加快捷键"""
+        """添加快捷命令"""
         command_manager.add_shortcut(self, short_key, command, reserve_args)
 
     def __repr__(self):
@@ -165,7 +166,7 @@ class Alconna(CommandNode):
         command_manager.delete(self)
         opt = Option(name, args, separator=sep, help_text=help_text)
         self.options.append(opt)
-        command_manager.register(self)
+        command_manager.register(compile(self))
         return self
 
     def set_action(self, action: Union[Callable, str, ArgAction], custom_types: Optional[Dict[str, Type]] = None):
@@ -246,7 +247,7 @@ class Alconna(CommandNode):
         if isinstance(other, Option):
             command_manager.delete(self)
             self.options.append(other)
-            command_manager.register(self)
+            command_manager.register(compile(self))
         return self
 
     def __add__(self, other):

@@ -6,6 +6,9 @@ from arclet.alconna.visitor import AbstractHelpTextFormatter
 
 
 class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
+    """
+    默认的帮助文本格式化器
+    """
     def format(self, trace: Dict[str, Union[str, List, Dict]]) -> str:
         parts = trace.pop('sub_nodes')
         header = self.header(trace)
@@ -111,6 +114,9 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
 
 
 class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
+    """
+    argparser 风格的帮助文本格式化器
+    """
     def format(self, trace: Dict[str, Union[str, List, Dict]]) -> str:
         parts: List[dict] = trace.pop('sub_nodes')  # type: ignore
         sub_names = [i['name'] for i in parts]

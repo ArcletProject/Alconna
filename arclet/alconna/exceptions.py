@@ -29,15 +29,13 @@ class ExceedMaxCount(Exception):
     """注册的命令数量超过最大长度"""
 
 
-class CancelBehave(Exception):
+class BehaveCancelled(Exception):
     """行为执行被停止"""
 
 
 class OutBoundsBehavior(Exception):
     """越界行为"""
-    pass
 
 
 class FuzzyMatchSuccess(Exception):
     """模糊匹配成功"""
-    pass

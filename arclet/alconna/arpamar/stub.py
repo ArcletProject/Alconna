@@ -9,6 +9,10 @@ T = TypeVar('T')
 
 
 class BaseStub(metaclass=ABCMeta):
+    """
+    基础的命令组件存根
+    """
+
     available: bool
     value: Any
     _origin: Any
@@ -32,6 +36,9 @@ class BaseStub(metaclass=ABCMeta):
 
 
 class ArgsStub(BaseStub):
+    """
+    参数存根
+    """
     _args_result: Dict[str, Any]
     _origin: Args
 
@@ -101,6 +108,9 @@ class ArgsStub(BaseStub):
 
 
 class OptionStub(BaseStub):
+    """
+    选项存根
+    """
     args: ArgsStub
     aliases: List[str]
     name: str
@@ -127,6 +137,9 @@ class OptionStub(BaseStub):
 
 
 class SubcommandStub(BaseStub):
+    """
+    子命令存根
+    """
     args: ArgsStub
     options: List[OptionStub]
     name: str

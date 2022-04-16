@@ -2,8 +2,7 @@ import re
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable
 
-from arclet.alconna import NullTextMessage, UnexpectedElement
-
+from ..exceptions import NullTextMessage, UnexpectedElement
 from ..base import Args
 from ..component import Option, Subcommand
 from ..arpamar import Arpamar
@@ -51,6 +50,7 @@ class Analyser(metaclass=ABCMeta):
     ARGHANDLER_TYPE = Callable[["Analyser", Union[str, DataUnit], str, Type, Any, int, str, Dict[str, Any], bool], Any]
     arg_handlers: Dict[Type, ARGHANDLER_TYPE]
     filter_out: List[str]  # 元素黑名单
+    temporary_data: Dict[str, Any]  # 临时数据
 
     def __init_subclass__(cls, **kwargs):
         cls.arg_handlers = {}
@@ -156,6 +156,7 @@ class Analyser(metaclass=ABCMeta):
         self.options = {}
         self.main_args = {}
         self.subcommands = {}
+        self.temporary_data = {}
         self.header = None
         self.raw_data = {}
         self.head_matched = False
@@ -163,6 +164,7 @@ class Analyser(metaclass=ABCMeta):
 
     def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
+        self.temporary_data.pop("separator", None)
         if self.current_index == self.ndata:
             return "", True
         _current_data = self.raw_data[self.current_index]
@@ -173,6 +175,7 @@ class Analyser(metaclass=ABCMeta):
                 _text, _rest_text = split_once(_text, separate)
             if pop:
                 if _rest_text:  # 这里实际上还是pop了
+                    self.temporary_data["separator"] = separate
                     self.raw_data[self.current_index][self.content_index] = _rest_text
                 else:
                     self.content_index += 1
@@ -210,7 +213,10 @@ class Analyser(metaclass=ABCMeta):
         else:
             _current_data = self.raw_data[self.current_index]
             if isinstance(_current_data, list) and isinstance(data, str):
-                self.content_index -= 1
+                if sep := self.temporary_data.get("separator", None):
+                    _current_data[self.content_index] = f"{data}{sep}{_current_data[self.content_index]}"
+                else:
+                    self.content_index -= 1
             else:
                 self.current_index -= 1
 

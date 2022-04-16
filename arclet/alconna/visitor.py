@@ -13,6 +13,11 @@ if TYPE_CHECKING:
 
 
 class AbstractHelpTextFormatter(metaclass=ABCMeta):
+    """
+    帮助文档格式化器
+
+    该格式化器负责将传入的命令节点字典解析并生成帮助文档字符串
+    """
 
     @abstractmethod
     def format(self, trace: Dict[str, Union[str, List, Dict]]) -> str:
@@ -90,6 +95,8 @@ class _BaseNode:
 class AlconnaNodeVisitor:
     """
     命令节点访问器
+
+    该访问器会读取Alconna内的命令节点, 并转为节点树
     """
     name_list: List[str]
     node_map: Dict[int, _BaseNode]
@@ -129,6 +136,9 @@ class AlconnaNodeVisitor:
             self.node_map[0].sub_nodes.append(new_id)
 
     def require(self, path: Optional[Union[str, List[str]]] = None) -> _BaseNode:
+        """
+        依据指定路径获取节点
+        """
         _cache_name = ""
         _cache_node = self.node_map[0]
         if path is None:
@@ -169,6 +179,9 @@ class AlconnaNodeVisitor:
         }
 
     def format_node(self, formatter: AbstractHelpTextFormatter, node: Optional[_BaseNode] = None) -> str:
+        """
+        通过格式化器格式化节点
+        """
         if not node:
             node = self.node_map[0]
         return formatter.format(self.trace_nodes(node))

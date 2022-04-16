@@ -30,15 +30,15 @@ time.sleep(0.1)
 print(analyse_args(arg3, "d"))  # error
 
 print("\nArgs Feature: Multi")
-arg4 = Args["*multi":str]
+arg4 = Args["multi;S":str]
 print("arg4:", arg4)
 print(analyse_args(arg4, "a b c d"))
-arg44 = Args["**kwargs":str]
+arg44 = Args["kwargs;W":str]
 print("arg44:", arg44)
 print(analyse_args(arg44, "a=b c=d"))
 
 print("\nArgs Feature: Anti")
-arg5 = Args["!anti":r"(.+?)/(.+?)\.py"]
+arg5 = Args["anti;A":r"(.+?)/(.+?)\.py"]
 print("arg5:", arg5)
 print(analyse_args(arg5, "a/b.mp3"))  # OK
 time.sleep(0.1)
@@ -52,17 +52,17 @@ time.sleep(0.1)
 print(analyse_args(arg6, "1"))  # OK
 
 print("\nArgs Feature: Force")
-arg7 = Args["#bar":bool]
+arg7 = Args["bar;F":bool]
 print("arg7:", arg7)
 print(analyse_args(arg7, "True"))  # error
 
 print("\nArgs Feature: Optional")
-arg8 = Args["?bar":int]
+arg8 = Args["bar;O":int]
 print("arg8:", arg8)
 print(analyse_args(arg8, "abc"))  # OK
 
 print("\nArgs Feature: KWord")
-arg9 = Args["@bar":int]
+arg9 = Args["bar;K":int]
 print("arg9:", arg9)
 print(analyse_args(arg9, "bar=123"))  # OK
 print(analyse_args(arg9, "123"))  # error

@@ -9,6 +9,7 @@ R = TypeVar('R')
 
 
 class Singleton(type):
+    """单例模式"""
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
@@ -121,6 +122,7 @@ def levenshtein_norm(source: str, target: str) -> float:
 
 
 def levenshtein(source: str, target: str) -> int:
+    """编辑距离算法的具体内容"""
     s_range = range(len(source) + 1)
     t_range = range(len(target) + 1)
     matrix = [[(i if j == 0 else j) for j in t_range] for i in s_range]

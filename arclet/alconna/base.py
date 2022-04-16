@@ -1,7 +1,8 @@
 """Alconna 的基础内容相关"""
-
+import asyncio
 import re
 import inspect
+from enum import Enum
 from types import LambdaType
 from typing import Union, Tuple, Type, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, \
     MutableSequence, TypedDict
@@ -15,15 +16,56 @@ TAValue = Union[ArgPattern, TypePattern, Type[DataUnit], _AnyParam]
 TADefault = Union[Any, DataUnit, Empty]
 
 
+class ArgFlag(str, Enum):
+    """
+    参数标记
+    """
+
+    VAR_POSITIONAL = "S"  # '*'
+    """可变长非键值对参数"""
+
+    VAR_KEYWORD = "W"  # '**'
+    """可变长键值对参数"""
+
+    OPTIONAL = 'O'  # '?'
+    """可选参数"""
+
+    KWONLY = 'K'  # '@'
+    """键值对参数"""
+
+    HIDDEN = "H"  # '_'
+    """隐藏类型参数"""
+
+    FORCE = "F"  # '#'
+    """强制类型参数"""
+
+    ANTI = "A"  # '!'
+    """反向类型参数"""
+
+
 class ArgUnit(TypedDict):
+    """
+    参数单元
+    """
+
     value: TAValue
+    """参数值"""
+
     default: TADefault
+    """默认值"""
+
     optional: bool
+    """是否可选"""
+
     kwonly: bool
+    """是否键值对参数"""
+
     hidden: bool
+    """是否隐藏类型参数"""
 
 
 class ArgsMeta(type):
+    """Args 类的元类"""
 
     def __init__(cls, name, bases, attrs):
         super().__init__(name, bases, attrs)
@@ -54,7 +96,7 @@ class ArgsMeta(type):
         args = cls(args=slices)
         iters = list(filter(lambda x: isinstance(x, (list, tuple)), item))
         items = list(filter(lambda x: not isinstance(x, slice), item))
-        iters += list(map(lambda x: (x, ), filter(lambda x: isinstance(x, str), item)))
+        iters += list(map(lambda x: (x,), filter(lambda x: isinstance(x, str), item)))
         if items:
             if cls.selecting:
                 args.__setitem__(cls.last_key, items)
@@ -76,6 +118,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     var_positional: Optional[Tuple[str, MultiArg]]
     var_keyword: Optional[Tuple[str, MultiArg]]
     optional_count: int
+    separator: str
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -86,8 +129,8 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             args: 字符串列表
             custom_types: 自定义的类型
 
-        Example:
-            Args.from_string_list([["foo", "str"], ["bar", "digit", "123"]], {"digit":int})
+        Examples:
+            >>> Args.from_string_list([["foo", "str"], ["bar", "digit", "123"]], {"digit":int})
         """
         _args = cls()
         for arg in args:
@@ -99,7 +142,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             value = AllParam if arg[0].startswith("...") else (
                 AnyParam if arg[0].startswith("..") else (
                     arg[1].strip(" ") if _le > 1 else arg[0].lstrip(".-"))
-                )
+            )
             name = arg[0].replace("...", "").replace("..", "")
 
             if not isinstance(value, AnyParam.__class__):
@@ -115,7 +158,17 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     @classmethod
     def from_callable(cls, target: Callable, extra: Literal["allow", "ignore", "reject"] = "allow"):
         """
-        从方法中构造Args
+        从可调用函数中构造Args
+
+        Args:
+            target: 可调用函数
+            extra: 额外类型检查的策略
+
+        Examples:
+            >>> def test(a: str, b: int, c: float = 0.0, *, d: str, e: int = 0, f: float = 0.0):
+            ...     pass
+            >>> Args.from_callable(test)
+
         """
         sig = inspect.signature(target)
         _args = cls(extra=extra)
@@ -134,9 +187,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             elif de is None:
                 de = inspect.Signature.empty
             if param.kind == param.VAR_POSITIONAL:
-                name = "*" + name
+                name += ";S"
             if param.kind == param.VAR_KEYWORD:
-                name = "**" + name
+                name += ";W"
             _args.__merge__([name, anno, de])
         return _args, method
 
@@ -144,6 +197,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             self,
             args: Optional[Union[List[slice], Sequence]] = None,
             extra: Literal["allow", "ignore", "reject"] = "allow",
+            separator: str = " ",
             **kwargs: TAValue
     ):
         """
@@ -151,25 +205,37 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
         Args:
             args: 应传入 slice|tuple, 代表key、value、default
-            kwargs: 传入key与value; default需要另外传入
+            extra: 额外类型检查的策略
+            separator: 参数分隔符
+            kwargs: 其他参数
         """
         self.extra = extra
         self.var_positional = None
         self.var_keyword = None
         self.optional_count = 0
+        self.separator = separator
         self.argument = {  # type: ignore
-            k: {"value": argument_type_validator(v), "default": None, 'optional': False, 'hidden': False, 'kwonly': False}
+            k: {
+                "value": argument_type_validator(v),
+                "default": None, 'optional': False,
+                'hidden': False, 'kwonly': False
+            }
             for k, v in kwargs.items()
         }
         self.__check_vars__(args or [])
 
-    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional_count"
+    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separator"
 
     def default(self, **kwargs: TADefault):
         """设置参数的默认值"""
         for k, v in kwargs.items():
             if self.argument.get(k):
                 self.argument[k]['default'] = v
+        return self
+
+    def separate(self, separator: str):
+        """设置参数的分隔符"""
+        self.separator = separator
         return self
 
     def __check_vars__(self, args: Iterable[Union[slice, Sequence]]):
@@ -180,53 +246,65 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 name, value, default = sl[0], sl[1] if len(sl) > 1 else sl[0], sl[2] if len(sl) > 2 else None
             if not isinstance(name, str):
                 raise InvalidParam("参数的名字只能是字符串")
-            if name == "":
+            if not name.strip():
                 raise InvalidParam("该参数的指示名不能为空")
-            if not name.startswith("#"):
-                _value = argument_type_validator(value, self.extra)
-            else:
-                name = name.lstrip("#")
-                _value = value if not isinstance(value, str) else ArgPattern(value)
+            _value = argument_type_validator(value, self.extra)
             if isinstance(_value, (Sequence, MutableSequence)):
                 if len(_value) == 2 and Empty in _value:
                     _value.remove(Empty)
                     _value = _value[0]
                     default = Empty if default is None else default
                 else:
-                    _value = UnionArg(_value, anti=name.startswith("!"))
-            if name.startswith("**"):
-                name = name.lstrip("**").replace("@", "").replace("?", "")
-                if self.var_keyword:
-                    raise InvalidParam("不能同时设置多个键值对可变参数")
-                if not isinstance(_value, (_AnyParam, UnionArg)):
-                    _value = MultiArg(_value, flag='kwargs')
-                    self.var_keyword = (name, _value)
-            elif name.startswith("*"):
-                name = name.lstrip("*").replace("@", "").replace("?", "")
-                if self.var_positional:
-                    raise InvalidParam("不能同时设置多个非键值对可变参数")
-                if not isinstance(_value, (_AnyParam, UnionArg)):
-                    _value = MultiArg(_value)
-                    self.var_positional = (name, _value)
-            elif name.startswith("!"):
-                name = name.lstrip("!")
-                if not isinstance(_value, (_AnyParam, UnionArg)):
-                    _value = AntiArg(_value)
+                    _value = UnionArg(_value)
             if default in ("...", Ellipsis):
                 default = Empty
             if _value is Empty:
                 raise InvalidParam(f"{name} 的参数值不能为Empty")
             _addition = {'optional': False, 'hidden': False, 'kwonly': False}
-            if "?" in name:
-                name = name.replace("?", "")
-                _addition['optional'] = True
-                self.optional_count += 1
-            if "@" in name:
-                name = name.replace("@", "")
-                _addition['kwonly'] = True
-            if name.startswith("_"):
-                name = name.lstrip("_")
-                _addition['hidden'] = True
+            if res := re.match(r"^.+?;(?P<flag>.+?)$", name):
+                flags = res.group("flag").split("|")
+                name = name.replace(f";{res.group('flag')}", "")
+                _limit = False
+                for flag in flags:
+                    if flag == ArgFlag.FORCE and not _limit:
+                        _value = value if not isinstance(value, str) else ArgPattern(value)
+                        _limit = True
+                    if flag == ArgFlag.ANTI and not _limit:
+                        if isinstance(_value, UnionArg):
+                            _value.anti = True
+                        elif not isinstance(_value, _AnyParam):
+                            _value = AntiArg(_value)
+                        _limit = True
+                    if flag == ArgFlag.VAR_KEYWORD and not _limit:
+                        if self.var_keyword:
+                            raise InvalidParam("不能同时设置多个键值对可变参数")
+                        if not isinstance(_value, (_AnyParam, UnionArg)):
+                            _value = MultiArg(_value, flag='kwargs')
+                            self.var_keyword = (name, _value)
+                        _limit = True
+                    if flag == ArgFlag.VAR_POSITIONAL and not _limit:
+                        if self.var_positional:
+                            raise InvalidParam("不能同时设置多个非键值对可变参数")
+                        if not isinstance(_value, (_AnyParam, UnionArg)):
+                            _value = MultiArg(_value)
+                            self.var_positional = (name, _value)
+                    if flag.isdigit() and not _limit:
+                        if self.var_positional:
+                            raise InvalidParam("不能同时设置多个非键值对可变参数")
+                        if not isinstance(_value, (_AnyParam, UnionArg)):
+                            _value = MultiArg(_value, array_length=int(flag))
+                            self.var_positional = (name, _value)
+                    if flag == ArgFlag.OPTIONAL:
+                        if self.var_keyword or self.var_positional:
+                            raise InvalidParam("该选项不能与可变参数同时使用")
+                        _addition['optional'] = True
+                        self.optional_count += 1
+                    if flag == ArgFlag.HIDDEN:
+                        _addition['hidden'] = True
+                    if flag == ArgFlag.KWONLY:
+                        if self.var_keyword or self.var_positional:
+                            raise InvalidParam("该选项不能与可变参数同时使用")
+                        _addition['kwonly'] = True
             self.argument[name] = {"value": _value, "default": default}  # type: ignore
             self.argument[name].update(_addition)  # type: ignore
 
@@ -277,6 +355,10 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     def __lshift__(self, other) -> "Args":
         return self.__merge__(other)
+
+    def __truediv__(self, other):
+        self.separate(other)
+        return self
 
     def __repr__(self):
         if not self.argument:
@@ -351,7 +433,6 @@ class ArgAction:
     Attributes:
         action: 实际的function
     """
-    awaitable: bool
     action: Callable[..., Any]
 
     def __init__(self, action: Callable):
@@ -362,41 +443,41 @@ class ArgAction:
             action: (...) -> Sequence
         """
         self.action = action
-        self.awaitable = inspect.iscoroutinefunction(action)
+
+    @staticmethod
+    def _loop() -> asyncio.AbstractEventLoop:
+        try:
+            return asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.get_event_loop()
 
     def handle(
             self,
             option_dict: dict,
-            varargs: List,
-            kwargs: Dict,
-            is_raise_exception: bool
+            varargs: Optional[List] = None,
+            kwargs: Optional[Dict] = None,
+            is_raise_exception: bool = False,
     ):
-        try:
-            additional_values = self.action(*option_dict.values(), *varargs, **kwargs)
-            if additional_values is None:
-                return option_dict
-            if not isinstance(additional_values, Sequence):
-                option_dict['result'] = additional_values
-                return option_dict
-            for i, k in enumerate(option_dict.keys()):
-                if i == len(additional_values):
-                    break
-                option_dict[k] = additional_values[i]
-        except Exception as e:
-            if is_raise_exception:
-                raise e
-        return option_dict
+        """
+        处理action
 
-    async def handle_async(
-            self,
-            option_dict: dict,
-            varargs: List,
-            kwargs: Dict,
-            is_raise_exception: bool
-    ):
+        Args:
+            option_dict: 参数字典
+            varargs: 可变参数
+            kwargs: 关键字参数
+            is_raise_exception: 是否抛出异常
+        """
         try:
-            additional_values = await self.action(*option_dict.values(), *varargs, **kwargs)
-            if additional_values is None:
+            if inspect.iscoroutinefunction(self.action):
+                loop = self._loop()
+                if loop.is_running():
+                    loop.create_task(self.action(*option_dict.values(), *varargs, **kwargs))
+                    return option_dict
+                else:
+                    additional_values = loop.run_until_complete(self.action(*option_dict.values(), *varargs, **kwargs))
+            else:
+                additional_values = self.action(*option_dict.values(), *varargs, **kwargs)
+            if not additional_values:
                 return option_dict
             if not isinstance(additional_values, Sequence):
                 option_dict['result'] = additional_values
@@ -436,12 +517,14 @@ class CommandNode:
             help_text: Optional[str] = None,
     ):
         """
-        初始化命令体
+        初始化命令节点
 
         Args:
-            name(str): 命令名称
-            args(Args): 命令参数
-            action(ArgAction): 命令动作
+            name(str): 命令节点名称
+            args(Args): 命令节点参数
+            action(ArgAction): 命令节点响应动作
+            separator(str): 命令分隔符
+            help_text(str): 命令帮助信息
         """
         if name == "":
             raise InvalidParam("该指令的名字不能为空")
@@ -452,7 +535,7 @@ class CommandNode:
             self.args = Args()
         elif isinstance(args, str):
             self.args = Args.from_string_list(
-                [re.split("[:|=]", p) for p in re.split(r"\s*,\s*", args)], {}
+                [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
             )
         else:
             self.args = args

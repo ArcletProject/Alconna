@@ -51,8 +51,9 @@ class AlconnaHelpMessage(Dispatchable):
 
 class GraiaAMP(AlconnaMessageProxy):
     pre_treatments: Dict[
-        Alconna, Callable[[MessageChain, Arpamar, Optional[str], Optional[MessageEvent]],
-                          Coroutine[None, None, AlconnaProperty[MessageChain, MessageEvent]]
+        Alconna, Callable[
+            [MessageChain, Arpamar, Optional[str], Optional[MessageEvent]],
+            Coroutine[None, None, AlconnaProperty[MessageChain, MessageEvent]]
         ]
     ]
 
@@ -66,7 +67,7 @@ class GraiaAMP(AlconnaMessageProxy):
         @self.broadcast.prelude_dispatchers.append
         class ExportResultDispatcher(BaseDispatcher):
             @staticmethod
-            async def catch(interface: DispatcherInterface):
+            async def catch(interface: DispatcherInterface):  # noqa
                 if issubclass(interface.annotation, AlconnaProperty):
                     return await _queue.get()
                 if interface.annotation == Arpamar:

@@ -9,6 +9,9 @@ if TYPE_CHECKING:
 
 
 class AlconnaDuplication:
+    """
+    用以更方便的检查、调用解析结果的类。
+    """
     __target: 'Arpamar'
 
     @property
@@ -62,6 +65,9 @@ class AlconnaDuplication:
 
 
 def generate_duplication(command: "Alconna") -> AlconnaDuplication:
+    """
+    依据给定的命令生成一个解析结果的检查类。
+    """
     options = filter(lambda x: isinstance(x, Option), command.options)
     subcommands = filter(lambda x: isinstance(x, Subcommand), command.options)
     return cast(AlconnaDuplication, type(

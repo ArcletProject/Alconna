@@ -13,7 +13,9 @@ if TYPE_CHECKING:
 
 class CommandManager(metaclass=Singleton):
     """
-    命令管理器
+    Alconna 命令管理器
+
+    命令管理器负责记录命令, 并存储快捷指令。
     """
     sign: str = "ALCONNA::"
     default_namespace: str = "Alconna"
@@ -21,7 +23,7 @@ class CommandManager(metaclass=Singleton):
     __commands: Dict[str, Dict[str, "Analyser"]]
     __abandons: List["Alconna"]
     current_count: int
-    max_count: int = 100
+    max_count: int = 200
 
     def __init__(self):
 
@@ -34,7 +36,8 @@ class CommandManager(metaclass=Singleton):
         self.__abandons = []
 
     @property
-    def all_namespace(self):
+    def get_loaded_namespaces(self):
+        """获取所有命名空间"""
         return list(self.__commands.keys())
 
     def _command_part(self, command: str) -> Tuple[str, str]:
@@ -45,7 +48,7 @@ class CommandManager(metaclass=Singleton):
         return command_parts[0], command_parts[1]
 
     def register(self, delegate: "Analyser") -> None:
-        """注册命令"""
+        """注册命令解析器, 会同时记录解析器对应的命令"""
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         if delegate.alconna.namespace not in self.__commands:
@@ -57,17 +60,8 @@ class CommandManager(metaclass=Singleton):
         else:
             raise DuplicateCommand("命令已存在")
 
-    def find(self, command: str) -> Optional["Alconna"]:
-        """查找命令"""
-        namespace, name = self._command_part(command)
-        try:
-            ana = self.__commands[namespace][name]
-        except KeyError:
-            return None
-        return ana.alconna
-
     def require(self, command: Union["Alconna", str]) -> "Analyser":
-        """获取解析器"""
+        """获取命令解析器"""
         if isinstance(command, str):
             namespace, name = self._command_part(command)
             try:
@@ -86,6 +80,7 @@ class CommandManager(metaclass=Singleton):
             namespace, name = self._command_part(command)
             try:
                 del self.__commands[namespace][name]
+                self.current_count -= 1
             finally:
                 if self.__commands[namespace] == {}:
                     del self.__commands[namespace]
@@ -94,6 +89,7 @@ class CommandManager(metaclass=Singleton):
         namespace = command.namespace
         try:
             del self.__commands[namespace][cid]
+            self.current_count -= 1
         finally:
             if self.__commands[namespace] == {}:
                 del self.__commands[namespace]
@@ -158,12 +154,12 @@ class CommandManager(metaclass=Singleton):
 
     def get_command(self, command: str) -> Union["Alconna", None]:
         """获取命令"""
-        command_parts = self._command_part(command)
-        if command_parts[0] not in self.__commands:
+        namespace, name = self._command_part(command)
+        if namespace not in self.__commands:
             return None
-        if command_parts[1] not in self.__commands[command_parts[0]]:
+        if name not in self.__commands[namespace]:
             return None
-        return self.__commands[command_parts[0]][command_parts[1]].alconna
+        return self.__commands[namespace][name].alconna
 
     def get_commands(self, namespace: Optional[str] = None) -> List["Alconna"]:
         """获取命令列表"""
@@ -174,7 +170,7 @@ class CommandManager(metaclass=Singleton):
         return [alc.alconna for alc in self.__commands[namespace].values()]
 
     def broadcast(self, command: Union[str, DataCollection], namespace: Optional[str] = None):
-        """广播命令"""
+        """将一段命令广播给当前空间内的所有命令"""
         command = str(command)
         may_command_head = command.split(" ")[0]
         if namespace is None:
@@ -201,6 +197,17 @@ class CommandManager(metaclass=Singleton):
             max_length: int = -1,
             page: int = 1,
     ) -> str:
+        """
+        获取所有命令的帮助信息
+
+        Args:
+            namespace: 指定的命名空间, 如果为None则选择所有命令
+            header: 帮助信息的页眉
+            pages: 帮助信息的页码
+            footer: 帮助信息的页脚
+            max_length: 单个页面展示的最大长度
+            page: 当前页码
+        """
         header = header or "# 当前可用的命令有:"
         pages = pages or "第 %d/%d 页"
         if pages.count("%d") != 2:

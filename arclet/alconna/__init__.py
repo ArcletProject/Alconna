@@ -10,14 +10,14 @@ from .arpamar.stub import ArgsStub, SubcommandStub, OptionStub
 from .types import (
     DataUnit, DataCollection, AnyParam, AllParam, Empty,
     AnyStr, AnyIP, AnyUrl, AnyDigit, AnyFloat, Bool, PatternToken, Email, ObjectPattern,
-    add_check
+    set_converter, pattern
 )
 from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, UnexpectedElement
 from .analysis import compile, analyse, analyse_args, analyse_header, analyse_option, analyse_subcommand
 from .main import Alconna
 from .manager import command_manager
 from .builtin.actions import store_value, require_help_send_action, set_default, exclusion, cool_down
-from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, AlconnaFire
+from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, AlconnaFire, delegate
 from .builtin.formatter import ArgParserHelpTextFormatter, DefaultHelpTextFormatter
 from .visitor import AlconnaNodeVisitor, AbstractHelpTextFormatter
 
@@ -29,7 +29,7 @@ disable_command = command_manager.set_disable
 enable_command = command_manager.set_enable
 get_command = command_manager.get_command
 get_commands = command_manager.get_commands
-alconna_version = (0, 8, 0)
+alconna_version = (0, 8, 2)
 
 if TYPE_CHECKING:
     from .builtin.actions import version

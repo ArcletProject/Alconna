@@ -1,4 +1,4 @@
-from arclet.alconna.types import ObjectPattern, add_check, ArgPattern, PatternToken
+from arclet.alconna.types import ObjectPattern, set_converter, ArgPattern, PatternToken
 from arclet.alconna import AlconnaFire
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.message.element import Plain, Image, At, MusicShare
@@ -6,7 +6,7 @@ from graia.ariadne.app import Ariadne, MiraiSession
 
 bot = Ariadne(connect_info=MiraiSession(host="http://localhost:8080", verify_key="1234567890abcdef", account=123456789))
 
-add_check(ArgPattern("ariadne", PatternToken.REGEX_TRANSFORM, Ariadne, lambda x: bot, 'app'))
+set_converter(ArgPattern("ariadne", PatternToken.REGEX_TRANSFORM, Ariadne, lambda x: bot, 'app'))
 ObjectPattern(Plain, limit=("text",))
 ObjectPattern(Image, limit=("url",))
 ObjectPattern(At, limit=("target",))

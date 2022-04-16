@@ -1,6 +1,5 @@
 import re
-from typing import Iterable, Union, Optional, List, Any, Dict, cast
-import asyncio
+from typing import Iterable, Union, Optional, List, Any, Dict
 
 from .analyser import Analyser
 from ..component import Option, Subcommand
@@ -11,17 +10,9 @@ from ..util import levenshtein_norm
 from ..manager import command_manager
 
 
-def loop() -> asyncio.AbstractEventLoop:
-    try:
-        return asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.get_event_loop()
-
-
 def analyse_args(
         analyser: Analyser,
         opt_args: Args,
-        sep: str,
         nargs: int,
         action: Optional[ArgAction] = None,
 ) -> Dict[str, Any]:
@@ -31,7 +22,6 @@ def analyse_args(
     Args:
         analyser: 使用的分析器
         opt_args: 目标Args
-        sep: 当前命令节点的分隔符
         nargs: Args参数个数
         action: 当前命令节点的ArgAction
 
@@ -39,6 +29,7 @@ def analyse_args(
         Dict: 解析结果
     """
     option_dict: Dict[str, Any] = {}
+    sep = opt_args.separator
     for key, arg in opt_args.argument.items():
         value = arg['value']
         default = arg['default']
@@ -49,16 +40,20 @@ def analyse_args(
             _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
             if not _kwarg:
                 analyser.reduce_data(may_arg)
-                if analyser.is_raise_exception:
+                if default is None and analyser.is_raise_exception:
                     raise ParamsUnmatched(f"{may_arg} missing its key. Do you forget to add '{key}='?")
+                else:
+                    option_dict[key] = None if default is Empty else default
                 continue
             may_arg = _kwarg[0]
             if may_arg == '':
                 may_arg, _str = analyser.next_data(sep)
                 if _str:
                     analyser.reduce_data(may_arg)
-                    if analyser.is_raise_exception:
+                    if default is None and analyser.is_raise_exception:
                         raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
+                    else:
+                        option_dict[key] = None if default is Empty else default
                     continue
         if may_arg in analyser.param_ids:
             analyser.reduce_data(may_arg)
@@ -75,7 +70,7 @@ def analyse_args(
                 optional
             )
         elif value.__class__ is TypePattern:
-            arg_find = value.find(may_arg)
+            arg_find = value.match(may_arg)
             if not arg_find:
                 analyser.reduce_data(may_arg)
                 if default is None:
@@ -137,17 +132,10 @@ def analyse_args(
         else:
             addition_kwargs = kwargs
             result_dict.update(analyser.alconna.local_args)
-        if action.awaitable:
-            if loop().is_running():
-                option_dict = cast(Dict, loop().create_task(
-                    action.handle_async(result_dict, varargs, addition_kwargs, analyser.is_raise_exception)
-                ))
-            else:
-                option_dict = loop().run_until_complete(
-                    action.handle_async(result_dict, varargs, addition_kwargs, analyser.is_raise_exception)
-                )
-        else:
-            option_dict = action.handle(result_dict, varargs, addition_kwargs, analyser.is_raise_exception)
+        option_dict = action.handle(
+            result_dict, varargs, addition_kwargs,
+            analyser.is_raise_exception
+        )
         if opt_args.var_keyword:
             option_dict.update({opt_args.var_keyword[0]: kwargs})
         if opt_args.var_positional:
@@ -172,24 +160,13 @@ def analyse_option(
     name = param.name.lstrip("-")
     if param.nargs == 0:
         if param.action:
-            if param.action.awaitable:
-                if loop().is_running():
-                    r = loop().create_task(
-                        param.action.handle_async(
-                            {}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception
-                        )
-                    )
-                else:
-                    r = loop().run_until_complete(
-                        param.action.handle_async(
-                            {}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception
-                        )
-                    )
-            else:
-                r = param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)
+            r = param.action.handle(
+                {}, [], analyser.alconna.local_args.copy(),
+                analyser.is_raise_exception
+            )
             return [name, r]
         return [name, Ellipsis]
-    return [name, analyse_args(analyser, param.args, param.separator, param.nargs, param.action)]
+    return [name, analyse_args(analyser, param.args, param.nargs, param.action)]
 
 
 def analyse_subcommand(
@@ -209,21 +186,10 @@ def analyse_subcommand(
     name = name.lstrip("-")
     if param.sub_part_len.stop == 0:
         if param.action:
-            if param.action.awaitable:
-                if loop().is_running():
-                    r = loop().create_task(
-                        param.action.handle_async(
-                            {}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception
-                        )
-                    )
-                else:
-                    r = loop().run_until_complete(
-                        param.action.handle_async(
-                            {}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception
-                        )
-                    )
-            else:
-                r = param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)
+            r = param.action.handle(
+                {}, [], analyser.alconna.local_args.copy(),
+                analyser.is_raise_exception
+            )
             return [name, r]
         return [name, Ellipsis]
 
@@ -246,7 +212,7 @@ def analyse_subcommand(
                 subcommand[opt_n] = [subcommand[opt_n], opt_v]
             else:
                 subcommand[opt_n].append(opt_v)
-        elif not args and (args := analyse_args(analyser, param.args, param.separator, param.nargs, param.action)):
+        elif not args and (args := analyse_args(analyser, param.args, param.nargs, param.action)):
             subcommand.update(args)
     if need_args and not args:
         raise ArgumentMissing(f"\"{name}\" subcommand missed its args")
@@ -268,7 +234,7 @@ def analyse_header(
     separator = analyser.separator
     head_text, _str = analyser.next_data(separator)
     if isinstance(command, ArgPattern):
-        if _str and (_head_find := command.find(head_text)):
+        if _str and (_head_find := command.match(head_text)):
             analyser.head_matched = True
             return _head_find if _head_find != head_text else True
     else:
@@ -276,21 +242,21 @@ def analyse_header(
         if _m_str:
             if isinstance(command, List) and not _str:
                 for _command in command:
-                    if (_head_find := _command[1].find(may_command)) and head_text == _command[0]:
+                    if (_head_find := _command[1].match(may_command)) and head_text == _command[0]:
                         analyser.head_matched = True
                         return _head_find if _head_find != may_command else True
             elif isinstance(command[0], list) and not _str:
-                if (_head_find := command[1].find(may_command)) and head_text in command[0]:  # type: ignore
+                if (_head_find := command[1].match(may_command)) and head_text in command[0]:  # type: ignore
                     analyser.head_matched = True
                     return _head_find if _head_find != may_command else True
             elif _str:
-                if (_command_find := command[1].find(may_command)) and (  # type: ignore
-                        _head_find := command[0][1].find(head_text)
+                if (_command_find := command[1].match(may_command)) and (  # type: ignore
+                        _head_find := command[0][1].match(head_text)
                 ):
                     analyser.head_matched = True
                     return _command_find if _command_find != may_command else True
             else:
-                if (_command_find := command[1].find(may_command)) and head_text in command[0][0]:  # type: ignore
+                if (_command_find := command[1].match(may_command)) and head_text in command[0][0]:  # type: ignore
                     analyser.head_matched = True
                     return _command_find if _command_find != may_command else True
 
@@ -309,7 +275,7 @@ def analyse_header(
                 source = head_text
             else:
                 source = head_text + analyser.separator + str(may_command)  # noqa
-            if command_manager.find(source):
+            if command_manager.get_command(source):
                 analyser.head_matched = False
                 raise ParamsUnmatched(f"{head_text} dose not matched")
             for ht in headers_text:

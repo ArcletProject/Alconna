@@ -234,12 +234,12 @@ def _from_format(
 
     Examples:
 
-    >>> from arclet.alconna import AlconnaFormat
-    >>> alc1 = AlconnaFormat(
-    ...     "lp user {target} perm set {perm} {default}",
-    ...     {"target": str, "perm": str, "default": Args["de":bool:True]},
-    ... )
-    >>> alc1.parse("lp user AAA perm set admin.all False")
+        >>> from arclet.alconna import AlconnaFormat
+        >>> alc1 = AlconnaFormat(
+        ...     "lp user {target:str} perm set {perm:str} {default}",
+        ...     {"default": Args["de":bool:True]},
+        ... )
+        >>> alc1.parse("lp user AAA perm set admin.all False")
     """
     format_args = format_args or {}
     _key_ref = 0
@@ -288,7 +288,7 @@ def _from_format(
                         options[-1].args.argument.update({key: value})
                         options[-1].nargs += 1
         except KeyError:
-            may_parts = re.split(r"[:|=]", key.replace(" ", ''))
+            may_parts = re.split(r"[:=]", key.replace(" ", ''))
             if len(may_parts) == 1:
                 _arg = Args[may_parts[0]:Any]
             else:
@@ -321,12 +321,14 @@ def _from_string(
 
     Examples:
 
-    >>> from arclet.alconna import AlconnaString
-    >>> alc = AlconnaString(
-    ... "test <message:str:bcef> #HELP_STRING",
-    ... "--foo|-f <val:bool>", "-bar <bar:str> [baz:int]", "-qux &",
-    ... )
-    >>> alc.parse("test abcd --foo True")
+        >>> from arclet.alconna import AlconnaString
+        >>> alc = AlconnaString(
+        ...     "test <message:str:hello> #HELP_STRING",
+        ...     "--foo|-f <val:bool>",
+        ...     "-bar <bar:str> [baz:int]",
+        ...     "-qux &123"
+        ... )
+        >>> alc.parse("test abcd --foo True")
     """
 
     _options = []
@@ -334,10 +336,10 @@ def _from_string(
     headers = [head]
     if re.match(r"^\[(.+?)]$", head):
         headers = head.strip("[]").split("|")
-    args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", others)]
+    args = [re.split("[:=]", p) for p in re.findall(r"<(.+?)>", others)]
     for p in re.findall(r"\[(.+?)]", others):
-        res = re.split("[:|=]", p)
-        res[0] = f"?{res[0]}"
+        res = re.split("[:=]", p)
+        res[0] = f"{res[0]};O"
         args.append(res)
     if not (help_string := re.findall(r"#(.+)", others)):
         help_string = headers
@@ -349,10 +351,10 @@ def _from_string(
     _args = Args.from_string_list(args, custom_types.copy())
     for opt in option:
         opt_head, opt_others = split_once(opt, sep)
-        opt_args = [re.split("[:|=]", p) for p in re.findall(r"<(.+?)>", opt_others)]
+        opt_args = [re.split("[:=]", p) for p in re.findall(r"<(.+?)>", opt_others)]
         for p in re.findall(r"\[(.+?)]", opt_others):
-            res = re.split("[:|=]", p)
-            res[0] = f"?{res[0]}"
+            res = re.split("[:=]", p)
+            res[0] = f"{res[0]};O"
             opt_args.append(res)
         _opt_args = Args.from_string_list(opt_args, custom_types.copy())
         opt_action_value = re.findall(r"&(.+?)(?:#.+?)?$", opt_others)
@@ -490,7 +492,7 @@ def visit_subcommand(obj: Any):
                 return option_dict
 
             class _InstanceAction(ArgAction):
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception):
+                def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
                     return _instance_action(option_dict, varargs, kwargs)
 
             class _TargetAction(ArgAction):
@@ -500,13 +502,9 @@ def visit_subcommand(obj: Any):
                     self.origin = target
                     super().__init__(target)
 
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception):
+                def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
                     self.action = partial(self.origin, sub.sub_instance)
                     return super().handle(option_dict, varargs, kwargs, is_raise_exception)
-
-                async def handle_async(self, option_dict, varargs, kwargs, is_raise_exception):
-                    self.action = partial(self.origin, sub.sub_instance)
-                    return await super().handle_async(option_dict, varargs, kwargs, is_raise_exception)
 
             for name, func in members:
                 if name.startswith("_"):
@@ -558,7 +556,7 @@ class ClassMounter(AlconnaMounter):
             instance_handle = self._instance_action
 
             class _InstanceAction(ArgAction):
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception):
+                def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
                     return instance_handle(option_dict, varargs, kwargs)
 
             inject = self._inject_instance
@@ -570,13 +568,9 @@ class ClassMounter(AlconnaMounter):
                     self.origin = target
                     super().__init__(target)
 
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception):
+                def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
                     self.action = inject(self.origin)
                     return super().handle(option_dict, varargs, kwargs, is_raise_exception)
-
-                async def handle_async(self, option_dict, varargs, kwargs, is_raise_exception):
-                    self.action = inject(self.origin)
-                    return await super().handle_async(option_dict, varargs, kwargs, is_raise_exception)
 
             main_action = _InstanceAction(lambda: None)
             for name, func in members:
@@ -692,7 +686,7 @@ class ObjectMounter(AlconnaMounter):
 
             class _InstanceAction(ArgAction):
 
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception: bool):
+                def handle(self, option_dict, varargs, kwargs, is_raise_exception: bool):  # noqa
                     return instance_handle(option_dict, varargs, kwargs)
 
             main_action = _InstanceAction(lambda: None)
@@ -727,12 +721,12 @@ def _from_object(
 
     Examples:
 
-    >>> from arclet.alconna import AlconnaFire
-    >>> def test_func(a, b, c):
-    ...     print(a, b, c)
-    ...
-    >>> alc = AlconnaFire(test_func)
-    >>> alc.parse("test_func 1 2 3")
+        >>> from arclet.alconna import AlconnaFire
+        >>> def test_func(a, b, c):
+        ...     print(a, b, c)
+        ...
+        >>> alc = AlconnaFire(test_func)
+        >>> alc.parse("test_func 1 2 3")
     """
     if inspect.isfunction(target) or inspect.ismethod(target):
         r = FuncMounter(target, config)
@@ -749,6 +743,24 @@ def _from_object(
     if command:
         r.parse(command)
     return r
+
+
+def delegate(cls: Type) -> Alconna:
+    attrs = inspect.getmembers(cls, predicate=lambda x: not inspect.isroutine(x))
+    _help = cls.__doc__ or cls.__name__
+    _main_args = None
+    _options = []
+    _headers = []
+    for name, attr in attrs:
+        if name.startswith("_"):
+            continue
+        if isinstance(attr, Args):
+            _main_args = attr
+        elif isinstance(attr, (Option, Subcommand)):
+            _options.append(attr)
+        elif name.startswith('prefix'):
+            _headers.extend(attr if isinstance(attr, (list, tuple)) else [attr])
+    return Alconna(cls.__name__, _main_args, _headers, _options, help_text=_help)
 
 
 AlconnaFormat = _from_format

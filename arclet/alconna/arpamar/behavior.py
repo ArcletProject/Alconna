@@ -1,13 +1,16 @@
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Optional, Any, Literal, List
 
-from ..exceptions import CancelBehave
+from ..exceptions import BehaveCancelled
 
 if TYPE_CHECKING:
     from . import Arpamar
 
 
 class ArpamarBehavior(metaclass=ABCMeta):
+    """
+    解析结果行为器的基类, 对应一个对解析结果的操作行为
+    """
     @abstractmethod
     def operate(self, interface: "ArpamarBehaviorInterface"):
         ...
@@ -71,5 +74,5 @@ class ArpamarBehaviorInterface:
         for behavior in behaviors:
             try:
                 behavior.operate(self)
-            except CancelBehave:
+            except BehaveCancelled:
                 continue

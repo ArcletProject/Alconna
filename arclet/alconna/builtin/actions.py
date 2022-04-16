@@ -5,7 +5,7 @@ from typing import Callable, Any, Optional, TYPE_CHECKING, Union, Coroutine, Dic
 from arclet.alconna.base import ArgAction
 from arclet.alconna.util import Singleton
 from arclet.alconna.arpamar.behavior import ArpamarBehavior
-from arclet.alconna.exceptions import CancelBehave, OutBoundsBehavior
+from arclet.alconna.exceptions import BehaveCancelled, OutBoundsBehavior
 
 
 class _StoreValue(ArgAction):
@@ -14,7 +14,7 @@ class _StoreValue(ArgAction):
     def __init__(self, value: Any):
         super().__init__(lambda: value)
 
-    def handle(self, option_dict, varargs, kwargs, is_raise_exception):
+    def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
         return self.action()
 
 
@@ -31,15 +31,12 @@ class HelpAction(ArgAction):
         self.help_string_call = help_call
         self.command = command
 
-    def handle(self, option_dict, varargs, kwargs, is_raise_exception):
+    def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
         action = require_help_send_action(command=self.command)
         if action:
-            return action(self.help_string_call())
-
-    async def handle_async(self, option_dict, varargs, kwargs, is_raise_exception):
-        action = require_help_send_action(command=self.command)
-        if action:
-            return await action(self.help_string_call())
+            help_string = self.help_string_call()
+            return super().handle({"help": help_string}, varargs, kwargs, is_raise_exception)
+        return option_dict
 
 
 class HelpActionManager(metaclass=Singleton):
@@ -64,11 +61,10 @@ def require_help_send_action(action: Optional[Callable[[str], Any]] = None, comm
             HelpActionManager.cache[command] = action
         else:
             HelpActionManager.helpers[command].action = action
-            HelpActionManager.helpers[command].awaitable = inspect.iscoroutinefunction(action)
 
 
 def help_send(command: str, help_string_call: Callable[[], str]):
-    """发送帮助信息"""
+    """帮助信息的发送 action"""
     if command not in HelpActionManager.helpers:
         HelpActionManager.helpers[command] = HelpAction(help_string_call, command)
     else:
@@ -76,7 +72,6 @@ def help_send(command: str, help_string_call: Callable[[], str]):
 
     if command in HelpActionManager.cache:
         HelpActionManager.helpers[command].action = HelpActionManager.cache[command]
-        HelpActionManager.helpers[command].awaitable = inspect.iscoroutinefunction(HelpActionManager.cache[command])
         del HelpActionManager.cache[command]
     return HelpActionManager.helpers[command]
 
@@ -98,12 +93,17 @@ def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[s
     设置一个选项的默认值, 在无该选项时会被设置
 
     当option与subcommand同时传入时, 则会被设置为该subcommand内option的默认值
+
+    Args:
+        value: 默认值
+        option: 选项名
+        subcommand: 子命令名
     """
 
-    class _SET_DEFAULT(ArpamarBehavior):
+    class _SetDefault(ArpamarBehavior):
         def operate(self, interface: "ArpamarBehaviorInterface"):
             if not option and not subcommand:
-                raise CancelBehave
+                raise BehaveCancelled
             if option and subcommand is None:
                 options = interface.require(f"options")  # type: Dict[str, Any]
                 options.setdefault(option, value)  # type: ignore
@@ -114,12 +114,16 @@ def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[s
                 sub_options = interface.require(f"subcommands.{subcommand}")  # type: Dict[str, Any]
                 sub_options.setdefault(option, value)  # type: ignore
 
-    return _SET_DEFAULT()
+    return _SetDefault()
 
 
 def exclusion(target_path: str, other_path: str):
     """
     当设置的两个路径同时存在时, 抛出异常
+
+    Args:
+        target_path: 目标路径
+        other_path: 其他路径
     """
 
     class _EXCLUSION(ArpamarBehavior):
@@ -133,9 +137,12 @@ def exclusion(target_path: str, other_path: str):
 def cool_down(seconds: float):
     """
     当设置的时间间隔内被调用时, 抛出异常
+
+    Args:
+        seconds: 时间间隔
     """
 
-    class _COOL_DOWN(ArpamarBehavior):
+    class _CoolDown(ArpamarBehavior):
         def __init__(self):
             self.last_time = datetime.now()
 
@@ -147,4 +154,4 @@ def cool_down(seconds: float):
             else:
                 self.last_time = current_time
 
-    return _COOL_DOWN()
+    return _CoolDown()
