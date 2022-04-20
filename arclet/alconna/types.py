@@ -17,6 +17,7 @@ from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Un
 from types import LambdaType
 from pathlib import Path
 from .exceptions import ParamsUnmatched
+from .lang_config import lang_config
 
 DataUnit = TypeVar("DataUnit")
 
@@ -89,7 +90,7 @@ class ArgPattern:
             regex_pattern: str,
             token: PatternToken = PatternToken.REGEX_MATCH,
             origin_type: Type = str,
-            converter: Callable = lambda x: eval(x),
+            converter: Optional[Callable] = None,
             alias: Optional[str] = None
     ):
         """
@@ -106,7 +107,7 @@ class ArgPattern:
         self.re_pattern = re.compile("^" + regex_pattern + "$")
         self.token = token
         self.origin_type = origin_type
-        self.converter = converter
+        self.converter = converter or (lambda x: eval(x))
         self.alias = alias
 
     def __repr__(self):
@@ -156,8 +157,17 @@ class Force:
 
     def __init__(self, origin):
         if isinstance(origin, (Force, ArgPattern)):
-            raise TypeError("Force can not be used to force a Force or ArgPattern")
+            raise TypeError(lang_config.types_force_type_error.format(target=origin))
         self.origin = origin
+
+    def __repr__(self):
+        return f"Force:{self.origin.__repr__()}"
+
+
+AnyStr = ArgPattern(r"(.+?)", PatternToken.DIRECT, str)
+Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", origin_type=tuple, alias="email")
+AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", origin_type=tuple, alias="ip")
+AnyUrl = ArgPattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", origin_type=str, alias="url")
 
 
 T_Target = TypeVar("T_Target")
@@ -175,6 +185,7 @@ class TypePattern:
         alias: 别名, 用于类型检查与参数打印
         previous: 该类型表达式需要的前置表达, 其解析结果会作为参数传入该表达式
     """
+
     def __init__(
             self,
             target_types: List[Type[T_Target]],
@@ -221,23 +232,6 @@ class TypePattern:
                     " -> " + self.origin_type.__name__
             )
         return f"{'|'.join([x.__name__ for x in self.target_types])} -> {self.origin_type.__name__}"
-
-
-AnyStr = ArgPattern(r"(.+?)", PatternToken.DIRECT, str)
-AnyDigit = ArgPattern(r"(\-?\d+)", PatternToken.REGEX_TRANSFORM, int, lambda x: int(x))
-AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", PatternToken.REGEX_TRANSFORM, float, lambda x: float(x))
-Bool = ArgPattern(
-    r"(True|False|true|false)", PatternToken.REGEX_TRANSFORM, bool, lambda x: bool(
-        x.replace("false", "False").replace("true", "True")
-    )
-)
-Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", origin_type=tuple, alias="email")
-AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", origin_type=tuple, alias="ip")
-AnyUrl = ArgPattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", origin_type=str, alias="url")
-AnyList = ArgPattern(r"(\[.+?\])", PatternToken.REGEX_TRANSFORM, list)
-AnyTuple = ArgPattern(r"(\(.+?\))", PatternToken.REGEX_TRANSFORM, tuple)
-AnySet = ArgPattern(r"(\{.+?\})", PatternToken.REGEX_TRANSFORM, set)
-AnyDict = ArgPattern(r"(\{.+?\})", PatternToken.REGEX_TRANSFORM, dict)
 
 
 class MultiArg(ArgPattern):
@@ -399,7 +393,7 @@ class SequenceArg(ArgPattern):
         elif form == "set":
             super().__init__(r"\{(.+?)\}", PatternToken.REGEX_MATCH, set, alias=f"Set[{alias_content}]")
         else:
-            raise ValueError(f"invalid form: {form}")
+            raise ValueError(lang_config.types_sequence_form_error.format(target=form))
 
     def match(self, text: Union[str, Any]):
         _res = super().match(text)
@@ -432,8 +426,6 @@ class MappingArg(ArgPattern):
 
     def __init__(self, arg_key: ArgPattern, arg_value: Union[ArgPattern, _AnyParam]):
         self.arg_key = arg_key
-        if isinstance(self.arg_key, UnionArg):
-            raise TypeError("not support union arg in mapping key")
         self.arg_value = arg_value if isinstance(arg_value, ArgPattern) else AnyStr
 
         alias_content = f"{self.arg_key.alias or self.arg_key.origin_type.__name__}, " \
@@ -474,20 +466,12 @@ class MappingArg(ArgPattern):
 
 
 pattern_map = {
-    str: AnyStr,
-    int: AnyDigit,
-    float: AnyFloat,
-    bool: Bool,
-    list: AnyList,
-    tuple: AnyTuple,
-    set: AnySet,
-    dict: AnyDict,
     Any: AnyParam,
     Ellipsis: AnyParam,
     object: AnyParam,
-    "url": AnyUrl,
-    "ip": AnyIP,
     "email": Email,
+    "ip": AnyIP,
+    "url": AnyUrl,
     "...": AnyParam,
     "": Empty
 }
@@ -552,19 +536,37 @@ def set_converter(
                 pattern_map[alc_pattern.alias] = alc_pattern
 
 
-StrPath = TypePattern([str], Path, lambda v: Path(v), alias="path")
+StrPath = TypePattern([str], Path, lambda v: Path(v), "path")
 AnyPathFile = TypePattern(
-    [Path],
-    bytes,
-    lambda x: x.read_bytes() if x.exists() and x.is_file() else None,
-    alias='file',
-    previous=StrPath
+    [Path], bytes, lambda x: x.read_bytes() if x.exists() and x.is_file() else None, 'file', previous=StrPath
 )
 set_converter(AnyPathFile)
+
+AnyDigit = ArgPattern(r"(\-?\d+)", PatternToken.REGEX_TRANSFORM, int, lambda x: int(x))
+AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", PatternToken.REGEX_TRANSFORM, float, lambda x: float(x))
+Bool = ArgPattern(
+    r"(True|False|true|false)", PatternToken.REGEX_TRANSFORM, bool, lambda x: bool(
+        x.replace("false", "False").replace("true", "True")
+    )
+)
+AnyList = ArgPattern(r"(\[.+?\])", PatternToken.REGEX_TRANSFORM, list)
+AnyTuple = ArgPattern(r"(\(.+?\))", PatternToken.REGEX_TRANSFORM, tuple)
+AnySet = ArgPattern(r"(\{.+?\})", PatternToken.REGEX_TRANSFORM, set)
+AnyDict = ArgPattern(r"(\{.+?\})", PatternToken.REGEX_TRANSFORM, dict)
+
+set_converter(AnyStr, alias="str")
+set_converter(AnyDigit, alias="int")
+set_converter(AnyFloat, alias="float")
+set_converter(Bool, alias="bool")
+set_converter(AnyList, alias="list")
+set_converter(AnyTuple, alias="tuple")
+set_converter(AnySet, alias="set")
+set_converter(AnyDict, alias="dict")
 
 
 def pattern(name: str, re_pattern: str):
     """便捷地设置转换器"""
+
     def __wrapper(func):
         return ArgPattern(re_pattern, token=PatternToken.REGEX_TRANSFORM, converter=func, alias=name)
 
@@ -575,6 +577,8 @@ def argument_type_validator(item: Any, extra: str = "allow"):
     """对 Args 里参数类型的检查， 将一般数据类型转为 Args 使用的类型"""
     if isinstance(item, Force):
         return item.origin if not isinstance(item.origin, str) else ArgPattern(item.origin)
+    if isinstance(item, (ArgPattern, _AnyParam, TypePattern)):
+        return item
     try:
         if pat := pattern_map.get(item, None):
             return pat
@@ -583,12 +587,12 @@ def argument_type_validator(item: Any, extra: str = "allow"):
     if not inspect.isclass(item) and item.__class__.__name__ in "_GenericAlias":
         origin = get_origin(item)
         if origin in (Union, Literal):
-            args = list(set([argument_type_validator(t, extra) for t in get_args(item)]))
-            if len(args) < 1:
+            _args = list(set([argument_type_validator(t, extra) for t in get_args(item)]))
+            if len(_args) < 1:
                 return item
-            if len(args) < 2:
-                args = args[0]
-            return args
+            if len(_args) < 2:
+                _args = _args[0]
+            return _args
         if origin in (dict, ABCMapping, ABCMutableMapping):
             arg_key = argument_type_validator(get_args(item)[0], 'ignore')
             arg_value = argument_type_validator(get_args(item)[1], 'ignore')
@@ -617,12 +621,10 @@ def argument_type_validator(item: Any, extra: str = "allow"):
         return Empty
     if isinstance(item, str):
         return ArgPattern(item)
-    if isinstance(item, (ArgPattern, _AnyParam)):
-        return item
     if extra == "ignore":
         return AnyParam
     elif extra == "reject":
-        raise TypeError(f"{item} is not allowed in Args")
+        raise TypeError(lang_config.types_validate_reject.format(target=item))
     return item
 
 
@@ -634,12 +636,12 @@ UnionArg.__validator__ = lambda x: [
 class ObjectPattern(ArgPattern):
 
     def __init__(
-            self,
-            origin: Type,
-            limit: Tuple[str, ...] = (),
-            head: str = "",
-            flag: Literal["http", "part", "json"] = "part",
-            **suppliers: Callable
+        self,
+        origin: Type,
+        limit: Tuple[str, ...] = (),
+        head: str = "",
+        flag: Literal["http", "part", "json"] = "part",
+        **suppliers: Callable
     ):
         """
         将传入的对象类型转换为接收序列号参数解析后实例化的对象
@@ -688,9 +690,7 @@ class ObjectPattern(ArgPattern):
                         elif flag == "json":
                             _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>.+?)\\'")  # ,
                     else:
-                        raise TypeError(
-                            f"{name} in {origin.__name__} init function should have 0 or 1 parameter"
-                        )
+                        raise TypeError(lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__))
                 else:
                     if isinstance(suppliers[name], LambdaType):
                         if len(_s_sig.parameters) == 0:
@@ -704,11 +704,11 @@ class ObjectPattern(ArgPattern):
                             elif flag == "json":
                                 _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>.+?)\\'")  # ,
                         else:
-                            raise TypeError(
-                                f"{name} in {origin.__name__} init function should have 0 or 1 parameter"
-                            )
+                            raise TypeError(lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__))
                     else:
-                        raise TypeError(f"{name}'s supplier of {origin.__name__} must return {param.annotation}")
+                        raise TypeError(lang_config.types_supplier_return_error.format(
+                            target=name, origin=origin.__name__, source=param.annotation
+                        ))
             elif param.default is not Empty and param.default is not None and param.default != Ellipsis:
                 self._params[name] = param.default
             else:
@@ -727,10 +727,10 @@ class ObjectPattern(ArgPattern):
                     elif inspect.isclass(param.annotation) and issubclass(param.annotation, int):
                         pat = AnyDigit
                     elif pat is None:
-                        raise TypeError(f"{name} in {origin.__name__} init function should give a supplier")
+                        raise TypeError(lang_config.types_supplier_missing.format(target=name, origin=origin.__name__))
 
                 if isinstance(pat, ObjectPattern):
-                    raise NotImplementedError(f"{pat} is not supported")
+                    raise TypeError(lang_config.types_type_error.format(target=pat))
                 self._require_map[name] = pat.match
                 if pat.token == PatternToken.REGEX_TRANSFORM:
                     self._transform_map[name] = pat.converter

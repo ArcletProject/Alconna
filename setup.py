@@ -5,7 +5,7 @@ with open("README.rst", "r", encoding='utf-8') as fh:
 
 setuptools.setup(
     name="arclet-alconna",
-    version="0.8.2",
+    version="0.8.3",
     author="ArcletProject",
     author_email="rf_tar_railt@qq.com",
     description="A Fast Command Analyser based on Dict",

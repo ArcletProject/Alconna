@@ -14,12 +14,15 @@ from arclet.alconna.analysis.arg_handlers import (
 )
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
+from arclet.alconna.util import levenshtein_norm
+from arclet.alconna.lang_config import lang_config
+
 from .actions import help_send
 
 
-class DisorderCommandAnalyser(Analyser):
+class DefaultCommandAnalyser(Analyser):
     """
-    无序的分析器
+    内建的默认分析器
 
     """
 
@@ -36,7 +39,7 @@ class DisorderCommandAnalyser(Analyser):
             return self.create_arpamar(fail=True)
         if self.ndata == 0:
             if not message:
-                raise ValueError('No data to analyse')
+                raise ValueError(lang_config.analyser_handle_null_message.format(target=message))
             if r := self.handle_message(message):
                 return r
         try:
@@ -58,28 +61,25 @@ class DisorderCommandAnalyser(Analyser):
             except ValueError:
                 return self.create_arpamar(fail=True, exception=e)
         except FuzzyMatchSuccess as Fuzzy:
-            self.raw_data = {self.current_index: ["--help"]}
-            self.content_index = 0
-            self.ndata += 1
-            _param = self.command_params["--help"]
-
-            def _get_help(exp=Fuzzy):
-                return str(exp)
-
-            _param.action = help_send(
-                self.alconna.name, _get_help
-            )
-            analyse_option(self, _param)
+            help_send(
+                self.alconna.name, lambda: str(Fuzzy)
+            ).handle({}, is_raise_exception=self.is_raise_exception)
             return self.create_arpamar(fail=True)
 
         for _ in self.part_len:
             _text, _str = self.next_data(self.separator, pop=False)
             if not (_param := self.command_params.get(_text, None) if _str else Ellipsis) and _text != "":
                 for p in self.command_params:
-                    if _text.split(self.command_params[p].separator)[0] in \
-                            getattr(self.command_params[p], 'aliases', [p]):
+                    _may_param = _text.split(self.command_params[p].separator)[0]
+                    if _may_param in getattr(self.command_params[p], 'aliases', [p]):
                         _param = self.command_params[p]
                         break
+                    if self.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.7:
+                        help_send(
+                            self.alconna.name,
+                            lambda: lang_config.common_fuzzy_matched.format(source=_may_param, target=p)
+                        ).handle({}, is_raise_exception=self.is_raise_exception)
+                        return self.create_arpamar(fail=True)
             try:
                 if not _param or _param is Ellipsis:
                     if not self.main_args:
@@ -88,10 +88,8 @@ class DisorderCommandAnalyser(Analyser):
                         )
                 elif isinstance(_param, Option):
                     if _param.name == "--help":
-                        _record = self.current_index, self.content_index
                         _help_param = self.recover_raw_data()
                         _help_param[0] = _help_param[0].replace("--help", "", 1).replace("-h", "", 1).lstrip()
-                        self.current_index, self.content_index = _record
 
                         def _get_help():
                             visitor = AlconnaNodeVisitor(self.alconna)
@@ -100,11 +98,11 @@ class DisorderCommandAnalyser(Analyser):
                                 visitor.require(_help_param)
                             )
 
-                        _param.action = help_send(
+                        help_send(
                             self.alconna.name, _get_help
-                        )
-                        analyse_option(self, _param)
+                        ).handle({}, is_raise_exception=self.is_raise_exception)
                         return self.create_arpamar(fail=True)
+
                     opt_n, opt_v = analyse_option(self, _param)
                     if not self.options.get(opt_n, None):
                         self.options[opt_n] = opt_v
@@ -116,7 +114,11 @@ class DisorderCommandAnalyser(Analyser):
                 elif isinstance(_param, Subcommand):
                     sub_n, sub_v = analyse_subcommand(self, _param)
                     self.subcommands[sub_n] = sub_v
-
+            except FuzzyMatchSuccess as Fuzzy:
+                help_send(
+                    self.alconna.name, lambda: str(Fuzzy)
+                ).handle({}, is_raise_exception=self.is_raise_exception)
+                return self.create_arpamar(fail=True)
             except (ParamsUnmatched, ArgumentMissing):
                 if self.is_raise_exception:
                     raise
@@ -136,9 +138,11 @@ class DisorderCommandAnalyser(Analyser):
 
         data_len = self.rest_count(self.separator)
         if data_len > 0:
-            exc = ParamsUnmatched("Unmatched params: {}".format(self.next_data(self.separator, pop=False)[0]))
+            exc = ParamsUnmatched(
+                lang_config.analyser_param_unmatched.format(target=self.next_data(self.separator, pop=False)[0])
+            )
         else:
-            exc = ArgumentMissing("You need more data to analyse!")
+            exc = ArgumentMissing(lang_config.analyser_param_missing)
         if self.is_raise_exception:
             raise exc
         return self.create_arpamar(fail=True, exception=exc)
@@ -158,10 +162,10 @@ class DisorderCommandAnalyser(Analyser):
         return result
 
 
-DisorderCommandAnalyser.add_arg_handler(MultiArg, multi_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(AntiArg, anti_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(UnionArg, common_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(ArgPattern, common_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(ObjectPattern, common_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(SequenceArg, common_arg_handler)
-DisorderCommandAnalyser.add_arg_handler(MappingArg, common_arg_handler)
+DefaultCommandAnalyser.add_arg_handler(MultiArg, multi_arg_handler)
+DefaultCommandAnalyser.add_arg_handler(AntiArg, anti_arg_handler)
+DefaultCommandAnalyser.add_arg_handler(UnionArg, common_arg_handler)
+DefaultCommandAnalyser.add_arg_handler(ArgPattern, common_arg_handler)
+DefaultCommandAnalyser.add_arg_handler(ObjectPattern, common_arg_handler)
+DefaultCommandAnalyser.add_arg_handler(SequenceArg, common_arg_handler)
+DefaultCommandAnalyser.add_arg_handler(MappingArg, common_arg_handler)

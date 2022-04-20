@@ -4,7 +4,7 @@ from typing import Union, Dict, Any
 from ..types import MultiArg, ArgPattern, DataUnit, PatternToken, AntiArg, Empty
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing
-
+from ..lang_config import lang_config
 
 def multi_arg_handler(
         analyser: Analyser,
@@ -149,7 +149,10 @@ def anti_arg_handler(
             if default is None:
                 if optional:
                     return
-                raise ParamsUnmatched(f"param {may_arg} is incorrect")
+                if may_arg:
+                    raise ArgumentMissing(lang_config.args_error.format(target=may_arg))
+                else:
+                    raise ArgumentMissing(lang_config.args_missing.format(key=key))
             result_dict[key] = None if default is Empty else default
     else:
         if may_arg.__class__ is not _a_arg_base:
@@ -162,9 +165,9 @@ def anti_arg_handler(
             if optional:
                 return
             if may_arg:
-                raise ParamsUnmatched(f"param type {may_arg.__class__} is incorrect")
+                raise ParamsUnmatched(lang_config.args_type_error.format(target=may_arg.__class__))
             else:
-                raise ArgumentMissing(f"param {key} is required")
+                raise ArgumentMissing(lang_config.args_missing.format(key=key))
 
 
 def common_arg_handler(
@@ -185,9 +188,9 @@ def common_arg_handler(
             if optional:
                 return
             if may_arg:
-                raise ParamsUnmatched(f"param {may_arg} is incorrect")
+                raise ArgumentMissing(lang_config.args_error.format(target=may_arg))
             else:
-                raise ArgumentMissing(f"param {key} is required")
+                raise ArgumentMissing(lang_config.args_missing.format(key=key))
         else:
             arg_find = None if default is Empty else default
     if value.token == PatternToken.REGEX_TRANSFORM and isinstance(arg_find, str):

@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
 from .exceptions import DuplicateCommand, ExceedMaxCount
 from .util import Singleton
 from .types import DataCollection
+from .lang_config import lang_config
+from .builtin.formatter import DefaultHelpTextFormatter
 
 if TYPE_CHECKING:
     from .main import Alconna
@@ -17,16 +19,22 @@ class CommandManager(metaclass=Singleton):
 
     命令管理器负责记录命令, 并存储快捷指令。
     """
-    sign: str = "ALCONNA::"
-    default_namespace: str = "Alconna"
-    __shortcuts: Dict[str, Tuple[str, str, bool]] = {}
+    sign: str
+    default_formatter: DefaultHelpTextFormatter
+    default_namespace: str
+    __shortcuts: Dict[str, Tuple[str, str, bool]]
     __commands: Dict[str, Dict[str, "Analyser"]]
     __abandons: List["Alconna"]
     current_count: int
-    max_count: int = 200
+    max_count: int
 
     def __init__(self):
+        self.default_formatter = DefaultHelpTextFormatter()
+        self.default_namespace = "Alconna"
+        self.sign = "ALCONNA::"
+        self.max_count = 200
 
+        self.__shortcuts = {}
         self.__commands = {}
         self.__abandons = []
         self.current_count = 0
@@ -58,7 +66,7 @@ class CommandManager(metaclass=Singleton):
             self.__commands[delegate.alconna.namespace][cid] = delegate
             self.current_count += 1
         else:
-            raise DuplicateCommand("命令已存在")
+            raise DuplicateCommand(lang_config.manager_duplicate_command.format(target=cid))
 
     def require(self, command: Union["Alconna", str]) -> "Analyser":
         """获取命令解析器"""
@@ -67,7 +75,7 @@ class CommandManager(metaclass=Singleton):
             try:
                 ana = self.__commands[namespace][name]
             except KeyError:
-                raise ValueError("命令不存在")
+                raise ValueError(lang_config.manager_undefined_command.format(target=command))
             return ana
         else:
             cid = command.name.replace(self.sign, "")
@@ -118,28 +126,28 @@ class CommandManager(metaclass=Singleton):
             try:
                 target = self.__commands[namespace][name].alconna
             except KeyError:
-                raise ValueError("命令不存在")
+                raise ValueError(lang_config.manager_undefined_command.format(target=target))
         if shortcut in self.__shortcuts:
-            raise DuplicateCommand("快捷命令已存在")
+            raise DuplicateCommand(lang_config.manager_duplicate_shortcut.format(target=shortcut))
         self.__shortcuts[shortcut] = (target.namespace + "." + target.name.replace(self.sign, ""), command, reserve)
 
     def find_shortcut(self, target: Union["Alconna", str], shortcut: str):
         """查找快捷命令"""
         if shortcut not in self.__shortcuts:
-            raise ValueError("快捷命令不存在")
+            raise ValueError(lang_config.manager_undefined_shortcut.format(target=shortcut))
         info, command, reserve = self.__shortcuts[shortcut]
         if isinstance(target, str):
             namespace, name = self._command_part(target)
             if info != (namespace + "." + name):
-                raise ValueError("目标命令错误")
+                raise ValueError(lang_config.manager_target_command_error.format(target=target, shortcut=shortcut))
             try:
                 target = self.__commands[namespace][name].alconna
             except KeyError:
-                raise ValueError("目标命令不存在")
+                raise ValueError(lang_config.manager_undefined_command.format(target=target))
             else:
                 return target, command, reserve
         if info != (target.namespace + "." + target.name.replace(self.sign, "")):
-            raise ValueError("目标命令错误")
+            raise ValueError(lang_config.manager_target_command_error.format(target=target, shortcut=shortcut))
         return target, command, reserve
 
     def set_disable(self, command: Union["Alconna", str]) -> None:
@@ -208,11 +216,9 @@ class CommandManager(metaclass=Singleton):
             max_length: 单个页面展示的最大长度
             page: 当前页码
         """
-        header = header or "# 当前可用的命令有:"
-        pages = pages or "第 %d/%d 页"
-        if pages.count("%d") != 2:
-            raise ValueError("页码格式错误")
-        footer = footer or "# 输入'命令名 --help' 查看特定命令的语法"
+        header = header or lang_config.manager_help_header
+        pages = pages or lang_config.manager_help_pages
+        footer = footer or lang_config.manager_help_footer
         command_string = ""
         cmds = self.__commands[namespace or self.default_namespace]
         if max_length < 1:
@@ -222,7 +228,7 @@ class CommandManager(metaclass=Singleton):
             max_page = len(cmds) // max_length + 1
             if page < 1 or page > max_page:
                 page = 1
-            header += "\t" + pages % (page, max_page)
+            header += "\t" + pages.format(current=page, total=max_page)
             for name in list(cmds.keys())[(page - 1) * max_length: page * max_length]:
                 alc = cmds[name].alconna
                 command_string += "\n - " + (

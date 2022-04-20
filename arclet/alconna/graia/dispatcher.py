@@ -1,7 +1,7 @@
 from typing import Literal, Dict, Callable, Optional, Coroutine, Union, AsyncIterator, TypedDict
 import asyncio
 
-from arclet.alconna import Alconna
+from arclet.alconna import Alconna, lang_config
 from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.arpamar.duplication import AlconnaDuplication, generate_duplication
 from arclet.alconna.arpamar.stub import ArgsStub, OptionStub, SubcommandStub
@@ -45,7 +45,7 @@ class AriadneAMP(AlconnaMessageProxy):
         if isinstance(command, str):
             command = command_manager.get_command(command)  # type: ignore
             if not command:
-                raise ValueError(f'Command {command} not found')
+                raise ValueError(lang_config.manager_undefined_command.format(target=command))
         self.pre_treatments.setdefault(command, pre_treatment or self.default_pre_treatment)  # type: ignore
 
     async def fetch_message(self) -> AsyncIterator[MessageChain]:

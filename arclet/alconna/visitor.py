@@ -4,7 +4,7 @@ Alconna 负责命令节点访问与帮助文档生成的部分
 from typing import List, Dict, Optional, Any, Literal, Union, TYPE_CHECKING
 from abc import ABCMeta, abstractmethod
 from .exceptions import DuplicateCommand
-
+from .lang_config import lang_config
 from .base import CommandNode
 from .component import Subcommand, Option
 
@@ -72,6 +72,7 @@ class _BaseNode:
     parameters: List[Dict[str, Any]]
     description: str
     separator: str
+    param_separator: str
     sub_nodes: List[int]
     additional_info: Dict[str, Any]
 
@@ -82,6 +83,7 @@ class _BaseNode:
         self.description = target.help_text
         self.parameters = []
         self.separator = target.separator
+        self.param_separator = target.args.separator
         self.additional_info = {}
         for key, arg in target.args.argument.items():
             self.parameters.append({'name': key, **arg})
@@ -112,19 +114,19 @@ class AlconnaNodeVisitor:
             real_name = node.name.lstrip('-')
             if isinstance(node, Option):
                 if "option:" + real_name in self.name_list:
-                    raise DuplicateCommand("该选项已经存在")
+                    raise DuplicateCommand(lang_config.visitor_duplicate_option.format(target=real_name))
                 self.name_list.append("option:" + real_name)
             elif isinstance(node, Subcommand):
                 if "subcommand:" + real_name in self.name_list:
-                    raise DuplicateCommand("该子命令已经存在")
+                    raise DuplicateCommand(lang_config.visitor_duplicate_subcommand.format(target=real_name))
                 self.name_list.append("subcommand:" + real_name)
             new_id = max(self.node_map) + 1
             if isinstance(node, Subcommand):
                 self.node_map[new_id] = _BaseNode(new_id, node, 'subcommand')
                 for sub_node in node.options:
                     real_sub_name = sub_node.name.lstrip('-')
-                    if "subcommand:" + real_name + real_sub_name in self.name_list:
-                        raise DuplicateCommand("该子命令选项已经存在")
+                    if "subcommand:" + real_name + ":" + real_sub_name in self.name_list:
+                        raise DuplicateCommand(lang_config.visitor_duplicate_suboption.format(target=real_sub_name))
                     self.name_list.append(f"subcommand:{real_name}:{real_sub_name}")
                     sub_new_id = max(self.node_map) + 1
                     self.node_map[sub_new_id] = _BaseNode(sub_new_id, sub_node, 'option')
@@ -155,7 +157,7 @@ class AlconnaNodeVisitor:
                     _cache_node = self.node_map[self.name_list.index(_cache_name)]
             else:
                 if 'option:' + part in self.name_list and 'subcommand:' + part in self.name_list:
-                    raise ValueError("该名称存在歧义, 请指定具体的选项或子命令")
+                    raise ValueError(lang_config.visitor_ambiguous_name.format(target=part))
                 if "subcommand:" + part in self.name_list:
                     _cache_name = "subcommand:" + part
                     _cache_node = self.node_map[self.name_list.index(_cache_name)]
@@ -174,6 +176,7 @@ class AlconnaNodeVisitor:
             "description": root.description,
             "parameters": root.parameters,
             "separator": root.separator,
+            "param_separator": root.param_separator,
             "additional_info": root.additional_info,
             "sub_nodes": [self.trace_nodes(self.node_map[i]) for i in root.sub_nodes]
         }

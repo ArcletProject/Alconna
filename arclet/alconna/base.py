@@ -11,6 +11,7 @@ from .types import (
     ArgPattern,
     _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argument_type_validator, TypePattern
 )
+from .lang_config import lang_config
 
 TAValue = Union[ArgPattern, TypePattern, Type[DataUnit], _AnyParam]
 TADefault = Union[Any, DataUnit, Empty]
@@ -147,7 +148,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
             if not isinstance(value, AnyParam.__class__):
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
-                    raise InvalidParam(f"自定义参数类型传入的不是类型而是 {custom_types[value]}, 这是有意而为之的吗?")
+                    raise InvalidParam(lang_config.common_custom_type_error.format(target=custom_types[value]))
                 try:
                     value = eval(value, custom_types)
                 except NameError:
@@ -245,9 +246,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             else:
                 name, value, default = sl[0], sl[1] if len(sl) > 1 else sl[0], sl[2] if len(sl) > 2 else None
             if not isinstance(name, str):
-                raise InvalidParam("参数的名字只能是字符串")
+                raise InvalidParam(lang_config.args_name_error)
             if not name.strip():
-                raise InvalidParam("该参数的指示名不能为空")
+                raise InvalidParam(lang_config.args_name_empty)
             _value = argument_type_validator(value, self.extra)
             if isinstance(_value, (Sequence, MutableSequence)):
                 if len(_value) == 2 and Empty in _value:
@@ -259,7 +260,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             if default in ("...", Ellipsis):
                 default = Empty
             if _value is Empty:
-                raise InvalidParam(f"{name} 的参数值不能为Empty")
+                raise InvalidParam(lang_config.args_value_error.format(target=name))
             _addition = {'optional': False, 'hidden': False, 'kwonly': False}
             if res := re.match(r"^.+?;(?P<flag>.+?)$", name):
                 flags = res.group("flag").split("|")
@@ -277,33 +278,33 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                         _limit = True
                     if flag == ArgFlag.VAR_KEYWORD and not _limit:
                         if self.var_keyword:
-                            raise InvalidParam("不能同时设置多个键值对可变参数")
+                            raise InvalidParam(lang_config.args_duplicate_kwargs)
                         if not isinstance(_value, (_AnyParam, UnionArg)):
                             _value = MultiArg(_value, flag='kwargs')
                             self.var_keyword = (name, _value)
                         _limit = True
                     if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                         if self.var_positional:
-                            raise InvalidParam("不能同时设置多个非键值对可变参数")
+                            raise InvalidParam(lang_config.args_duplicate_varargs)
                         if not isinstance(_value, (_AnyParam, UnionArg)):
                             _value = MultiArg(_value)
                             self.var_positional = (name, _value)
                     if flag.isdigit() and not _limit:
                         if self.var_positional:
-                            raise InvalidParam("不能同时设置多个非键值对可变参数")
+                            raise InvalidParam(lang_config.args_duplicate_varargs)
                         if not isinstance(_value, (_AnyParam, UnionArg)):
                             _value = MultiArg(_value, array_length=int(flag))
                             self.var_positional = (name, _value)
                     if flag == ArgFlag.OPTIONAL:
                         if self.var_keyword or self.var_positional:
-                            raise InvalidParam("该选项不能与可变参数同时使用")
+                            raise InvalidParam(lang_config.args_exclude_mutable_args)
                         _addition['optional'] = True
                         self.optional_count += 1
                     if flag == ArgFlag.HIDDEN:
                         _addition['hidden'] = True
                     if flag == ArgFlag.KWONLY:
                         if self.var_keyword or self.var_positional:
-                            raise InvalidParam("该选项不能与可变参数同时使用")
+                            raise InvalidParam(lang_config.args_exclude_mutable_args)
                         _addition['kwonly'] = True
             self.argument[name] = {"value": _value, "default": default}  # type: ignore
             self.argument[name].update(_addition)  # type: ignore
@@ -329,7 +330,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             if self.argument.get(item):
                 return self.argument[item]['value'], self.argument[item]['default']
             else:
-                raise KeyError(f"{item} 不存在")
+                raise KeyError(lang_config.args_key_not_found)
         if isinstance(item, slice):
             slices = [item]
             self.__check_vars__(slices)
@@ -467,6 +468,8 @@ class ArgAction:
             kwargs: 关键字参数
             is_raise_exception: 是否抛出异常
         """
+        varargs = varargs or []
+        kwargs = kwargs or {}
         try:
             if inspect.iscoroutinefunction(self.action):
                 loop = self._loop()
@@ -526,10 +529,10 @@ class CommandNode:
             separator(str): 命令分隔符
             help_text(str): 命令帮助信息
         """
-        if name == "":
-            raise InvalidParam("该指令的名字不能为空")
+        if name.lstrip() == "":
+            raise InvalidParam(lang_config.node_name_empty)
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
-            raise InvalidParam("该指令的名字含有非法字符")
+            raise InvalidParam(lang_config.node_name_error)
         self.name = name
         if args is None:
             self.args = Args()
@@ -571,7 +574,7 @@ class CommandNode:
                     if name not in ["self", "cls", "option_dict", "exception_in_time"]
                 ]
                 if len(argument) != len(self.args.argument):
-                    raise InvalidParam("action 接受的参数个数必须与 Args 里的一致")
+                    raise InvalidParam(lang_config.action_length_error)
                 if not isinstance(action, LambdaType):
                     for i, k in enumerate(self.args.argument):
                         anno = argument[i][1]
@@ -582,19 +585,27 @@ class CommandNode:
                                 value, ArgPattern
                         ):
                             if value.origin_type != getattr(anno, "__origin__", anno):
-                                raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.origin_type} 不一致")
+                                raise InvalidParam(lang_config.action_args_error.format(
+                                        target=argument[i][0], key=k, source=value.origin_type
+                                    ))
                         elif isinstance(
                                 value, _AnyParam
                         ):
                             if anno not in (Empty, Any):
-                                raise InvalidParam(f"{argument[i][0]}的类型不能指定为 {anno}")
+                                raise InvalidParam(lang_config.action_args_empty.format(
+                                    target=argument[i][0], source=anno
+                                ))
                         elif isinstance(
                                 value, Iterable
                         ):
                             if anno != value.__class__:
-                                raise InvalidParam(f"{argument[i][0]}的类型 与 Args 中 '{k}' 接受的类型 {value.__class__} 不一致")
+                                raise InvalidParam(lang_config.action_args_error.format(
+                                    target=argument[i][0], key=k, source=value.__class__
+                                ))
                         elif anno != value:
-                            raise InvalidParam(f"{argument[i][0]}指定的消息元素类型不是 {value}")
+                            raise InvalidParam(lang_config.action_args_not_same.format(
+                                target=argument[i][0], source=value
+                            ))
                 self.action = ArgAction(action)
         else:
             self.action = action

@@ -13,6 +13,7 @@ from arclet.alconna.main import Alconna
 from arclet.alconna.component import Option, Subcommand
 from arclet.alconna.base import Args, TAValue, ArgAction
 from arclet.alconna.util import split, split_once
+from arclet.alconna.lang_config import lang_config
 
 PARSER_TYPE = Callable[[Callable, Dict[str, Any], Optional[Dict[str, Any]], Optional[AbstractEventLoop]], Any]
 
@@ -69,7 +70,7 @@ class ALCCommand:
 
     def __call__(self, message: Union[str, DataCollection]) -> Any:
         if not self.exec_target:
-            raise Exception("This must behind a @xxx.command()")
+            raise RuntimeError(lang_config.construct_decorate_error)
         result = self.command.parse(message)
         if result.matched:
             self.parser_func(self.exec_target, result.all_matched_args, self.local_args, self.loop)
@@ -77,7 +78,7 @@ class ALCCommand:
     def from_commandline(self):
         """从命令行解析参数"""
         if not self.command:
-            raise Exception("You must call @xxx.command() before @xxx.from_commandline()")
+            raise RuntimeError(lang_config.construct_decorate_error)
         args = sys.argv[1:]
         args.insert(0, self.command.command)
         self.__call__(" ".join(args))
@@ -179,7 +180,7 @@ class AlconnaDecorate:
             sep (str): 参数分隔符
         """
         if not self.building:
-            raise Exception("This must behind a @xxx.command()")
+            raise RuntimeError(lang_config.construct_decorate_error)
 
         def wrapper(func: FC) -> FC:
             if not self.__storage.get('func'):
@@ -199,7 +200,7 @@ class AlconnaDecorate:
             args (Args): 参数
         """
         if not self.building:
-            raise Exception("This must behind a @xxx.command()")
+            raise RuntimeError(lang_config.construct_decorate_error)
 
         def wrapper(func: FC) -> FC:
             if not self.__storage.get('func'):
@@ -438,7 +439,7 @@ class FuncMounter(AlconnaMounter):
         config = config or visit_config(func, self.config_keys)
         func_name = func.__name__
         if func_name.startswith("_"):
-            raise ValueError("function name can not start with '_'")
+            raise ValueError(lang_config.construct_function_name_error)
         _args, method = Args.from_callable(func, extra=config.get("extra", "ignore"))
         if method and isinstance(func, MethodType):
             self.instance = func.__self__
@@ -492,7 +493,7 @@ def visit_subcommand(obj: Any):
                 return option_dict
 
             class _InstanceAction(ArgAction):
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
+                def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
                     return _instance_action(option_dict, varargs, kwargs)
 
             class _TargetAction(ArgAction):
@@ -502,7 +503,7 @@ def visit_subcommand(obj: Any):
                     self.origin = target
                     super().__init__(target)
 
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
+                def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
                     self.action = partial(self.origin, sub.sub_instance)
                     return super().handle(option_dict, varargs, kwargs, is_raise_exception)
 
@@ -556,7 +557,7 @@ class ClassMounter(AlconnaMounter):
             instance_handle = self._instance_action
 
             class _InstanceAction(ArgAction):
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
+                def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
                     return instance_handle(option_dict, varargs, kwargs)
 
             inject = self._inject_instance
@@ -568,7 +569,7 @@ class ClassMounter(AlconnaMounter):
                     self.origin = target
                     super().__init__(target)
 
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception):  # noqa
+                def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
                     self.action = inject(self.origin)
                     return super().handle(option_dict, varargs, kwargs, is_raise_exception)
 
@@ -686,7 +687,7 @@ class ObjectMounter(AlconnaMounter):
 
             class _InstanceAction(ArgAction):
 
-                def handle(self, option_dict, varargs, kwargs, is_raise_exception: bool):  # noqa
+                def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
                     return instance_handle(option_dict, varargs, kwargs)
 
             main_action = _InstanceAction(lambda: None)

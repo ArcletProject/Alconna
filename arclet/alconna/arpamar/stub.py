@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 
 from ..base import Args, ArgPattern, _AnyParam
 from ..component import Option, Subcommand
+from ..lang_config import lang_config
 
 T = TypeVar('T')
 
@@ -104,7 +105,7 @@ class ArgsStub(BaseStub):
         elif isinstance(item, int):
             return list(self._args_result.values())[item]
         else:
-            raise TypeError(f'{item} is not supported')
+            raise TypeError(lang_config.stub_key_error(target=item))
 
 
 class OptionStub(BaseStub):

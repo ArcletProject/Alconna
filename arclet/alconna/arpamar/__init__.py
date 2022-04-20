@@ -1,5 +1,6 @@
 from typing import Union, Dict, List, Any, Optional, Type
 from ..types import DataUnit
+from ..lang_config import lang_config
 from .behavior import ArpamarBehavior, ArpamarBehaviorInterface
 
 
@@ -29,7 +30,7 @@ class Arpamar:
         self._options: Dict[str, Any] = {}
         self._subcommands: Dict[str, Any] = {}
         self._other_args: Dict[str, Any] = {}
-        self._header: Optional[Union[str, bool]] = None
+        self._header: Optional[Union[Dict[str, Any], bool]] = None
         self._main_args: Dict[str, Any] = {}
 
         self._cache_args = {}
@@ -77,7 +78,7 @@ class Arpamar:
 
     def encapsulate_result(
             self,
-            header: Union[str, bool, None],
+            header: Union[Dict[str, Any], bool, None],
             main_args: Dict[str, Any],
             options: Dict[str, Any],
             subcommands: Dict[str, Any]
@@ -168,9 +169,7 @@ class Arpamar:
         if r_arg and not self._cache_args:
             return r_arg
         if all([item in self._options, item in self._subcommands]):
-            raise RuntimeError(
-                f"{item} is both a option and a subcommand\nplease add prefix 'options.' or 'subcommands.'"
-            )
+            raise RuntimeError(lang_config.arpamar_ambiguous_name.format(target=item))
         if item == "options":
             self._cache_args = self._options
             return self

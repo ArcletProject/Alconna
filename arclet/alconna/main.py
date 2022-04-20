@@ -9,8 +9,7 @@ from .arpamar.duplication import AlconnaDuplication
 from .types import DataCollection, DataUnit
 from .manager import command_manager
 from .visitor import AlconnaNodeVisitor, AbstractHelpTextFormatter
-from .builtin.formatter import DefaultHelpTextFormatter
-from .builtin.analyser import DisorderCommandAnalyser
+from .builtin.analyser import DefaultCommandAnalyser
 
 T_Duplication = TypeVar('T_Duplication', bound=AlconnaDuplication)
 
@@ -55,12 +54,13 @@ class Alconna(CommandNode):
     command: str
     options: List[Union[Option, Subcommand]]
     analyser_type: Type[Analyser]
-    custom_types: Dict[str, Type] = {}
-    namespace: str
-    __cls_name__: str = "Alconna"
-    local_args: dict = {}
     formatter: AbstractHelpTextFormatter
-    default_analyser: Type[Analyser] = DisorderCommandAnalyser  # type: ignore
+    namespace: str
+
+    default_analyser: Type[Analyser] = DefaultCommandAnalyser
+    custom_types: Dict[str, Type] = {}
+    local_args: dict = {}
+    __temp_namespace__: Optional[str] = None
 
     def __init__(
             self,
@@ -96,7 +96,6 @@ class Alconna(CommandNode):
             formatter: 命令帮助文本格式器, 默认为 DefaultHelpTextFormatter
             is_fuzzy_match: 是否开启模糊匹配, 默认为 False
         """
-        # headers与command二者必须有其一
         if all((not headers, not command)):
             command = "Alconna"
         self.headers = headers or [""]
@@ -110,18 +109,18 @@ class Alconna(CommandNode):
             help_text or "Unknown Information"
         )
         self.is_raise_exception = is_raise_exception
-        self.namespace = namespace or self.__cls_name__
+        self.namespace = namespace or self.__class__.__temp_namespace__ or command_manager.default_namespace
         self.options.append(Option("--help", alias=["-h"], help_text="显示帮助信息"))
         self.analyser_type = analyser_type or self.default_analyser
         command_manager.register(compile(self))
-        self.__class__.__cls_name__ = "Alconna"
         self.behaviors = behaviors
-        self.formatter = formatter or DefaultHelpTextFormatter()  # type: ignore
+        self.formatter = formatter or command_manager.default_formatter
         self.is_fuzzy_match = is_fuzzy_match
+        self.__class__.__temp_namespace__ = None
 
     def __class_getitem__(cls, item):
         if isinstance(item, str):
-            cls.__cls_name__ = item
+            cls.__temp_namespace__ = item
         return cls
 
     def reset_namespace(self, namespace: str):

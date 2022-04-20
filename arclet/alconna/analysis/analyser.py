@@ -1,13 +1,14 @@
 import re
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable
+from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable, Pattern
 
 from ..exceptions import NullTextMessage, UnexpectedElement
 from ..base import Args
 from ..component import Option, Subcommand
 from ..arpamar import Arpamar
 from ..util import split_once, split
-from ..types import DataUnit, ArgPattern, DataCollection
+from ..types import DataUnit, DataCollection, pattern_map
+from ..lang_config import lang_config
 
 if TYPE_CHECKING:
     from ..main import Alconna
@@ -32,16 +33,16 @@ class Analyser(metaclass=ABCMeta):
     param_ids: List[str]
     # 命令头部
     command_header: Union[
-        ArgPattern,
-        Tuple[Union[Tuple[List[Any], ArgPattern], List[Any]], ArgPattern],
-        List[Tuple[Any, ArgPattern]]
+        Pattern,
+        Tuple[Union[Tuple[List[Any], Pattern], List[Any]], Pattern],
+        List[Tuple[Any, Pattern]]
     ]
     separator: str  # 分隔符
     is_raise_exception: bool  # 是否抛出异常
     options: Dict[str, Any]  # 存放解析到的所有选项
     subcommands: Dict[str, Any]  # 存放解析到的所有子命令
     main_args: Dict[str, Any]  # 主参数
-    header: Optional[Union[str, bool]]  # 命令头部
+    header: Optional[Union[Dict[str, Any], bool]]  # 命令头部
     need_main_args: bool  # 是否需要主参数
     head_matched: bool  # 是否匹配了命令头部
     part_len: range  # 分段长度
@@ -58,7 +59,7 @@ class Analyser(metaclass=ABCMeta):
             if issubclass(base, Analyser):
                 cls.arg_handlers.update(getattr(base, "arg_handlers", {}))
         if not hasattr(cls, "filter_out"):
-            raise TypeError("Analyser subclass must define filter_out")
+            raise TypeError(lang_config.analyser_filter_missing)
 
     @classmethod
     def add_arg_handler(cls, arg_type: Type, handler: Optional[ARGHANDLER_TYPE] = None):
@@ -99,11 +100,33 @@ class Analyser(metaclass=ABCMeta):
             command_name: str,
             headers: Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]]
     ):
+        if len(parts := re.split("({.*?})", command_name)) > 1:
+            for i, part in enumerate(parts):
+                if not part:
+                    continue
+                if res := re.match("{(.*?)}", part):
+                    _res = res.group(1)
+                    if not _res:
+                        parts[i] = ".+?"
+                        continue
+                    _parts = _res.split(":")
+                    if len(_parts) == 1:
+                        parts[i] = f"(?P<{_parts[0]}>.+?)"
+                    elif not _parts[0] and not _parts[1]:
+                        parts[i] = ".+?"
+                    elif not _parts[0] and _parts[1]:
+                        parts[i] = f"{pattern_map.get(_parts[1], _parts[1])}".replace("(", "").replace(")", "")
+                    elif _parts[0] and not _parts[1]:
+                        parts[i] = f"(?P<{_parts[0]}>.+?)"
+                    else:
+                        parts[i] = f"(?P<{_parts[0]}>{pattern_map.get(_parts[1], _parts[1])})"
+            command_name = "".join(parts)
+
         if headers != [""]:
             if isinstance(headers[0], tuple):
                 mixins = []
-                for h in headers:  
-                    mixins.append((h[0], ArgPattern(re.escape(h[1]) + command_name)))  # type: ignore
+                for h in headers:
+                    mixins.append((h[0], re.compile(re.escape(h[1]) + command_name)))  # type: ignore
                 self.command_header = mixins
             else:
                 elements = []
@@ -114,28 +137,26 @@ class Analyser(metaclass=ABCMeta):
                     else:
                         elements.append(h)
                 if not elements:
-                    self.command_header = ArgPattern("(?:{})".format(ch_text[:-1]) + command_name)
+                    self.command_header = re.compile("(?:{})".format(ch_text[:-1]) + command_name)  # noqa
                 elif not ch_text:
-                    self.command_header = (elements, ArgPattern(command_name))
+                    self.command_header = (elements, re.compile(command_name))
                 else:
                     self.command_header = (
-                        (elements, ArgPattern("(?:{})".format(ch_text[:-1]))), ArgPattern(command_name)
+                        (elements, re.compile("(?:{})".format(ch_text[:-1]))), re.compile(command_name)  # noqa
                     )
         else:
-            self.command_header = ArgPattern(command_name)
+            self.command_header = re.compile(command_name)
 
     @staticmethod
     def default_params_generator(analyser: "Analyser"):
         analyser.param_ids = []
-        analyser.command_params = {}  # "main_args": analyser.alconna.args
+        analyser.command_params = {}
         for opts in analyser.alconna.options:
             if isinstance(opts, Subcommand):
                 analyser.param_ids.append(opts.name)
-                # opts.sub_params.setdefault('sub_args', opts.args)
                 for sub_opts in opts.options:
                     opts.sub_params.setdefault(sub_opts.name, sub_opts)
                     analyser.param_ids.extend(sub_opts.aliases)
-                # opts.sub_part_len = range(len(opts.options) + opts.nargs)
                 opts.sub_part_len = range(len(opts.options) + 1)
             else:
                 analyser.param_ids.extend(opts.aliases)
@@ -239,9 +260,10 @@ class Analyser(metaclass=ABCMeta):
         if isinstance(data, str):
             self.is_str = True
             if not (res := split(data.lstrip(), self.separator)):
+                exp = NullTextMessage(lang_config.analyser_handle_null_message.format(target=data))
                 if self.is_raise_exception:
-                    raise NullTextMessage("传入了空的字符串")
-                return self.create_arpamar(fail=True, exception=NullTextMessage("传入了空的字符串"))
+                    raise exp
+                return self.create_arpamar(fail=True, exception=exp)
             self.raw_data = {0: res}
             self.ndata = 1
         else:
@@ -263,13 +285,16 @@ class Analyser(metaclass=ABCMeta):
                     raw_data[i] = unit
                 else:
                     if self.is_raise_exception:
-                        exc = UnexpectedElement(f"{unit.type}({unit})")
+                        exc = UnexpectedElement(
+                            lang_config.analyser_handle_unexpect_type.format(targer=f"{unit.type}({unit})")
+                        )
                     continue
                 i += 1
             if __t is False:
+                exp = NullTextMessage(lang_config.analyser_handle_null_message.format(target=data))
                 if self.is_raise_exception:
-                    raise NullTextMessage("传入了一个无法获取文本的消息链")
-                return self.create_arpamar(fail=True, exception=NullTextMessage("传入了一个无法获取文本的消息链"))
+                    raise exp
+                return self.create_arpamar(fail=True, exception=exp)
             if exc:
                 if self.is_raise_exception:
                     raise exc

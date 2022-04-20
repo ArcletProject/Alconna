@@ -15,8 +15,9 @@ from arclet.alconna.analysis.arg_handlers import (
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, NullTextMessage, UnexpectedElement, \
     FuzzyMatchSuccess
-from arclet.alconna.util import split
+from arclet.alconna.util import split, levenshtein_norm
 from arclet.alconna.builtin.actions import help_send
+from arclet.alconna.lang_config import lang_config
 
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.message.element import Plain
@@ -67,14 +68,17 @@ class GraiaCommandAnalyser(Analyser):
                 raw_data[i] = unit
             else:
                 if self.is_raise_exception:
-                    exc = UnexpectedElement(f"{unit.type}({unit})")
+                    exc = UnexpectedElement(
+                        lang_config.analyser_handle_unexpect_type.format(targer=f"{unit.type}({unit})")
+                    )
                 continue
             i += 1
 
         if __t is False:
+            exp = NullTextMessage(lang_config.analyser_handle_null_message.format(target=data))
             if self.is_raise_exception:
-                raise NullTextMessage("传入了一个无法获取文本的消息链")
-            return self.create_arpamar(fail=True, exception=NullTextMessage("传入了一个无法获取文本的消息链"))
+                raise exp
+            return self.create_arpamar(fail=True, exception=exp)
         if exc:
             if self.is_raise_exception:
                 raise exc
@@ -87,7 +91,7 @@ class GraiaCommandAnalyser(Analyser):
             return self.create_arpamar(fail=True)
         if self.ndata == 0:
             if not message:
-                raise ValueError('No data to analyse')
+                raise ValueError(lang_config.analyser_handle_null_message.format(target=message))
             if r := self.handle_message(message):
                 return r
         try:
@@ -109,28 +113,25 @@ class GraiaCommandAnalyser(Analyser):
             except ValueError:
                 return self.create_arpamar(fail=True, exception=e)
         except FuzzyMatchSuccess as Fuzzy:
-            self.raw_data = {self.current_index: ["--help"]}
-            self.content_index = 0
-            self.ndata += 1
-            _param = self.command_params["--help"]
-
-            def _get_help(exp=Fuzzy):
-                return str(exp)
-
-            _param.action = help_send(
-                self.alconna.name, _get_help
-            )
-            analyse_option(self, _param)
+            help_send(
+                self.alconna.name, lambda: str(Fuzzy)
+            ).handle({}, is_raise_exception=self.is_raise_exception)
             return self.create_arpamar(fail=True)
 
         for _ in self.part_len:
             _text, _str = self.next_data(self.separator, pop=False)
             if not (_param := self.command_params.get(_text, None) if _str else Ellipsis) and _text != "":
                 for p in self.command_params:
-                    if _text.split(self.command_params[p].separator)[0] in \
-                            getattr(self.command_params[p], 'aliases', [p]):
+                    _may_param = _text.split(self.command_params[p].separator)[0]
+                    if _may_param in getattr(self.command_params[p], 'aliases', [p]):
                         _param = self.command_params[p]
                         break
+                    if self.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.7:
+                        help_send(
+                            self.alconna.name,
+                            lambda: lang_config.common_fuzzy_matched.format(source=_may_param, target=p)
+                        ).handle({}, is_raise_exception=self.is_raise_exception)
+                        return self.create_arpamar(fail=True)
             try:
                 if not _param or _param is Ellipsis:
                     if not self.main_args:
@@ -139,10 +140,8 @@ class GraiaCommandAnalyser(Analyser):
                         )
                 elif isinstance(_param, Option):
                     if _param.name == "--help":
-                        _record = self.current_index, self.content_index
                         _help_param = self.recover_raw_data()
-                        _help_param[0] = _help_param[0].replace("--help", "", 1).lstrip()
-                        self.current_index, self.content_index = _record
+                        _help_param[0] = _help_param[0].replace("--help", "", 1).replace("-h", "", 1).lstrip()
 
                         def _get_help():
                             visitor = AlconnaNodeVisitor(self.alconna)
@@ -151,10 +150,9 @@ class GraiaCommandAnalyser(Analyser):
                                 visitor.require(_help_param)
                             )
 
-                        _param.action = help_send(
+                        help_send(
                             self.alconna.name, _get_help
-                        )
-                        analyse_option(self, _param)
+                        ).handle({}, is_raise_exception=self.is_raise_exception)
                         return self.create_arpamar(fail=True)
                     opt_n, opt_v = analyse_option(self, _param)
                     if not self.options.get(opt_n, None):
@@ -167,6 +165,14 @@ class GraiaCommandAnalyser(Analyser):
                 elif isinstance(_param, Subcommand):
                     sub_n, sub_v = analyse_subcommand(self, _param)
                     self.subcommands[sub_n] = sub_v
+
+            except FuzzyMatchSuccess as Fuzzy:
+                help_send(
+
+                    self.alconna.name, lambda: str(Fuzzy)
+
+                ).handle({}, is_raise_exception=self.is_raise_exception)
+                return self.create_arpamar(fail=True)
 
             except (ParamsUnmatched, ArgumentMissing):
                 if self.is_raise_exception:
@@ -187,9 +193,11 @@ class GraiaCommandAnalyser(Analyser):
 
         data_len = self.rest_count(self.separator)
         if data_len > 0:
-            exc = ParamsUnmatched("Unmatched params: {}".format(self.next_data(self.separator, pop=False)[0]))
+            exc = ParamsUnmatched(
+                lang_config.analyser_param_unmatched.format(target=self.next_data(self.separator, pop=False)[0])
+            )
         else:
-            exc = ArgumentMissing("You need more data to analyse!")
+            exc = ArgumentMissing(lang_config.analyser_param_missing)
         if self.is_raise_exception:
             raise exc
         return self.create_arpamar(fail=True, exception=exc)

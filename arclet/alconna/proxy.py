@@ -8,7 +8,8 @@ from .types import DataCollection
 from .main import Alconna
 from .arpamar import Arpamar
 from .manager import command_manager
-from .builtin.actions import require_help_send_action
+from .builtin.actions import help_manager
+from .lang_config import lang_config
 
 
 @lru_cache(4096)
@@ -75,7 +76,7 @@ class AlconnaMessageProxy(metaclass=abc.ABCMeta):
         if isinstance(command, str):
             command = command_manager.get_command(command)  # type: ignore
             if not command:
-                raise ValueError(f'Command {command} not found')
+                raise ValueError(lang_config.manager_undefined_command.format(target=command))
         self.pre_treatments.setdefault(command, pre_treatment or self.default_pre_treatment)  # type: ignore
 
     @abc.abstractmethod
@@ -103,7 +104,7 @@ class AlconnaMessageProxy(metaclass=abc.ABCMeta):
                 nonlocal may_help_text
                 may_help_text = string
 
-            require_help_send_action(_h, _command.name)
+            help_manager.require_send_action(_h, _command.name)
 
             _res = _command.parse(message)
             _property = await run_always_await(_treatment, message, _res, may_help_text, source)

@@ -66,7 +66,7 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
         command_string = f"{'|'.join(headers_text)}{root['separator']}" \
             if headers_text else root['name'] + root['separator']
         return (
-            f"{command_string}{self.parameters(root['parameters'], root['separator'])}"
+            f"{command_string}{self.parameters(root['parameters'], root['param_separator'])}"
             f"{help_string}{usage}\n%s{example}"
         )
 
@@ -77,7 +77,7 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
             return (
                 f"# {sub['description']}\n"
                 f"  {alias_text}{sub['separator']}"
-                f"{self.parameters(sub['parameters'], sub['separator'])}\n"
+                f"{self.parameters(sub['parameters'], sub['param_separator'])}\n"
             )
         elif node_type == 'subcommand':
             option_string = "".join([self.part(i, 'option').replace("\n", "\n ") for i in sub['sub_nodes']])
@@ -85,7 +85,7 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
             return (
                 f"# {sub['description']}\n"
                 f"  {sub['name']}{sub['separator']}"
-                f"{self.parameters(sub['parameters'], sub['separator'])}\n"
+                f"{self.parameters(sub['parameters'], sub['param_separator'])}\n"
                 f"{option_help}{option_string}"
             )
         else:
@@ -180,7 +180,7 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
             if headers_text else root['name'] + root['separator']
         return (
             f"\n命令: {command_string}{help_string}{usage}"
-            f"{self.parameters(root['parameters'], root['separator'])}\n%s{example}"
+            f"{self.parameters(root['parameters'], root['param_separator'])}\n%s{example}"
         )
 
     def part(self, sub: Dict[str, Any], node_type: str) -> str:
@@ -190,7 +190,7 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
             return (
                 f"# {sub['description']}\n"
                 f"  {alias_text}{sub['separator']}"
-                f"{self.parameters(sub['parameters'], sub['separator'])}\n"
+                f"{self.parameters(sub['parameters'], sub['param_separator'])}\n"
             )
         elif node_type == 'subcommand':
             option_string = "".join([self.part(i, 'option').replace("\n", "\n ") for i in sub['sub_nodes']])
@@ -198,7 +198,7 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
             return (
                 f"# {sub['description']}\n"
                 f"  {sub['name']}{sub['separator']}"
-                f"{self.parameters(sub['parameters'], sub['separator'])}\n"
+                f"{self.parameters(sub['parameters'], sub['param_separator'])}\n"
                 f"{option_help}{option_string}"
             )
         else:
@@ -211,7 +211,7 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
         for opt in filter(lambda x: x['type'] == 'option', parts):
             aliases = opt['additional_info'].get('aliases')
             alias_text = ", ".join(aliases)
-            args = f"{self.parameters(opt['parameters'], opt['separator'])}"
+            args = f"{self.parameters(opt['parameters'], opt['param_separator'])}"
             options.append(f"  {alias_text}{opt['separator']}{args}")
             opt_description.append(opt['description'])
         if options:
@@ -224,7 +224,7 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
         sub_description = []
         for sub in filter(lambda x: x['type'] == 'subcommand', parts):
             sub_topic = " ".join([f"[{i['name']}]" for i in sub['sub_nodes']])
-            args = f"{self.parameters(sub['parameters'], sub['separator'])}"
+            args = f"{self.parameters(sub['parameters'], sub['param_separator'])}"
             subcommands.append(f"  {sub['name']} {sub['separator'].join([args, sub_topic])}")
             sub_description.append(sub['description'])
         if subcommands:
