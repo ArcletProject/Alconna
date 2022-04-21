@@ -1,7 +1,7 @@
 from typing import Union, Optional
 import traceback
 
-from arclet.alconna.component import Option, Subcommand
+from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.types import (
     DataCollection, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
@@ -70,16 +70,23 @@ class DefaultCommandAnalyser(Analyser):
             _text, _str = self.next_data(self.separator, pop=False)
             if not (_param := self.command_params.get(_text, None) if _str else Ellipsis) and _text != "":
                 for p in self.command_params:
-                    _may_param = _text.split(self.command_params[p].separator)[0]
-                    if _may_param in getattr(self.command_params[p], 'aliases', [p]):
-                        _param = self.command_params[p]
-                        break
-                    if self.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.7:
-                        help_send(
-                            self.alconna.name,
-                            lambda: lang_config.common_fuzzy_matched.format(source=_may_param, target=p)
-                        ).handle({}, is_raise_exception=self.is_raise_exception)
-                        return self.create_arpamar(fail=True)
+                    _p = self.command_params[p]
+                    if _p.is_compact:
+                        for name in getattr(_p, 'aliases', [p]):
+                            if _text.startswith(name):
+                                _param = _p
+                                break
+                    else:
+                        _may_param = _text.split(_p.separator)[0]
+                        if _may_param in getattr(_p, 'aliases', [p]):
+                            _param = _p
+                            break
+                        if self.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.7:
+                            help_send(
+                                self.alconna.name,
+                                lambda: lang_config.common_fuzzy_matched.format(source=_may_param, target=p)
+                            ).handle({}, is_raise_exception=self.is_raise_exception)
+                            return self.create_arpamar(fail=True)
             try:
                 if not _param or _param is Ellipsis:
                     if not self.main_args:

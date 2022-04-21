@@ -2,8 +2,7 @@ from inspect import isclass
 from typing import Dict, Any, List, TypeVar, Union, Type
 from abc import ABCMeta, abstractmethod
 
-from ..base import Args, ArgPattern, _AnyParam
-from ..component import Option, Subcommand
+from ..base import Args, ArgPattern, _AnyParam, Option, Subcommand
 from ..lang_config import lang_config
 
 T = TypeVar('T')

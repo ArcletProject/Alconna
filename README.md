@@ -57,8 +57,9 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 * 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`
 * 精简、多样的构造方法
 * 强大的自动类型转换功能
-* 可传入同步与异步的action函数
-* 高度自定义的HelpFormat、Analyser
+* 可传入同步与异步的 action 函数
+* 高度自定义的 HelpFormat、Analyser
+* 自定义语言文件, 间接支持 i18n
 * Duplication、FuzzyMatch等一众特性
 
 类型转换示范:

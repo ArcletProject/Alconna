@@ -1,7 +1,6 @@
 from typing import Union
 
-from arclet.alconna import Alconna, Args, AlconnaString
-from arclet.alconna.component import Subcommand, Option
+from arclet.alconna import Alconna, Args, AlconnaString, Subcommand, Option
 from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.types import AnyIP, AnyDigit, AnyStr, AnyParam
 from graia.ariadne.message.chain import MessageChain
@@ -79,28 +78,24 @@ print(msg)
 result = ccc.parse(msg)
 print(result.main_args)
 
-eee = Alconna(
-    headers=[""],
-    command=f"RD{AnyDigit}?=={AnyDigit}"
-)
+eee = Alconna("RD{r:int}?=={e:int}")
 msg = "RD100==36"
 result = eee.parse(msg)
 print(result.header)
 
 weather = Alconna(
     headers=['渊白', 'cmd.', '/bot '],
-    command=f"{AnyStr}天气",
+    command="{city}天气",
     options=[
-        Option("时间")["days":str, "aaa":str].separate('='),
-        Option("bbb")
+        Option("时间")["days":str].separate('='),
     ],
 )
-msg = MessageChain.create('渊白桂林天气 时间=明天=后台 bbb')
+msg = MessageChain.create('渊白桂林天气 时间=明天')
 result = weather.parse(msg)
 print(result)
-print(result['aaa'])
+print(result.header)
 
-msg = MessageChain.create('渊白桂林天气 aaa')
+msg = MessageChain.create('渊白桂林天气 aaa bbb')
 result = weather.parse(msg)
 print(result)
 
@@ -133,7 +128,7 @@ result = ddd.parse(msg)
 print(result.div)
 
 ddd = Alconna(
-    command="点歌"
+    "点歌"
 ).option(
     "歌名", sep="：", args=Args(song_name=AnyStr)
 ).option(

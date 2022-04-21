@@ -2,14 +2,12 @@
 
 from typing import TYPE_CHECKING
 from .util import split_once, split
-from .base import CommandNode, Args, ArgAction
-from .component import Option, Subcommand
+from .base import CommandNode, Args, ArgAction, Option, Subcommand
 from .arpamar import Arpamar
 from .arpamar.duplication import AlconnaDuplication
 from .arpamar.stub import ArgsStub, SubcommandStub, OptionStub
 from .types import (
-    DataUnit, DataCollection, AnyParam, AllParam, Empty,
-    AnyStr, AnyIP, AnyUrl, AnyDigit, AnyFloat, Bool, PatternToken, Email, ObjectPattern,
+    DataUnit, DataCollection, AnyParam, AllParam, Empty, PatternToken, ObjectPattern,
     set_converter, pattern
 )
 from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, UnexpectedElement

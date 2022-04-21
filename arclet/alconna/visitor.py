@@ -5,8 +5,7 @@ from typing import List, Dict, Optional, Any, Literal, Union, TYPE_CHECKING
 from abc import ABCMeta, abstractmethod
 from .exceptions import DuplicateCommand
 from .lang_config import lang_config
-from .base import CommandNode
-from .component import Subcommand, Option
+from .base import CommandNode, Subcommand, Option
 
 if TYPE_CHECKING:
     from .main import Alconna

@@ -5,7 +5,7 @@ with open("README.rst", "r", encoding='utf-8') as fh:
 
 setuptools.setup(
     name="arclet-alconna",
-    version="0.8.3",
+    version="0.8.3.1",
     author="ArcletProject",
     author_email="rf_tar_railt@qq.com",
     description="A Fast Command Analyser based on Dict",
@@ -37,6 +37,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent",
     ],
+    include_package_data=True,
     keywords=['command', 'argparse', 'dict', 'fast', 'alconna', 'cli'],
     python_requires='>=3.8',
     project_urls={

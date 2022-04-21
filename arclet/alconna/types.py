@@ -127,27 +127,6 @@ class ArgPattern:
         r = self.re_pattern.findall(text)
         return r[0] if r else None
 
-    def __getstate__(self):
-        re_pattern = self.pattern
-        token = self.token.value
-        type_mark = self.origin_type.__name__
-        alias = self.alias
-        return {"type": "ArgPattern", "pattern": re_pattern, "token": token, "origin_type": type_mark, "alias": alias}
-
-    def to_dict(self):
-        return self.__getstate__()
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        re_pattern = data["pattern"]
-        token = PatternToken(data["token"])
-        type_mark = eval(data["origin_type"])
-        alias = data["alias"]
-        return cls(re_pattern, token, type_mark, alias=alias)
-
-    def __setstate__(self, state):
-        self.__init__(state["pattern"], PatternToken(state["token"]), eval(state["origin_type"]), alias=state["alias"])
-
 
 class Force:
     """
@@ -690,7 +669,9 @@ class ObjectPattern(ArgPattern):
                         elif flag == "json":
                             _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>.+?)\\'")  # ,
                     else:
-                        raise TypeError(lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__))
+                        raise TypeError(
+                            lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__)
+                        )
                 else:
                     if isinstance(suppliers[name], LambdaType):
                         if len(_s_sig.parameters) == 0:
@@ -704,7 +685,9 @@ class ObjectPattern(ArgPattern):
                             elif flag == "json":
                                 _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>.+?)\\'")  # ,
                         else:
-                            raise TypeError(lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__))
+                            raise TypeError(
+                                lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__)
+                            )
                     else:
                         raise TypeError(lang_config.types_supplier_return_error.format(
                             target=name, origin=origin.__name__, source=param.annotation

@@ -1,10 +1,9 @@
-import abc
 import asyncio
 import inspect
 from asyncio.queues import Queue
+from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Optional, Union, Callable, Dict, AsyncIterator, Coroutine, Any, Tuple, TypeVar, Generic
-from .types import DataCollection
+from typing import Optional, Union, Callable, Dict, AsyncIterator, Coroutine, Tuple, TypeVar, Generic
 from .main import Alconna
 from .arpamar import Arpamar
 from .manager import command_manager
@@ -22,35 +21,28 @@ async def run_always_await(callable_target, *args, **kwargs):
         return await callable_target(*args, **kwargs)
     return callable_target(*args, **kwargs)
 
+
 T_Origin = TypeVar('T_Origin')
 T_Source = TypeVar('T_Source')
 
 
+@dataclass
 class AlconnaProperty(Generic[T_Origin, T_Source]):
     """对解析结果的封装"""
-
-    def __init__(
-            self,
-            origin: T_Origin,
-            result: Arpamar,
-            help_text: Optional[str] = None,
-            source: Optional[T_Source] = None,
-    ):
-        self.origin = origin
-        self.result = result
-        self.help_text = help_text
-        self.source = source
+    origin: T_Origin
+    result: Arpamar
+    help_text: Optional[str] = field(default=None)
+    source: T_Source = field(default=None)
 
 
-class AlconnaMessageProxy(metaclass=abc.ABCMeta):
+class AlconnaMessageProxy(Generic[T_Origin, T_Source]):
     """消息解析的代理"""
     loop: asyncio.AbstractEventLoop
     export_results: Queue
     pre_treatments: Dict[
         Alconna,
         Callable[
-            [Union[str, DataCollection], Arpamar, Optional[str]],
-            AlconnaProperty[Union[str, DataCollection], str]
+            [T_Origin, Arpamar, Optional[str], Optional[T_Source]], AlconnaProperty[T_Origin, T_Source]
         ]
     ]
 
@@ -60,15 +52,21 @@ class AlconnaMessageProxy(metaclass=abc.ABCMeta):
         self.export_results = Queue()
         self.default_pre_treatment = lambda o, r, h, s: AlconnaProperty(o, r, h, s)
 
+    def register_middleware(self, middleware: Callable[
+            [T_Origin, Arpamar, Optional[str], Optional[T_Source]],
+            AlconnaProperty[T_Origin, T_Source]
+    ]):
+        self.default_pre_treatment = middleware
+
     def add_proxy(
             self,
             command: Union[str, Alconna],
             pre_treatment: Optional[
                 Callable[
-                    [Union[str, DataCollection], Arpamar, Optional[str]],
+                    [T_Origin, Arpamar, Optional[str], Optional[T_Source]],
                     Union[
-                        AlconnaProperty[Union[str, DataCollection], str],
-                        Coroutine[None, None, AlconnaProperty[Union[str, DataCollection], str]]
+                        AlconnaProperty[T_Origin, T_Source],
+                        Coroutine[None, None, AlconnaProperty[T_Origin, T_Source]]
                     ]
                 ]
             ] = None,
@@ -79,22 +77,21 @@ class AlconnaMessageProxy(metaclass=abc.ABCMeta):
                 raise ValueError(lang_config.manager_undefined_command.format(target=command))
         self.pre_treatments.setdefault(command, pre_treatment or self.default_pre_treatment)  # type: ignore
 
-    @abc.abstractmethod
-    async def fetch_message(self) -> AsyncIterator[Tuple[Union[str, DataCollection], Any]]:
+    async def fetch_message(self) -> AsyncIterator[Tuple[T_Origin, T_Source]]:
         """主动拉取消息"""
         yield NotImplemented
         raise NotImplementedError
-
-    @staticmethod
-    def later_condition(result: AlconnaProperty[Union[str, DataCollection], str]) -> bool:
-        if not result.result.matched and not result.help_text:
-            return False
-        return True
+    # 改为middleware
+    # @staticmethod
+    # def later_condition(result: AlconnaProperty[T_Origin, T_Source]) -> bool:
+    #     if not result.result.matched and not result.help_text:
+    #         return False
+    #     return True
 
     async def push_message(
             self,
-            message: Union[str, DataCollection],
-            source: Optional[Any] = None,
+            message: T_Origin,
+            source: Optional[T_Source] = None,
             command: Optional[Alconna] = None,
     ):
         async def __exec(_command, _treatment):
@@ -108,9 +105,8 @@ class AlconnaMessageProxy(metaclass=abc.ABCMeta):
 
             _res = _command.parse(message)
             _property = await run_always_await(_treatment, message, _res, may_help_text, source)
-            if not self.later_condition(_property):
-                return
             await self.export_results.put(_property)
+
         if command and command in self.pre_treatments:
             await __exec(command, self.pre_treatments[command])
         else:

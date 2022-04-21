@@ -4,10 +4,9 @@ import traceback
 from .analyser import Analyser
 from .arg_handlers import multi_arg_handler, anti_arg_handler, common_arg_handler
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
-from ..component import Option, Subcommand
 from ..arpamar import Arpamar
 from ..types import DataCollection, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
-from ..base import Args
+from ..base import Args, Option, Subcommand
 
 if TYPE_CHECKING:
     from ..main import Alconna

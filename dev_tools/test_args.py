@@ -1,7 +1,7 @@
 import time
 from typing import Union
 
-from arclet.alconna import Args, AnyFloat
+from arclet.alconna import Args
 from arclet.alconna.analysis import analyse_args
 
 print("\nArgs KVWord construct:")
@@ -10,7 +10,7 @@ print("arg:", arg)
 print(analyse_args(arg, "arclet-alconna True"))
 
 print("\nArgs Magic construct:")
-arg1 = Args["round":AnyFloat, "test":bool:True]["aaa":str] << Args["perm":str:...] + ["month", int]
+arg1 = Args["round":float, "test":bool:True]["aaa":str] << Args["perm":str:...] + ["month", int]
 arg1["foo"] = ["bar", ...]
 arg11 = Args.baz[int]
 print("arg1:", arg1)

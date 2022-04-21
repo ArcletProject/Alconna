@@ -2,10 +2,9 @@ import re
 from typing import Iterable, Union, Optional, List, Any, Dict, Pattern
 
 from .analyser import Analyser
-from ..component import Option, Subcommand
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from ..types import AnyParam, AllParam, Empty, TypePattern
-from ..base import Args, ArgAction
+from ..base import Args, ArgAction, Option, Subcommand
 from ..util import levenshtein_norm
 from ..manager import command_manager
 from ..lang_config import lang_config
@@ -69,9 +68,7 @@ def analyse_args(
                 option_dict[key] = None if default is Empty else default
         elif value.__class__ in analyser.arg_handlers:
             analyser.arg_handlers[value.__class__](
-                analyser, may_arg, key, value,
-                default, nargs, sep, option_dict,
-                optional
+                analyser, may_arg, key, value, default, nargs, sep, option_dict, optional
             )
         elif value.__class__ is TypePattern:
             arg_find = value.match(may_arg)
@@ -136,10 +133,7 @@ def analyse_args(
         else:
             addition_kwargs = kwargs
             result_dict.update(analyser.alconna.local_args)
-        option_dict = action.handle(
-            result_dict, varargs, addition_kwargs,
-            analyser.is_raise_exception
-        )
+        option_dict = action.handle(result_dict, varargs, addition_kwargs, analyser.is_raise_exception)
         if opt_args.var_keyword:
             option_dict.update({opt_args.var_keyword[0]: kwargs})
         if opt_args.var_positional:
@@ -158,17 +152,22 @@ def analyse_option(
         analyser: 使用的分析器
         param: 目标Option
     """
-    name, _ = analyser.next_data(param.separator)
-    if name not in param.aliases:  # 先匹配选项名称
-        raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
+    if param.is_compact:
+        name, _ = analyser.next_data()
+        for al in param.aliases:
+            if name.startswith(al):
+                analyser.reduce_data(name.lstrip(al), replace=True)
+                break
+        else:
+            raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
+    else:
+        name, _ = analyser.next_data(param.separator)
+        if name not in param.aliases:  # 先匹配选项名称
+            raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.name.lstrip("-")
     if param.nargs == 0:
         if param.action:
-            r = param.action.handle(
-                {}, [], analyser.alconna.local_args.copy(),
-                analyser.is_raise_exception
-            )
-            return [name, r]
+            return [name, param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)]
         return [name, Ellipsis]
     return [name, analyse_args(analyser, param.args, param.nargs, param.action)]
 
@@ -184,17 +183,20 @@ def analyse_subcommand(
         analyser: 使用的分析器
         param: 目标Subcommand
     """
-    name, _ = analyser.next_data(param.separator)
-    if param.name != name:
-        raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
+    if param.is_compact:
+        name, _ = analyser.next_data()
+        if name.startswith(param.name):
+            analyser.reduce_data(name.lstrip(param.name), replace=True)
+        else:
+            raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
+    else:
+        name, _ = analyser.next_data(param.separator)
+        if name != param.name:  # 先匹配选项名称
+            raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = name.lstrip("-")
     if param.sub_part_len.stop == 0:
         if param.action:
-            r = param.action.handle(
-                {}, [], analyser.alconna.local_args.copy(),
-                analyser.is_raise_exception
-            )
-            return [name, r]
+            return [name, param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)]
         return [name, Ellipsis]
 
     subcommand = {}

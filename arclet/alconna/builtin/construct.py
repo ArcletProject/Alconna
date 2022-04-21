@@ -10,8 +10,7 @@ from typing import Dict, Any, Optional, Callable, Union, TypeVar, List, Type, Fr
 from arclet.alconna.types import DataCollection
 from arclet.alconna.builtin.actions import store_value
 from arclet.alconna.main import Alconna
-from arclet.alconna.component import Option, Subcommand
-from arclet.alconna.base import Args, TAValue, ArgAction
+from arclet.alconna.base import Args, TAValue, ArgAction, Option, Subcommand
 from arclet.alconna.util import split, split_once
 from arclet.alconna.lang_config import lang_config
 

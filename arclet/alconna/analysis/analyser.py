@@ -3,8 +3,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable, Pattern
 
 from ..exceptions import NullTextMessage, UnexpectedElement
-from ..base import Args
-from ..component import Option, Subcommand
+from ..base import Args, Option, Subcommand
 from ..arpamar import Arpamar
 from ..util import split_once, split
 from ..types import DataUnit, DataCollection, pattern_map
@@ -223,7 +222,7 @@ class Analyser(metaclass=ABCMeta):
                 _result += 1
         return _result
 
-    def reduce_data(self, data: Union[str, Any]):
+    def reduce_data(self, data: Union[str, Any], replace=False):
         """把pop的数据放回 (实际只是‘指针’移动)"""
         if not data:
             return
@@ -231,6 +230,11 @@ class Analyser(metaclass=ABCMeta):
             self.current_index -= 1
             if isinstance(data, str):
                 self.content_index = len(self.raw_data[self.current_index]) - 1
+            if replace:
+                if isinstance(data, str):
+                    self.raw_data[self.current_index][self.content_index] = data
+                else:
+                    self.raw_data[self.current_index] = data
         else:
             _current_data = self.raw_data[self.current_index]
             if isinstance(_current_data, list) and isinstance(data, str):
@@ -238,8 +242,12 @@ class Analyser(metaclass=ABCMeta):
                     _current_data[self.content_index] = f"{data}{sep}{_current_data[self.content_index]}"
                 else:
                     self.content_index -= 1
+                    if replace:
+                        _current_data[self.content_index] = data
             else:
                 self.current_index -= 1
+                if replace:
+                    self.raw_data[self.current_index] = data
 
     def recover_raw_data(self) -> List[Union[str, Any]]:
         """将处理过的命令数据大概还原"""

@@ -1,9 +1,8 @@
 """Alconna 主体"""
-from typing import Dict, List, Optional, Union, Type, Callable, Any, Tuple, TypeVar, overload
+from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload
 from .analysis.analyser import Analyser
 from .analysis import compile
-from .base import CommandNode, Args, ArgAction
-from .component import Option, Subcommand
+from .base import CommandNode, Args, ArgAction, Option, Subcommand
 from .arpamar import Arpamar, ArpamarBehavior
 from .arpamar.duplication import AlconnaDuplication
 from .types import DataCollection, DataUnit
@@ -213,19 +212,6 @@ class Alconna(CommandNode):
             return dup
         return (result or analyser.analyse()).update(self.behaviors)
 
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
-        return {
-            "headers": self.headers,
-            "command": self.command,
-            "options": [opt.to_dict() for opt in self.options if opt.name != "--help"],
-            "main_args": self.args.to_dict(),
-            "is_raise_exception": self.is_raise_exception,
-            "separator": self.separator,
-            "namespace": self.namespace,
-            "help_text": self.help_text,
-        }
-
     def __truediv__(self, other):
         self.reset_namespace(other)
         return self
@@ -251,39 +237,3 @@ class Alconna(CommandNode):
 
     def __add__(self, other):
         return self.__radd__(other)
-
-    def __getstate__(self):
-        return self.to_dict()
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Alconna":
-        """从字典中恢复一个 Alconna 对象"""
-        headers = data["headers"]
-        command = data["command"]
-        options = []
-        for o in data["options"]:
-            if o['type'] == 'Option':
-                options.append(Option.from_dict(o))
-            elif o['type'] == 'Subcommand':
-                options.append(Subcommand.from_dict(o))
-        main_args = Args.from_dict(data["main_args"])
-        is_raise_exception = data["is_raise_exception"]
-        namespace = data["namespace"]
-        return cls(
-            command=command, options=options, main_args=main_args, headers=headers,
-            is_raise_exception=is_raise_exception, namespace=namespace,
-            separator=data["separator"], help_text=data["help_text"],
-        )
-
-    def __setstate__(self, state):
-        options = []
-        for o in state["options"]:
-            if o['type'] == 'Option':
-                options.append(Option.from_dict(o))
-            elif o['type'] == 'Subcommand':
-                options.append(Subcommand.from_dict(o))
-        self.__init__(
-            headers=state["headers"], command=state["command"], options=options,
-            main_args=Args.from_dict(state["main_args"]), is_raise_exception=state["is_raise_exception"],
-            namespace=state["namespace"], separator=state["separator"], help_text=state["help_text"],
-        )

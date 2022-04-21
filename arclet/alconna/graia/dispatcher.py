@@ -1,12 +1,11 @@
-from typing import Literal, Dict, Callable, Optional, Coroutine, Union, AsyncIterator, TypedDict
+from typing import Literal, Callable, Optional, TypedDict
 import asyncio
 
-from arclet.alconna import Alconna, lang_config
+from arclet.alconna import Alconna
 from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.arpamar.duplication import AlconnaDuplication, generate_duplication
 from arclet.alconna.arpamar.stub import ArgsStub, OptionStub, SubcommandStub
 from arclet.alconna.proxy import AlconnaMessageProxy, AlconnaProperty
-from arclet.alconna.manager import command_manager
 
 from graia.broadcast.entities.event import Dispatchable
 from graia.broadcast.exceptions import ExecutionStop
@@ -24,37 +23,6 @@ from graia.ariadne.message.element import Quote
 from graia.ariadne.util import resolve_dispatchers_mixin
 
 from loguru import logger
-
-
-class AriadneAMP(AlconnaMessageProxy):
-    pre_treatments: Dict[Alconna, Callable[
-        [MessageChain, Arpamar, Optional[str], Optional[MessageEvent]],
-        Coroutine[None, None, AlconnaProperty[MessageChain, MessageEvent]]
-    ]]
-
-    def add_proxy(
-            self,
-            command: Union[str, Alconna],
-            pre_treatment: Optional[
-                Callable[
-                    [MessageChain, Arpamar, Optional[str], Optional[MessageEvent]],
-                    Coroutine[None, None, AlconnaProperty[MessageChain, MessageEvent]]
-                ]
-            ] = None,
-    ):
-        if isinstance(command, str):
-            command = command_manager.get_command(command)  # type: ignore
-            if not command:
-                raise ValueError(lang_config.manager_undefined_command.format(target=command))
-        self.pre_treatments.setdefault(command, pre_treatment or self.default_pre_treatment)  # type: ignore
-
-    async def fetch_message(self) -> AsyncIterator[MessageChain]:
-        yield NotImplemented
-        pass
-
-    @staticmethod
-    def later_condition(result: AlconnaProperty[MessageChain, MessageEvent]) -> bool:
-        return True
 
 
 class AlconnaHelpDispatcher(BaseDispatcher):
@@ -95,7 +63,7 @@ class _AlconnaLocalStorage(TypedDict):
 
 
 class AlconnaDispatcher(BaseDispatcher):
-    proxy = AriadneAMP(loop=asyncio.new_event_loop())
+    proxy: AlconnaMessageProxy[MessageChain, MessageEvent] = AlconnaMessageProxy(loop=asyncio.new_event_loop())
 
     def __init__(
             self,

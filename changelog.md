@@ -27,6 +27,14 @@
 6. 加入`pattern`装饰器函数, 用以便捷的创建`ArgPattern`对象
 7. 加入`delegate`装饰器函数, 用以便捷的创建`Alconna`对象
 
+## Alconna 0.8.3:
+1. 命令头的正则支持格式修改, 由原来的`f"{表达式}"`改为`"{名称:类型或表达式}"`
+2. 加入语言文件配置, 可以通过`Alconna.load_config_file`加载自定义的语言文件, 格式为`json`
+3. 为选项与子命令的匹配也加入了模糊匹配
+4. 选项与子命令的`separator`可以传入空字符串, `Alconna`会据此自动分割
+5. 部分API修改, 暂时去除`from_dict`方法
+6. 修复了一些bug
+
 # Alconna 0.7.x:
 
 ## Alconna 0.7.0:

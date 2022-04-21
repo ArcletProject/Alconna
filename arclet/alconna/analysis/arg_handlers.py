@@ -6,6 +6,7 @@ from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing
 from ..lang_config import lang_config
 
+
 def multi_arg_handler(
         analyser: Analyser,
         may_arg: Union[str, DataUnit],
@@ -142,7 +143,7 @@ def anti_arg_handler(
     _a_arg_base = value.arg_value
     if _a_arg_base.__class__ is ArgPattern:
         arg_find = _a_arg_base.match(may_arg)
-        if not arg_find:   # and isinstance(may_arg, str):
+        if not arg_find:  # and isinstance(may_arg, str):
             result_dict[key] = may_arg
         else:
             analyser.reduce_data(may_arg)
