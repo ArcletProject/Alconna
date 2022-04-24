@@ -54,7 +54,7 @@ print(result.get('install'))  # 或者 result.install
 QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## 特点
-* 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`
+* 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`; 测试脚本: [benchmark](dev_tools/benchmark.py) 
 * 精简、多样的构造方法
 * 强大的自动类型转换功能
 * 可传入同步与异步的 action 函数
@@ -93,3 +93,8 @@ alc.parse("！test_fuzy foo bar")
 ！test_fuzy not matched. Are you mean "!test_fuzzy"?
 '''
 ```
+
+## 鸣谢
+
+[JetBrains](https://www.jetbrains.com/): 为本项目提供 [PyCharm](https://www.jetbrains.com/pycharm/) 等 IDE 的授权<br>
+[<img src="https://cdn.jsdelivr.net/gh/Kyomotoi/CDN@master/noting/jetbrains-variant-3.png" width="200"/>](https://www.jetbrains.com/)
