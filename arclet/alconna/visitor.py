@@ -2,63 +2,13 @@
 Alconna 负责命令节点访问与帮助文档生成的部分
 """
 from typing import List, Dict, Optional, Any, Literal, Union, TYPE_CHECKING
-from abc import ABCMeta, abstractmethod
 from .exceptions import DuplicateCommand
-from .lang_config import lang_config
+from .lang import lang_config
 from .base import CommandNode, Subcommand, Option
+from .help import AbstractHelpTextFormatter
 
 if TYPE_CHECKING:
     from .main import Alconna
-
-
-class AbstractHelpTextFormatter(metaclass=ABCMeta):
-    """
-    帮助文档格式化器
-
-    该格式化器负责将传入的命令节点字典解析并生成帮助文档字符串
-    """
-
-    @abstractmethod
-    def format(self, trace: Dict[str, Union[str, List, Dict]]) -> str:
-        """
-        help text的生成入口
-        """
-        pass
-
-    @abstractmethod
-    def param(self, parameter: Dict[str, Any]) -> str:
-        """
-        对单个参数的描述
-        """
-        pass
-
-    @abstractmethod
-    def parameters(self, params: List[Dict[str, Any]], separator: str = " ") -> str:
-        """
-        参数列表的描述
-        """
-        pass
-
-    @abstractmethod
-    def header(self, root: Dict[str, Any]) -> str:
-        """
-        头部节点的描述
-        """
-        pass
-
-    @abstractmethod
-    def part(self, sub: Dict[str, Any], node_type: str) -> str:
-        """
-        每个子节点的描述
-        """
-        pass
-
-    @abstractmethod
-    def body(self, parts: List[Dict[str, Any]]) -> str:
-        """
-        子节点列表的描述
-        """
-        pass
 
 
 class _BaseNode:

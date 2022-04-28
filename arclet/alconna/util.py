@@ -109,7 +109,8 @@ def is_chinese(string: str) -> bool:
         # CJK标点符号
         (0x3000, 0x303F),
         # CJK笔划
-        (0x31C0, 0x31EF)]
+        (0x31C0, 0x31EF)
+    ]
     for c in string:
         if any(s <= ord(c) <= e for s, e in r):
             return True

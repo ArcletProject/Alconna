@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Union
 import re
 
 from arclet.alconna.types import Empty, ArgPattern, _AnyParam
-from arclet.alconna.visitor import AbstractHelpTextFormatter
+from arclet.alconna.help import AbstractHelpTextFormatter
 
 
 class DefaultHelpTextFormatter(AbstractHelpTextFormatter):

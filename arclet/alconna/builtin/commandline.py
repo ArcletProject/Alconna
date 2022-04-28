@@ -5,6 +5,7 @@ import json
 
 from arclet.alconna import Alconna, Args, Arpamar, Option, AllParam, command_manager, all_command_help, alconna_version
 from arclet.alconna.types import ArgPattern, PatternToken, AnyIP, AnyUrl, Email, Bool, AnyDigit, AnyFloat
+from arclet.alconna import lang_config
 
 args_type = ArgPattern(
     r"(\[.+])*",
@@ -44,6 +45,16 @@ using = Alconna(
     main_args=Args["command":AllParam],
     namespace="ALCLI",
     help_text="依据创建的 Alconna 来解析输入的命令"
+)
+
+lang = Alconna(
+    command="lang",
+    options=[
+        Option("--list", help_text="展示所有支持的语言类型"),
+        Option("--set-default|-S", Args["lang":str], help_text="设置默认使用的语言类型")
+    ],
+    namespace="ALCLI",
+    help_text="语言配置相关功能"
 )
 
 
@@ -158,7 +169,7 @@ class CommandLine:
         try:
             print(globals()[target].__doc__)
         except KeyError:
-            print("没有找到指定的组件")
+            print(lang_config.cli_not_found)
 
     def command_analysis(self, arpamar: Arpamar):
         command = arpamar.command
@@ -209,7 +220,7 @@ class CommandLine:
         try:
             construct_command = self.cache_data['ALCLI::create']
         except KeyError:
-            print("请先创建命令")
+            print(lang_config.cli_command_not_found)
             return
         using_result = {}
         exec(
@@ -217,23 +228,33 @@ class CommandLine:
             globals(),
             using_result
         )
-        alc = using_result['alc']
+        alc: Alconna = using_result['alc']
         alc.reset_namespace("ALCLI/USING")
         result = alc.parse(command[0])
         if result.matched:
-            print(
-                f"Your command is successfully matched!"
-                f"\nThe results: "
-                f"\n - Header: {result.header}"
-                f"\n - Command: {result.main_args}"
-                f"\n - Options: {result.options}"
-                f"\n - Arguments: {result.all_matched_args}"
-            )
+            print(lang_config.cli_command_matched.format(
+                header=result.header,
+                main_args=result.main_args,
+                options=result.options,
+                all_args=result.all_matched_args
+            ))
         else:
-            print(
-                f"Your command matched failed."
-                f"\nError Data: {result.error_data}"
-            )
+            print(lang_config.cli_command_not_matched.format(
+                data=result.error_data, exception=result.error_info
+            ))
+
+    @staticmethod
+    def command_lang(result: Arpamar):
+        if result.options.get("list"):
+            print(lang_config.types)
+            return
+        if result.options.get("set-default"):
+            try:
+                lang_config.change_type(result.lang)
+                print(lang_config.cli_lang_type_set_success.format(type=result.lang))
+                return
+            except ValueError:
+                print(lang_config.cli_lang_type_set_failed)
 
     def main(self, args=None):
         if args is None:
@@ -248,7 +269,7 @@ class CommandLine:
             self.cache_data = {}
         text = " ".join(args)
         if text == "--help":
-            print("* Alconna CL\n" + all_command_help("ALCLI"))
+            print("* Alconna CLI %d.%d.%d\n" % alconna_version + all_command_help("ALCLI"))
             return
         for alc in command_manager.get_commands("ALCLI"):
             result = alc.parse(text)

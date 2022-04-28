@@ -15,9 +15,8 @@ from arclet.alconna.analysis.arg_handlers import (
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from arclet.alconna.util import levenshtein_norm
-from arclet.alconna.lang_config import lang_config
-
-from .actions import help_send
+from arclet.alconna.lang import lang_config
+from arclet.alconna.help import help_send
 
 
 class DefaultCommandAnalyser(Analyser):

@@ -11,7 +11,7 @@ from .types import (
     ArgPattern,
     _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argument_type_validator, TypePattern
 )
-from .lang_config import lang_config
+from .lang import lang_config
 
 TAValue = Union[ArgPattern, TypePattern, Type[DataUnit], _AnyParam]
 TADefault = Union[Any, DataUnit, Empty]

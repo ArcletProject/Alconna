@@ -1,10 +1,10 @@
 import re
 from typing import Union, Dict, Any
 
-from ..types import MultiArg, ArgPattern, DataUnit, PatternToken, AntiArg, Empty
 from .analyser import Analyser
+from ..types import MultiArg, ArgPattern, DataUnit, PatternToken, AntiArg, Empty
 from ..exceptions import ParamsUnmatched, ArgumentMissing
-from ..lang_config import lang_config
+from ..lang import lang_config
 
 
 def multi_arg_handler(

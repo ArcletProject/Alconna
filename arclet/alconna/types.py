@@ -17,7 +17,7 @@ from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Un
 from types import LambdaType
 from pathlib import Path
 from .exceptions import ParamsUnmatched
-from .lang_config import lang_config
+from .lang import lang_config
 
 DataUnit = TypeVar("DataUnit")
 
@@ -147,7 +147,8 @@ AnyStr = ArgPattern(r"(.+?)", PatternToken.DIRECT, str)
 Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", origin_type=tuple, alias="email")
 AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", origin_type=tuple, alias="ip")
 AnyUrl = ArgPattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", origin_type=str, alias="url")
-
+AnyHex = ArgPattern(r"((?:0x)?[0-9a-fA-F]+)", PatternToken.REGEX_TRANSFORM, int, lambda x: int(x, 16), "hex")
+HexColor = ArgPattern(r"(#[0-9a-fA-F]{6})", PatternToken.REGEX_TRANSFORM, str, lambda x: x[1:], "color")
 
 T_Target = TypeVar("T_Target")
 T_Origin = TypeVar("T_Origin")
@@ -449,6 +450,8 @@ pattern_map = {
     Ellipsis: AnyParam,
     object: AnyParam,
     "email": Email,
+    "color": HexColor,
+    "hex": AnyHex,
     "ip": AnyIP,
     "url": AnyUrl,
     "...": AnyParam,

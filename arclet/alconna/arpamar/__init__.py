@@ -1,6 +1,6 @@
 from typing import Union, Dict, List, Any, Optional, Type
 from ..types import DataUnit
-from ..lang_config import lang_config
+from ..lang import lang_config
 from .behavior import ArpamarBehavior, ArpamarBehaviorInterface
 
 

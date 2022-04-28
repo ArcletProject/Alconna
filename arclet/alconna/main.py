@@ -7,7 +7,8 @@ from .arpamar import Arpamar, ArpamarBehavior
 from .arpamar.duplication import AlconnaDuplication
 from .types import DataCollection, DataUnit
 from .manager import command_manager
-from .visitor import AlconnaNodeVisitor, AbstractHelpTextFormatter
+from .visitor import AlconnaNodeVisitor
+from .help import AbstractHelpTextFormatter
 from .builtin.analyser import DefaultCommandAnalyser
 
 T_Duplication = TypeVar('T_Duplication', bound=AlconnaDuplication)

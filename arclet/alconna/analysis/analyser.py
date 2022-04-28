@@ -7,7 +7,7 @@ from ..base import Args, Option, Subcommand
 from ..arpamar import Arpamar
 from ..util import split_once, split
 from ..types import DataUnit, DataCollection, pattern_map
-from ..lang_config import lang_config
+from ..lang import lang_config
 
 if TYPE_CHECKING:
     from ..main import Alconna

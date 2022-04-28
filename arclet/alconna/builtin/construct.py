@@ -8,11 +8,12 @@ from types import FunctionType, MethodType, ModuleType
 from typing import Dict, Any, Optional, Callable, Union, TypeVar, List, Type, FrozenSet, Literal, get_args, Tuple, \
     Iterable, cast
 from arclet.alconna.types import DataCollection
-from arclet.alconna.builtin.actions import store_value
 from arclet.alconna.main import Alconna
 from arclet.alconna.base import Args, TAValue, ArgAction, Option, Subcommand
 from arclet.alconna.util import split, split_once
-from arclet.alconna.lang_config import lang_config
+from arclet.alconna.lang import lang_config
+
+from .actions import store_value
 
 PARSER_TYPE = Callable[[Callable, Dict[str, Any], Optional[Dict[str, Any]], Optional[AbstractEventLoop]], Any]
 

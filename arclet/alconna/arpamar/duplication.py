@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, cast, Optional
 from inspect import isclass
 
-from ..lang_config import lang_config
+from ..lang import lang_config
 from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Option
 
 if TYPE_CHECKING:

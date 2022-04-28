@@ -1,12 +1,11 @@
 """Alconna ArgAction相关"""
-import inspect
+
 from datetime import datetime
-from typing import Callable, Any, Optional, TYPE_CHECKING, Union, Coroutine, Dict
+from typing import Any, Optional, TYPE_CHECKING, Dict
 from arclet.alconna.base import ArgAction
-from arclet.alconna.util import Singleton
 from arclet.alconna.arpamar.behavior import ArpamarBehavior
 from arclet.alconna.exceptions import BehaveCancelled, OutBoundsBehavior
-from arclet.alconna.lang_config import lang_config
+from arclet.alconna.lang import lang_config
 
 
 class _StoreValue(ArgAction):
@@ -22,69 +21,6 @@ class _StoreValue(ArgAction):
 def store_value(value: Any):
     """存储一个值"""
     return _StoreValue(value)
-
-
-class HelpActionManager(metaclass=Singleton):
-    """帮助信息"""
-    cache: Dict[str, Callable]
-    helpers: Dict[str, "HelpAction"]
-    send_action: Callable[[str], Union[Any, Coroutine]]
-
-    def __init__(self):
-        self.cache = {}
-        self.helpers = {}
-        self.send_action = lambda x: print(x)
-
-    def require_send_action(
-            self,
-            action: Optional[Callable[[str], Any]] = None,
-            command: Optional[str] = None
-    ):
-        """修改help_send_action"""
-        if action is None:
-            if command is None:
-                return self.send_action
-            return self.helpers[command].action
-        if command is None:
-            self.send_action = action
-            for helper in self.helpers.values():
-                helper.awaitable = inspect.iscoroutinefunction(action)
-        else:
-            if not self.helpers.get(command):
-                self.cache[command] = action
-            else:
-                self.helpers[command].action = action
-
-
-help_manager = HelpActionManager()
-
-
-class HelpAction(ArgAction):
-    help_string_call: Callable[[], str]
-
-    def __init__(self, help_call, command=None):
-        super().__init__(help_manager.send_action)
-        self.help_string_call = help_call
-        self.command = command
-
-    def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
-        action = help_manager.require_send_action(command=self.command)
-        if action:
-            return super().handle({"help": self.help_string_call()}, varargs, kwargs, is_raise_exception)
-        return option_dict
-
-
-def help_send(command: str, help_string_call: Callable[[], str]):
-    """帮助信息的发送 action"""
-    if command not in help_manager.helpers:
-        help_manager.helpers[command] = HelpAction(help_string_call, command)
-    else:
-        help_manager.helpers[command].help_string_call = help_string_call
-
-    if command in help_manager.cache:
-        help_manager.helpers[command].action = help_manager.cache[command]
-        del help_manager.cache[command]
-    return help_manager.helpers[command]
 
 
 if TYPE_CHECKING:

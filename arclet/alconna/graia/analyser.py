@@ -16,8 +16,8 @@ from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, NullTextMessage, UnexpectedElement, \
     FuzzyMatchSuccess
 from arclet.alconna.util import split, levenshtein_norm
-from arclet.alconna.builtin.actions import help_send
-from arclet.alconna.lang_config import lang_config
+from arclet.alconna.help import help_send
+from arclet.alconna.lang import lang_config
 
 from graia.ariadne.message.chain import MessageChain
 from graia.ariadne.message.element import Plain

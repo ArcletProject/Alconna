@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
 from .exceptions import DuplicateCommand, ExceedMaxCount
 from .util import Singleton
 from .types import DataCollection
-from .lang_config import lang_config
+from .lang import lang_config
 from .builtin.formatter import DefaultHelpTextFormatter
 
 if TYPE_CHECKING:

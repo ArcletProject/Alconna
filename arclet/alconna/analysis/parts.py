@@ -7,7 +7,7 @@ from ..types import AnyParam, AllParam, Empty, TypePattern
 from ..base import Args, ArgAction, Option, Subcommand
 from ..util import levenshtein_norm
 from ..manager import command_manager
-from ..lang_config import lang_config
+from ..lang import lang_config
 
 
 def analyse_args(
