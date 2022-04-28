@@ -41,7 +41,7 @@ def analyse_args(
             if not _kwarg:
                 analyser.reduce_data(may_arg)
                 if analyser.alconna.is_fuzzy_match and (k := may_arg.split('=')[0]) != may_arg:
-                    if levenshtein_norm(k, key) >= 0.7:
+                    if levenshtein_norm(k, key) >= 0.6:
                         raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=k, target=key))
                 if default is None and analyser.is_raise_exception:
                     raise ParamsUnmatched(lang_config.args_key_missing.format(target=may_arg, key=key))
@@ -211,7 +211,7 @@ def analyse_subcommand(
                 if _may_param in param.sub_params[sp].aliases:
                     _param = param.sub_params[sp]
                     break
-                if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, sp) >= 0.7:
+                if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, sp) >= 0.6:
                     raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=sp))
         if isinstance(sub_param, Option):
             opt_n, opt_v = analyse_option(analyser, sub_param)
@@ -288,7 +288,7 @@ def analyse_header(
                 analyser.head_matched = False
                 raise ParamsUnmatched(lang_config.header_error.format(target=head_text))
             for ht in headers_text:
-                if levenshtein_norm(source, ht) >= 0.7:
+                if levenshtein_norm(source, ht) >= 0.6:
                     analyser.head_matched = True
                     raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(target=source, source=ht))
         raise ParamsUnmatched(lang_config.header_error.format(target=head_text))

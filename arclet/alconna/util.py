@@ -1,9 +1,11 @@
 """杂物堆"""
+import random
 import functools
 import warnings
 import logging
+from datetime import datetime, timedelta
 from inspect import stack
-from typing import Callable, TypeVar, Optional
+from typing import Callable, TypeVar, Optional, Dict, Any, List, Iterator, Generic, Hashable, Tuple
 
 R = TypeVar('R')
 
@@ -157,3 +159,105 @@ def deprecated(remove_ver: str) -> Callable[[Callable[..., R]], Callable[..., R]
         return wrapper
 
     return out_wrapper
+
+
+_K = TypeVar("_K", bound=Hashable)
+_V = TypeVar("_V")
+
+
+class LruCache(Generic[_K, _V]):
+    max_size: int
+    cache: Dict[_K, _V]
+    order: List[_K]
+    record: Dict[_K, Tuple[datetime, timedelta]]
+
+    __slots__ = ("max_size", "cache", "order", "record")
+
+    def __init__(self, max_size: int = -1) -> None:
+        self.max_size = max_size
+        self.cache = {}
+        self.order = []
+        self.record = {}
+
+    def __getitem__(self, key: _K) -> _V:
+        if key in self.cache:
+            self.order.remove(key)
+            self.order.append(key)
+            return self.cache[key]
+        raise KeyError(key)
+
+    def get(self, key: _K, default: Any = None) -> _V:
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def query_time(self, key: _K) -> datetime:
+        if key in self.cache:
+            return self.record[key][0]
+        raise KeyError(key)
+
+    def set(self, key: _K, value: Any, expiration: int = 0) -> None:
+        if key in self.cache:
+            self.order.remove(key)
+        elif 0 < self.max_size <= len(self.cache):
+            _k = self.order.pop(0)
+            self.cache.pop(_k)
+            self.record.pop(_k)
+        self.order.append(key)
+        self.cache[key] = value
+        self.record[key] = (datetime.now(), timedelta(seconds=expiration))
+
+    def delete(self, key: _K) -> None:
+        if key in self.cache:
+            self.order.remove(key)
+            self.cache.pop(key)
+            self.record.pop(key)
+        else:
+            raise KeyError(key)
+
+    def size(self) -> int:
+        return len(self.cache)
+
+    def has(self, key: _K) -> bool:
+        return key in self.cache
+
+    def clear(self) -> None:
+        self.cache.clear()
+        self.order.clear()
+        self.record.clear()
+
+    def __len__(self) -> int:
+        return len(self.cache)
+
+    def __contains__(self, key: _K) -> bool:
+        return key in self.cache
+
+    def __iter__(self) -> Iterator[_K]:
+        return iter(self.cache)
+
+    def __repr__(self) -> str:
+        return repr(self.cache)
+
+    def update(self) -> None:
+        now = datetime.now()
+        key = random.choice(self.order)
+        expire = self.record[key][1]
+        if expire.total_seconds() > 0 and now > self.record[key][0] + expire:
+            self.delete(key)
+
+    def update_all(self) -> None:
+        now = datetime.now()
+        for key in self.order:
+            expire = self.record[key][1]
+            if expire.total_seconds() > 0 and now > self.record[key][0] + expire:
+                self.delete(key)
+
+    @property
+    def recent(self) -> Optional[_V]:
+        if self.order:
+            try:
+                return self.cache[self.order[-1]]
+            except KeyError:
+                return None
+        return None

@@ -29,6 +29,9 @@ class ArpamarBehaviorInterface:
     def target(self) -> "Arpamar":
         return self.__target
 
+    def update(self, value: 'Arpamar'):
+        self.__target = value
+
     def require(self, path: str) -> Optional[Any]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
         parts = path.split(".")

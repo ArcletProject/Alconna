@@ -48,9 +48,6 @@ class _DummyAnalyser(Analyser):
     def analyse(self, message: Union[str, DataCollection, None] = None):
         pass
 
-    def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False):
-        pass
-
     def add_param(self, opt):
         pass
 

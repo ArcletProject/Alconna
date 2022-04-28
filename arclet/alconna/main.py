@@ -1,5 +1,7 @@
 """Alconna 主体"""
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload
+
+from .lang import lang_config
 from .analysis.analyser import Analyser
 from .analysis import compile
 from .base import CommandNode, Args, ArgAction, Option, Subcommand
@@ -102,7 +104,7 @@ class Alconna(CommandNode):
         self.command = command or ""
         self.options = options or []
         super().__init__(
-            f"ALCONNA::{command or self.headers[0]}",
+            f"{command_manager.sign}{command or self.headers[0]}",
             main_args,
             action,
             separator,
@@ -110,7 +112,14 @@ class Alconna(CommandNode):
         )
         self.is_raise_exception = is_raise_exception
         self.namespace = namespace or self.__class__.__temp_namespace__ or command_manager.default_namespace
-        self.options.append(Option("--help", alias=["-h"], help_text="显示帮助信息"))
+        self.options.append(Option("--help|-h", help_text="显示帮助信息"))
+        self.options.append(
+            Option(
+                '--shortcut|-SCT',
+                Args["delete;O":"delete", "name":str, "command":str:"_", "expiration;K":int:0],
+                help_text='设置快捷命令'
+            )
+        )
         self.analyser_type = analyser_type or self.default_analyser
         command_manager.register(compile(self))
         self.behaviors = behaviors
@@ -122,6 +131,10 @@ class Alconna(CommandNode):
         if isinstance(item, str):
             cls.__temp_namespace__ = item
         return cls
+
+    @property
+    def path(self) -> str:
+        return f"{self.namespace}.{self.name.replace(command_manager.sign, '')}"
 
     def reset_namespace(self, namespace: str):
         """重新设置命名空间"""
@@ -144,9 +157,38 @@ class Alconna(CommandNode):
         """设置Alconna内的自定义类型"""
         cls.custom_types = types
 
-    def shortcut(self, short_key: str, command: str, reserve_args: bool = False):
+    def shortcut(
+            self,
+            short_key: str,
+            command: Optional[str] = None,
+            delete: bool = False,
+            expiration: int = 0
+    ):
         """添加快捷命令"""
-        command_manager.add_shortcut(self, short_key, command, reserve_args)
+        try:
+            if delete:
+                command_manager.delete_shortcut(short_key, self)
+                return lang_config.shortcut_delete_success.format(
+                    shortcut=short_key, target=self.path.split(".")[-1])
+            if command:
+                command_manager.add_shortcut(self, short_key, command, expiration)
+                return lang_config.shortcut_add_success.format(
+                    shortcut=short_key, target=self.path.split(".")[-1])
+            elif cmd := command_manager.recent_message:
+                alc = command_manager.last_using
+                if alc and alc == self:
+                    command_manager.add_shortcut(self, short_key, cmd, expiration)
+                    return lang_config.shortcut_add_success.format(
+                        shortcut=short_key, target=self.path.split(".")[-1])
+                raise ValueError(lang_config.shortcut_recent_command_error.format(
+                    target=self.path, source=alc.path
+                ))
+            else:
+                raise ValueError(lang_config.shortcut_no_recent_command)
+        except Exception as e:
+            if self.is_raise_exception:
+                raise e
+            return str(e)
 
     def __repr__(self):
         return (

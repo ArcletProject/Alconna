@@ -455,6 +455,7 @@ pattern_map = {
     "ip": AnyIP,
     "url": AnyUrl,
     "...": AnyParam,
+    "*": AllParam,
     "": Empty
 }
 

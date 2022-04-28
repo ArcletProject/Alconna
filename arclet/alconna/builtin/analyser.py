@@ -1,5 +1,4 @@
-from typing import Union, Optional
-import traceback
+from typing import Union
 
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.arpamar import Arpamar
@@ -36,6 +35,8 @@ class DefaultCommandAnalyser(Analyser):
     def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:
         if command_manager.is_disable(self.alconna):
             return self.create_arpamar(fail=True)
+        if res := command_manager.get_record(self.temp_token):
+            return res[2]
         if self.ndata == 0:
             if not message:
                 raise ValueError(lang_config.analyser_handle_null_message.format(target=message))
@@ -47,22 +48,17 @@ class DefaultCommandAnalyser(Analyser):
             self.current_index = 0
             self.content_index = 0
             try:
-                _, cmd, reserve = command_manager.find_shortcut(
-                    self.alconna, self.next_data(self.alconna.separator, pop=False)[0]
+                _res = command_manager.find_shortcut(
+                    self.next_data(self.alconna.separator, pop=False)[0], self.alconna
                 )
-                if reserve:
-                    data = self.recover_raw_data()
-                    data[0] = cmd
-                    self.reset()
-                    return self.analyse(data)  # type: ignore
                 self.reset()
-                return self.analyse(cmd)
+                if isinstance(_res, Arpamar):
+                    return _res
+                return self.analyse(_res)
             except ValueError:
                 return self.create_arpamar(fail=True, exception=e)
         except FuzzyMatchSuccess as Fuzzy:
-            help_send(
-                self.alconna.name, lambda: str(Fuzzy)
-            ).handle({}, is_raise_exception=self.is_raise_exception)
+            help_send(self.alconna.name, lambda: str(Fuzzy)).handle({}, is_raise_exception=self.is_raise_exception)
             return self.create_arpamar(fail=True)
 
         for _ in self.part_len:
@@ -80,7 +76,7 @@ class DefaultCommandAnalyser(Analyser):
                         if _may_param in getattr(_p, 'aliases', [p]):
                             _param = _p
                             break
-                        if self.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.7:
+                        if self.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.6:
                             help_send(
                                 self.alconna.name,
                                 lambda: lang_config.common_fuzzy_matched.format(source=_may_param, target=p)
@@ -89,9 +85,7 @@ class DefaultCommandAnalyser(Analyser):
             try:
                 if not _param or _param is Ellipsis:
                     if not self.main_args:
-                        self.main_args = analyse_args(
-                            self, self.self_args, self.alconna.nargs, self.alconna.action
-                        )
+                        self.main_args = analyse_args(self, self.self_args, self.alconna.nargs, self.alconna.action)
                 elif isinstance(_param, Option):
                     if _param.name == "--help":
                         _help_param = self.recover_raw_data()
@@ -99,14 +93,29 @@ class DefaultCommandAnalyser(Analyser):
 
                         def _get_help():
                             visitor = AlconnaNodeVisitor(self.alconna)
-                            return visitor.format_node(
-                                self.alconna.formatter,
-                                visitor.require(_help_param)
-                            )
+                            return visitor.format_node(self.alconna.formatter, visitor.require(_help_param))
 
-                        help_send(
-                            self.alconna.name, _get_help
-                        ).handle({}, is_raise_exception=self.is_raise_exception)
+                        help_send(self.alconna.name, _get_help).handle({}, is_raise_exception=self.is_raise_exception)
+                        return self.create_arpamar(fail=True)
+
+                    if _param.name == "--shortcut":
+                        def _shortcut(sct: str, command: str, expiration: int, delete: bool):
+                            return self.alconna.shortcut(
+                                sct, None if command == "_" else command, delete, expiration
+                            )
+                        _, opt_v = analyse_option(self, _param)
+                        try:
+                            msg = _shortcut(
+                                opt_v['name'], opt_v['command'],
+                                opt_v['expiration'], True if opt_v.get('delete') else False
+                            )
+                            help_send(
+                                self.alconna.name, lambda: msg
+                            ).handle({}, is_raise_exception=self.is_raise_exception)
+                        except Exception as e:
+                            help_send(self.alconna.name, lambda: str(e)).handle(
+                                {}, is_raise_exception=self.is_raise_exception
+                            )
                         return self.create_arpamar(fail=True)
 
                     opt_n, opt_v = analyse_option(self, _param)
@@ -152,20 +161,6 @@ class DefaultCommandAnalyser(Analyser):
         if self.is_raise_exception:
             raise exc
         return self.create_arpamar(fail=True, exception=exc)
-
-    def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False):
-        result = Arpamar()
-        result.head_matched = self.head_matched
-        if fail:
-            tb = traceback.format_exc(limit=1)
-            result.error_info = repr(exception) or repr(tb)
-            result.error_data = self.recover_raw_data()
-            result.matched = False
-        else:
-            result.matched = True
-            result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
-        self.reset()
-        return result
 
 
 DefaultCommandAnalyser.add_arg_handler(MultiArg, multi_arg_handler)

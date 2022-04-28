@@ -1,6 +1,7 @@
 from typing import Union, Dict, List, Any, Optional, Type
 from ..types import DataUnit
 from ..lang import lang_config
+
 from .behavior import ArpamarBehavior, ArpamarBehaviorInterface
 
 
@@ -32,12 +33,13 @@ class Arpamar:
         self._other_args: Dict[str, Any] = {}
         self._header: Optional[Union[Dict[str, Any], bool]] = None
         self._main_args: Dict[str, Any] = {}
-
+        self.token: Optional[str] = None
         self._cache_args = {}
 
     __slots__ = [
         "matched", "head_matched", "error_data", "error_info", "_options",
         "_subcommands", "_other_args", "_header", "_main_args", "_cache_args",
+        "token"
     ]
 
     @property

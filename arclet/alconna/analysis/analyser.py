@@ -1,7 +1,11 @@
+import hashlib
 import re
+import traceback
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable, Pattern
+from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable, Pattern, Generic, TypeVar
+from contextvars import Token
 
+from ..manager import command_manager
 from ..exceptions import NullTextMessage, UnexpectedElement
 from ..base import Args, Option, Subcommand
 from ..arpamar import Arpamar
@@ -12,8 +16,10 @@ from ..lang import lang_config
 if TYPE_CHECKING:
     from ..main import Alconna
 
+T_Origin = TypeVar('T_Origin')
 
-class Analyser(metaclass=ABCMeta):
+
+class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     """
     Alconna使用的分析器基类, 实现了一些通用的方法
 
@@ -51,6 +57,9 @@ class Analyser(metaclass=ABCMeta):
     arg_handlers: Dict[Type, ARGHANDLER_TYPE]
     filter_out: List[str]  # 元素黑名单
     temporary_data: Dict[str, Any]  # 临时数据
+    origin_data: T_Origin  # 原始数据
+    temp_token: str  # 临时token
+    context_token: Token  # 上下文token
 
     def __init_subclass__(cls, **kwargs):
         cls.arg_handlers = {}
@@ -59,6 +68,10 @@ class Analyser(metaclass=ABCMeta):
                 cls.arg_handlers.update(getattr(base, "arg_handlers", {}))
         if not hasattr(cls, "filter_out"):
             raise TypeError(lang_config.analyser_filter_missing)
+
+    @staticmethod
+    def generate_token(data: Dict[int, Union[Any, List[str]]]) -> str:
+        return hashlib.md5(str(data).encode("utf-8")).hexdigest()
 
     @classmethod
     def add_arg_handler(cls, arg_type: Type, handler: Optional[ARGHANDLER_TYPE] = None):
@@ -74,6 +87,7 @@ class Analyser(metaclass=ABCMeta):
 
     def __init__(self, alconna: "Alconna"):
         self.reset()
+        self.original_data = None
         self.alconna = alconna
         self.self_args = alconna.args
         self.separator = alconna.separator
@@ -181,6 +195,8 @@ class Analyser(metaclass=ABCMeta):
         self.raw_data = {}
         self.head_matched = False
         self.ndata = 0
+        self.original_data = None
+        self.temp_token = ''
 
     def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
@@ -265,6 +281,8 @@ class Analyser(metaclass=ABCMeta):
 
     def handle_message(self, data: Union[str, DataCollection]) -> Optional[Arpamar]:
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
+        self.context_token = command_manager.current_command.set(self.alconna)
+        self.original_data = data
         if isinstance(data, str):
             self.is_str = True
             if not (res := split(data.lstrip(), self.separator)):
@@ -309,6 +327,8 @@ class Analyser(metaclass=ABCMeta):
                 return self.create_arpamar(fail=True, exception=exc)
             self.raw_data = raw_data
             self.ndata = i
+        self.temp_token = self.generate_token(self.raw_data)
+        return
 
     @abstractmethod
     def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:
@@ -316,11 +336,23 @@ class Analyser(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar:
-        """创建arpamar, 其一定是一次解析的最后部分"""
-        pass
-
-    @abstractmethod
     def add_param(self, opt):
         """临时增加解析用参数"""
         pass
+
+    def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar:
+        """创建arpamar, 其一定是一次解析的最后部分"""
+        result = Arpamar()
+        result.head_matched = self.head_matched
+        if fail:
+            tb = traceback.format_exc(limit=1)
+            result.error_info = repr(exception) or repr(tb)
+            result.error_data = self.recover_raw_data()
+            result.matched = False
+        else:
+            result.matched = True
+            result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
+            command_manager.record(self.original_data, self, result)
+        self.reset()
+        command_manager.current_command.reset(self.context_token)
+        return result
