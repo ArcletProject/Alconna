@@ -10,27 +10,25 @@
 [![PyPI](https://img.shields.io/pypi/v/arclet-alconna)](https://pypi.org/project/arclet-alconna)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/arclet-alconna)](https://www.python.org/)
 
-**English**: [README](README-EN.md)
+`Alconna` is a powerful cli tool for parsing message chain or other raw message data. It is an overload version of `Cesloi-CommandAnalysis`, affiliated to `ArcletProject`.
 
-`Alconna` 隶属于 `ArcletProject`, 是 `Cesloi-CommandAnalysis` 的高级版，
-支持解析消息链或者其他原始消息数据
+`Alconna` has a large number of built-in components and complex parsing functions. ~~But do not afraid~~, you can use it as a simple command parser.
 
-`Alconna` 拥有复杂的解析功能与命令组件，但 一般情况下请当作~~奇妙~~简易的消息链解析器/命令解析器(雾)
-
-## 安装
+## Installation
 
 pip
+```shell
+$ pip install --upgrade arclet-alconna
 ```
-pip install --upgrade arclet-alconna
-```
 
-## 文档
+## Documentation
 
-文档链接: [👉指路](https://arcletproject.github.io/docs/alconna/tutorial)
+Official Document : [👉Link](https://arcletproject.github.io/docs/alconna/tutorial)
 
-相关文档: [📚文档](https://graiax.cn/guide/alconna.html#alconna)
+Relevant Document : [📚Docs](https://graiax.cn/guide/alconna.html#alconna)
 
-## 简单使用
+## A Simple Example
+
 ```python
 from arclet.alconna import Alconna, Option, Subcommand, Args
 
@@ -42,19 +40,20 @@ cmd = Alconna(
     ]
 )
 
-result = cmd.parse("/pip install cesloi --upgrade") # 该方法返回一个Arpamar类的实例
-print(result.get('install'))  # 或者 result.install
+result = cmd.parse("/pip install cesloi --upgrade") # This method returns an 'Arpamar' class instance.
+print(result.get('install'))  # Or result.install
 ```
-其结果为
+
+Output as follows:
 ```
 {'pak_name': 'cesloi', 'upgrade': Ellipsis}
 ```
 
-## 讨论
+## Communication
 
-QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
+QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
-## 特点
+## Features
 
 * 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`; 测试脚本: [benchmark](dev_tools/benchmark.py) 
 * 精简、多样的构造方法
@@ -64,7 +63,16 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 * 自定义语言文件, 间接支持 i18n
 * Duplication、FuzzyMatch等一众特性
 
-类型转换示范:
+* High Performance. On i5-10210U, performance is about `41000~101000 msg/s`; test script: [benchmark](dev_tools/benchmark.py)
+* Simple and Flexible Constructor 
+* Powerful Automatic Type Conversion
+* Support Synchronous and Asynchronous Actions
+* Customizable HelpFormatter and Analyser
+* Customizable Language File, Directly Support i18n
+* Various Features (Duplication, FuzzyMatch, etc.)
+
+Example of Type Conversion:
+
 ```python
 from arclet.alconna import Alconna, Args
 from pathlib import Path
@@ -85,7 +93,8 @@ read.parse(["read", Path("test_fire.py")])
 '''
 ```
 
-模糊匹配示范:
+Example of FuzzyMatch:
+
 ```python
 from arclet.alconna import Alconna
 alc = Alconna('!test_fuzzy', "foo:str", is_fuzzy_match=True)
@@ -96,11 +105,11 @@ alc.parse("！test_fuzy foo bar")
 '''
 ```
 
-## 许可
+## License
 
-Alconna 采用 [MIT](LICENSE) 许可协议
+Alconna is licensed under the [MIT License](LICENSE).
 
-## 鸣谢
+## Acknowledgement
 
-[JetBrains](https://www.jetbrains.com/): 为本项目提供 [PyCharm](https://www.jetbrains.com/pycharm/) 等 IDE 的授权<br>
+[JetBrains](https://www.jetbrains.com/): Support Authorize for [PyCharm](https://www.jetbrains.com/pycharm/)<br>
 [<img src="https://cdn.jsdelivr.net/gh/Kyomotoi/CDN@master/noting/jetbrains-variant-3.png" width="200"/>](https://www.jetbrains.com/)

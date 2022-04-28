@@ -1,11 +1,9 @@
-from typing import Literal, Callable, Optional, TypedDict
-import asyncio
-
-from arclet.alconna import Alconna
+from dataclasses import dataclass, field
+from typing import Literal, Callable, Optional, TypedDict, TypeVar, Generic
+from arclet.alconna import Alconna, help_manager
 from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.arpamar.duplication import AlconnaDuplication, generate_duplication
 from arclet.alconna.arpamar.stub import ArgsStub, OptionStub, SubcommandStub
-from arclet.alconna.proxy import AlconnaMessageProxy, AlconnaProperty
 
 from graia.broadcast.entities.event import Dispatchable
 from graia.broadcast.exceptions import ExecutionStop
@@ -23,6 +21,18 @@ from graia.ariadne.message.element import Quote
 from graia.ariadne.util import resolve_dispatchers_mixin
 
 from loguru import logger
+
+T_Origin = TypeVar('T_Origin')
+T_Source = TypeVar('T_Source')
+
+
+@dataclass
+class AlconnaProperty(Generic[T_Origin, T_Source]):
+    """对解析结果的封装"""
+    origin: T_Origin
+    result: Arpamar
+    help_text: Optional[str] = field(default=None)
+    source: T_Source = field(default=None)
 
 
 class AlconnaHelpDispatcher(BaseDispatcher):
@@ -63,7 +73,6 @@ class _AlconnaLocalStorage(TypedDict):
 
 
 class AlconnaDispatcher(BaseDispatcher):
-    proxy: AlconnaMessageProxy[MessageChain, MessageEvent] = AlconnaMessageProxy(loop=asyncio.new_event_loop())
 
     def __init__(
             self,
@@ -118,22 +127,29 @@ class AlconnaDispatcher(BaseDispatcher):
         message: MessageChain = await interface.lookup_param("message", MessageChain, None)
         if not self.allow_quote and message.has(Quote):
             raise ExecutionStop
-        self.proxy.add_proxy(self.command, reply_help_message)
         event: MessageEvent = interface.event
         try:
-            await self.proxy.push_message(message, event, self.command)  # type: ignore
+            may_help_text = None
+
+            def _h(string):
+                nonlocal may_help_text
+                may_help_text = string
+
+            help_manager.require_send_action(_h, self.command.name)
+
+            _res = self.command.parse(message)
+            _property = await reply_help_message(message, _res, may_help_text, event)
         except Exception as e:
             logger.warning(f"{self.command} error: {e}")
             raise ExecutionStop
         finally:
             local_storage: _AlconnaLocalStorage = interface.local_storage  # type: ignore
-            res = await self.proxy.export_results.get()
-            if not res.result.matched and not res.help_text:
-                if "-h" in str(res.origin):
+            if not _property.result.matched and not _property.help_text:  # noqa
+                if "-h" in str(_property.origin):
                     raise ExecutionStop
                 if self.skip_for_unmatch:
                     raise ExecutionStop
-            local_storage['alconna_result'] = res
+            local_storage['alconna_result'] = _property
 
     async def catch(self, interface: DispatcherInterface):
         local_storage: _AlconnaLocalStorage = interface.local_storage  # type: ignore
