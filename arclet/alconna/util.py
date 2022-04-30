@@ -3,6 +3,8 @@ import random
 import functools
 import warnings
 import logging
+
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from inspect import stack
 from typing import Callable, TypeVar, Optional, Dict, Any, List, Iterator, Generic, Hashable, Tuple
@@ -43,11 +45,11 @@ def get_module_filepath() -> Optional[str]:
 
 def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变本来的字符串
     """单次分隔字符串"""
-    out_text = []
+    out_text = ""
     quotation = ""
     is_split = True
     for index, char in enumerate(text):
-        if char in ("'", '"'):  # 遇到引号括起来的部分跳过分隔
+        if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
                 is_split = False
                 quotation = char
@@ -56,12 +58,12 @@ def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变
                 quotation = ""
         if separate == char and is_split:
             break
-        out_text.append(char)
+        out_text += char
     result = "".join(out_text)
-    return result, text.lstrip(result + separate)
+    return result, text[len(result) + 1:]
 
 
-def split(text: str, separate: str = " ", ):
+def split(text: str, separate: str = " "):
     """尊重引号与转义的字符串切分
 
     Args:
@@ -73,50 +75,32 @@ def split(text: str, separate: str = " ", ):
     """
     result = []
     quote = ""
-    cache = []
+    quoted = False
+    cache = ""
     for index, char in enumerate(text):
-        if char in ("'", '"'):
-            if not quote:
+        if char in {"'", '"'}:
+            if not quoted:
                 quote = char
+                quoted = True
                 if index and text[index - 1] == "\\":
-                    cache.append(char)
+                    cache += char
             elif char == quote and index and text[index - 1] != "\\":
                 quote = ""
+                quoted = False
             else:
-                cache.append(char)
+                cache += char
                 continue
-        elif char in ("\n", "\r"):
-            result.append("".join(cache))
-            cache = []
-        elif not quote and char == separate and cache:
-            result.append("".join(cache))
-            cache = []
-        elif char != "\\" and (char != separate or quote):
-            cache.append(char)
+        elif char in {"\n", "\r"}:
+            result.append(cache)
+            cache = ""
+        elif not quoted and char == separate and cache:
+            result.append(cache)
+            cache = ""
+        elif char != "\\" and (char != separate or quoted):
+            cache += char
     if cache:
-        result.append("".join(cache))
+        result.append(cache)
     return result
-
-
-def is_chinese(string: str) -> bool:
-    """中文Unicode码范围参考：https://www.iteye.com/topic/558050     """
-    r = [
-        # 标准CJK文字
-        (0x3400, 0x4DB5), (0x4E00, 0x9FA5), (0x9FA6, 0x9FBB), (0xF900, 0xFA2D),
-        (0xFA30, 0xFA6A), (0xFA70, 0xFAD9), (0x20000, 0x2A6D6), (0x2F800, 0x2FA1D),
-        # 全角ASCII、全角中英文标点、半宽片假名、半宽平假名、半宽韩文字母
-        (0xFF00, 0xFFEF),
-        # CJK部首补充
-        (0x2E80, 0x2EFF),
-        # CJK标点符号
-        (0x3000, 0x303F),
-        # CJK笔划
-        (0x31C0, 0x31EF)
-    ]
-    for c in string:
-        if any(s <= ord(c) <= e for s, e in r):
-            return True
-    return False
 
 
 def levenshtein_norm(source: str, target: str) -> float:
@@ -134,13 +118,7 @@ def levenshtein(source: str, target: str) -> int:
         for j in t_range[1:]:
             del_distance = matrix[i - 1][j] + 1
             ins_distance = matrix[i][j - 1] + 1
-            if is_chinese(source) or is_chinese(target):
-                if abs(ord(source[i - 1]) - ord(target[j - 1])) <= 2:
-                    sub_trans_cost = 0
-                else:
-                    sub_trans_cost = 1
-            else:
-                sub_trans_cost = 0 if source[i - 1] == target[j - 1] else 1
+            sub_trans_cost = 0 if source[i - 1] == target[j - 1] else 1
             sub_distance = matrix[i - 1][j - 1] + sub_trans_cost
             matrix[i][j] = min(del_distance, ins_distance, sub_distance)
     return matrix[len(source)][len(target)]
@@ -167,22 +145,21 @@ _V = TypeVar("_V")
 
 class LruCache(Generic[_K, _V]):
     max_size: int
-    cache: Dict[_K, _V]
-    order: List[_K]
+    cache: OrderedDict
+    __size: int
     record: Dict[_K, Tuple[datetime, timedelta]]
 
-    __slots__ = ("max_size", "cache", "order", "record")
+    __slots__ = ("max_size", "cache", "record", "__size")
 
     def __init__(self, max_size: int = -1) -> None:
         self.max_size = max_size
-        self.cache = {}
-        self.order = []
+        self.cache = OrderedDict()
         self.record = {}
+        self.__size = 0
 
     def __getitem__(self, key: _K) -> _V:
         if key in self.cache:
-            self.order.remove(key)
-            self.order.append(key)
+            self.cache.move_to_end(key)
             return self.cache[key]
         raise KeyError(key)
 
@@ -199,32 +176,30 @@ class LruCache(Generic[_K, _V]):
 
     def set(self, key: _K, value: Any, expiration: int = 0) -> None:
         if key in self.cache:
-            self.order.remove(key)
-        elif 0 < self.max_size <= len(self.cache):
-            _k = self.order.pop(0)
-            self.cache.pop(_k)
-            self.record.pop(_k)
-        self.order.append(key)
+            return
         self.cache[key] = value
+        self.__size += 1
+        if 0 < self.max_size < self.__size:
+            _k = self.cache.popitem(last=False)[0]
+            self.record.pop(_k)
+            self.__size -= 1
         self.record[key] = (datetime.now(), timedelta(seconds=expiration))
 
     def delete(self, key: _K) -> None:
         if key in self.cache:
-            self.order.remove(key)
             self.cache.pop(key)
             self.record.pop(key)
         else:
             raise KeyError(key)
 
     def size(self) -> int:
-        return len(self.cache)
+        return self.__size
 
     def has(self, key: _K) -> bool:
         return key in self.cache
 
     def clear(self) -> None:
         self.cache.clear()
-        self.order.clear()
         self.record.clear()
 
     def __len__(self) -> int:
@@ -241,23 +216,23 @@ class LruCache(Generic[_K, _V]):
 
     def update(self) -> None:
         now = datetime.now()
-        key = random.choice(self.order)
+        key = random.choice(list(self.cache.keys()))
         expire = self.record[key][1]
         if expire.total_seconds() > 0 and now > self.record[key][0] + expire:
             self.delete(key)
 
     def update_all(self) -> None:
         now = datetime.now()
-        for key in self.order:
+        for key in self.cache.keys():
             expire = self.record[key][1]
             if expire.total_seconds() > 0 and now > self.record[key][0] + expire:
                 self.delete(key)
 
     @property
     def recent(self) -> Optional[_V]:
-        if self.order:
+        if self.cache:
             try:
-                return self.cache[self.order[-1]]
+                return self.cache[-1]
             except KeyError:
                 return None
         return None

@@ -1,14 +1,13 @@
 """Alconna 负责记录命令的部分"""
 
+import asyncio
 import re
 from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
-from contextvars import ContextVar
 import shelve
 from .exceptions import DuplicateCommand, ExceedMaxCount
 from .util import Singleton, LruCache
 from .types import DataCollection
 from .lang import lang_config
-from .builtin.formatter import DefaultHelpTextFormatter
 from .arpamar import Arpamar
 
 if TYPE_CHECKING:
@@ -23,38 +22,37 @@ class CommandManager(metaclass=Singleton):
     命令管理器负责记录命令, 并存储快捷指令。
     """
     sign: str
-    default_formatter: DefaultHelpTextFormatter
     default_namespace: str
     current_count: int
-    current_command: ContextVar['Alconna']
     max_count: int
 
     __commands: Dict[str, Dict[str, 'Analyser']]
     __abandons: List["Alconna"]
-    __record: LruCache[str, Tuple[Union[str, DataCollection], "Analyser", "Arpamar"]]
+    __record: LruCache[int, Tuple[Union[str, DataCollection], str, "Arpamar"]]
     __shortcuts: LruCache[str, Union['Arpamar', Union[str, DataCollection]]]
 
     def __init__(self):
+        self.loop = asyncio.new_event_loop()
         self.cache_path = f"{__file__.replace('manager.py', '')}manager_cache.db"
-        self.default_formatter = DefaultHelpTextFormatter()
         self.default_namespace = "Alconna"
         self.sign = "ALCONNA::"
         self.max_count = 200
         self.current_count = 0
-        self.current_command = ContextVar("current_command")
 
         self.__commands = {}
         self.__abandons = []
         self.__shortcuts = LruCache()
-        self.__record = LruCache(max_size=20)
+        self.__record = LruCache(20)
 
     def __del__(self):  # td: save to file
         self.__commands.clear()
         self.__abandons.clear()
         self.__record.clear()
+        self.__shortcuts.clear()
 
-        with shelve.open(self.cache_path) as db:
-            db["shortcuts"] = self.__shortcuts
+    def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        """设置事件循环"""
+        self.loop = loop
 
     def load_cache(self) -> None:
         """加载缓存"""
@@ -63,6 +61,11 @@ class CommandManager(metaclass=Singleton):
                 self.__shortcuts.update(db["shortcuts"])  # type: ignore
         except (FileNotFoundError, KeyError):
             pass
+
+    def dump_cache(self) -> None:
+        """保存缓存"""
+        with shelve.open(self.cache_path) as db:
+            db["shortcuts"] = self.__shortcuts
 
     @property
     def get_loaded_namespaces(self):
@@ -228,18 +231,24 @@ class CommandManager(metaclass=Singleton):
         may_command_head = command.split(" ")[0]
         if namespace is None:
             for n in self.__commands:
-                if self.__commands[n].get(may_command_head):
-                    return self.__commands[n][may_command_head].analyse(command)
+                if cmd := self.__commands[n].get(may_command_head):
+                    cmd.process_message(command)
+                    return cmd.analyse()
                 for k in self.__commands[n]:
                     if re.match("^" + k + ".*" + "$", command):
-                        return self.__commands[n][k].analyse(command)
+                        cmd = self.__commands[n][k]
+                        cmd.process_message(command)
+                        return cmd.analyse()
         else:
             commands = self.__commands[namespace]
-            if commands.get(may_command_head):
-                return self.__commands[namespace][may_command_head].analyse(command)
-            for k in self.__commands[namespace]:
+            if cmd := commands.get(may_command_head):
+                cmd.process_message(command)
+                return cmd.analyse()
+            for k in commands:
                 if re.match("^" + k + ".*" + "$", command):
-                    return self.__commands[namespace][k].analyse(command)
+                    cmd = commands[k]
+                    cmd.process_message(command)
+                    return cmd.analyse()
 
     def all_command_help(
             self,
@@ -277,10 +286,8 @@ class CommandManager(metaclass=Singleton):
             for name in list(cmds.keys())[(page - 1) * max_length: page * max_length]:
                 alc = cmds[name].alconna
                 command_string += "\n - " + (
-                    (
-                        "[" + "|".join([f"{h}" for h in alc.headers]) + "]"
-                        if len(alc.headers) > 1 else f"{alc.headers[0]}"
-                    ) if alc.headers != [''] else ""
+                    f"[{'|'.join([f'{h}' for h in alc.headers])}]" if len(alc.headers) > 1
+                    else f"{alc.headers[0]}" if alc.headers != [''] else ""
                 ) + alc.command + " : " + alc.help_text
         return f"{header}{command_string}\n{footer}"
 
@@ -293,18 +300,16 @@ class CommandManager(metaclass=Singleton):
 
     def record(
             self,
+            token: int,
             message: Union[str, DataCollection],
-            command: Union[str, "Alconna", "Analyser"],
+            command: Union[str, "Alconna"],
             result: "Arpamar"
     ):
-        from .analysis.analyser import Analyser
-        ana = self.require(command) if not isinstance(command, Analyser) else command
-        if not ana.temp_token:
-            return
-        result.token = ana.temp_token
-        self.__record.set(ana.temp_token, (message, ana, result))
+        cmd = command if isinstance(command, str) else command.path
+        result.token = token
+        self.__record.set(token, (message, cmd, result))
 
-    def get_record(self, token: str) -> Optional[Tuple[DataCollection, "Analyser", "Arpamar"]]:
+    def get_record(self, token: int) -> Optional[Tuple[DataCollection, str, "Arpamar"]]:
         if not token:
             return
         return self.__record.get(token)
@@ -317,14 +322,14 @@ class CommandManager(metaclass=Singleton):
     @property
     def last_using(self) -> Optional["Alconna"]:
         if rct := self.__record.recent:
-            return rct[1].alconna
+            return self.get_command(rct[1])
 
     @property
-    def records(self) -> int:
-        return self.__record.size()
+    def records(self) -> LruCache:
+        return self.__record
 
     def reuse(self, index: int = -1):
-        key = self.__record.order[index]
+        key = self.__record.cache[index]
         return self.__record.get(key)[2]
 
 

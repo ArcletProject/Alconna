@@ -11,6 +11,7 @@ from .types import DataCollection, DataUnit
 from .manager import command_manager
 from .visitor import AlconnaNodeVisitor
 from .help import AbstractHelpTextFormatter
+from .builtin.formatter import DefaultHelpTextFormatter
 from .builtin.analyser import DefaultCommandAnalyser
 
 T_Duplication = TypeVar('T_Duplication', bound=AlconnaDuplication)
@@ -123,7 +124,7 @@ class Alconna(CommandNode):
         self.analyser_type = analyser_type or self.default_analyser
         command_manager.register(compile(self))
         self.behaviors = behaviors
-        self.formatter = formatter or command_manager.default_formatter
+        self.formatter = formatter or DefaultHelpTextFormatter()
         self.is_fuzzy_match = is_fuzzy_match
         self.__class__.__temp_namespace__ = None
 
@@ -248,12 +249,11 @@ class Alconna(CommandNode):
             analyser = command_manager.require(self)
         else:
             analyser = compile(self)
-        result = analyser.handle_message(message)
+        analyser.process_message(message)
+        arp = analyser.analyse().update(self.behaviors)
         if duplication:
-            arp = (result or analyser.analyse()).update(self.behaviors)
-            dup = duplication(self).set_target(arp)
-            return dup
-        return (result or analyser.analyse()).update(self.behaviors)
+            return duplication(self).set_target(arp)
+        return arp
 
     def __truediv__(self, other):
         self.reset_namespace(other)

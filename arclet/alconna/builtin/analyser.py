@@ -2,9 +2,8 @@ from typing import Union
 
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.arpamar import Arpamar
-from arclet.alconna.types import (
-    DataCollection, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
-)
+from arclet.alconna.types import MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, \
+    MappingArg, DataCollection
 from arclet.alconna.visitor import AlconnaNodeVisitor
 from arclet.alconna.analysis.analyser import Analyser
 from arclet.alconna.manager import command_manager
@@ -35,13 +34,17 @@ class DefaultCommandAnalyser(Analyser):
     def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:
         if command_manager.is_disable(self.alconna):
             return self.create_arpamar(fail=True)
-        if res := command_manager.get_record(self.temp_token):
-            return res[2]
-        if self.ndata == 0:
+
+        if self.ndata == 0 and not self.temporary_data.get('fail'):
             if not message:
                 raise ValueError(lang_config.analyser_handle_null_message.format(target=message))
-            if r := self.handle_message(message):
-                return r
+            self.process_message(message)
+        if self.temporary_data.get('fail'):
+            self.reset()
+            return self.create_arpamar(fail=True, exception=self.temporary_data.get('exception'))
+        if (res := command_manager.get_record(self.temp_token)) and self.temp_token in self.used_tokens:
+            self.reset()
+            return res[2]
         try:
             self.header = analyse_header(self)
         except ParamsUnmatched as e:
@@ -54,7 +57,8 @@ class DefaultCommandAnalyser(Analyser):
                 self.reset()
                 if isinstance(_res, Arpamar):
                     return _res
-                return self.analyse(_res)
+                self.process_message(_res)
+                return self.analyse()
             except ValueError:
                 return self.create_arpamar(fail=True, exception=e)
         except FuzzyMatchSuccess as Fuzzy:

@@ -96,7 +96,7 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
             [
                 self.part(opt, 'option') for opt in
                 filter(lambda x: x['type'] == 'option', parts)
-                if opt['name'] != "--help"
+                if opt['name'] not in {"--help", "--shortcut"}
             ]
         )
         subcommand_string = "".join(
@@ -121,7 +121,7 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
         parts: List[dict] = trace.pop('sub_nodes')  # type: ignore
         sub_names = [i['name'] for i in parts]
         topic = trace['name'].replace("ALCONNA::", "") + " " + " ".join(
-            [f"[{i}]" for i in sub_names if i != "--help"]  # type: ignore
+            [f"[{i}]" for i in sub_names if i not in {"--help", "--shortcut"}]  # type: ignore
         )
         header = self.header(trace)
         body = self.body(parts)  # type: ignore

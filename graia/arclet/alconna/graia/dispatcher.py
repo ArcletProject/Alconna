@@ -138,11 +138,11 @@ class AlconnaDispatcher(BaseDispatcher):
             help_manager.require_send_action(_h, self.command.name)
 
             _res = self.command.parse(message)
-            _property = await reply_help_message(message, _res, may_help_text, event)
         except Exception as e:
             logger.warning(f"{self.command} error: {e}")
             raise ExecutionStop
-        finally:
+        else:
+            _property = await reply_help_message(message, _res, may_help_text, event)
             local_storage: _AlconnaLocalStorage = interface.local_storage  # type: ignore
             if not _property.result.matched and not _property.help_text:  # noqa
                 if "-h" in str(_property.origin):

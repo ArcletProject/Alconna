@@ -13,7 +13,7 @@ from collections.abc import (
 )
 from enum import Enum
 from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Union, Sequence, \
-    List, Dict, get_args, Literal, Tuple, get_origin
+    List, Dict, get_args, Literal, Tuple, get_origin, Iterable
 from types import LambdaType
 from pathlib import Path
 from .exceptions import ParamsUnmatched
@@ -119,13 +119,10 @@ class ArgPattern:
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
         """
         if not isinstance(text, str):
-            if isinstance(text, self.origin_type):
-                return text
-            return
+            return text if isinstance(text, self.origin_type) else None
         if self.token == PatternToken.DIRECT:
             return text
-        r = self.re_pattern.findall(text)
-        return r[0] if r else None
+        return r[0] if (r := self.re_pattern.findall(text)) else None
 
 
 class Force:
@@ -143,7 +140,7 @@ class Force:
         return f"Force:{self.origin.__repr__()}"
 
 
-AnyStr = ArgPattern(r"(.+?)", PatternToken.DIRECT, str)
+AnyStr = ArgPattern(r"(.+?)", PatternToken.DIRECT, str, alias="str")
 Email = ArgPattern(r"([\w\.+-]+)@([\w\.-]+)\.([\w\.-]+)", origin_type=tuple, alias="email")
 AnyIP = ArgPattern(r"(\d+)\.(\d+)\.(\d+)\.(\d+):?(\d*)", origin_type=tuple, alias="ip")
 AnyUrl = ArgPattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", origin_type=str, alias="url")
@@ -195,23 +192,17 @@ class TypePattern:
         """
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
         """
+        if isinstance(obj, self.origin_type):
+            return obj
         if not isinstance(obj, tuple(self.target_types)):
-            if isinstance(obj, self.origin_type):
-                return obj
-            if self.previous:
-                obj = self.previous.find(obj)
-            else:
+            if not self.previous:
                 return
+            obj = self.previous.find(obj)
         return self.action(obj)
 
     def __repr__(self):
-        if self.previous:
-            return (
-                    self.previous.__repr__() + ", " +
-                    '|'.join([x.__name__ for x in self.target_types]) +
-                    " -> " + self.origin_type.__name__
-            )
-        return f"{'|'.join([x.__name__ for x in self.target_types])} -> {self.origin_type.__name__}"
+        return f"{(f'{self.previous.__repr__()}, ' if self.previous else '')}" \
+               f"{'|'.join(x.__name__ for x in self.target_types)} -> {self.origin_type.__name__}"
 
 
 class MultiArg(ArgPattern):
@@ -235,7 +226,7 @@ class MultiArg(ArgPattern):
         if flag == 'args':
             super().__init__(
                 r"(.+?)", PatternToken.DIRECT, tuple,
-                alias=(f"*{alias_content}" if array_length is None else f"{alias_content}*{array_length}")
+                alias=(f"*{alias_content}" if not array_length else f"{alias_content}*{array_length}")
             )
         elif flag == 'kwargs':
             super().__init__(r"(.+?)", PatternToken.DIRECT, dict, alias=f"**{alias_content}")
@@ -243,9 +234,7 @@ class MultiArg(ArgPattern):
 
     def __repr__(self):
         if self.flag == 'args':
-            if self.array_length:
-                return f"{self.arg_value}[{self.array_length}]"
-            return f"({self.arg_value}, ...)"
+            return f"{self.arg_value}[{self.array_length}]" if self.array_length else f"({self.arg_value}, ...)"
         elif self.flag == 'kwargs':
             return f"{{KEY={self.arg_value}, ...}}"
 
@@ -285,6 +274,8 @@ class UnionArg(ArgPattern):
         self.for_equal = []
 
         for arg in arg_value:
+            if arg == Empty:
+                continue
             if isinstance(arg, (ArgPattern, TypePattern)):
                 self.for_match.append(arg)
             elif isinstance(arg, type):
@@ -293,21 +284,16 @@ class UnionArg(ArgPattern):
                 self.for_equal.append(arg)
         alias_content = ", ".join(
             [a.alias or a.origin_type.__name__ for a in self.for_match] +
-            [repr(a) for a in self.for_equal] +
-            [a.__name__ for a in self.for_type_check]
+            [repr(a) for a in self.for_equal] + [a.__name__ for a in self.for_type_check]
         )
         super().__init__(
-            r"(.+?)",
-            PatternToken.DIRECT,
-            str,
-            alias=f"{'!' if self.anti else ''}Union[{alias_content}]"
+            r"(.+?)", PatternToken.DIRECT, str, alias=f"{'!' if self.anti else ''}Union[{alias_content}]"
         )
 
     def match(self, text: Union[str, Any]):
         if self.anti:
-            equal, match, type_check = False, False, False
-            if text in self.for_equal:
-                equal = True
+            match, type_check = False, False
+            equal = True if text in self.for_equal else False
             for pat in self.for_match:
                 if pat.match(text):
                     match = True
@@ -317,12 +303,9 @@ class UnionArg(ArgPattern):
                     type_check = True
                     break
 
-            if any([equal, match, type_check]):
-                return None
-            return text
-        not_equal, not_match, not_check = True, True, True
-        if text in self.for_equal:
-            not_equal = False
+            return None if any([equal, match, type_check]) else text
+        not_match, not_check = True, True
+        not_equal = False if text in self.for_equal else True
 
         if not_equal:
             for pat in self.for_match:
@@ -341,14 +324,11 @@ class UnionArg(ArgPattern):
                 if isinstance(text, t):
                     not_check = False
                     break
-        if all([not_equal, not_match, not_check]):
-            return None
-        return text
+        return None if all([not_equal, not_match, not_check]) else text
 
     def __repr__(self):
         return ("!" if self.anti else "") + ("(" + "|".join(
-            [repr(a) for a in self.for_match] +
-            [repr(a) for a in self.for_equal] +
+            [repr(a) for a in self.for_match] + [repr(a) for a in self.for_equal] +
             [a.__name__ for a in self.for_type_check]
         ) + ")")
 
@@ -376,8 +356,7 @@ class SequenceArg(ArgPattern):
             raise ValueError(lang_config.types_sequence_form_error.format(target=form))
 
     def match(self, text: Union[str, Any]):
-        _res = super().match(text)
-        if not _res:
+        if not (_res := super().match(text)):
             return
         sequence = re.split(r"\s*,\s*", _res) if isinstance(_res, str) else _res
         result = []
@@ -387,12 +366,7 @@ class SequenceArg(ArgPattern):
             if self.arg_value.token == PatternToken.REGEX_TRANSFORM and isinstance(arg_find, str):
                 arg_find = self.arg_value.converter(arg_find)
             result.append(arg_find)
-        if self.form == "list":
-            return result
-        elif self.form == "tuple":
-            return tuple(result)
-        elif self.form == "set":
-            return set(result)
+        return self.origin_type(result)
 
     def __repr__(self):
         return f"{self.form}[{self.arg_value}]"
@@ -413,20 +387,16 @@ class MappingArg(ArgPattern):
         super().__init__(r"\{(.+?)\}", PatternToken.REGEX_MATCH, dict, alias=f"Dict[{alias_content}]")
 
     def match(self, text: Union[str, Any]):
-        _res: Union[str, Dict, None] = super().match(text)
-        if not _res:
+        if not (_res := super().match(text)):
             return
         result = {}
 
-        def _generator_items(res):
-            if isinstance(res, str):
-                _mapping = re.split(r"\s*,\s*", res)
-                for m in _mapping:
-                    _k, _v = re.split(r"\s*[:=]\s*", m)
-                    yield _k, _v
-            else:
-                for _k, _v in res.items():
-                    yield _k, _v
+        def _generator_items(res: Union[str, Dict]):
+            if isinstance(res, dict):
+                return res.items()
+            for m in re.split(r"\s*,\s*", res):
+                _k, _v = re.split(r"\s*[:=]\s*", m)
+                yield _k, _v
 
         for k, v in _generator_items(_res):
             if not (real_key := self.arg_key.match(k)):
@@ -446,23 +416,13 @@ class MappingArg(ArgPattern):
 
 
 pattern_map = {
-    Any: AnyParam,
-    Ellipsis: AnyParam,
-    object: AnyParam,
-    "email": Email,
-    "color": HexColor,
-    "hex": AnyHex,
-    "ip": AnyIP,
-    "url": AnyUrl,
-    "...": AnyParam,
-    "*": AllParam,
-    "": Empty
+    Any: AnyParam, Ellipsis: AnyParam, object: AnyParam, "email": Email, "color": HexColor,
+    "hex": AnyHex, "ip": AnyIP, "url": AnyUrl, "...": AnyParam, "*": AllParam, "": Empty
 }
 
 
 def set_converter(
         alc_pattern: Union[ArgPattern, TypePattern],
-        origin_type: Optional[type] = None,
         alias: Optional[str] = None,
         cover: bool = False
 ):
@@ -471,83 +431,66 @@ def set_converter(
 
     Args:
         alc_pattern: 设置的表达式
-        origin_type: 目标检查类型
         alias: 目标类型的别名
         cover: 是否覆盖已有的转换器
     """
-    if cover:
-        if alias:
-            pattern_map[alias] = alc_pattern
-        if alc_pattern.alias:
-            pattern_map[alc_pattern.alias] = alc_pattern
-        if origin_type:
-            pattern_map[origin_type] = alc_pattern
+    for k in (alias, alc_pattern.alias, alc_pattern.origin_type):
+        if k not in pattern_map or cover:
+            pattern_map[k] = alc_pattern
         else:
-            pattern_map[alc_pattern.origin_type] = alc_pattern
-    else:
-        if origin_type:
-            if al_pat := pattern_map.get(origin_type):
-                if isinstance(al_pat, UnionArg):
-                    pattern_map[origin_type] = UnionArg([*al_pat.arg_value, alc_pattern])
-                else:
-                    pattern_map[origin_type] = UnionArg([al_pat, alc_pattern])
+            al_pat = pattern_map[k]
+            if isinstance(al_pat, UnionArg):
+                pattern_map[k] = UnionArg([*al_pat.arg_value, alc_pattern])
             else:
-                pattern_map[origin_type] = alc_pattern
+                pattern_map[k] = UnionArg([al_pat, alc_pattern])
+
+
+def set_converters(
+        patterns: Union[Iterable[Union[ArgPattern, TypePattern]], Dict[str, Union[ArgPattern, TypePattern]]],
+        cover: bool = False
+):
+    for arg_pattern in patterns:
+        if isinstance(patterns, dict):
+            set_converter(patterns[arg_pattern], alias=arg_pattern, cover=cover)
         else:
-            if al_pat := pattern_map.get(alc_pattern.origin_type):
-                if isinstance(al_pat, UnionArg):
-                    pattern_map[alc_pattern.origin_type] = UnionArg([*al_pat.arg_value, alc_pattern])
-                else:
-                    pattern_map[alc_pattern.origin_type] = UnionArg([al_pat, alc_pattern])
-            else:
-                pattern_map[alc_pattern.origin_type] = alc_pattern
-        if alias:
-            if al_pat := pattern_map.get(alias):
-                if isinstance(al_pat, UnionArg):
-                    pattern_map[alias] = UnionArg([*al_pat.arg_value, alc_pattern])
-                else:
-                    pattern_map[alias] = UnionArg([al_pat, alc_pattern])
-            else:
-                pattern_map[alias] = alc_pattern
-        if alc_pattern.alias:
-            if al_pat := pattern_map.get(alc_pattern.alias):
-                if isinstance(al_pat, UnionArg):
-                    pattern_map[alc_pattern.alias] = UnionArg([*al_pat.arg_value, alc_pattern])
-                else:
-                    pattern_map[alc_pattern.alias] = UnionArg([al_pat, alc_pattern])
-            else:
-                pattern_map[alc_pattern.alias] = alc_pattern
+            set_converter(arg_pattern, cover=cover)
+
+
+def remove_converter(origin_type: type, alias: Optional[str] = None):
+    """
+
+    :param origin_type:
+    :param alias:
+    :return:
+    """
+    if alias and (al_pat := pattern_map.get(alias)):
+        if isinstance(al_pat, UnionArg):
+            pattern_map[alias] = UnionArg(list(filter(lambda x: x.alias != alias, al_pat.arg_value)))
+        else:
+            del pattern_map[alias]
+    elif al_pat := pattern_map.get(origin_type):
+        if isinstance(al_pat, UnionArg):
+            pattern_map[origin_type] = UnionArg(list(filter(lambda x: x.origin_type != origin_type, al_pat.arg_value)))
+        else:
+            del pattern_map[origin_type]
 
 
 StrPath = TypePattern([str], Path, lambda v: Path(v), "path")
 AnyPathFile = TypePattern(
     [Path], bytes, lambda x: x.read_bytes() if x.exists() and x.is_file() else None, 'file', previous=StrPath
 )
-set_converter(AnyPathFile)
+AnyDigit = ArgPattern(r"(\-?\d+)", PatternToken.REGEX_TRANSFORM, int, lambda x: int(x), "int")
+AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", PatternToken.REGEX_TRANSFORM, float, lambda x: float(x), "float")
+Bool = ArgPattern(r"(True|False|true|false)", PatternToken.REGEX_TRANSFORM, bool, lambda x: bool(x), "bool")
+AnyList = ArgPattern(r"(\[.+?\])", PatternToken.REGEX_TRANSFORM, list, alias="list")
+AnyTuple = ArgPattern(r"(\(.+?\))", PatternToken.REGEX_TRANSFORM, tuple, alias="tuple")
+AnySet = ArgPattern(r"(\{.+?\})", PatternToken.REGEX_TRANSFORM, set, alias="set")
+AnyDict = ArgPattern(r"(\{.+?\})", PatternToken.REGEX_TRANSFORM, dict, alias="dict")
 
-AnyDigit = ArgPattern(r"(\-?\d+)", PatternToken.REGEX_TRANSFORM, int, lambda x: int(x))
-AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", PatternToken.REGEX_TRANSFORM, float, lambda x: float(x))
-Bool = ArgPattern(
-    r"(True|False|true|false)", PatternToken.REGEX_TRANSFORM, bool, lambda x: bool(
-        x.replace("false", "False").replace("true", "True")
-    )
-)
-AnyList = ArgPattern(r"(\[.+?\])", PatternToken.REGEX_TRANSFORM, list)
-AnyTuple = ArgPattern(r"(\(.+?\))", PatternToken.REGEX_TRANSFORM, tuple)
-AnySet = ArgPattern(r"(\{.+?\})", PatternToken.REGEX_TRANSFORM, set)
-AnyDict = ArgPattern(r"(\{.+?\})", PatternToken.REGEX_TRANSFORM, dict)
-
-set_converter(AnyStr, alias="str")
-set_converter(AnyDigit, alias="int")
-set_converter(AnyFloat, alias="float")
-set_converter(Bool, alias="bool")
-set_converter(AnyList, alias="list")
-set_converter(AnyTuple, alias="tuple")
-set_converter(AnySet, alias="set")
-set_converter(AnyDict, alias="dict")
+set_converters([AnyPathFile, AnyStr, AnyDigit, AnyFloat, Bool, AnyList, AnyTuple, AnySet, AnyDict])
 
 
-def pattern(name: str, re_pattern: str):
+def pattern_gen(name: str, re_pattern: str):
     """便捷地设置转换器"""
 
     def __wrapper(func):
@@ -570,29 +513,17 @@ def argument_type_validator(item: Any, extra: str = "allow"):
     if not inspect.isclass(item) and item.__class__.__name__ in "_GenericAlias":
         origin = get_origin(item)
         if origin in (Union, Literal):
-            _args = list(set([argument_type_validator(t, extra) for t in get_args(item)]))
-            if len(_args) < 1:
-                return item
-            if len(_args) < 2:
-                _args = _args[0]
-            return _args
+            _args = list(set(argument_type_validator(t, extra) for t in get_args(item)))
+            return item if len(_args) == 0 else (_args[0] if len(_args) == 1 else _args)
         if origin in (dict, ABCMapping, ABCMutableMapping):
             arg_key = argument_type_validator(get_args(item)[0], 'ignore')
             arg_value = argument_type_validator(get_args(item)[1], 'ignore')
             if isinstance(arg_value, list):
-                if len(arg_value) == 2 and Empty in arg_value:
-                    arg_value.remove(Empty)
-                    arg_value = arg_value[0]
-                else:
-                    arg_value = UnionArg(arg_value)
+                arg_value = UnionArg(arg_value)
             return MappingArg(arg_key=arg_key, arg_value=arg_value)
         args = argument_type_validator(get_args(item)[0], 'ignore')
         if isinstance(args, list):
-            if len(args) == 2 and Empty in args:
-                args.remove(Empty)
-                args = args[0]
-            else:
-                args = UnionArg(args)
+            args = UnionArg(args)
         if origin in (ABCMutableSequence, list):
             return SequenceArg(args)
         if origin in (ABCSequence, ABCIterable, tuple):
@@ -619,12 +550,12 @@ UnionArg.__validator__ = lambda x: [
 class ObjectPattern(ArgPattern):
 
     def __init__(
-        self,
-        origin: Type,
-        limit: Tuple[str, ...] = (),
-        head: str = "",
-        flag: Literal["http", "part", "json"] = "part",
-        **suppliers: Callable
+            self,
+            origin: Type,
+            limit: Tuple[str, ...] = (),
+            head: str = "",
+            flag: Literal["http", "part", "json"] = "part",
+            **suppliers: Callable
     ):
         """
         将传入的对象类型转换为接收序列号参数解析后实例化的对象
@@ -646,7 +577,7 @@ class ObjectPattern(ArgPattern):
         sig = inspect.signature(origin.__init__)
         for param in sig.parameters.values():
             name = param.name
-            if name in ("self", "args", "kwargs"):
+            if name in ("self", "cls"):
                 continue
             if limit and name not in limit:
                 continue
@@ -657,13 +588,11 @@ class ObjectPattern(ArgPattern):
                 _s_sig = inspect.signature(suppliers[name])
                 if _s_sig.return_annotation in get_args(param.annotation):
                     if len(_s_sig.parameters) == 0 or (
-                            len(_s_sig.parameters) == 1 and
-                            inspect.ismethod(suppliers[name])
+                            len(_s_sig.parameters) == 1 and inspect.ismethod(suppliers[name])
                     ):
                         self._supplement_map[name] = suppliers[name]
                     elif len(_s_sig.parameters) == 1 or (
-                            len(_s_sig.parameters) == 2 and
-                            inspect.ismethod(suppliers[name])
+                            len(_s_sig.parameters) == 2 and inspect.ismethod(suppliers[name])
                     ):
                         self._require_map[name] = suppliers[name]
                         if flag == "http":
@@ -696,7 +625,7 @@ class ObjectPattern(ArgPattern):
                         raise TypeError(lang_config.types_supplier_return_error.format(
                             target=name, origin=origin.__name__, source=param.annotation
                         ))
-            elif param.default is not Empty and param.default is not None and param.default != Ellipsis:
+            elif param.default not in (Empty, None, Ellipsis):
                 self._params[name] = param.default
             else:
                 pat = param.annotation

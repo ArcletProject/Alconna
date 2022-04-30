@@ -120,12 +120,8 @@ class AlconnaNodeVisitor:
         跟踪所有的节点
         """
         return {
-            "type": root.type,
-            "name": root.name,
-            "description": root.description,
-            "parameters": root.parameters,
-            "separator": root.separator,
-            "param_separator": root.param_separator,
+            "type": root.type, "name": root.name, "description": root.description, "parameters": root.parameters,
+            "separator": root.separator, "param_separator": root.param_separator,
             "additional_info": root.additional_info,
             "sub_nodes": [self.trace_nodes(self.node_map[i]) for i in root.sub_nodes]
         }

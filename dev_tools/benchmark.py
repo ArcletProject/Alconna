@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Arpamar, Args, AnyParam, compile
+from arclet.alconna import Alconna, Arpamar, Args, AnyParam, compile, command_manager
 import cProfile
 import pstats
 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         s_ping.analyse(msg)
     ed = time.time()
     print(f"Alconna: {count / (ed - st):.2f}msg/s")
-
+    command_manager.records.clear()
     prof = cProfile.Profile()
     prof.enable()
     for _ in range(count):

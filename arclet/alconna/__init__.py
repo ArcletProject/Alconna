@@ -8,7 +8,7 @@ from .arpamar.duplication import AlconnaDuplication
 from .arpamar.stub import ArgsStub, SubcommandStub, OptionStub
 from .types import (
     DataUnit, DataCollection, AnyParam, AllParam, Empty, PatternToken, ObjectPattern,
-    set_converter, pattern
+    set_converter, pattern_gen
 )
 from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, UnexpectedElement
 from .analysis import compile, analyse, analyse_args, analyse_header, analyse_option, analyse_subcommand

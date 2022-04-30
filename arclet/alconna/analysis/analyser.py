@@ -1,12 +1,11 @@
-import hashlib
 import re
 import traceback
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable, Pattern, Generic, TypeVar
-from contextvars import Token
+from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable, Pattern, Generic, TypeVar, \
+    Set
 
 from ..manager import command_manager
-from ..exceptions import NullTextMessage, UnexpectedElement
+from ..exceptions import NullTextMessage
 from ..base import Args, Option, Subcommand
 from ..arpamar import Arpamar
 from ..util import split_once, split
@@ -32,7 +31,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     current_index: int  # 当前数据的index
     content_index: int  # 内部index
     is_str: bool  # 是否是字符串
-    raw_data: Dict[int, Union[List[str], Any]]  # 原始数据
+    # raw_data: Dict[int, Union[List[str], Any]]  # 原始数据
+    raw_data: List[Union[Any, List[str]]]  # 原始数据
     ndata: int  # 原始数据的长度
     command_params: Dict[str, Union[Option, Subcommand]]  # 参数
     param_ids: List[str]
@@ -58,8 +58,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     filter_out: List[str]  # 元素黑名单
     temporary_data: Dict[str, Any]  # 临时数据
     origin_data: T_Origin  # 原始数据
-    temp_token: str  # 临时token
-    context_token: Token  # 上下文token
+    temp_token: int  # 临时token
+    used_tokens: Set[int]  # 已使用的token
 
     def __init_subclass__(cls, **kwargs):
         cls.arg_handlers = {}
@@ -70,8 +70,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             raise TypeError(lang_config.analyser_filter_missing)
 
     @staticmethod
-    def generate_token(data: Dict[int, Union[Any, List[str]]]) -> str:
-        return hashlib.md5(str(data).encode("utf-8")).hexdigest()
+    def generate_token(data: List[Union[Any, List[str]]], hs=hash) -> int:
+        return hs(str(data))
 
     @classmethod
     def add_arg_handler(cls, arg_type: Type, handler: Optional[ARGHANDLER_TYPE] = None):
@@ -87,6 +87,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     def __init__(self, alconna: "Alconna"):
         self.reset()
+        self.used_tokens = set()
         self.original_data = None
         self.alconna = alconna
         self.self_args = alconna.args
@@ -192,15 +193,16 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.subcommands = {}
         self.temporary_data = {}
         self.header = None
-        self.raw_data = {}
+        self.raw_data = []
         self.head_matched = False
         self.ndata = 0
         self.original_data = None
-        self.temp_token = ''
+        self.temp_token = 0
 
     def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
-        self.temporary_data.pop("separator", None)
+        if "separator" in self.temporary_data:
+            self.temporary_data.pop("separator", None)
         if self.current_index == self.ndata:
             return "", True
         _current_data = self.raw_data[self.current_index]
@@ -212,7 +214,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             if pop:
                 if _rest_text:  # 这里实际上还是pop了
                     self.temporary_data["separator"] = separate
-                    self.raw_data[self.current_index][self.content_index] = _rest_text
+                    _current_data[self.content_index] = _rest_text  # self.raw_data[self.current_index]
                 else:
                     self.content_index += 1
             if len(_current_data) == self.content_index:
@@ -226,14 +228,13 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def rest_count(self, separate: Optional[str] = None) -> int:
         """获取剩余的数据个数"""
         _result = 0
-        for i in self.raw_data:
-            if i < self.current_index:
-                continue
-            if isinstance(self.raw_data[i], list):
-                for s in self.raw_data[i][self.content_index:]:
-                    if separate and self.separator != separate:
+        for _data in self.raw_data[self.current_index:]:
+            if isinstance(_data, list):
+                for s in _data[self.content_index:]:
+                    if separate and separate != self.separator:
                         _result += len(split(s, separate))
-                    _result += 1
+                    else:
+                        _result += 1
             else:
                 _result += 1
         return _result
@@ -268,20 +269,17 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def recover_raw_data(self) -> List[Union[str, Any]]:
         """将处理过的命令数据大概还原"""
         _result = []
-        for i in self.raw_data:
-            if i < self.current_index:
-                continue
-            if isinstance(self.raw_data[i], list):
-                _result.append(f'{self.separator}'.join(self.raw_data[i][self.content_index:]))
+        for _data in self.raw_data[self.current_index:]:
+            if isinstance(_data, list):
+                _result.append(f'{self.separator}'.join(_data[self.content_index:]))
             else:
-                _result.append(self.raw_data[i])
+                _result.append(_data)
         self.current_index = self.ndata
         self.content_index = 0
         return _result
 
-    def handle_message(self, data: Union[str, DataCollection]) -> Optional[Arpamar]:
+    def process_message(self, data: Union[str, DataCollection]) -> 'Analyser':
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
-        self.context_token = command_manager.current_command.set(self.alconna)
         self.original_data = data
         if isinstance(data, str):
             self.is_str = True
@@ -289,46 +287,39 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 exp = NullTextMessage(lang_config.analyser_handle_null_message.format(target=data))
                 if self.is_raise_exception:
                     raise exp
-                return self.create_arpamar(fail=True, exception=exp)
-            self.raw_data = {0: res}
-            self.ndata = 1
+                self.temporary_data["fail"] = exp
+            else:
+                self.raw_data = [res]
+                self.ndata = 1
+                self.temp_token = self.generate_token(self.raw_data)
         else:
             separate = self.separator
             i, __t, exc = 0, False, None
-            raw_data: Dict[int, Any] = {}
+            raw_data = []
             for unit in data:  # type: ignore
                 if text := getattr(unit, 'text', None):
-                    if not (res := split(text.lstrip(' '), separate)):
+                    if not (res := split(text.lstrip(), separate)):
                         continue
-                    raw_data[i] = res
+                    raw_data.append(res)
                     __t = True
                 elif isinstance(unit, str):
-                    if not (res := split(unit.lstrip(' '), separate)):
+                    if not (res := split(unit.lstrip(), separate)):
                         continue
-                    raw_data[i] = res
+                    raw_data.append(res)
                     __t = True
                 elif unit.__class__.__name__ not in self.filter_out:
-                    raw_data[i] = unit
-                else:
-                    if self.is_raise_exception:
-                        exc = UnexpectedElement(
-                            lang_config.analyser_handle_unexpect_type.format(targer=f"{unit.type}({unit})")
-                        )
-                    continue
+                    raw_data.append(unit)
                 i += 1
             if __t is False:
                 exp = NullTextMessage(lang_config.analyser_handle_null_message.format(target=data))
                 if self.is_raise_exception:
                     raise exp
-                return self.create_arpamar(fail=True, exception=exp)
-            if exc:
-                if self.is_raise_exception:
-                    raise exc
-                return self.create_arpamar(fail=True, exception=exc)
-            self.raw_data = raw_data
-            self.ndata = i
-        self.temp_token = self.generate_token(self.raw_data)
-        return
+                self.temporary_data["fail"] = exp
+            else:
+                self.raw_data = raw_data
+                self.ndata = i
+                self.temp_token = self.generate_token(raw_data)
+        return self
 
     @abstractmethod
     def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:
@@ -352,7 +343,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         else:
             result.matched = True
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
-            command_manager.record(self.original_data, self, result)
+            command_manager.record(self.temp_token, self.original_data, self.alconna.path, result)
+            self.used_tokens.add(self.temp_token)
         self.reset()
-        command_manager.current_command.reset(self.context_token)
         return result

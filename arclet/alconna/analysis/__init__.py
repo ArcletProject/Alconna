@@ -22,7 +22,9 @@ def compile(alconna: "Alconna", params_generator: Optional[Callable[[Analyser], 
 
 
 def analyse(alconna: "Alconna", command: Union[str, DataCollection]) -> Arpamar:
-    return compile(alconna).analyse(command)
+    ana = compile(alconna)
+    ana.process_message(command)
+    return ana.analyse()
 
 
 class AnalyseError(Exception):
@@ -32,8 +34,11 @@ class AnalyseError(Exception):
 class _DummyAnalyser(Analyser):
     filter_out = ["Source", "File", "Quote"]
 
-    def __new__(cls, *args, **kwargs):
+    class _DummyALC:
+        is_fuzzy_match = False
 
+    def __new__(cls, *args, **kwargs):
+        cls.alconna = cls._DummyALC()  # type: ignore
         cls.add_arg_handler(MultiArg, multi_arg_handler)
         cls.add_arg_handler(ArgPattern, common_arg_handler)
         cls.add_arg_handler(AntiArg, anti_arg_handler)
@@ -61,7 +66,7 @@ def analyse_args(
     _analyser.separator = ' '
     _analyser.is_raise_exception = True
     try:
-        _analyser.handle_message(command)
+        _analyser.process_message(command)
         return ala(_analyser, args, len(args))
     except Exception as e:
         traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -77,7 +82,7 @@ def analyse_header(
     _analyser.reset()
     _analyser.separator = sep
     _analyser.is_raise_exception = True
-    _analyser.handle_message(command)
+    _analyser.process_message(command)
     _analyser.__init_header__(command_name, headers)
     r = alh(_analyser)
     if r is False:
@@ -96,7 +101,7 @@ def analyse_option(
     _analyser.separator = " "
     _analyser.is_raise_exception = True
     try:
-        _analyser.handle_message(command)
+        _analyser.process_message(command)
         return alo(_analyser, option)
     except Exception as e:
         traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -111,7 +116,7 @@ def analyse_subcommand(
     _analyser.separator = " "
     _analyser.is_raise_exception = True
     try:
-        _analyser.handle_message(command)
+        _analyser.process_message(command)
         return als(_analyser, subcommand)
     except Exception as e:
         traceback.print_exception(AnalyseError, e, e.__traceback__)

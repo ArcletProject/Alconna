@@ -1,5 +1,5 @@
 """Alconna 的基础内容相关"""
-import asyncio
+
 import re
 import inspect
 from enum import Enum
@@ -11,10 +11,25 @@ from .types import (
     ArgPattern,
     _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argument_type_validator, TypePattern
 )
+from .manager import command_manager
 from .lang import lang_config
 
 TAValue = Union[ArgPattern, TypePattern, Type[DataUnit], _AnyParam]
 TADefault = Union[Any, DataUnit, Empty]
+
+
+class ArgFlag(str, Enum):
+    """
+    参数标记
+    """
+
+    VAR_POSITIONAL = "S"  # '*'
+    VAR_KEYWORD = "W"  # '**'
+    OPTIONAL = 'O'  # '?'
+    KWONLY = 'K'  # '@'
+    HIDDEN = "H"  # '_'
+    FORCE = "F"  # '#'
+    ANTI = "A"  # '!'
 
 
 class ArgUnit(TypedDict):
@@ -93,19 +108,6 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     var_keyword: Optional[Tuple[str, MultiArg]]
     optional_count: int
     separator: str
-
-    class _Flag(str, Enum):
-        """
-        参数标记
-        """
-
-        VAR_POSITIONAL = "S"  # '*'
-        VAR_KEYWORD = "W"  # '**'
-        OPTIONAL = 'O'  # '?'
-        KWONLY = 'K'  # '@'
-        HIDDEN = "H"  # '_'
-        FORCE = "F"  # '#'
-        ANTI = "A"  # '!'
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -211,6 +213,22 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separator"
 
+    def add_argument(
+            self,
+            name: str,
+            value: Any,
+            default: Optional[Any] = None,
+            flags: Optional[Iterable[ArgFlag]] = None
+    ):
+        """
+        添加一个参数
+        """
+        if name in self.argument:
+            return  # raise InvalidParam(lang_config.common_argument_exist_error.format(target=name))
+        if flags:
+            name += ";" + "|".join(flags)
+        self.__check_vars__([[name, value, default]])
+
     def default(self, **kwargs: TADefault):
         """设置参数的默认值"""
         for k, v in kwargs.items():
@@ -251,23 +269,23 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 name = name.replace(f";{res.group('flag')}", "")
                 _limit = False
                 for flag in flags:
-                    if flag == self._Flag.FORCE and not _limit:
+                    if flag == ArgFlag.FORCE and not _limit:
                         _value = value if not isinstance(value, str) else ArgPattern(value)
                         _limit = True
-                    if flag == self._Flag.ANTI and not _limit:
+                    if flag == ArgFlag.ANTI and not _limit:
                         if isinstance(_value, UnionArg):
                             _value.anti = True
                         elif not isinstance(_value, _AnyParam):
                             _value = AntiArg(_value)
                         _limit = True
-                    if flag == self._Flag.VAR_KEYWORD and not _limit:
+                    if flag == ArgFlag.VAR_KEYWORD and not _limit:
                         if self.var_keyword:
                             raise InvalidParam(lang_config.args_duplicate_kwargs)
                         if not isinstance(_value, (_AnyParam, UnionArg)):
                             _value = MultiArg(_value, flag='kwargs')
                             self.var_keyword = (name, _value)
                         _limit = True
-                    if flag == self._Flag.VAR_POSITIONAL and not _limit:
+                    if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                         if self.var_positional:
                             raise InvalidParam(lang_config.args_duplicate_varargs)
                         if not isinstance(_value, (_AnyParam, UnionArg)):
@@ -279,14 +297,14 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                         if not isinstance(_value, (_AnyParam, UnionArg)):
                             _value = MultiArg(_value, array_length=int(flag))
                             self.var_positional = (name, _value)
-                    if flag == self._Flag.OPTIONAL:
+                    if flag == ArgFlag.OPTIONAL:
                         if self.var_keyword or self.var_positional:
                             raise InvalidParam(lang_config.args_exclude_mutable_args)
                         _addition['optional'] = True
                         self.optional_count += 1
-                    if flag == self._Flag.HIDDEN:
+                    if flag == ArgFlag.HIDDEN:
                         _addition['hidden'] = True
-                    if flag == self._Flag.KWONLY:
+                    if flag == ArgFlag.KWONLY:
                         if self.var_keyword or self.var_positional:
                             raise InvalidParam(lang_config.args_exclude_mutable_args)
                         _addition['kwonly'] = True
@@ -376,13 +394,6 @@ class ArgAction:
         """
         self.action = action
 
-    @staticmethod
-    def _loop() -> asyncio.AbstractEventLoop:
-        try:
-            return asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.get_event_loop()
-
     def handle(
             self,
             option_dict: dict,
@@ -403,7 +414,7 @@ class ArgAction:
         kwargs = kwargs or {}
         try:
             if inspect.iscoroutinefunction(self.action):
-                loop = self._loop()
+                loop = command_manager.loop
                 if loop.is_running():
                     loop.create_task(self.action(*option_dict.values(), *varargs, **kwargs))
                     return option_dict

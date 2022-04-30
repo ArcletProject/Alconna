@@ -12,7 +12,8 @@ print(analyse_args(arg, "arclet-alconna True"))
 print("\nArgs Magic construct:")
 arg1 = Args["round":float, "test":bool:True]["aaa":str] << Args["perm":str:...] + ["month", int]
 arg1["foo"] = ["bar", ...]
-arg11 = Args.baz[int]
+arg11: Args = Args.baz[int]
+arg11.add_argument("foo", value=int, default=1)
 print("arg1:", arg1)
 print("arg11:", arg11)
 

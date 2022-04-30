@@ -1,7 +1,8 @@
 from typing import Union, Dict
 
+from arclet.alconna import compile
 from arclet.alconna.builtin.construct import AlconnaString, AlconnaFormat
-from arclet.alconna.types import UnionArg, pattern
+from arclet.alconna.types import UnionArg, pattern_gen
 from arclet.alconna import Alconna, Args, Option
 from arclet.alconna import command_manager
 from graia.ariadne.message.element import At
@@ -47,7 +48,7 @@ alc1 = Alconna("test5", action=test)
 print(alc1)
 
 
-@pattern("test_type", r"(\[.*?])")
+@pattern_gen("test_type", r"(\[.*?])")
 def test_type(text: str):
     return eval(text)
 
@@ -113,4 +114,10 @@ alc16 = Alconna(
     options=[Option("从", Args["tags;3":str] / "和")],
     action=lambda x, y: (int(x), int(y))
 )
-print(alc16.parse("发涩图 3张到5张 从 方舟和德能和拉德"))
+s_alc15 = compile(alc15)
+s_alc16 = compile(alc16)
+print(s_alc16.analyse("发涩图 3张到5张 从 方舟和德能和拉德"))
+print(s_alc15.analyse("发涩图 3张到5张 从 方舟和德能和拉德"))
+
+print(s_alc16.analyse("发涩图 3张到5张 从 方舟和德能和拉德"))
+print(s_alc16.analyse("发涩图 3张到5张 从 德能和拉德"))

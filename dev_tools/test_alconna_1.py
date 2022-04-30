@@ -167,12 +167,10 @@ get_ap = Alconna(
 
 test = Alconna(
     command="test",
-    main_args=Args(t=Arpamar)
+    main_args=Args(t=int)
 ).reset_namespace("TEST")
 print(test)
-print(test.parse(
-    [get_ap.parse("AP Plain test"), get_ap.parse("AP At 123")]
-).all_matched_args)
+print(test.parse([get_ap.parse("AP Plain test"), get_ap.parse("AP At 123")]))
 
 # print(command_manager.commands)
 
