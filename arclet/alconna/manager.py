@@ -42,7 +42,7 @@ class CommandManager(metaclass=Singleton):
         self.__commands = {}
         self.__abandons = []
         self.__shortcuts = LruCache()
-        self.__record = LruCache(20)
+        self.__record = LruCache(100)
 
     def __del__(self):  # td: save to file
         self.__commands.clear()

@@ -1,3 +1,17 @@
+# Alconna 0.9.x:
+
+## Alconna 0.9.0:
+1. 将 HelpAction 与 HelpTextFormatter 作为 help 模块
+2. 语言配置组件的增强. 现在以语言种类标识符作为父级, 以支持多语言.
+3. 为 manager 新增一个记录命令输入的 LruCache. 解析器可以使用这个缓存来避免重复解析. 目前缓存上限为 100.
+4. 新增 `--shortcut` 内置选项, 为命令提供临时快捷命令的创建与删除.
+5. 修改 manager 中的 `shortcut`, 并支持持久化
+6. 部分性能优化, 以大致抵消因缓存计算而带来的性能损耗.
+7. 部分 api 名称变更:
+ - `pattern` -> `pattern_gen`
+ - `handle_message` -> `process_message`
+8. Args 新增 `add_argument` 方法, 以添加参数.
+
 # Alconna 0.8.x:
 
 ## Alconna 0.8.0:

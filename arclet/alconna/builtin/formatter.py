@@ -208,7 +208,7 @@ class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
         option_string = ""
         options = []
         opt_description = []
-        for opt in filter(lambda x: x['type'] == 'option', parts):
+        for opt in filter(lambda x: x['type'] == 'option' and x['name'] != "--shortcut", parts):
             aliases = opt['additional_info'].get('aliases')
             alias_text = ", ".join(aliases)
             args = f"{self.parameters(opt['parameters'], opt['param_separator'])}"
