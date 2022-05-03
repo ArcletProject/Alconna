@@ -328,10 +328,9 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         """主体解析函数, 应针对各种情况进行解析"""
         pass
 
-    @abstractmethod
-    def add_param(self, opt):
-        """临时增加解析用参数"""
-        pass
+    @staticmethod
+    def converter(command: str) -> T_Origin:
+        return command
 
     def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar:
         """创建arpamar, 其一定是一次解析的最后部分"""

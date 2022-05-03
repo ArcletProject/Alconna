@@ -15,6 +15,10 @@ class GraiaCommandAnalyser(DefaultCommandAnalyser[MessageChain]):
 
     """
 
+    @staticmethod
+    def converter(command: str):
+        return MessageChain.create(command)
+
     def process_message(self, data: MessageChain) -> 'GraiaCommandAnalyser':
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
         self.original_data = data

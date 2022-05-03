@@ -25,12 +25,6 @@ class DefaultCommandAnalyser(Analyser):
 
     filter_out = ["Source", "File", "Quote"]
 
-    def add_param(self, opt: Union[Option, Subcommand]):
-        if isinstance(opt, Subcommand):
-            for sub_opts in opt.options:
-                opt.sub_params.setdefault(sub_opts.name, sub_opts)
-        self.command_params[opt.name] = opt
-
     def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:
         if command_manager.is_disable(self.alconna):
             return self.create_arpamar(fail=True)
@@ -105,7 +99,7 @@ class DefaultCommandAnalyser(Analyser):
                     if _param.name == "--shortcut":
                         def _shortcut(sct: str, command: str, expiration: int, delete: bool):
                             return self.alconna.shortcut(
-                                sct, None if command == "_" else command, delete, expiration
+                                sct, None if command == "_" else self.converter(command), delete, expiration
                             )
                         _, opt_v = analyse_option(self, _param)
                         try:

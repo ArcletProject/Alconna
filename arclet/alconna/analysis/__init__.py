@@ -53,9 +53,6 @@ class _DummyAnalyser(Analyser):
     def analyse(self, message: Union[str, DataCollection, None] = None):
         pass
 
-    def add_param(self, opt):
-        pass
-
 
 def analyse_args(
         args: Args,
