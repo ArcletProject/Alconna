@@ -232,7 +232,7 @@ class LruCache(Generic[_K, _V]):
     def recent(self) -> Optional[_V]:
         if self.cache:
             try:
-                return self.cache[-1]
+                return self.cache[list(self.cache.keys())[-1]]
             except KeyError:
                 return None
         return None
