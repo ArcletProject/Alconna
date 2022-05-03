@@ -309,6 +309,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                     __t = True
                 elif unit.__class__.__name__ not in self.filter_out:
                     raw_data.append(unit)
+                else:
+                    continue
                 i += 1
             if __t is False:
                 exp = NullTextMessage(lang_config.analyser_handle_null_message.format(target=data))

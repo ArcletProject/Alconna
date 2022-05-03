@@ -43,6 +43,8 @@ class GraiaCommandAnalyser(DefaultCommandAnalyser[MessageChain]):
                 __t = True
             elif unit.type not in self.filter_out:
                 raw_data.append(unit)
+            else:
+                continue
             i += 1
 
         if __t is False:
