@@ -40,3 +40,7 @@ exclude_lines = [
     # Don't complain overload method / functions
     "@(typing\\.)?overload"
 ]
+
+[build-system]
+requires = ["setuptools>=58.3.0"]
+build-backend = "setuptools.build_meta"

@@ -33,7 +33,7 @@ class _BaseNode:
         self.parameters = []
         self.separator = target.separator
         self.param_separator = target.args.separator
-        self.additional_info = {}
+        self.additional_info = {'dest': target.dest}
         for key, arg in target.args.argument.items():
             self.parameters.append({'name': key, **arg})
         self.sub_nodes = []

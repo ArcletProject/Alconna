@@ -5,7 +5,7 @@ with open("README.rst", "r", encoding='utf-8') as fh:
 
 setuptools.setup(
     name="arclet-alconna",
-    version="0.9.0.3",
+    version="0.9.1",
     author="ArcletProject",
     author_email="rf_tar_railt@qq.com",
     description="A Fast Command Analyser based on Dict",
@@ -13,12 +13,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/rst",
     url="https://github.com/ArcletProject/Alconna",
-    packages=[
-        'arclet.alconna',
-        'arclet.alconna.analysis',
-        'arclet.alconna.builtin',
-        'arclet.alconna.arpamar',
-    ],
+    package_dir={"": "src"},
+    packages=setuptools.find_packages(where="src"),
     entry_points={
         'console_scripts': [
             'alconna = arclet.alconna.__main__:main'

@@ -1,6 +1,6 @@
 # Alconna 0.9.x:
 
-## Alconna 0.9.0:
+## Alconna 0.9.0 - 0.9.0.3:
 1. 将 HelpAction 与 HelpTextFormatter 作为 help 模块
 2. 语言配置组件的增强. 现在以语言种类标识符作为父级, 以支持多语言.
 3. 为 manager 新增一个记录命令输入的 LruCache. 解析器可以使用这个缓存来避免重复解析. 目前缓存上限为 100.
@@ -11,6 +11,11 @@
  - `pattern` -> `pattern_gen`
  - `handle_message` -> `process_message`
 8. Args 新增 `add_argument` 方法, 以添加参数.
+
+## Alconna 0.9.1:
+1. 增添 `dest`, 其作为选项在 Arpamar 中的实际名称. 
+2. 增加内建 `Argument` 方法, 类似于 `add_argument`, 以便捷创建 Option + Args 的组合. 
+3. 修复 bug
 
 # Alconna 0.8.x:
 
