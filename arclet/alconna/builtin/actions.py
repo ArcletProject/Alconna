@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Any, Optional, TYPE_CHECKING, Dict
-from arclet.alconna.base import ArgAction
+from arclet.alconna.action import ArgAction
 from arclet.alconna.arpamar.behavior import ArpamarBehavior
 from arclet.alconna.exceptions import BehaveCancelled, OutBoundsBehavior
 from arclet.alconna.lang import lang_config

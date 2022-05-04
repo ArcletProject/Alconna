@@ -44,12 +44,12 @@ class AlconnaDuplication:
                     self.__stubs__["main_args"] = key  # type: ignore
                 elif value == SubcommandStub:
                     for subcommand in filter(lambda x: isinstance(x, Subcommand), alconna.options):
-                        if subcommand.name.lstrip('-') == key:
+                        if subcommand.dest == key:
                             setattr(self, key, SubcommandStub(subcommand))  # type: ignore
                             self.__stubs__["subcommands"].append(key)
                 elif value == OptionStub:
                     for option in filter(lambda x: isinstance(x, Option), alconna.options):
-                        if option.name.lstrip('-') == key:
+                        if option.dest == key:
                             setattr(self, key, OptionStub(option))  # type: ignore
                             self.__stubs__["options"].append(key)
                 else:
@@ -77,8 +77,11 @@ def generate_duplication(command: "Alconna") -> AlconnaDuplication:
         {
             "__annotations__": {
                 **{"args": ArgsStub},
-                **{opt.name.lstrip('-'): OptionStub for opt in options if opt.name.lstrip('-') != "help"},
-                **{sub.name.lstrip('-'): SubcommandStub for sub in subcommands},
+                **{
+                    opt.dest: OptionStub for opt in options
+                    if opt.name.lstrip('-') not in ("help", "shortcut")
+                },
+                **{sub.dest: SubcommandStub for sub in subcommands},
             }
         }
     )(command))

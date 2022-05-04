@@ -1,7 +1,6 @@
 """Alconna 参数相关"""
 import re
 import inspect
-from functools import lru_cache
 from collections.abc import (
     Iterable as ABCIterable,
     Sequence as ABCSequence,
@@ -113,7 +112,10 @@ class ArgPattern:
     def __repr__(self):
         return self.pattern
 
-    @lru_cache(maxsize=None)
+    def __eq__(self, other):
+        return isinstance(other, ArgPattern) and self.pattern == other.pattern and \
+               self.origin_type == other.origin_type and self.alias == other.alias
+
     def match(self, text: Union[str, Any]):
         """
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
@@ -187,7 +189,6 @@ class TypePattern:
         self.alias = alias
         self.previous = previous
 
-    @lru_cache(maxsize=None)
     def find(self, obj: Any) -> T_Origin:
         """
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
@@ -204,6 +205,10 @@ class TypePattern:
         return f"{(f'{self.previous.__repr__()}, ' if self.previous else '')}" \
                f"{'|'.join(x.__name__ for x in self.target_types)} -> {self.origin_type.__name__}"
 
+    def __eq__(self, other):
+        return isinstance(other, TypePattern) and self.target_types == other.target_types and \
+               self.origin_type == other.origin_type and self.alias == other.alias
+
 
 class MultiArg(ArgPattern):
     """对可变参数的匹配"""
@@ -218,18 +223,20 @@ class MultiArg(ArgPattern):
             array_length: Optional[int] = None,
     ):
         if isinstance(arg_value, ArgPattern):
+            _t = arg_value.origin_type
             alias_content = arg_value.alias or arg_value.origin_type.__name__
         else:
+            _t = arg_value
             alias_content = arg_value.__name__
         self.flag = flag
         self.array_length = array_length
         if flag == 'args':
             super().__init__(
-                r"(.+?)", PatternToken.DIRECT, tuple,
+                r"(.+?)", PatternToken.DIRECT, Tuple[_t, ...],
                 alias=(f"*{alias_content}" if not array_length else f"{alias_content}*{array_length}")
             )
         elif flag == 'kwargs':
-            super().__init__(r"(.+?)", PatternToken.DIRECT, dict, alias=f"**{alias_content}")
+            super().__init__(r"(.+?)", PatternToken.DIRECT, Dict[str, _t], alias=f"**{alias_content}")
         self.arg_value = arg_value
 
     def __repr__(self):
@@ -237,6 +244,10 @@ class MultiArg(ArgPattern):
             return f"{self.arg_value}[{self.array_length}]" if self.array_length else f"({self.arg_value}, ...)"
         elif self.flag == 'kwargs':
             return f"{{KEY={self.arg_value}, ...}}"
+
+    def __eq__(self, other):
+        return isinstance(other, MultiArg) and self.flag == other.flag and self.arg_value == other.arg_value \
+               and self.array_length == other.array_length
 
 
 class AntiArg(ArgPattern):
@@ -253,6 +264,9 @@ class AntiArg(ArgPattern):
 
     def __repr__(self):
         return f"!{self.arg_value}"
+
+    def __eq__(self, other):
+        return isinstance(other, AntiArg) and self.arg_value == other.arg_value
 
 
 class UnionArg(ArgPattern):
@@ -335,6 +349,9 @@ class UnionArg(ArgPattern):
     def __class_getitem__(cls, item):
         return cls(cls.__validator__(item))
 
+    def __eq__(self, other):
+        return isinstance(other, UnionArg) and self.anti == other.anti and set(self.arg_value) == set(other.arg_value)
+
 
 class SequenceArg(ArgPattern):
     """匹配列表或者元组或者集合"""
@@ -371,10 +388,12 @@ class SequenceArg(ArgPattern):
     def __repr__(self):
         return f"{self.form}[{self.arg_value}]"
 
+    def __eq__(self, other):
+        return isinstance(other, SequenceArg) and self.form == other.form and self.arg_value == other.arg_value
+
 
 class MappingArg(ArgPattern):
     """匹配字典或者映射表"""
-    form: str
     arg_key: ArgPattern
     arg_value: ArgPattern
 
@@ -413,6 +432,9 @@ class MappingArg(ArgPattern):
 
     def __repr__(self):
         return f"dict[{self.arg_key.origin_type.__name__}, {self.arg_value}]"
+
+    def __eq__(self, other):
+        return isinstance(other, MappingArg) and self.arg_key == other.arg_key and self.arg_value == other.arg_value
 
 
 pattern_map = {
@@ -683,3 +705,9 @@ class ObjectPattern(ArgPattern):
             for k in self._supplement_map:
                 self._params[k] = self._supplement_map[k]()
             return self.origin(**self._params)
+
+    def __call__(self, *args, **kwargs):
+        return self.origin(*args, **kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, ObjectPattern) and self.origin == other.origin

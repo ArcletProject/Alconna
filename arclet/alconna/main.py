@@ -1,4 +1,5 @@
 """Alconna 主体"""
+import sys
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload
 
 from .lang import lang_config
@@ -33,7 +34,7 @@ class Alconna(CommandNode):
         ...         Option("opt", Args["opt_arg":"opt_arg"]),
         ...         Subcommand(
         ...             "sub_name",
-        ...             Option("sub_opt", Args["sub_arg":"sub_arg"]),
+        ...             [Option("sub_opt", Args["sub_arg":"sub_arg"])],
         ...             args=Args["sub_main_args":"sub_main_args"]
         ...         )
         ...     ],
@@ -100,16 +101,16 @@ class Alconna(CommandNode):
             is_fuzzy_match: 是否开启模糊匹配, 默认为 False
         """
         if all((not headers, not command)):
-            command = "Alconna"
+            command = sys.modules["__main__"].__file__.split("/")[-1].split(".")[0]
         self.headers = headers or [""]
         self.command = command or ""
         self.options = options or []
         super().__init__(
             f"{command_manager.sign}{command or self.headers[0]}",
             main_args,
-            action,
-            separator,
-            help_text or "Unknown Information"
+            action=action,
+            separator=separator,
+            help_text=help_text or "Unknown Information"
         )
         self.is_raise_exception = is_raise_exception
         self.namespace = namespace or self.__class__.__temp_namespace__ or command_manager.default_namespace
@@ -197,16 +198,17 @@ class Alconna(CommandNode):
             f"with {len(self.options)} options; args={self.args}>"
         )
 
-    def option(
+    def add_option(
             self,
             name: str,
-            sep: str = " ",
+            *alias: str,
             args: Optional[Args] = None,
+            sep: str = " ",
             help_text: Optional[str] = None,
     ):
         """链式注册一个 Option"""
         command_manager.delete(self)
-        opt = Option(name, args, separator=sep, help_text=help_text)
+        opt = Option(name, args, list(alias), separator=sep, help_text=help_text)
         self.options.append(opt)
         command_manager.register(compile(self))
         return self
@@ -217,7 +219,7 @@ class Alconna(CommandNode):
             ns = {}
             exec(action, getattr(self, "custom_types", custom_types), ns)
             action = ns.popitem()[1]
-        self.__check_action__(action)
+        self.action = ArgAction.__validator__(action, self.args)
         return self
 
     @overload

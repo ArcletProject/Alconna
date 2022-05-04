@@ -1,23 +1,28 @@
 from inspect import isclass
-from typing import Dict, Any, List, TypeVar, Union, Type
+from typing import Dict, Any, List, TypeVar, Union, Type, Generic
 from abc import ABCMeta, abstractmethod
 
 from ..base import Args, ArgPattern, _AnyParam, Option, Subcommand
 from ..lang import lang_config
 
 T = TypeVar('T')
+T_Origin = TypeVar('T_Origin')
 
 
-class BaseStub(metaclass=ABCMeta):
+class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
     """
     基础的命令组件存根
     """
 
     available: bool
     value: Any
-    _origin: Any
+    _origin: T_Origin
 
     __ignore__ = ['available', 'value', '_origin', 'origin', '__ignore__']
+
+    @property
+    def origin(self) -> T_Origin:
+        return self._origin
 
     @abstractmethod
     def set_result(self, result: Any) -> None:
@@ -27,11 +32,7 @@ class BaseStub(metaclass=ABCMeta):
 
     def __repr__(self):
         return "{" + ", ".join(
-            [
-                "{}={}".format(k, v)
-                for k, v in vars(self).items()
-                if v and not k.startswith("_")
-            ]
+            "{}={}".format(k, v) for k, v in vars(self).items() if v and not k.startswith("_")
         ) + "}"
 
 
@@ -61,10 +62,6 @@ class ArgsStub(BaseStub):
             self.available = True
 
     @property
-    def origin(self) -> Args:
-        return self._origin
-
-    @property
     def first_arg(self) -> Any:
         return self.__getitem__(0)
 
@@ -74,9 +71,7 @@ class ArgsStub(BaseStub):
         else:
             for k, v in self.__annotations__.items():
                 if isclass(item):
-                    if v == Any:
-                        return self._args_result.get(k, default)
-                    elif v == item:
+                    if v == item:
                         return self._args_result.get(k, default)
                 elif isinstance(item, v):
                     return self._args_result.get(k, default)
@@ -112,6 +107,7 @@ class OptionStub(BaseStub):
     选项存根
     """
     args: ArgsStub
+    dest: str
     aliases: List[str]
     name: str
     _origin: Option
@@ -120,6 +116,7 @@ class OptionStub(BaseStub):
         self.args = ArgsStub(option.args)
         self.aliases = [alias.lstrip('-') for alias in option.aliases]
         self.name = option.name.lstrip('-')
+        self.dest = option.dest
         self._origin = option
         self.available = False
         self.value = None
@@ -131,16 +128,13 @@ class OptionStub(BaseStub):
             self.value = result
         self.available = True
 
-    @property
-    def origin(self) -> Option:
-        return self._origin
-
 
 class SubcommandStub(BaseStub):
     """
     子命令存根
     """
     args: ArgsStub
+    dest: str
     options: List[OptionStub]
     name: str
     _origin: Subcommand
@@ -151,6 +145,7 @@ class SubcommandStub(BaseStub):
         self.name = subcommand.name.lstrip('-')
         self.available = False
         self.value = None
+        self.dest = subcommand.dest
         self._origin = subcommand
 
     def set_result(self, result: Any):
@@ -169,7 +164,3 @@ class SubcommandStub(BaseStub):
 
     def option(self, name: str) -> OptionStub:
         return next(opt for opt in self.options if opt.name == name)
-
-    @property
-    def origin(self) -> Subcommand:
-        return self._origin

@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, Callable, Union, TypeVar, List, Type, Fr
     Iterable, cast
 from arclet.alconna.types import DataCollection
 from arclet.alconna.main import Alconna
-from arclet.alconna.base import Args, TAValue, ArgAction, Option, Subcommand
+from arclet.alconna.base import Args, TAValue, ArgAction, Option, Subcommand, ArgFlag
 from arclet.alconna.util import split, split_once
 from arclet.alconna.lang import lang_config
 
@@ -428,7 +428,8 @@ class AlconnaMounter(Alconna):
     def _parse_action(self, message):
         ...
 
-    def parse(self, message: Union[str, DataCollection], duplication: Optional[Any] = None, static: bool = True):  # noqa
+    def parse(self, message: Union[str, DataCollection], duplication: Optional[Any] = None,
+              static: bool = True):  # noqa
         message = self._parse_action(message) or message
         return super(AlconnaMounter, self).parse(message, duplication=duplication, static=static)
 
@@ -764,6 +765,26 @@ def delegate(cls: Type) -> Alconna:
     return Alconna(cls.__name__, _main_args, _headers, _options, help_text=_help)
 
 
+def _argument(
+        name: str,
+        *alias: str,
+        dest: Optional[str] = None,
+        value: Optional[Any] = str,
+        default: Optional[Any] = None,
+        description: Optional[str] = None,
+        required: bool = True,
+        action: Optional[Union[ArgAction, Callable]] = None,
+):
+    """类似于 argparse.ArgumentParser.add_argument() 的方法"""
+    opt = Option(name=name, alias=list(alias), dest=dest, help_text=description, action=action)
+    opt.args.add_argument(
+        name=name.strip('-'), value=value, default=default, flags=[] if required else [ArgFlag.OPTIONAL]
+    )
+    opt.nargs += 1
+    return opt
+
+
 AlconnaFormat = _from_format
 AlconnaString = _from_string
 AlconnaFire = _from_object
+Argument = _argument

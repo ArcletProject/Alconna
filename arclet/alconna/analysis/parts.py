@@ -164,7 +164,7 @@ def analyse_option(
         name, _ = analyser.next_data(param.separator)
         if name not in param.aliases:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
-    name = param.name.lstrip("-")
+    name = param.dest
     if param.nargs == 0:
         if param.action:
             return [name, param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)]
@@ -193,7 +193,7 @@ def analyse_subcommand(
         name, _ = analyser.next_data(param.separator)
         if name != param.name:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
-    name = name.lstrip("-")
+    name = param.dest
     if param.sub_part_len.stop == 0:
         if param.action:
             return [name, param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)]

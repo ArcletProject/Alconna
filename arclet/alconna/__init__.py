@@ -15,7 +15,7 @@ from .analysis import compile, analyse, analyse_args, analyse_header, analyse_op
 from .main import Alconna
 from .manager import command_manager
 from .builtin.actions import store_value, set_default, exclusion, cool_down
-from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, AlconnaFire, delegate
+from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, AlconnaFire, delegate, Argument
 from .builtin.formatter import ArgParserHelpTextFormatter, DefaultHelpTextFormatter
 from .visitor import AlconnaNodeVisitor
 from .lang import load_lang_file, lang_config
@@ -29,7 +29,7 @@ disable_command = command_manager.set_disable
 enable_command = command_manager.set_enable
 get_command = command_manager.get_command
 get_commands = command_manager.get_commands
-alconna_version = (0, 9, 0)
+alconna_version = (0, 9, 1)
 
 if TYPE_CHECKING:
     from .builtin.actions import version

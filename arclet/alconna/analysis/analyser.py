@@ -88,7 +88,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def __init__(self, alconna: "Alconna"):
         self.reset()
         self.used_tokens = set()
-        self.original_data = None
+        self.origin_data = None
         self.alconna = alconna
         self.self_args = alconna.args
         self.separator = alconna.separator
@@ -196,7 +196,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.raw_data = []
         self.head_matched = False
         self.ndata = 0
-        self.original_data = None
+        self.origin_data = None
         self.temp_token = 0
 
     def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
@@ -280,7 +280,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     def process_message(self, data: Union[str, DataCollection]) -> 'Analyser':
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
-        self.original_data = data
+        self.origin_data = data
         if isinstance(data, str):
             self.is_str = True
             if not (res := split(data.lstrip(), self.separator)):
@@ -344,7 +344,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         else:
             result.matched = True
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
-            command_manager.record(self.temp_token, self.original_data, self.alconna.path, result)
+            command_manager.record(self.temp_token, self.origin_data, self.alconna.path, result)
             self.used_tokens.add(self.temp_token)
         self.reset()
         return result

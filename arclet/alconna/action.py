@@ -1,0 +1,108 @@
+import inspect
+from types import LambdaType
+from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING
+
+from .types import _AnyParam, argument_type_validator
+from .lang import lang_config
+from .exceptions import InvalidParam
+from .arpamar.behavior import ArpamarBehavior, ArpamarBehaviorInterface
+from .manager import command_manager
+
+if TYPE_CHECKING:
+    from .base import Args
+
+
+class ArgAction:
+    """
+    负责封装action的类
+
+    Attributes:
+        action: 实际的function
+    """
+    action: Callable[..., Any]
+
+    def __init__(self, action: Callable):
+        """
+        ArgAction的构造函数
+
+        Args:
+            action: (...) -> Sequence
+        """
+        self.action = action
+
+    def handle(
+            self,
+            option_dict: dict,
+            varargs: Optional[List] = None,
+            kwargs: Optional[Dict] = None,
+            is_raise_exception: bool = False,
+    ):
+        """
+        处理action
+
+        Args:
+            option_dict: 参数字典
+            varargs: 可变参数
+            kwargs: 关键字参数
+            is_raise_exception: 是否抛出异常
+        """
+        varargs = varargs or []
+        kwargs = kwargs or {}
+        try:
+            if inspect.iscoroutinefunction(self.action):
+                loop = command_manager.loop
+                if loop.is_running():
+                    loop.create_task(self.action(*option_dict.values(), *varargs, **kwargs))
+                    return option_dict
+                else:
+                    additional_values = loop.run_until_complete(self.action(*option_dict.values(), *varargs, **kwargs))
+            else:
+                additional_values = self.action(*option_dict.values(), *varargs, **kwargs)
+            if not additional_values:
+                return option_dict
+            if not isinstance(additional_values, Sequence):
+                option_dict['result'] = additional_values
+                return option_dict
+            for i, k in enumerate(option_dict.keys()):
+                if i == len(additional_values):
+                    break
+                option_dict[k] = additional_values[i]
+        except Exception as e:
+            if is_raise_exception:
+                raise e
+        return option_dict
+
+    @staticmethod
+    def __validator__(action: Callable, args: "Args"):
+        if not action:
+            return None
+        if isinstance(action, ArgAction):
+            return action
+        if len(args.argument) == 0:
+            args.__merge__(args.from_callable(action)[0])
+            return ArgAction(action)
+        argument = [
+            (name, param.annotation, param.default)
+            for name, param in inspect.signature(action).parameters.items()
+            if name not in ["self", "cls", "option_dict", "exception_in_time"]
+        ]
+        if len(argument) != len(args.argument):
+            raise InvalidParam(lang_config.action_length_error)
+        if not isinstance(action, LambdaType):
+            for i, k in enumerate(args.argument):
+                anno = argument[i][1]
+                if anno == inspect.Signature.empty:
+                    anno = type(argument[i][2]) if argument[i][2] is not inspect.Signature.empty else str
+                value = args.argument[k]['value']
+                if isinstance(value, _AnyParam):
+                    continue
+                if value != argument_type_validator(anno, args.extra):
+                    raise InvalidParam(lang_config.action_args_error.format(
+                        target=argument[i][0], key=k, source=value.origin_type
+                    ))
+        return ArgAction(action)
+
+
+class ActionHandler(ArpamarBehavior):
+    def operate(self, interface: "ArpamarBehaviorInterface"):
+        pass
