@@ -102,6 +102,8 @@ alc.parse("！test_fuzy foo bar")
 
 Alconna is licensed under the [MIT License](LICENSE).
 
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FArcletProject%2FAlconna.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FArcletProject%2FAlconna?ref=badge_large)
+
 ## Acknowledgement
 
 [JetBrains](https://www.jetbrains.com/): Support Authorize for [PyCharm](https://www.jetbrains.com/pycharm/)<br>
