@@ -209,7 +209,7 @@ def analyse_subcommand(
             for sp in param.sub_params:
                 _may_param = text.split(param.sub_params[sp].separator)[0]
                 if _may_param in param.sub_params[sp].aliases:
-                    _param = param.sub_params[sp]
+                    sub_param = param.sub_params[sp]
                     break
                 if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, sp) >= 0.6:
                     raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=sp))

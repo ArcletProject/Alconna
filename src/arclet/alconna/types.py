@@ -503,7 +503,10 @@ AnyPathFile = TypePattern(
 )
 AnyDigit = ArgPattern(r"(\-?\d+)", PatternToken.REGEX_TRANSFORM, int, lambda x: int(x), "int")
 AnyFloat = ArgPattern(r"(\-?\d+\.?\d*)", PatternToken.REGEX_TRANSFORM, float, lambda x: float(x), "float")
-Bool = ArgPattern(r"(True|False|true|false)", PatternToken.REGEX_TRANSFORM, bool, lambda x: bool(x), "bool")
+Bool = ArgPattern(
+    r"(True|False|true|false)", PatternToken.REGEX_TRANSFORM, bool,
+    lambda x: True if x.lower() == "true" else False, "bool"
+)
 AnyList = ArgPattern(r"(\[.+?\])", PatternToken.REGEX_TRANSFORM, list, alias="list")
 AnyTuple = ArgPattern(r"(\(.+?\))", PatternToken.REGEX_TRANSFORM, tuple, alias="tuple")
 AnySet = ArgPattern(r"(\{.+?\})", PatternToken.REGEX_TRANSFORM, set, alias="set")

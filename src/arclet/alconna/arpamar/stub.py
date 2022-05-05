@@ -36,12 +36,11 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
         ) + "}"
 
 
-class ArgsStub(BaseStub):
+class ArgsStub(BaseStub[Args]):
     """
     参数存根
     """
     _args_result: Dict[str, Any]
-    _origin: Args
 
     def __init__(self, args: Args):
         self._origin = args
@@ -102,7 +101,7 @@ class ArgsStub(BaseStub):
             raise TypeError(lang_config.stub_key_error(target=item))
 
 
-class OptionStub(BaseStub):
+class OptionStub(BaseStub[Option]):
     """
     选项存根
     """
@@ -110,7 +109,6 @@ class OptionStub(BaseStub):
     dest: str
     aliases: List[str]
     name: str
-    _origin: Option
 
     def __init__(self, option: Option):
         self.args = ArgsStub(option.args)
@@ -129,7 +127,7 @@ class OptionStub(BaseStub):
         self.available = True
 
 
-class SubcommandStub(BaseStub):
+class SubcommandStub(BaseStub[Subcommand]):
     """
     子命令存根
     """
@@ -137,7 +135,6 @@ class SubcommandStub(BaseStub):
     dest: str
     options: List[OptionStub]
     name: str
-    _origin: Subcommand
 
     def __init__(self, subcommand: Subcommand):
         self.args = ArgsStub(subcommand.args)
