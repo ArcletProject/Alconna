@@ -3,7 +3,7 @@ from typing import List
 import re
 import json
 
-from arclet.alconna import Alconna, Args, Arpamar, Option, AllParam, command_manager, all_command_help, alconna_version
+from arclet.alconna import Alconna, Args, Arpamar, Option, AllParam, command_manager, alconna_version
 from arclet.alconna.types import ArgPattern, PatternToken, AnyIP, AnyUrl, Email, Bool, AnyDigit, AnyFloat
 from arclet.alconna import lang_config
 
@@ -260,7 +260,7 @@ class CommandLine:
         if args is None:
             args = sys.argv[1:]
         if not args:
-            print("* Alconna CLI %d.%d.%d\n" % alconna_version + all_command_help(namespace="ALCLI"))
+            print("* Alconna CLI %d.%d.%d\n" % alconna_version + command_manager.all_command_help(namespace="ALCLI"))
             return
         try:
             with open('alconna_cache.json', 'r+', encoding='UTF-8') as f_obj:
@@ -269,7 +269,7 @@ class CommandLine:
             self.cache_data = {}
         text = " ".join(args)
         if text == "--help":
-            print("* Alconna CLI %d.%d.%d\n" % alconna_version + all_command_help("ALCLI"))
+            print("* Alconna CLI %d.%d.%d\n" % alconna_version + command_manager.all_command_help("ALCLI"))
             return
         for alc in command_manager.get_commands("ALCLI"):
             result = alc.parse(text)

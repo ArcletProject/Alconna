@@ -1,21 +1,32 @@
 """Alconna 主体"""
 import sys
-from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload
+from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, TYPE_CHECKING, TypedDict
 
 from .lang import lang_config
-from .analysis.analyser import Analyser
-from .analysis import compile
+
+from .analysis.base import compile
 from .base import CommandNode, Args, ArgAction, Option, Subcommand
-from .arpamar import Arpamar, ArpamarBehavior
-from .arpamar.duplication import AlconnaDuplication
 from .types import DataCollection, DataUnit
 from .manager import command_manager
-from .visitor import AlconnaNodeVisitor
-from .help import AbstractHelpTextFormatter
-from .builtin.formatter import DefaultHelpTextFormatter
+from .arpamar import Arpamar
+from .components.action import ActionHandler
+from .components.visitor import AlconnaNodeVisitor
+from .components.output import AbstractTextFormatter
+from .components.behavior import ArpamarBehavior, T_ABehavior
+from .components.duplication import AlconnaDuplication
+from .builtin.formatter import DefaultTextFormatter
 from .builtin.analyser import DefaultCommandAnalyser
 
+if TYPE_CHECKING:
+    from .analysis.analyser import Analyser
+
 T_Duplication = TypeVar('T_Duplication', bound=AlconnaDuplication)
+
+
+class _Actions(TypedDict):
+    main: Optional[ArgAction]
+    options: Dict[str, ArgAction]
+    subcommands: Dict[str, ArgAction]
 
 
 class Alconna(CommandNode):
@@ -57,13 +68,14 @@ class Alconna(CommandNode):
     headers: Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]]  # type: ignore
     command: str
     options: List[Union[Option, Subcommand]]
-    analyser_type: Type[Analyser]
-    formatter: AbstractHelpTextFormatter
+    analyser_type: Type["Analyser"]
+    formatter: AbstractTextFormatter
     namespace: str
-
-    default_analyser: Type[Analyser] = DefaultCommandAnalyser
+    behaviors: List[Union[ArpamarBehavior, Type[ArpamarBehavior]]]
+    default_analyser: Type["Analyser"] = DefaultCommandAnalyser
     custom_types: Dict[str, Type] = {}
     local_args: dict = {}
+    action_list: _Actions
     __temp_namespace__: Optional[str] = None
 
     def __init__(
@@ -77,9 +89,9 @@ class Alconna(CommandNode):
             namespace: Optional[str] = None,
             separator: str = " ",
             help_text: Optional[str] = None,
-            analyser_type: Optional[Type[Analyser]] = None,
-            behaviors: Optional[List[ArpamarBehavior]] = None,
-            formatter: Optional[AbstractHelpTextFormatter] = None,
+            analyser_type: Optional[Type["Analyser"]] = None,
+            behaviors: Optional[List[T_ABehavior]] = None,
+            formatter: Optional[AbstractTextFormatter] = None,
             is_fuzzy_match: bool = False
     ):
         """
@@ -123,9 +135,11 @@ class Alconna(CommandNode):
             )
         )
         self.analyser_type = analyser_type or self.default_analyser
+        self.action_list = {"options": {}, "subcommands": {}, "main": None}
         command_manager.register(compile(self))
-        self.behaviors = behaviors
-        self.formatter = formatter or DefaultHelpTextFormatter()
+        self.behaviors = behaviors or []
+        self.behaviors.insert(0, ActionHandler())
+        self.formatter = formatter or DefaultTextFormatter()
         self.is_fuzzy_match = is_fuzzy_match
         self.__class__.__temp_namespace__ = None
 
@@ -145,9 +159,10 @@ class Alconna(CommandNode):
         command_manager.register(compile(self))
         return self
 
-    def reset_behaviors(self, behaviors: List[ArpamarBehavior]):
+    def reset_behaviors(self, behaviors: List[T_ABehavior]):
         """重新设置解析行为器"""
         self.behaviors = behaviors
+        self.behaviors.insert(0, ActionHandler())
         return self
 
     def get_help(self) -> str:
@@ -194,7 +209,7 @@ class Alconna(CommandNode):
 
     def __repr__(self):
         return (
-            f"<ALC.{self.namespace}::{self.command or self.headers[0]} "
+            f"<{self.namespace}::{self.command or self.headers[0]} "
             f"with {len(self.options)} options; args={self.args}>"
         )
 
@@ -252,7 +267,7 @@ class Alconna(CommandNode):
         else:
             analyser = compile(self)
         analyser.process_message(message)
-        arp = analyser.analyse().update(self.behaviors)
+        arp = analyser.analyse().execute()
         if duplication:
             return duplication(self).set_target(arp)
         return arp

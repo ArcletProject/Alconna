@@ -2,10 +2,10 @@ from typing import List, Dict, Any, Union
 import re
 
 from arclet.alconna.types import Empty, ArgPattern, _AnyParam
-from arclet.alconna.help import AbstractHelpTextFormatter
+from arclet.alconna.components.output import AbstractTextFormatter
 
 
-class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
+class DefaultTextFormatter(AbstractTextFormatter):
     """
     默认的帮助文本格式化器
     """
@@ -113,7 +113,7 @@ class DefaultHelpTextFormatter(AbstractHelpTextFormatter):
         )
 
 
-class ArgParserHelpTextFormatter(AbstractHelpTextFormatter):
+class ArgParserTextFormatter(AbstractTextFormatter):
     """
     argparser 风格的帮助文本格式化器
     """

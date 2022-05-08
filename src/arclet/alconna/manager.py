@@ -4,14 +4,14 @@ import asyncio
 import re
 from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
 import shelve
+
 from .exceptions import DuplicateCommand, ExceedMaxCount
 from .util import Singleton, LruCache
 from .types import DataCollection
 from .lang import lang_config
-from .arpamar import Arpamar
 
 if TYPE_CHECKING:
-    from .main import Alconna
+    from .core import Alconna, Arpamar
     from .analysis.analyser import Analyser
 
 
@@ -28,7 +28,7 @@ class CommandManager(metaclass=Singleton):
 
     __commands: Dict[str, Dict[str, 'Analyser']]
     __abandons: List["Alconna"]
-    __record: LruCache[int, Tuple[Union[str, DataCollection], str, "Arpamar"]]
+    __record: LruCache[int, Tuple[str, "Arpamar"]]
     __shortcuts: LruCache[str, Union['Arpamar', Union[str, DataCollection]]]
 
     def __init__(self):
@@ -74,7 +74,7 @@ class CommandManager(metaclass=Singleton):
 
     def _command_part(self, command: str) -> Tuple[str, str]:
         """获取命令的组成部分"""
-        command_parts = command.split(".")
+        command_parts = command.split(".", 1)
         if len(command_parts) != 2:
             command_parts.insert(0, self.default_namespace)
         return command_parts[0], command_parts[1]
@@ -306,10 +306,10 @@ class CommandManager(metaclass=Singleton):
             result: "Arpamar"
     ):
         cmd = command if isinstance(command, str) else command.path
-        result.token = token
-        self.__record.set(token, (message, cmd, result))
+        result.origin = message
+        self.__record.set(token, (cmd, result))
 
-    def get_record(self, token: int) -> Optional[Tuple[DataCollection, str, "Arpamar"]]:
+    def get_record(self, token: int) -> Optional[Tuple[str, "Arpamar"]]:
         if not token:
             return
         return self.__record.get(token)
@@ -317,20 +317,20 @@ class CommandManager(metaclass=Singleton):
     @property
     def recent_message(self) -> Optional[Union[str, DataCollection]]:
         if rct := self.__record.recent:
-            return rct[0]
+            return rct[1].origin
 
     @property
     def last_using(self) -> Optional["Alconna"]:
         if rct := self.__record.recent:
-            return self.get_command(rct[1])
+            return self.get_command(rct[0])
 
     @property
     def records(self) -> LruCache:
         return self.__record
 
     def reuse(self, index: int = -1):
-        key = self.__record.cache[index]
-        return self.__record.get(key)[2]
+        key = list(self.__record.cache.keys())[index]
+        return self.__record.get(key)[1]
 
 
 command_manager = CommandManager()

@@ -2,7 +2,8 @@ from inspect import isclass
 from typing import Dict, Any, List, TypeVar, Union, Type, Generic
 from abc import ABCMeta, abstractmethod
 
-from ..base import Args, ArgPattern, _AnyParam, Option, Subcommand
+from ..types import ArgPattern, _AnyParam
+from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
 from ..lang import lang_config
 
 T = TypeVar('T')
@@ -40,11 +41,11 @@ class ArgsStub(BaseStub[Args]):
     """
     参数存根
     """
-    _args_result: Dict[str, Any]
+    value: Dict[str, Any]
 
     def __init__(self, args: Args):
         self._origin = args
-        self._args_result = {}
+        self.value = {}
         for key, value in args.argument.items():
             if isinstance(value['value'], _AnyParam):
                 self.__annotations__[key] = Any
@@ -57,7 +58,7 @@ class ArgsStub(BaseStub[Args]):
 
     def set_result(self, result: Dict[str, Any]):
         if result:
-            self._args_result = result
+            self.value = result
             self.available = True
 
     @property
@@ -66,37 +67,37 @@ class ArgsStub(BaseStub[Args]):
 
     def get(self, item: Union[str, Type[T]], default=None) -> Union[T, Any]:
         if isinstance(item, str):
-            return self._args_result.get(item, default)
+            return self.value.get(item, default)
         else:
             for k, v in self.__annotations__.items():
                 if isclass(item):
                     if v == item:
-                        return self._args_result.get(k, default)
+                        return self.value.get(k, default)
                 elif isinstance(item, v):
-                    return self._args_result.get(k, default)
+                    return self.value.get(k, default)
             return default
 
     def __contains__(self, item):
-        return item in self._args_result
+        return item in self.value
 
     def __iter__(self):
-        return iter(self._args_result)
+        return iter(self.value)
 
     def __len__(self):
-        return len(self._args_result)
+        return len(self.value)
 
     def __getattribute__(self, item):
         if item in super(ArgsStub, self).__getattribute__('__ignore__'):
             return super().__getattribute__(item)
-        if item in super().__getattribute__('_args_result'):
-            return self._args_result.get(item, None)
+        if item in super().__getattribute__('value'):
+            return super().__getattribute__('value').get(item, None)
         return super().__getattribute__(item)
 
     def __getitem__(self, item):
         if isinstance(item, str):
-            return self._args_result[item]
+            return self.value[item]
         elif isinstance(item, int):
-            return list(self._args_result.values())[item]
+            return list(self.value.values())[item]
         else:
             raise TypeError(lang_config.stub_key_error(target=item))
 
@@ -119,12 +120,11 @@ class OptionStub(BaseStub[Option]):
         self.available = False
         self.value = None
 
-    def set_result(self, result: Any):
-        if isinstance(result, Dict):
-            self.args.set_result(result)
-        else:
-            self.value = result
-        self.available = True
+    def set_result(self, result: OptionResult):
+        if result:
+            self.value = result['value']
+            self.args.set_result(result['args'])
+            self.available = True
 
 
 class SubcommandStub(BaseStub[Subcommand]):
@@ -145,18 +145,11 @@ class SubcommandStub(BaseStub[Subcommand]):
         self.dest = subcommand.dest
         self._origin = subcommand
 
-    def set_result(self, result: Any):
-        result = result.copy()
-        if isinstance(result, Dict):
-            keys = list(result.keys())
-            for key in keys:
-                for opt in self.options:
-                    if opt.name == key:
-                        opt.set_result(result.pop(key))
-                        break
-            self.args.set_result(result)
-        else:
-            self.value = result
+    def set_result(self, result: SubcommandResult):
+        self.value = result['value']
+        self.args.set_result(result['args'])
+        for option in self.options:
+            option.set_result(result['options'].get(option.dest, None))
         self.available = True
 
     def option(self, name: str) -> OptionStub:

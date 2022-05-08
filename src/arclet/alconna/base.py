@@ -5,13 +5,15 @@ import inspect
 from enum import Enum
 from typing import Union, Tuple, Type, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, \
     MutableSequence, TypedDict
+
 from .exceptions import InvalidParam, NullTextMessage
 from .types import (
     ArgPattern,
     _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argument_type_validator, TypePattern
 )
-from .action import ArgAction
 from .lang import lang_config
+from .components.action import ArgAction
+
 
 TAValue = Union[ArgPattern, TypePattern, Type[DataUnit], _AnyParam]
 TADefault = Union[Any, DataUnit, Empty]
@@ -487,3 +489,14 @@ class Subcommand(CommandNode):
         super().__init__(name, args, dest, action, separator, help_text)
         self.sub_params = {}
         self.sub_part_len = range(self.nargs)
+
+
+class OptionResult(TypedDict):
+    value: Any
+    args: Dict[str, Any]
+
+
+class SubcommandResult(TypedDict):
+    value: Any
+    args: Dict[str, Any]
+    options: Dict[str, OptionResult]

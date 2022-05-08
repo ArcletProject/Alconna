@@ -20,7 +20,6 @@ class At:
         self.target = t
 
 
-a = Arpamar()
 ping = Alconna(
     headers=["."],
     command="test",

@@ -189,7 +189,7 @@ class TypePattern:
         self.alias = alias
         self.previous = previous
 
-    def find(self, obj: Any) -> T_Origin:
+    def match(self, obj: Any) -> T_Origin:
         """
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
         """
@@ -198,7 +198,7 @@ class TypePattern:
         if not isinstance(obj, tuple(self.target_types)):
             if not self.previous:
                 return
-            obj = self.previous.find(obj)
+            obj = self.previous.match(obj)
         return self.action(obj)
 
     def __repr__(self):

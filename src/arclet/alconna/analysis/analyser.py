@@ -13,7 +13,7 @@ from ..types import DataUnit, DataCollection, pattern_map
 from ..lang import lang_config
 
 if TYPE_CHECKING:
-    from ..main import Alconna
+    from ..core import Alconna
 
 T_Origin = TypeVar('T_Origin')
 
@@ -97,6 +97,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.default_main_only = False
         self.__handle_main_args__(alconna.args, alconna.nargs)
         self.__init_header__(alconna.command, alconna.headers)
+        self.__init_actions__()
 
     def __handle_main_args__(self, main_args: Args, nargs: Optional[int] = None):
         nargs = nargs or len(main_args)
@@ -161,6 +162,19 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         else:
             self.command_header = re.compile(command_name)
 
+    def __init_actions__(self):
+        actions = self.alconna.action_list
+        actions['main'] = self.alconna.action
+        for opt in self.alconna.options:
+            if isinstance(opt, Option) and opt.action:
+                actions['options'][opt.dest] = opt.action
+            if isinstance(opt, Subcommand):
+                if opt.action:
+                    actions['subcommands'][opt.dest] = opt.action
+                for option in opt.options:
+                    if option.action:
+                        actions['subcommands'][f"{opt.dest}.{option.dest}"] = option.action
+
     @staticmethod
     def default_params_generator(analyser: "Analyser"):
         analyser.param_ids = []
@@ -188,16 +202,16 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.current_index = 0
         self.content_index = 0
         self.is_str = False
-        self.options = {}
-        self.main_args = {}
-        self.subcommands = {}
         self.temporary_data = {}
-        self.header = None
         self.raw_data = []
         self.head_matched = False
         self.ndata = 0
         self.origin_data = None
         self.temp_token = 0
+        self.header = None
+        self.main_args = {}
+        self.options = {}
+        self.subcommands = {}
 
     def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
@@ -332,9 +346,9 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def converter(command: str) -> T_Origin:
         return command
 
-    def create_arpamar(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar:
+    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar:
         """创建arpamar, 其一定是一次解析的最后部分"""
-        result = Arpamar()
+        result = Arpamar(self.alconna)
         result.head_matched = self.head_matched
         if fail:
             tb = traceback.format_exc(limit=1)

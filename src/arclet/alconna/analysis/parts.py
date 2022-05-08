@@ -1,10 +1,10 @@
 import re
-from typing import Iterable, Union, Optional, List, Any, Dict, Pattern
+from typing import Iterable, Union, List, Any, Dict, Pattern, Tuple
 
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from ..types import AnyParam, AllParam, Empty, TypePattern
-from ..base import Args, ArgAction, Option, Subcommand
+from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
 from ..util import levenshtein_norm
 from ..manager import command_manager
 from ..lang import lang_config
@@ -13,8 +13,7 @@ from ..lang import lang_config
 def analyse_args(
         analyser: Analyser,
         opt_args: Args,
-        nargs: int,
-        action: Optional[ArgAction] = None,
+        nargs: int
 ) -> Dict[str, Any]:
     """
     分析 Args 部分
@@ -23,7 +22,6 @@ def analyse_args(
         analyser: 使用的分析器
         opt_args: 目标Args
         nargs: Args参数个数
-        action: 当前命令节点的ArgAction
 
     Returns:
         Dict: 解析结果
@@ -113,38 +111,25 @@ def analyse_args(
                     raise ParamsUnmatched(lang_config.args_type_error.format(target=may_arg.__class__))
                 else:
                     raise ArgumentMissing(lang_config.args_missing.format(key=key))
-    if action:
-        result_dict = option_dict.copy()
-        kwargs = {}
-        varargs = []
-        if opt_args.var_keyword:
-            kwargs = result_dict.pop(opt_args.var_keyword[0])
-            if not isinstance(kwargs, dict):
-                kwargs = {opt_args.var_keyword[0]: kwargs}
-        if opt_args.var_positional:
-            varargs = result_dict.pop(opt_args.var_positional[0])
-            if not isinstance(varargs, Iterable):
-                varargs = [varargs]
-            elif not isinstance(varargs, list):
-                varargs = list(varargs)
-        if opt_args.var_keyword:
-            addition_kwargs = analyser.alconna.local_args.copy()
-            addition_kwargs.update(kwargs)
-        else:
-            addition_kwargs = kwargs
-            result_dict.update(analyser.alconna.local_args)
-        option_dict = action.handle(result_dict, varargs, addition_kwargs, analyser.is_raise_exception)
-        if opt_args.var_keyword:
-            option_dict.update({opt_args.var_keyword[0]: kwargs})
-        if opt_args.var_positional:
-            option_dict.update({opt_args.var_positional[0]: varargs})
+    if opt_args.var_keyword:
+        kwargs = option_dict.pop(opt_args.var_keyword[0])
+        if not isinstance(kwargs, dict):
+            kwargs = {opt_args.var_keyword[0]: kwargs}
+        option_dict['__kwargs__'] = (kwargs, opt_args.var_keyword[0])
+    if opt_args.var_positional:
+        varargs = option_dict.pop(opt_args.var_positional[0])
+        if not isinstance(varargs, Iterable):
+            varargs = [varargs]
+        elif not isinstance(varargs, list):
+            varargs = list(varargs)
+        option_dict['__varargs__'] = (varargs, opt_args.var_positional[0])
     return option_dict
 
 
 def analyse_option(
         analyser: Analyser,
         param: Option,
-) -> List[Any]:
+) -> Tuple[str, OptionResult]:
     """
     分析 Option 部分
 
@@ -165,17 +150,18 @@ def analyse_option(
         if name not in param.aliases:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.dest
+    res: OptionResult = {"value": None, "args": {}}
     if param.nargs == 0:
-        if param.action:
-            return [name, param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)]
-        return [name, Ellipsis]
-    return [name, analyse_args(analyser, param.args, param.nargs, param.action)]
+        res['value'] = Ellipsis
+    else:
+        res['args'] = analyse_args(analyser, param.args, param.nargs)
+    return name, res
 
 
 def analyse_subcommand(
         analyser: Analyser,
         param: Subcommand
-) -> List[Union[str, Any]]:
+) -> Tuple[str, SubcommandResult]:
     """
     分析 Subcommand 部分
 
@@ -194,13 +180,13 @@ def analyse_subcommand(
         if name != param.name:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.dest
+    res: SubcommandResult = {"value": None, "args": {}, 'options': {}}
     if param.sub_part_len.stop == 0:
-        if param.action:
-            return [name, param.action.handle({}, [], analyser.alconna.local_args.copy(), analyser.is_raise_exception)]
-        return [name, Ellipsis]
+        res['value'] = Ellipsis
+        return name, res
 
-    subcommand = {}
-    args = None
+    args = False
+    subcommand = res['options']
     need_args = True if param.nargs > 0 else False
     for _ in param.sub_part_len:
         text, _str = analyser.next_data(param.separator, pop=False)
@@ -215,17 +201,13 @@ def analyse_subcommand(
                     raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=sp))
         if isinstance(sub_param, Option):
             opt_n, opt_v = analyse_option(analyser, sub_param)
-            if not subcommand.get(opt_n):
-                subcommand[opt_n] = opt_v
-            elif isinstance(subcommand[opt_n], dict):
-                subcommand[opt_n] = [subcommand[opt_n], opt_v]
-            else:
-                subcommand[opt_n].append(opt_v)
-        elif not args and (args := analyse_args(analyser, param.args, param.nargs, param.action)):
-            subcommand.update(args)
+            subcommand[opt_n] = opt_v
+        elif not args:
+            res['args'] = analyse_args(analyser, param.args, param.nargs)
+            args = True
     if need_args and not args:
         raise ArgumentMissing(lang_config.subcommand_args_missing.format(name=name))
-    return [name, subcommand]
+    return name, res
 
 
 def analyse_header(
@@ -243,7 +225,7 @@ def analyse_header(
     separator = analyser.separator
     head_text, _str = analyser.next_data(separator)
     if isinstance(command, Pattern):
-        if _str and (_head_find := command.match(head_text)):
+        if _str and (_head_find := command.fullmatch(head_text)):
             analyser.head_matched = True
             return _head_find.groupdict() or True
     else:
@@ -251,21 +233,21 @@ def analyse_header(
         if _m_str:
             if isinstance(command, List) and not _str:
                 for _command in command:
-                    if (_head_find := _command[1].match(may_command)) and head_text == _command[0]:
+                    if (_head_find := _command[1].fullmatch(may_command)) and head_text == _command[0]:
                         analyser.head_matched = True
                         return _head_find.groupdict() or True
             elif isinstance(command[0], list) and not _str:
-                if (_head_find := command[1].match(may_command)) and head_text in command[0]:  # type: ignore
+                if (_head_find := command[1].fullmatch(may_command)) and head_text in command[0]:  # type: ignore
                     analyser.head_matched = True
                     return _head_find.groupdict() or True
             elif _str:
-                if (_command_find := command[1].match(may_command)) and (  # type: ignore
-                        _head_find := command[0][1].match(head_text)
+                if (_command_find := command[1].fullmatch(may_command)) and (  # type: ignore
+                        _head_find := command[0][1].fullmatch(head_text)
                 ):
                     analyser.head_matched = True
                     return _command_find.groupdict() or True
             else:
-                if (_command_find := command[1].match(may_command)) and head_text in command[0][0]:  # type: ignore
+                if (_command_find := command[1].fullmatch(may_command)) and head_text in command[0][0]:  # type: ignore
                     analyser.head_matched = True
                     return _command_find.groupdict() or True
 

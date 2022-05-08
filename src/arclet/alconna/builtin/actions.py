@@ -1,9 +1,9 @@
 """Alconna ArgAction相关"""
 
 from datetime import datetime
-from typing import Any, Optional, TYPE_CHECKING, Dict
-from arclet.alconna.action import ArgAction
-from arclet.alconna.arpamar.behavior import ArpamarBehavior
+from typing import Any, Optional, TYPE_CHECKING, Literal
+from arclet.alconna.components.action import ArgAction
+from arclet.alconna.components.behavior import ArpamarBehavior
 from arclet.alconna.exceptions import BehaveCancelled, OutBoundsBehavior
 from arclet.alconna.lang import lang_config
 
@@ -25,7 +25,7 @@ def store_value(value: Any):
 
 if TYPE_CHECKING:
     from arclet.alconna import alconna_version
-    from arclet.alconna.arpamar.behavior import ArpamarBehaviorInterface
+    from arclet.alconna.arpamar import Arpamar
 
 
     def version(value: Optional[tuple]):
@@ -48,18 +48,18 @@ def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[s
     """
 
     class _SetDefault(ArpamarBehavior):
-        def operate(self, interface: "ArpamarBehaviorInterface"):
+        def operate(self, interface: "Arpamar"):
             if not option and not subcommand:
                 raise BehaveCancelled
             if option and subcommand is None:
-                options = interface.require(f"options")  # type: Dict[str, Any]
-                options.setdefault(option, value)  # type: ignore
+                options = interface.query("options", {})
+                options[option] = {"value": value, "args": {}}
             if subcommand and option is None:
-                subcommands = interface.require("subcommands")  # type: Dict[str, Any]
-                subcommands.setdefault(subcommand, value)  # type: ignore
+                subcommands = interface.query("subcommands", {})
+                subcommands[subcommand] = {"value": value, "args": {}, "options": {}}
             if option and subcommand:
-                sub_options = interface.require(f"subcommands.{subcommand}")  # type: Dict[str, Any]
-                sub_options.setdefault(option, value)  # type: ignore
+                sub_options = interface.query(f"{subcommand}.options", {})
+                sub_options[option] = {"value": value, "args": {}}
 
     return _SetDefault()
 
@@ -74,9 +74,13 @@ def exclusion(target_path: str, other_path: str):
     """
 
     class _EXCLUSION(ArpamarBehavior):
-        def operate(self, interface: "ArpamarBehaviorInterface"):
-            if interface.require(target_path) and interface.require(other_path):
-                raise OutBoundsBehavior(
+        def operate(self, interface: "Arpamar"):
+            if interface.query(target_path) and interface.query(other_path):
+                if interface.source.is_raise_exception:
+                    raise OutBoundsBehavior(
+                        lang_config.behavior_exclude_matched.format(target=target_path, other=other_path)
+                    )
+                interface.error_info = OutBoundsBehavior(
                     lang_config.behavior_exclude_matched.format(target=target_path, other=other_path)
                 )
 
@@ -95,12 +99,42 @@ def cool_down(seconds: float):
         def __init__(self):
             self.last_time = datetime.now()
 
-        def operate(self, interface: "ArpamarBehaviorInterface"):
+        def operate(self, interface: "Arpamar"):
             current_time = datetime.now()
             if (current_time - self.last_time).total_seconds() < seconds:
-                interface.change_const("matched", False)
-                interface.change_const("error_info", OutBoundsBehavior(lang_config.behavior_cooldown_matched))
+                if interface.source.is_raise_exception:
+                    raise OutBoundsBehavior(lang_config.behavior_cooldown_matched)
+                interface.matched = False
+                interface.error_info = OutBoundsBehavior(lang_config.behavior_cooldown_matched)
             else:
                 self.last_time = current_time
 
     return _CoolDown()
+
+
+def inclusion(*targets: str, flag: Literal["any", "all"] = "any"):
+    """
+    当设置的路径不存在时, 抛出异常
+
+    Args:
+        targets: 路径列表
+        flag: 匹配方式, 可选值为"any"或"all", 默认为"any"
+    """
+
+    class _Inclusion(ArpamarBehavior):
+        def operate(self, interface: "Arpamar"):
+            if flag == "all":
+                for target in targets:
+                    if not interface.query(target):
+                        interface.matched = False
+                        interface.error_info = OutBoundsBehavior(lang_config.behavior_inclusion_matched)
+                        break
+            else:
+                all_count = len(targets)
+                for target in targets:
+                    if interface.require(target):
+                        all_count -= 1
+                if all_count > 0:
+                    interface.matched = False
+                    interface.error_info = OutBoundsBehavior(lang_config.behavior_inclusion_matched)
+    return _Inclusion()

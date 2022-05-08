@@ -1,15 +1,16 @@
 import inspect
 from types import LambdaType
-from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING
+from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING, Union
 
-from .types import _AnyParam, argument_type_validator
-from .lang import lang_config
-from .exceptions import InvalidParam
-from .arpamar.behavior import ArpamarBehavior, ArpamarBehaviorInterface
-from .manager import command_manager
+from ..types import _AnyParam, argument_type_validator
+from ..lang import lang_config
+from ..exceptions import InvalidParam
+from ..manager import command_manager
+from .behavior import ArpamarBehavior
 
 if TYPE_CHECKING:
-    from .base import Args
+    from ..arpamar import Arpamar
+    from ..base import Args, SubcommandResult, OptionResult
 
 
 class ArgAction:
@@ -104,5 +105,45 @@ class ArgAction:
 
 
 class ActionHandler(ArpamarBehavior):
-    def operate(self, interface: "ArpamarBehaviorInterface"):
-        pass
+    def operate(self, interface: "Arpamar"):
+
+        def _exec_args(args: Dict[str, Any], func: ArgAction):
+            result_dict = args.copy()
+            kwargs = {}
+            varargs = []
+            kw_key = None
+            var_key = None
+            if '__kwargs__' in result_dict:
+                kwargs, kw_key = result_dict['__kwargs__']
+            if '__varargs__' in result_dict:
+                varargs, var_key = result_dict['__varargs__']
+            if kwargs:
+                addition_kwargs = interface.source.local_args.copy()
+                addition_kwargs.update(kwargs)
+            else:
+                addition_kwargs = kwargs
+                result_dict.update(interface.source.local_args)
+            res = func.handle(result_dict, varargs, addition_kwargs, interface.source.is_raise_exception)
+            if kw_key:
+                res[kw_key] = kwargs
+            if var_key:
+                res[var_key] = varargs
+            return res
+
+        def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction):
+            if not data['args']:
+                data['value'] = func.handle(
+                    {}, [], interface.source.local_args.copy(), interface.source.is_raise_exception
+                )
+                return
+            data['args'] = _exec_args(data['args'], func)
+
+        if action := interface.source.action_list['main']:
+            interface.main_args = _exec_args(interface.main_args, action)
+
+        for path, action in interface.source.action_list['options'].items():
+            if d := interface.query(path, None):
+                _exec(d, action)
+        for path, action in interface.source.action_list['subcommands'].items():
+            if d := interface.query(path, None):
+                _exec(d, action)

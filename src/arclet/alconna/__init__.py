@@ -1,35 +1,29 @@
 """Alconna 概览"""
 
 from typing import TYPE_CHECKING
+
 from .util import split_once, split
-from .base import CommandNode, Args, ArgAction, Option, Subcommand
-from .arpamar import Arpamar
-from .arpamar.duplication import AlconnaDuplication
-from .arpamar.stub import ArgsStub, SubcommandStub, OptionStub
+from .base import CommandNode, Args, Option, Subcommand
 from .types import (
     DataUnit, DataCollection, AnyParam, AllParam, Empty, PatternToken, ObjectPattern,
     set_converter, pattern_gen
 )
 from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, UnexpectedElement
-from .analysis import compile, analyse, analyse_args, analyse_header, analyse_option, analyse_subcommand
-from .main import Alconna
+from .analysis.base import compile, analyse, analyse_args, analyse_header, analyse_option, analyse_subcommand
+from .core import Alconna, Arpamar
 from .manager import command_manager
+from .lang import load_lang_file, lang_config
+
 from .builtin.actions import store_value, set_default, exclusion, cool_down
 from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, AlconnaFire, delegate, Argument
-from .builtin.formatter import ArgParserHelpTextFormatter, DefaultHelpTextFormatter
-from .visitor import AlconnaNodeVisitor
-from .lang import load_lang_file, lang_config
-from .help import help_send, help_manager, AbstractHelpTextFormatter
+from .builtin.formatter import ArgParserTextFormatter, DefaultTextFormatter
+from .components.visitor import AlconnaNodeVisitor
+from .components.output import output_send, output_manager, AbstractTextFormatter
+from .components.action import ArgAction
+from .components.duplication import AlconnaDuplication
+from .components.stub import ArgsStub, OptionStub, SubcommandStub
 
-
-all_command_help = command_manager.all_command_help
-command_broadcast = command_manager.broadcast
-delete_command = command_manager.delete
-disable_command = command_manager.set_disable
-enable_command = command_manager.set_enable
-get_command = command_manager.get_command
-get_commands = command_manager.get_commands
-alconna_version = (0, 9, 1)
+alconna_version = (0, 9, 2)
 
 if TYPE_CHECKING:
     from .builtin.actions import version

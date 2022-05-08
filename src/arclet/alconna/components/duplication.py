@@ -5,8 +5,8 @@ from ..lang import lang_config
 from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Option
 
 if TYPE_CHECKING:
-    from ..main import Alconna
-    from . import Arpamar
+    from ..core import Alconna
+    from ..arpamar import Arpamar
 
 
 class AlconnaDuplication:
@@ -29,10 +29,10 @@ class AlconnaDuplication:
             getattr(self, self.__stubs__["main_args"]).set_result(target.main_args)  # type: ignore
         for key in self.__stubs__["options"]:
             if key in target.options:
-                getattr(self, key).set_result(target.options[key])
+                getattr(self, key).set_result(target._options[key])  # noqa
         for key in self.__stubs__["subcommands"]:
             if key in target.subcommands:
-                getattr(self, key).set_result(target.subcommands[key])
+                getattr(self, key).set_result(target._subcommands[key])  # noqa
         return self
 
     def __init__(self, alconna: 'Alconna'):
