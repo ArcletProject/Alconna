@@ -4,7 +4,7 @@ import re
 import inspect
 from enum import Enum
 from typing import Union, Tuple, Type, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, \
-    MutableSequence, TypedDict
+    MutableSequence, TypedDict, Set
 
 from .exceptions import InvalidParam, NullTextMessage
 from .types import (
@@ -107,7 +107,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     var_positional: Optional[Tuple[str, MultiArg]]
     var_keyword: Optional[Tuple[str, MultiArg]]
     optional_count: int
-    separator: str
+    separators: Set[str]
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -186,7 +186,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             self,
             args: Optional[Iterable[Union[slice, Sequence]]] = None,
             extra: Literal["allow", "ignore", "reject"] = "allow",
-            separator: str = " ",
+            separators: Union[str, Iterable[str]] = " ",
             **kwargs: TAValue
     ):
         """
@@ -202,7 +202,10 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.var_positional = None
         self.var_keyword = None
         self.optional_count = 0
-        self.separator = separator
+        if isinstance(separators, str):
+            self.separators = {separators}
+        else:
+            self.separators = set(separators)
         self.argument = {  # type: ignore
             k: {
                 "value": argument_type_validator(v),
@@ -212,7 +215,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         for arg in (args or []):
             self.__check_var__(arg)
 
-    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separator"
+    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separators"
 
     def add_argument(
             self,
@@ -238,9 +241,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 self.argument[k]['default'] = v
         return self
 
-    def separate(self, separator: str):
+    def separate(self, *separator: str):
         """设置参数的分隔符"""
-        self.separator = separator
+        self.separators = set(separator)
         return self
 
     def __check_var__(self, val: Union[slice, Sequence]):
@@ -359,7 +362,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         return self.__merge__(other)
 
     def __truediv__(self, other):
-        self.separate(other)
+        self.separate(*other if isinstance(other, (list, tuple, set)) else other)
         return self
 
     def __eq__(self, other):
@@ -386,14 +389,14 @@ class CommandNode:
         name: 命令名称
         dest: 自定义命令名称
         args: 命令参数
-        separator: 命令分隔符
+        separators: 命令分隔符组
         action: 命令动作
         help_text: 命令帮助信息
     """
     name: str
     dest: str
     args: Args
-    separator: str
+    separators: Set[str]
     action: Optional[ArgAction]
     help_text: str
 
@@ -402,7 +405,7 @@ class CommandNode:
             args: Union[Args, str, None] = None,
             dest: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            separator: Optional[str] = None,
+            separators: Optional[Union[str, Iterable[str]]] = None,
             help_text: Optional[str] = None,
     ):
         """
@@ -412,7 +415,7 @@ class CommandNode:
             name(str): 命令节点名称
             args(Args): 命令节点参数
             action(ArgAction): 命令节点响应动作
-            separator(str): 命令分隔符
+            separators(Set[str]): 命令分隔符
             help_text(str): 命令帮助信息
         """
         if name.lstrip() == "":
@@ -428,16 +431,21 @@ class CommandNode:
             self.args = args
         self.dest = (dest or name).lstrip('-')
         self.action = ArgAction.__validator__(action, self.args)
-        self.separator = separator if separator is not None else " "
+        if separators is None:
+            self.separators = {' '}
+        elif isinstance(separators, str):
+            self.separators = {separators}
+        else:
+            self.separators = set(separators)
         self.help_text = help_text or self.dest
         self.nargs = len(self.args.argument)
-        self.is_compact = True if separator == "" else False
+        self.is_compact = True if self.separators == {''} else False
 
     is_compact: bool
     nargs: int
 
-    def separate(self, separator: str):
-        self.separator = separator
+    def separate(self, *separator: str):
+        self.separators = set(separator)
         return self
 
     def __repr__(self):
@@ -455,7 +463,7 @@ class Option(CommandNode):
             alias: Optional[List[str]] = None,
             dest: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            separator: Optional[str] = None,
+            separator: Optional[Union[str, Iterable[str]]] = None,
             help_text: Optional[str] = None,
 
     ):
@@ -482,7 +490,7 @@ class Subcommand(CommandNode):
             args: Union[Args, str, None] = None,
             dest: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            separator: Optional[str] = None,
+            separator: Optional[Union[str, Iterable[str]]] = None,
             help_text: Optional[str] = None,
     ):
         self.options = options or []

@@ -114,9 +114,9 @@ class ActionHandler(ArpamarBehavior):
             kw_key = None
             var_key = None
             if '__kwargs__' in result_dict:
-                kwargs, kw_key = result_dict['__kwargs__']
+                kwargs, kw_key = result_dict.pop('__kwargs__')
             if '__varargs__' in result_dict:
-                varargs, var_key = result_dict['__varargs__']
+                varargs, var_key = result_dict.pop('__varargs__')
             if kwargs:
                 addition_kwargs = interface.source.local_args.copy()
                 addition_kwargs.update(kwargs)
@@ -128,7 +128,7 @@ class ActionHandler(ArpamarBehavior):
                 res[kw_key] = kwargs
             if var_key:
                 res[var_key] = varargs
-            return res
+            args.update(res)
 
         def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction):
             if not data['args']:
@@ -136,10 +136,10 @@ class ActionHandler(ArpamarBehavior):
                     {}, [], interface.source.local_args.copy(), interface.source.is_raise_exception
                 )
                 return
-            data['args'] = _exec_args(data['args'], func)
+            _exec_args(data['args'], func)
 
         if action := interface.source.action_list['main']:
-            interface.main_args = _exec_args(interface.main_args, action)
+            _exec_args(interface.main_args, action)
 
         for path, action in interface.source.action_list['options'].items():
             if d := interface.query(path, None):

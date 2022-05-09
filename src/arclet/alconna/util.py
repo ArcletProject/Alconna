@@ -7,7 +7,7 @@ import logging
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from inspect import stack
-from typing import Callable, TypeVar, Optional, Dict, Any, List, Iterator, Generic, Hashable, Tuple
+from typing import Callable, TypeVar, Optional, Dict, Any, List, Iterator, Generic, Hashable, Tuple, Set, Union
 
 R = TypeVar('R')
 
@@ -43,11 +43,12 @@ def get_module_filepath() -> Optional[str]:
             return ".".join(frame.filename.split("/")[1:]).replace('.py', '')
 
 
-def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变本来的字符串
+def split_once(text: str, separates: Union[str, Set[str]]):  # 相当于另类的pop, 不会改变本来的字符串
     """单次分隔字符串"""
     out_text = ""
     quotation = ""
     is_split = True
+    separates = separates if isinstance(separates, set) else {separates}
     for index, char in enumerate(text):
         if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
@@ -56,23 +57,24 @@ def split_once(text: str, separate: str):  # 相当于另类的pop, 不会改变
             elif char == quotation:
                 is_split = True
                 quotation = ""
-        if separate == char and is_split:
+        if char in separates and is_split:
             break
         out_text += char
     result = "".join(out_text)
     return result, text[len(result) + 1:]
 
 
-def split(text: str, separate: str = " "):
+def split(text: str, separates: Optional[Set[str]] = None):
     """尊重引号与转义的字符串切分
 
     Args:
         text (str): 要切割的字符串
-        separate (str): 切割符. 默认为 " ".
+        separates (Set(str)): 切割符. 默认为 " ".
 
     Returns:
         List[str]: 切割后的字符串, 可能含有空格
     """
+    separates = separates or {" "}
     result = []
     quote = ""
     quoted = False
@@ -84,19 +86,18 @@ def split(text: str, separate: str = " "):
                 quoted = True
                 if index and text[index - 1] == "\\":
                     cache += char
-            elif char == quote and index and text[index - 1] != "\\":
+            elif char == quote:
                 quote = ""
                 quoted = False
-            else:
-                cache += char
-                continue
+                if index and text[index - 1] == "\\":
+                    cache += char
         elif char in {"\n", "\r"}:
             result.append(cache)
             cache = ""
-        elif not quoted and char == separate and cache:
+        elif not quoted and char in separates and cache:
             result.append(cache)
             cache = ""
-        elif char != "\\" and (char != separate or quoted):
+        elif char != "\\" and (char not in separates or quoted):
             cache += char
     if cache:
         result.append(cache)

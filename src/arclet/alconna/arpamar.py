@@ -48,6 +48,9 @@ class Arpamar:
     @staticmethod
     def _filter_opt(opt: OptionResult):
         if args := opt['args']:
+            args = args.copy()
+            args.pop('__varargs__', None)
+            args.pop('__kwargs__', None)
             return args
         return opt['value']
 
@@ -56,6 +59,9 @@ class Arpamar:
         val = {k: Arpamar._filter_opt(v) for k, v in sub['options'].items()}
         val.update(sub['args'])
         if val:
+            val = val.copy()
+            val.pop('__varargs__', None)
+            val.pop('__kwargs__', None)
             return val
         return sub['value']
 
@@ -228,7 +234,16 @@ class Arpamar:
             attrs = ((s, getattr(self, s)) for s in ["matched", "head_matched", "error_data", "error_info"])
             return ", ".join([f"{a}={v}" for a, v in attrs if v is not None])
         else:
-            attrs = ((s, getattr(self, s)) for s in [
-                "matched", "header", "main_args", "options", "subcommands", "other_args"
-            ])
+            attrs = [(s, getattr(self, s)) for s in [
+                "matched", "header", "options", "subcommands"
+            ]]
+            margs = self.main_args.copy()
+            margs.pop('__varargs__', None)
+            margs.pop('__kwargs__', None)
+            attrs.append(("main_args", margs))
+            other_args = self.other_args.copy()
+            other_args.pop('__varargs__', None)
+            other_args.pop('__kwargs__', None)
+            attrs.append(("other_args", other_args))
+
             return ", ".join([f"{a}={v}" for a, v in attrs if v])

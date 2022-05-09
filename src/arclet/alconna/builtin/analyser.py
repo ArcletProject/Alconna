@@ -12,7 +12,7 @@ from arclet.alconna.analysis.arg_handlers import (
 )
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
-from arclet.alconna.util import levenshtein_norm
+from arclet.alconna.util import levenshtein_norm, split_once
 from arclet.alconna.lang import lang_config
 from arclet.alconna.components.output import output_send
 
@@ -46,7 +46,7 @@ class DefaultCommandAnalyser(Analyser):
             self.content_index = 0
             try:
                 _res = command_manager.find_shortcut(
-                    self.next_data(self.alconna.separator, pop=False)[0], self.alconna
+                    self.next_data(self.separators, pop=False)[0], self.alconna
                 )
                 self.reset()
                 if isinstance(_res, Arpamar):
@@ -60,7 +60,7 @@ class DefaultCommandAnalyser(Analyser):
             return self.export(fail=True)
 
         for _ in self.part_len:
-            _text, _str = self.next_data(self.separator, pop=False)
+            _text, _str = self.next_data(self.separators, pop=False)
             if not (_param := self.command_params.get(_text, None) if _str else Ellipsis) and _text != "":
                 for p in self.command_params:
                     _p = self.command_params[p]
@@ -70,7 +70,7 @@ class DefaultCommandAnalyser(Analyser):
                                 _param = _p
                                 break
                     else:
-                        _may_param = _text.split(_p.separator)[0]
+                        _may_param, _ = split_once(_text, _p.separators)
                         if _may_param in getattr(_p, 'aliases', [p]):
                             _param = _p
                             break
@@ -144,10 +144,10 @@ class DefaultCommandAnalyser(Analyser):
         if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):
             return self.export()
 
-        data_len = self.rest_count(self.separator)
+        data_len = self.rest_count(self.separators)
         if data_len > 0:
             exc = ParamsUnmatched(
-                lang_config.analyser_param_unmatched.format(target=self.next_data(self.separator, pop=False)[0])
+                lang_config.analyser_param_unmatched.format(target=self.next_data(self.separators, pop=False)[0])
             )
         else:
             exc = ArgumentMissing(lang_config.analyser_param_missing)

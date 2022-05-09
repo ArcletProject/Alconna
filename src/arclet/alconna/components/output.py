@@ -1,6 +1,6 @@
 import inspect
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Callable, Union, Coroutine, Any, Optional, List
+from typing import Dict, Callable, Union, Coroutine, Any, Optional, List, Set
 
 from .action import ArgAction
 from ..util import Singleton
@@ -91,7 +91,7 @@ class AbstractTextFormatter(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def parameters(self, params: List[Dict[str, Any]], separator: str = " ") -> str:
+    def parameters(self, params: List[Dict[str, Any]], separator: Set[str]) -> str:
         """
         参数列表的描述
         """

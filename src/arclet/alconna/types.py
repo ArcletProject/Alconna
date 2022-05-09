@@ -124,7 +124,8 @@ class ArgPattern:
             return text if isinstance(text, self.origin_type) else None
         if self.token == PatternToken.DIRECT:
             return text
-        return r[0] if (r := self.re_pattern.findall(text)) else None
+        if r := self.re_pattern.findall(text):
+            return self.converter(r[0]) if self.token == PatternToken.REGEX_TRANSFORM else r[0]
 
 
 class Force:

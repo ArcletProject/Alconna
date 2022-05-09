@@ -1,6 +1,7 @@
 """Alconna 主体"""
 import sys
-from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, TYPE_CHECKING, TypedDict
+from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, TYPE_CHECKING, TypedDict, \
+    Iterable
 
 from .lang import lang_config
 
@@ -87,7 +88,7 @@ class Alconna(CommandNode):
             is_raise_exception: bool = False,
             action: Optional[Union[ArgAction, Callable]] = None,
             namespace: Optional[str] = None,
-            separator: str = " ",
+            separators: Union[str, Iterable[str]] = " ",
             help_text: Optional[str] = None,
             analyser_type: Optional[Type["Analyser"]] = None,
             behaviors: Optional[List[T_ABehavior]] = None,
@@ -105,7 +106,7 @@ class Alconna(CommandNode):
             is_raise_exception: 当解析失败时是否抛出异常, 默认为 False
             action: 命令解析后针对主参数的回调函数
             namespace: 命令命名空间, 默认为 'Alconna'
-            separator: 命令参数分隔符, 默认为空格
+            separators: 命令参数分隔符, 默认为空格
             help_text: 帮助文档, 默认为 'Unknown Information'
             analyser_type: 命令解析器类型, 默认为 DisorderCommandAnalyser
             behaviors: 命令解析行为，默认为 None
@@ -121,7 +122,7 @@ class Alconna(CommandNode):
             f"{command_manager.sign}{command or self.headers[0]}",
             main_args,
             action=action,
-            separator=separator,
+            separators=separators,
             help_text=help_text or "Unknown Information"
         )
         self.is_raise_exception = is_raise_exception

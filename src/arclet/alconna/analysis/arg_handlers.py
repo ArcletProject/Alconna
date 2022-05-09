@@ -1,5 +1,5 @@
 import re
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, Set
 
 from .analyser import Analyser
 from ..types import MultiArg, ArgPattern, DataUnit, PatternToken, AntiArg, Empty
@@ -14,7 +14,7 @@ def multi_arg_handler(
         value: MultiArg,
         default: Any,
         nargs: int,
-        sep: str,
+        seps: Set[str],
         result_dict: Dict[str, Any],
         optional: bool
 ):
@@ -27,7 +27,7 @@ def multi_arg_handler(
     # 当前args 已经解析 m 个参数， 总共需要 n 个参数，总共剩余p个参数，
     # q = n - m 为剩余需要参数（包括自己）， p - q + 1 为自己可能需要的参数个数
     _m_rest_arg = nargs - len(result_dict) - 1
-    _m_all_args_count = analyser.rest_count(sep) - _m_rest_arg + 1
+    _m_all_args_count = analyser.rest_count(seps) - _m_rest_arg + 1
     if value.array_length:
         _m_all_args_count = min(_m_all_args_count, value.array_length)
     analyser.reduce_data(may_arg)
@@ -40,7 +40,7 @@ def multi_arg_handler(
                 analyser.reduce_data(result.pop(-1))
 
         for i in range(_m_all_args_count):
-            _m_arg, _m_str = analyser.next_data(sep)
+            _m_arg, _m_str = analyser.next_data(seps)
             if _m_str and _m_arg in analyser.param_ids:
                 __putback(_m_arg)
                 break
@@ -52,8 +52,8 @@ def multi_arg_handler(
                 if not _m_arg_find:
                     analyser.reduce_data(_m_arg)
                     break
-                if _m_arg_base.token == PatternToken.REGEX_TRANSFORM and isinstance(_m_arg_find, str):
-                    _m_arg_find = _m_arg_base.converter(_m_arg_find)
+                # if _m_arg_base.token == PatternToken.REGEX_TRANSFORM and isinstance(_m_arg_find, str):
+                #     _m_arg_find = _m_arg_base.converter(_m_arg_find)
                 if _m_arg_find == _m_arg_base.pattern:
                     _m_arg_find = Ellipsis
                 result.append(_m_arg_find)
@@ -81,7 +81,7 @@ def multi_arg_handler(
                 analyser.reduce_data(arg[0] + '=' + arg[1])
 
         for i in range(_m_all_args_count):
-            _m_arg, _m_str = analyser.next_data(sep)
+            _m_arg, _m_str = analyser.next_data(seps)
             if _m_str and _m_arg in analyser.command_params:
                 __putback(_m_arg)
                 break
@@ -98,8 +98,8 @@ def multi_arg_handler(
                 if not _m_arg_find:
                     analyser.reduce_data(_m_arg)
                     break
-                if _m_arg_base.token == PatternToken.REGEX_TRANSFORM and isinstance(_m_arg_find, str):
-                    _m_arg_find = _m_arg_base.converter(_m_arg_find)
+                # if _m_arg_base.token == PatternToken.REGEX_TRANSFORM and isinstance(_m_arg_find, str):
+                #     _m_arg_find = _m_arg_base.converter(_m_arg_find)
                 if _m_arg_find == _m_arg_base.pattern:
                     _m_arg_find = Ellipsis
                 result[_key] = _m_arg_find
@@ -110,7 +110,7 @@ def multi_arg_handler(
                         __putback(_m_arg)
                         break
                     _key = _kwarg[0]
-                    _m_arg, _m_str = analyser.next_data(sep)
+                    _m_arg, _m_str = analyser.next_data(seps)
                     if _m_str:
                         __putback(_m_arg)
                         break
@@ -136,7 +136,7 @@ def anti_arg_handler(
         value: AntiArg,
         default: Any,
         nargs: int,
-        sep: str,
+        seps: Set[str],
         result_dict: Dict[str, Any],
         optional: bool
 ):
@@ -178,7 +178,7 @@ def common_arg_handler(
         value: ArgPattern,
         default: Any,
         nargs: int,
-        sep: str,
+        seps: Set[str],
         result_dict: Dict[str, Any],
         optional: bool
 ):
@@ -190,12 +190,10 @@ def common_arg_handler(
                 return
             if may_arg:
                 raise ArgumentMissing(lang_config.args_error.format(target=may_arg))
-            else:
-                raise ArgumentMissing(lang_config.args_missing.format(key=key))
-        else:
-            arg_find = None if default is Empty else default
-    if value.token == PatternToken.REGEX_TRANSFORM and isinstance(arg_find, str):
-        arg_find = value.converter(arg_find)
+            raise ArgumentMissing(lang_config.args_missing.format(key=key))
+        arg_find = None if default is Empty else default
+    # if value.token == PatternToken.REGEX_TRANSFORM and isinstance(arg_find, str):
+    #     arg_find = value.converter(arg_find)
     if arg_find == value.pattern:
         arg_find = Ellipsis
     result_dict[key] = arg_find

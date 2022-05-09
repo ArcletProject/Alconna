@@ -1,7 +1,7 @@
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Set
 import re
 
-from arclet.alconna.types import Empty, ArgPattern, _AnyParam
+from arclet.alconna.types import Empty, ArgPattern, _AnyParam, TypePattern
 from arclet.alconna.components.output import AbstractTextFormatter
 
 
@@ -16,29 +16,32 @@ class DefaultTextFormatter(AbstractTextFormatter):
         return header % body
 
     def param(self, parameter: Dict[str, Any]) -> str:
-        arg = f"<{parameter['name']}" if not parameter['optional'] else f"[{parameter['name']}"
+        arg = ("<" if not parameter['optional'] else "[") + parameter['name']
         _sep = "=" if parameter['kwonly'] else ":"
         if not parameter['hidden']:
             if isinstance(parameter['value'], _AnyParam):
                 arg += f"{_sep}WildMatch"
-            elif isinstance(parameter['value'], ArgPattern):
+            elif isinstance(parameter['value'], (ArgPattern, TypePattern)):
                 arg += f"{_sep}{parameter['value'].alias or parameter['value'].origin_type.__name__}"
             else:
                 try:
-                    arg += f"{_sep}Type_{parameter['value'].__name__}"
+                    arg += f"{_sep}Type@{parameter['value'].__name__}"
                 except AttributeError:
-                    arg += f"{_sep}Type_{repr(parameter['value'])}"
+                    arg += f"{_sep}Type@{repr(parameter['value'])}"
             if parameter['default'] is Empty:
                 arg += ", default=None"
             elif parameter['default'] is not None:
                 arg += f", default={parameter['default']}"
-        return arg + (">" if not parameter['optional'] else f"]")
+        return arg + (">" if not parameter['optional'] else "]")
 
-    def parameters(self, params: List[Dict[str, Any]], separator: str = " ") -> str:
+    def parameters(self, params: List[Dict[str, Any]], separators: Set[str]) -> str:
         param_texts = []
         for param in params:
             param_texts.append(self.param(param))
-        return separator.join(param_texts)
+        if len(separators) == 1:
+            separator = separators.copy().pop()
+            return separator.join(param_texts)
+        return " ".join(param_texts) + " splitBy:" + "/".join(separators)
 
     def header(self, root: Dict[str, Any]) -> str:
         help_string = ("\n" + root['description']) if root.get('description') else ""
@@ -63,29 +66,31 @@ class DefaultTextFormatter(AbstractTextFormatter):
                     headers_text.extend((f"{i}", command))
         elif command:
             headers_text.append(command)
-        command_string = f"{'|'.join(headers_text)}{root['separator']}" \
-            if headers_text else root['name'] + root['separator']
+        sep = root['separators'].copy().pop()
+        command_string = f"{'|'.join(headers_text)}{sep}" \
+            if headers_text else root['name'] + sep
         return (
-            f"{command_string}{self.parameters(root['parameters'], root['param_separator'])}"
+            f"{command_string}{self.parameters(root['parameters'], root['param_separators'])}"
             f"{help_string}{usage}\n%s{example}"
         )
 
     def part(self, sub: Dict[str, Any], node_type: str) -> str:
+        sep = sub['separators'].copy().pop()
         if node_type == 'option':
             aliases = sub['additional_info'].get('aliases')
             alias_text = ", ".join(aliases)
             return (
                 f"# {sub['description']}\n"
-                f"  {alias_text}{sub['separator']}"
-                f"{self.parameters(sub['parameters'], sub['param_separator'])}\n"
+                f"  {alias_text}{sep}"
+                f"{self.parameters(sub['parameters'], sub['param_separators'])}\n"
             )
         elif node_type == 'subcommand':
             option_string = "".join([self.part(i, 'option').replace("\n", "\n ") for i in sub['sub_nodes']])
             option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
             return (
                 f"# {sub['description']}\n"
-                f"  {sub['name']}{sub['separator']}"
-                f"{self.parameters(sub['parameters'], sub['param_separator'])}\n"
+                f"  {sub['name']}{sep}"
+                f"{self.parameters(sub['parameters'], sub['param_separators'])}\n"
                 f"{option_help}{option_string}"
             )
         else:
@@ -119,10 +124,11 @@ class ArgParserTextFormatter(AbstractTextFormatter):
     """
     def format(self, trace: Dict[str, Union[str, List, Dict]]) -> str:
         parts: List[dict] = trace.pop('sub_nodes')  # type: ignore
-        sub_names = [i['name'] for i in parts]
-        topic = trace['name'].replace("ALCONNA::", "") + " " + " ".join(
-            [f"[{i}]" for i in sub_names if i not in {"--help", "--shortcut"}]  # type: ignore
-        )
+        sub_names = [i['name'] for i in parts if i['type'] == 'subcommand']
+        opt_names = [i['name'] for i in parts if i['type'] == 'option']
+        sub_names = "" if not sub_names else [f" [{i}]" for i in sub_names] if len(sub_names) < 5 else " [COMMANDS]"
+        opt_names = "" if not opt_names else [f" [{i}]" for i in opt_names] if len(opt_names) < 6 else " [OPTIONS]"
+        topic = trace['name'].replace("ALCONNA::", "") + " " + sub_names + opt_names
         header = self.header(trace)
         body = self.body(parts)  # type: ignore
         return topic + '\n' + header % body
@@ -134,7 +140,7 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         if not parameter['hidden']:
             if isinstance(parameter['value'], _AnyParam):
                 arg += _sep % "Any"
-            elif isinstance(parameter['value'], ArgPattern):
+            elif isinstance(parameter['value'], (ArgPattern, TypePattern)):
                 arg += _sep % f"{parameter['value'].alias or parameter['value'].origin_type.__name__}"
             else:
                 try:
@@ -147,11 +153,14 @@ class ArgParserTextFormatter(AbstractTextFormatter):
                 arg += f"={parameter['default']}"
         return (arg + "") if not parameter['optional'] else (arg + "]")
 
-    def parameters(self, params: List[Dict[str, Any]], separator: str = " ") -> str:
+    def parameters(self, params: List[Dict[str, Any]], separators: Set[str]) -> str:
         param_texts = []
         for param in params:
             param_texts.append(self.param(param))
-        return separator.join(param_texts)
+        if len(separators) == 1:
+            separator = separators.copy().pop()
+            return separator.join(param_texts)
+        return " ".join(param_texts) + ", USED SPLIT:" + "/".join(separators)
 
     def header(self, root: Dict[str, Any]) -> str:
         help_string = ("\n描述: " + root['description'] + "\n") if root.get('description') else ""
@@ -176,33 +185,16 @@ class ArgParserTextFormatter(AbstractTextFormatter):
                     headers_text.extend((f"{i}", command))
         elif command:
             headers_text.append(command)
-        command_string = f"{'|'.join(headers_text)}{root['separator']}" \
-            if headers_text else root['name'] + root['separator']
+        sep = root['separators'].copy().pop()
+        command_string = f"{'|'.join(headers_text)}{sep}" \
+            if headers_text else root['name'] + sep
         return (
             f"\n命令: {command_string}{help_string}{usage}"
-            f"{self.parameters(root['parameters'], root['param_separator'])}\n%s{example}"
+            f"{self.parameters(root['parameters'], root['param_separators'])}\n%s{example}"
         )
 
     def part(self, sub: Dict[str, Any], node_type: str) -> str:
-        if node_type == 'option':
-            aliases = sub['additional_info'].get('aliases')
-            alias_text = ", ".join(aliases)
-            return (
-                f"# {sub['description']}\n"
-                f"  {alias_text}{sub['separator']}"
-                f"{self.parameters(sub['parameters'], sub['param_separator'])}\n"
-            )
-        elif node_type == 'subcommand':
-            option_string = "".join([self.part(i, 'option').replace("\n", "\n ") for i in sub['sub_nodes']])
-            option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
-            return (
-                f"# {sub['description']}\n"
-                f"  {sub['name']}{sub['separator']}"
-                f"{self.parameters(sub['parameters'], sub['param_separator'])}\n"
-                f"{option_help}{option_string}"
-            )
-        else:
-            return f"unknown node type:{node_type}"
+        ...
 
     def body(self, parts: List[Dict[str, Any]]) -> str:
         option_string = ""
@@ -211,8 +203,9 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         for opt in filter(lambda x: x['type'] == 'option' and x['name'] != "--shortcut", parts):
             aliases = opt['additional_info'].get('aliases')
             alias_text = ", ".join(aliases)
-            args = f"{self.parameters(opt['parameters'], opt['param_separator'])}"
-            options.append(f"  {alias_text}{opt['separator']}{args}")
+            args = f"{self.parameters(opt['parameters'], opt['param_separators'])}"
+            sep = opt['separators'].copy().pop()
+            options.append(f"  {alias_text}{sep}{args}")
             opt_description.append(opt['description'])
         if options:
             max_len = max(map(lambda x: len(x), options))
@@ -224,8 +217,9 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         sub_description = []
         for sub in filter(lambda x: x['type'] == 'subcommand', parts):
             sub_topic = " ".join([f"[{i['name']}]" for i in sub['sub_nodes']])
-            args = f"{self.parameters(sub['parameters'], sub['param_separator'])}"
-            subcommands.append(f"  {sub['name']} {sub['separator'].join([args, sub_topic])}")
+            args = f"{self.parameters(sub['parameters'], sub['param_separators'])}"
+            sep = sub['separators'].copy().pop()
+            subcommands.append(f"  {sub['name']} {sep.join([args, sub_topic])}")
             sub_description.append(sub['description'])
         if subcommands:
             max_len = max(map(lambda x: len(x), subcommands))

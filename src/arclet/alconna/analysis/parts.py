@@ -5,7 +5,7 @@ from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from ..types import AnyParam, AllParam, Empty, TypePattern
 from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
-from ..util import levenshtein_norm
+from ..util import levenshtein_norm, split_once
 from ..manager import command_manager
 from ..lang import lang_config
 
@@ -27,13 +27,13 @@ def analyse_args(
         Dict: 解析结果
     """
     option_dict: Dict[str, Any] = {}
-    sep = opt_args.separator
+    seps = opt_args.separators
     for key, arg in opt_args.argument.items():
         value = arg['value']
         default = arg['default']
         kwonly = arg['kwonly']
         optional = arg['optional']
-        may_arg, _str = analyser.next_data(sep)
+        may_arg, _str = analyser.next_data(seps)
         if kwonly:
             _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
             if not _kwarg:
@@ -43,18 +43,16 @@ def analyse_args(
                         raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=k, target=key))
                 if default is None and analyser.is_raise_exception:
                     raise ParamsUnmatched(lang_config.args_key_missing.format(target=may_arg, key=key))
-                else:
-                    option_dict[key] = None if default is Empty else default
+                option_dict[key] = None if default is Empty else default
                 continue
             may_arg = _kwarg[0]
             if may_arg == '':
-                may_arg, _str = analyser.next_data(sep)
+                may_arg, _str = analyser.next_data(seps)
                 if _str:
                     analyser.reduce_data(may_arg)
                     if default is None and analyser.is_raise_exception:
                         raise ParamsUnmatched(lang_config.args_type_error.format(target=may_arg.__class__))
-                    else:
-                        option_dict[key] = None if default is Empty else default
+                    option_dict[key] = None if default is Empty else default
                     continue
         if may_arg in analyser.param_ids:
             analyser.reduce_data(may_arg)
@@ -66,21 +64,19 @@ def analyse_args(
                 option_dict[key] = None if default is Empty else default
         elif value.__class__ in analyser.arg_handlers:
             analyser.arg_handlers[value.__class__](
-                analyser, may_arg, key, value, default, nargs, sep, option_dict, optional
+                analyser, may_arg, key, value, default, nargs, seps, option_dict, optional
             )
         elif value.__class__ is TypePattern:
             arg_find = value.match(may_arg)
-            if not arg_find:
+            if arg_find is None:
                 analyser.reduce_data(may_arg)
                 if default is None:
                     if optional:
                         continue
                     if may_arg:
                         raise ArgumentMissing(lang_config.args_error.format(target=may_arg))
-                    else:
-                        raise ArgumentMissing(lang_config.args_missing.format(key=key))
-                else:
-                    arg_find = None if default is Empty else default
+                    raise ArgumentMissing(lang_config.args_missing.format(key=key))
+                arg_find = None if default is Empty else default
             option_dict[key] = arg_find
         elif value is AnyParam:
             if may_arg:
@@ -90,7 +86,7 @@ def analyse_args(
             if not rest_data:
                 rest_data = [may_arg]
             elif isinstance(rest_data[0], str):
-                rest_data[0] = may_arg + sep + rest_data[0]
+                rest_data[0] = may_arg + seps.copy().pop() + rest_data[0]
             else:
                 rest_data.insert(0, may_arg)
             option_dict[key] = rest_data
@@ -109,8 +105,7 @@ def analyse_args(
                     continue
                 if may_arg:
                     raise ParamsUnmatched(lang_config.args_type_error.format(target=may_arg.__class__))
-                else:
-                    raise ArgumentMissing(lang_config.args_missing.format(key=key))
+                raise ArgumentMissing(lang_config.args_missing.format(key=key))
     if opt_args.var_keyword:
         kwargs = option_dict.pop(opt_args.var_keyword[0])
         if not isinstance(kwargs, dict):
@@ -146,7 +141,7 @@ def analyse_option(
         else:
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     else:
-        name, _ = analyser.next_data(param.separator)
+        name, _ = analyser.next_data(param.separators)
         if name not in param.aliases:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.dest
@@ -176,7 +171,7 @@ def analyse_subcommand(
         else:
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     else:
-        name, _ = analyser.next_data(param.separator)
+        name, _ = analyser.next_data(param.separators)
         if name != param.name:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.dest
@@ -189,11 +184,11 @@ def analyse_subcommand(
     subcommand = res['options']
     need_args = True if param.nargs > 0 else False
     for _ in param.sub_part_len:
-        text, _str = analyser.next_data(param.separator, pop=False)
+        text, _str = analyser.next_data(param.separators, pop=False)
         sub_param = param.sub_params.get(text, None) if _str else Ellipsis
         if not sub_param and text != "":
             for sp in param.sub_params:
-                _may_param = text.split(param.sub_params[sp].separator)[0]
+                _may_param, _ = split_once(text, param.sub_params[sp].separators)
                 if _may_param in param.sub_params[sp].aliases:
                     sub_param = param.sub_params[sp]
                     break
@@ -222,14 +217,14 @@ def analyse_header(
         head_match: 当命令头内写有正则表达式并且匹配成功的话, 返回匹配结果
     """
     command = analyser.command_header
-    separator = analyser.separator
-    head_text, _str = analyser.next_data(separator)
+    separators = analyser.separators
+    head_text, _str = analyser.next_data(separators)
     if isinstance(command, Pattern):
         if _str and (_head_find := command.fullmatch(head_text)):
             analyser.head_matched = True
             return _head_find.groupdict() or True
     else:
-        may_command, _m_str = analyser.next_data(separator)
+        may_command, _m_str = analyser.next_data(separators)
         if _m_str:
             if isinstance(command, List) and not _str:
                 for _command in command:

@@ -1,7 +1,6 @@
 """Alconna 负责记录命令的部分"""
 
 import asyncio
-import re
 from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
 import shelve
 
@@ -11,7 +10,8 @@ from .types import DataCollection
 from .lang import lang_config
 
 if TYPE_CHECKING:
-    from .core import Alconna, Arpamar
+    from .core import Alconna
+    from .arpamar import Arpamar
     from .analysis.analyser import Analyser
 
 
@@ -138,6 +138,7 @@ class CommandManager(metaclass=Singleton):
             expiration: int = 0,
     ) -> None:
         """添加快捷命令"""
+        from .arpamar import Arpamar
         namespace, name = self._command_part(target if isinstance(target, str) else target.path)
         try:
             _ = self.__commands[namespace][name]
@@ -220,35 +221,27 @@ class CommandManager(metaclass=Singleton):
     def get_commands(self, namespace: Optional[str] = None) -> List["Alconna"]:
         """获取命令列表"""
         if namespace is None:
-            return [ana.alconna for ana in self.__commands[self.default_namespace].values()]
+            return [ana.alconna for namespace in self.__commands for ana in self.__commands[namespace].values()]
         if namespace not in self.__commands:
             return []
         return [ana.alconna for ana in self.__commands[namespace].values()]
 
     def broadcast(self, command: Union[str, DataCollection], namespace: Optional[str] = None) -> Optional['Arpamar']:
         """将一段命令广播给当前空间内的所有命令"""
-        command = str(command)
-        may_command_head = command.split(" ")[0]
         if namespace is None:
             for n in self.__commands:
-                if cmd := self.__commands[n].get(may_command_head):
-                    cmd.process_message(command)
-                    return cmd.analyse()
-                for k in self.__commands[n]:
-                    if re.match("^" + k + ".*" + "$", command):
-                        cmd = self.__commands[n][k]
-                        cmd.process_message(command)
-                        return cmd.analyse()
+                for v in self.__commands[n].values():
+                    res = v.alconna.parse(command)
+                    if res.matched:
+                        return res
+
         else:
-            commands = self.__commands[namespace]
-            if cmd := commands.get(may_command_head):
-                cmd.process_message(command)
-                return cmd.analyse()
-            for k in commands:
-                if re.match("^" + k + ".*" + "$", command):
-                    cmd = commands[k]
-                    cmd.process_message(command)
-                    return cmd.analyse()
+            if namespace not in self.__commands:
+                return None
+            for v in self.__commands[namespace].values():
+                res = v.alconna.parse(command)
+                if res.matched:
+                    return res
 
     def all_command_help(
             self,

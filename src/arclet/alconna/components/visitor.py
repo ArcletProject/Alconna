@@ -1,7 +1,7 @@
 """
 Alconna 负责命令节点访问与帮助文档生成的部分
 """
-from typing import List, Dict, Optional, Any, Literal, Union, TYPE_CHECKING
+from typing import List, Dict, Optional, Any, Literal, Union, TYPE_CHECKING, Set
 from arclet.alconna.exceptions import DuplicateCommand
 from arclet.alconna.lang import lang_config
 from arclet.alconna.base import CommandNode, Subcommand, Option
@@ -20,8 +20,8 @@ class _BaseNode:
     name: str
     parameters: List[Dict[str, Any]]
     description: str
-    separator: str
-    param_separator: str
+    separators: Set[str]
+    param_separators: Set[str]
     sub_nodes: List[int]
     additional_info: Dict[str, Any]
 
@@ -31,8 +31,8 @@ class _BaseNode:
         self.name = target.name
         self.description = target.help_text
         self.parameters = []
-        self.separator = target.separator
-        self.param_separator = target.args.separator
+        self.separators = target.separators
+        self.param_separators = target.args.separators
         self.additional_info = {'dest': target.dest}
         for key, arg in target.args.argument.items():
             self.parameters.append({'name': key, **arg})
@@ -121,7 +121,7 @@ class AlconnaNodeVisitor:
         """
         return {
             "type": root.type, "name": root.name, "description": root.description, "parameters": root.parameters,
-            "separator": root.separator, "param_separator": root.param_separator,
+            "separators": root.separators, "param_separators": root.param_separators,
             "additional_info": root.additional_info,
             "sub_nodes": [self.trace_nodes(self.node_map[i]) for i in root.sub_nodes]
         }

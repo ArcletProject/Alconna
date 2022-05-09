@@ -42,7 +42,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         Tuple[Union[Tuple[List[Any], Pattern], List[Any]], Pattern],
         List[Tuple[Any, Pattern]]
     ]
-    separator: str  # 分隔符
+    separators: Set[str]  # 分隔符
     is_raise_exception: bool  # 是否抛出异常
     options: Dict[str, Any]  # 存放解析到的所有选项
     subcommands: Dict[str, Any]  # 存放解析到的所有子命令
@@ -53,7 +53,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     part_len: range  # 分段长度
     default_main_only: bool  # 默认只有主参数
     self_args: Args  # 自身参数
-    ARGHANDLER_TYPE = Callable[["Analyser", Union[str, DataUnit], str, Type, Any, int, str, Dict[str, Any], bool], Any]
+    ARGHANDLER_TYPE = Callable[["Analyser", T_Origin, str, Type, Any, int, Set[str], Dict[str, Any], bool], Any]
     arg_handlers: Dict[Type, ARGHANDLER_TYPE]
     filter_out: List[str]  # 元素黑名单
     temporary_data: Dict[str, Any]  # 临时数据
@@ -91,7 +91,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.origin_data = None
         self.alconna = alconna
         self.self_args = alconna.args
-        self.separator = alconna.separator
+        self.separators = alconna.separators
         self.is_raise_exception = alconna.is_raise_exception
         self.need_main_args = False
         self.default_main_only = False
@@ -213,21 +213,21 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.options = {}
         self.subcommands = {}
 
-    def next_data(self, separate: Optional[str] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
+    def next_data(self, separate: Optional[Set[str]] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
-        if "separator" in self.temporary_data:
-            self.temporary_data.pop("separator", None)
+        if "separators" in self.temporary_data:
+            self.temporary_data.pop("separators", None)
         if self.current_index == self.ndata:
             return "", True
         _current_data = self.raw_data[self.current_index]
         if isinstance(_current_data, list):
             _rest_text: str = ""
             _text = _current_data[self.content_index]
-            if separate and separate != self.separator:
+            if separate and self.separators.difference(separate) == self.separators:
                 _text, _rest_text = split_once(_text, separate)
             if pop:
                 if _rest_text:  # 这里实际上还是pop了
-                    self.temporary_data["separator"] = separate
+                    self.temporary_data["separators"] = separate
                     _current_data[self.content_index] = _rest_text  # self.raw_data[self.current_index]
                 else:
                     self.content_index += 1
@@ -239,13 +239,13 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             self.current_index += 1
         return _current_data, False
 
-    def rest_count(self, separate: Optional[str] = None) -> int:
+    def rest_count(self, separate: Optional[Set[str]] = None) -> int:
         """获取剩余的数据个数"""
         _result = 0
         for _data in self.raw_data[self.current_index:]:
             if isinstance(_data, list):
                 for s in _data[self.content_index:]:
-                    if separate and separate != self.separator:
+                    if separate and self.separators.difference(separate) == self.separators:
                         _result += len(split(s, separate))
                     else:
                         _result += 1
@@ -269,8 +269,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         else:
             _current_data = self.raw_data[self.current_index]
             if isinstance(_current_data, list) and isinstance(data, str):
-                if sep := self.temporary_data.get("separator", None):
-                    _current_data[self.content_index] = f"{data}{sep}{_current_data[self.content_index]}"
+                if seps := self.temporary_data.get("separators", None):
+                    _current_data[self.content_index] = f"{data}{seps.copy().pop()}{_current_data[self.content_index]}"
                 else:
                     self.content_index -= 1
                     if replace:
@@ -285,7 +285,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         _result = []
         for _data in self.raw_data[self.current_index:]:
             if isinstance(_data, list):
-                _result.append(f'{self.separator}'.join(_data[self.content_index:]))
+                _result.append(f'{self.separators.copy().pop()}'.join(_data[self.content_index:]))
             else:
                 _result.append(_data)
         self.current_index = self.ndata
@@ -297,7 +297,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.origin_data = data
         if isinstance(data, str):
             self.is_str = True
-            if not (res := split(data.lstrip(), self.separator)):
+            if not (res := split(data.lstrip(), self.separators)):
                 exp = NullTextMessage(lang_config.analyser_handle_null_message.format(target=data))
                 if self.is_raise_exception:
                     raise exp
@@ -307,17 +307,17 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 self.ndata = 1
                 self.temp_token = self.generate_token(self.raw_data)
         else:
-            separate = self.separator
+            separates = self.separators
             i, __t, exc = 0, False, None
             raw_data = []
             for unit in data:  # type: ignore
                 if text := getattr(unit, 'text', None):
-                    if not (res := split(text.lstrip(), separate)):
+                    if not (res := split(text.lstrip(), separates)):
                         continue
                     raw_data.append(res)
                     __t = True
                 elif isinstance(unit, str):
-                    if not (res := split(unit.lstrip(), separate)):
+                    if not (res := split(unit.lstrip(), separates)):
                         continue
                     raw_data.append(res)
                     __t = True
