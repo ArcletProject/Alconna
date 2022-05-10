@@ -17,6 +17,19 @@
 2. 增加内建 `Argument` 方法, 类似于 `add_argument`, 以便捷创建 Option + Args 的组合. 
 3. 修复 bug
 
+## Alconna 0.9.2:
+1. 增强 `Arpamar` 的功能, 使其更类似于一种接口. 其中的修改有:
+- 从 `get()` 变为 `query()`
+- 从 `has()` 变为 `find()`
+- 从 `set()` 变为 `update()`
+- 从 `update()` 变为 `execute()`
+- 增加 `get_duplication()`
+- 增加 `source`, `origin` 属性
+2. 项目结构调整
+3. ArgAction 的执行现在交给 `ActionHandler` 来处理.
+4. `split` 以及 `separator` 现在需要传入 `Set[str]` 类型.
+5. 修复 bug.
+
 # Alconna 0.8.x:
 
 ## Alconna 0.8.0:

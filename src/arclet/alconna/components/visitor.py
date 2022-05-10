@@ -2,10 +2,10 @@
 Alconna 负责命令节点访问与帮助文档生成的部分
 """
 from typing import List, Dict, Optional, Any, Literal, Union, TYPE_CHECKING, Set
-from arclet.alconna.exceptions import DuplicateCommand
-from arclet.alconna.lang import lang_config
-from arclet.alconna.base import CommandNode, Subcommand, Option
-from arclet.alconna.components.output import AbstractTextFormatter
+from ..exceptions import DuplicateCommand
+from ..lang import lang_config
+from ..base import CommandNode, Subcommand, Option
+from .output import AbstractTextFormatter
 
 if TYPE_CHECKING:
     from ..core import Alconna

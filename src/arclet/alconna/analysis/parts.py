@@ -66,8 +66,8 @@ def analyse_args(
             analyser.arg_handlers[value.__class__](
                 analyser, may_arg, key, value, default, nargs, seps, option_dict, optional
             )
-        elif value.__class__ is TypePattern:
-            arg_find = value.match(may_arg)
+        elif value.__class__ is TypePattern: 
+            arg_find = value.match(may_arg)  # type: ignore
             if arg_find is None:
                 analyser.reduce_data(may_arg)
                 if default is None:
@@ -260,7 +260,7 @@ def analyse_header(
             if isinstance(command, Pattern):
                 source = head_text
             else:
-                source = head_text + analyser.separator + str(may_command)  # noqa
+                source = head_text + analyser.separators.copy().pop() + str(may_command)  # noqa
             if command_manager.get_command(source):
                 analyser.head_matched = False
                 raise ParamsUnmatched(lang_config.header_error.format(target=head_text))

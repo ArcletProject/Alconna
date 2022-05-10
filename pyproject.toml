@@ -1,6 +1,12 @@
+[build-system]
+requires = ["setuptools>=58.3.0", "wheel>=0.37.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pylint.BASIC]
+class-const-naming-style = "any"
+
 [tool.pylint."MESSAGE CONTROL"]
 max-line-length = 120
-extension-pkg-whitelist = ["pydantic"]
 disable = [
     "broad-except",
     "wrong-import-order",
@@ -40,7 +46,3 @@ exclude_lines = [
     # Don't complain overload method / functions
     "@(typing\\.)?overload"
 ]
-
-[build-system]
-requires = ["setuptools>=58.3.0"]
-build-backend = "setuptools.build_meta"

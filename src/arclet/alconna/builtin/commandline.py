@@ -276,7 +276,7 @@ class CommandLine:
             if result.matched:
                 getattr(self, f"command_{alc.command}")(result)
         with open('alconna_cache.json', 'w+', encoding='UTF-8') as f_obj:
-            json.dump(self.cache_data, f_obj, ensure_ascii=False)
+            json.dump(self.cache_data, f_obj, ensure_ascii=False, indent=4)
 
 
 def main(args=None):

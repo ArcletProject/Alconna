@@ -53,7 +53,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     part_len: range  # 分段长度
     default_main_only: bool  # 默认只有主参数
     self_args: Args  # 自身参数
-    ARGHANDLER_TYPE = Callable[["Analyser", T_Origin, str, Type, Any, int, Set[str], Dict[str, Any], bool], Any]
+    ARGHANDLER_TYPE = Callable[["Analyser", Any, str, Type, Any, int, Set[str], Dict[str, Any], bool], Any]
     arg_handlers: Dict[Type, ARGHANDLER_TYPE]
     filter_out: List[str]  # 元素黑名单
     temporary_data: Dict[str, Any]  # 临时数据
@@ -344,7 +344,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     @staticmethod
     def converter(command: str) -> T_Origin:
-        return command
+        return command  # type: ignore
 
     def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar:
         """创建arpamar, 其一定是一次解析的最后部分"""
@@ -358,7 +358,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         else:
             result.matched = True
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
-            command_manager.record(self.temp_token, self.origin_data, self.alconna.path, result)
+            command_manager.record(self.temp_token, self.origin_data, self.alconna.path, result)  # type: ignore
             self.used_tokens.add(self.temp_token)
         self.reset()
         return result

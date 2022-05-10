@@ -99,7 +99,7 @@ class ArgsStub(BaseStub[Args]):
         elif isinstance(item, int):
             return list(self.value.values())[item]
         else:
-            raise TypeError(lang_config.stub_key_error(target=item))
+            raise TypeError(lang_config.stub_key_error.format(target=item))
 
 
 class OptionStub(BaseStub[Option]):
@@ -120,7 +120,7 @@ class OptionStub(BaseStub[Option]):
         self.available = False
         self.value = None
 
-    def set_result(self, result: OptionResult):
+    def set_result(self, result: Union[OptionResult, None]):
         if result:
             self.value = result['value']
             self.args.set_result(result['args'])

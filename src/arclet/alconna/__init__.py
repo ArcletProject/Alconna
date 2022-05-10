@@ -10,7 +10,8 @@ from .types import (
 )
 from .exceptions import ParamsUnmatched, NullTextMessage, InvalidParam, UnexpectedElement
 from .analysis.base import compile, analyse, analyse_args, analyse_header, analyse_option, analyse_subcommand
-from .core import Alconna, Arpamar
+from .core import Alconna
+from .arpamar import Arpamar
 from .manager import command_manager
 from .lang import load_lang_file, lang_config
 

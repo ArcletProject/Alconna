@@ -12,7 +12,7 @@ from collections.abc import (
 )
 from enum import Enum
 from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Union, Sequence, \
-    List, Dict, get_args, Literal, Tuple, get_origin, Iterable
+    List, Dict, get_args, Literal, Tuple, get_origin, Iterable, Generic
 from types import LambdaType
 from pathlib import Path
 from .exceptions import ParamsUnmatched
@@ -62,7 +62,10 @@ AllParam = _AnyAllParam()
 Empty = inspect.Signature.empty
 
 
-class ArgPattern:
+T_Origin = TypeVar("T_Origin")
+
+
+class ArgPattern(Generic[T_Origin]):
     """
     对参数类型值的包装
 
@@ -78,8 +81,8 @@ class ArgPattern:
     re_pattern: Pattern
     pattern: str
     token: PatternToken
-    converter: Callable[[str], Any]
-    origin_type: Type
+    converter: Callable[[str], T_Origin]
+    origin_type: Type[T_Origin]
     alias: Optional[str]
 
     __slots__ = "re_pattern", "pattern", "token", "origin_type", "converter", "alias"
@@ -88,7 +91,7 @@ class ArgPattern:
             self,
             regex_pattern: str,
             token: PatternToken = PatternToken.REGEX_MATCH,
-            origin_type: Type = str,
+            origin_type: Type[T_Origin] = str,
             converter: Optional[Callable] = None,
             alias: Optional[str] = None
     ):
@@ -116,7 +119,7 @@ class ArgPattern:
         return isinstance(other, ArgPattern) and self.pattern == other.pattern and \
                self.origin_type == other.origin_type and self.alias == other.alias
 
-    def match(self, text: Union[str, Any]):
+    def match(self, text: Union[str, Any]) -> Optional[T_Origin]:
         """
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
         """
@@ -151,10 +154,9 @@ AnyHex = ArgPattern(r"((?:0x)?[0-9a-fA-F]+)", PatternToken.REGEX_TRANSFORM, int,
 HexColor = ArgPattern(r"(#[0-9a-fA-F]{6})", PatternToken.REGEX_TRANSFORM, str, lambda x: x[1:], "color")
 
 T_Target = TypeVar("T_Target")
-T_Origin = TypeVar("T_Origin")
 
 
-class TypePattern:
+class TypePattern(Generic[T_Target, T_Origin]):
     """
     对参数类型值的包装, 但不涉及正则匹配
 
@@ -186,17 +188,17 @@ class TypePattern:
         """
         self.origin_type = origin_type
         self.target_types = target_types
-        self.action: Callable[[Union[T_Target, ...]], T_Origin] = converter or (lambda x: origin_type(x))
+        self.action: Callable[[Union[T_Target, Any]], T_Origin] = converter or (lambda x: origin_type(x))
         self.alias = alias
         self.previous = previous
 
-    def match(self, obj: Any) -> T_Origin:
+    def match(self, obj: Any) -> Optional[T_Origin]:
         """
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
         """
         if isinstance(obj, self.origin_type):
             return obj
-        if not isinstance(obj, tuple(self.target_types)):
+        if not isinstance(obj, tuple(self.target_types)):  # type: ignore
             if not self.previous:
                 return
             obj = self.previous.match(obj)
@@ -214,7 +216,7 @@ class TypePattern:
 class MultiArg(ArgPattern):
     """对可变参数的匹配"""
     flag: str
-    arg_value: Any
+    arg_value: Union[ArgPattern, Type]
     array_length: Optional[int]
 
     def __init__(
@@ -253,7 +255,7 @@ class MultiArg(ArgPattern):
 
 class AntiArg(ArgPattern):
     """反向参数的匹配"""
-    arg_value: Any
+    arg_value: Union[ArgPattern, Type]
 
     def __init__(self, arg_value: Union[ArgPattern, Type]):
         self.arg_value = arg_value
@@ -473,10 +475,10 @@ def set_converters(
         cover: bool = False
 ):
     for arg_pattern in patterns:
-        if isinstance(patterns, dict):
-            set_converter(patterns[arg_pattern], alias=arg_pattern, cover=cover)
+        if isinstance(patterns, Dict):
+            set_converter(patterns[arg_pattern], alias=arg_pattern, cover=cover)  # type: ignore
         else:
-            set_converter(arg_pattern, cover=cover)
+            set_converter(arg_pattern, cover=cover)  # type: ignore
 
 
 def remove_converter(origin_type: type, alias: Optional[str] = None):
@@ -488,12 +490,14 @@ def remove_converter(origin_type: type, alias: Optional[str] = None):
     """
     if alias and (al_pat := pattern_map.get(alias)):
         if isinstance(al_pat, UnionArg):
-            pattern_map[alias] = UnionArg(list(filter(lambda x: x.alias != alias, al_pat.arg_value)))
+            pattern_map[alias] = UnionArg(list(filter(lambda x: x.alias != alias, al_pat.arg_value)))  # type: ignore
         else:
             del pattern_map[alias]
     elif al_pat := pattern_map.get(origin_type):
         if isinstance(al_pat, UnionArg):
-            pattern_map[origin_type] = UnionArg(list(filter(lambda x: x.origin_type != origin_type, al_pat.arg_value)))
+            pattern_map[origin_type] = UnionArg(
+                list(filter(lambda x: x.origin_type != origin_type, al_pat.arg_value))  # type: ignore
+            )
         else:
             del pattern_map[origin_type]
 
@@ -577,7 +581,7 @@ class ObjectPattern(ArgPattern):
 
     def __init__(
             self,
-            origin: Type,
+            origin: Type[T_Origin],
             limit: Tuple[str, ...] = (),
             head: str = "",
             flag: Literal["http", "part", "json"] = "part",

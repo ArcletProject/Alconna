@@ -82,19 +82,14 @@ def split(text: str, separates: Optional[Set[str]] = None):
     for index, char in enumerate(text):
         if char in {"'", '"'}:
             if not quoted:
-                quote = char
-                quoted = True
+                quote, quoted = char, True
                 if index and text[index - 1] == "\\":
                     cache += char
             elif char == quote:
-                quote = ""
-                quoted = False
+                quote, quoted = "", False
                 if index and text[index - 1] == "\\":
                     cache += char
-        elif char in {"\n", "\r"}:
-            result.append(cache)
-            cache = ""
-        elif not quoted and char in separates and cache:
+        elif char in {"\n", "\r"} or (not quoted and char in separates and cache):
             result.append(cache)
             cache = ""
         elif char != "\\" and (char not in separates or quoted):

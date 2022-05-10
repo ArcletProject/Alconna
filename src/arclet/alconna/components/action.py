@@ -74,7 +74,7 @@ class ArgAction:
         return option_dict
 
     @staticmethod
-    def __validator__(action: Callable, args: "Args"):
+    def __validator__(action: Union[Callable, "ArgAction", None], args: "Args"):
         if not action:
             return None
         if isinstance(action, ArgAction):

@@ -1,4 +1,3 @@
-import inspect
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Callable, Union, Coroutine, Any, Optional, List, Set
 
@@ -29,8 +28,6 @@ class OutputActionManager(metaclass=Singleton):
             return self.outputs[command].action
         if command is None:
             self.send_action = action
-            for helper in self.outputs.values():
-                helper.awaitable = inspect.iscoroutinefunction(action)
         else:
             if not self.outputs.get(command):
                 self.cache[command] = action

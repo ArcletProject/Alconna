@@ -19,15 +19,15 @@ class Arpamar:
 
     Example:
 
-    1. `Arpamar.main_args`: 当 Alconna 写入了 main_argument 时,该参数返回对应的解析出来的值
+    - `Arpamar.main_args`: 当 Alconna 写入了 main_argument 时,该参数返回对应的解析出来的值
 
-        2. `Arpamar.header`: 当 Alconna 的 command 内写有正则表达式时,该参数返回对应的匹配值
+    - `Arpamar.header`: 当 Alconna 的 command 内写有正则表达式时,该参数返回对应的匹配值
 
-        3. `Arpamar.has`: 判断 Arpamar 内是否有对应的属性
+    - `Arpamar.find`: 判断 Arpamar 内是否有对应的属性
 
-        4. `Arpamar.get`: 返回 Arpamar 中指定的属性
+    - `Arpamar.query`: 返回 Arpamar 中指定的属性
 
-        5. `Arpamar.matched`: 返回命令是否匹配成功
+    - `Arpamar.matched`: 返回命令是否匹配成功
 
     """
 
@@ -96,7 +96,7 @@ class Arpamar:
     def get_duplication(self, dup: Optional[Type[T_Duplication]] = None) -> T_Duplication:
         if dup:
             return dup(self.source).set_target(self)
-        return generate_duplication(self.source).set_target(self)
+        return generate_duplication(self.source).set_target(self)  # type: ignore
 
     def encapsulate_result(
             self,
@@ -125,10 +125,9 @@ class Arpamar:
             *(behaviors or [])
         ]
         for behavior in behaviors:
-            res = requirement_handler(behavior)
-            for b in res:
+            for b in requirement_handler(behavior):
                 try:
-                    b.operate(self)
+                    b.operate(self)  # type: ignore
                 except BehaveCancelled:
                     continue
         return self
@@ -136,7 +135,7 @@ class Arpamar:
     def __require__(
             self,
             parts: List[str]
-    ) -> Tuple[Optional[Union[Dict[str, Any], OptionResult, SubcommandResult]], str]:
+    ) -> Tuple[Optional[Union[Dict[str, Any], OptionResult, SubcommandResult]], str]:  # type: ignore
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
         if len(parts) == 1:
             part = parts[0]
@@ -207,6 +206,8 @@ class Arpamar:
         """根据path更新值"""
         parts = path.split('.')
         cache, endpoint = self.__require__(parts)
+        if not cache:
+            return
         if not endpoint:
             cache.update(value)
         else:

@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, 
     Iterable
 
 from .lang import lang_config
-
 from .analysis.base import compile
 from .base import CommandNode, Args, ArgAction, Option, Subcommand
 from .types import DataCollection, DataUnit
@@ -73,7 +72,7 @@ class Alconna(CommandNode):
     formatter: AbstractTextFormatter
     namespace: str
     behaviors: List[Union[ArpamarBehavior, Type[ArpamarBehavior]]]
-    default_analyser: Type["Analyser"] = DefaultCommandAnalyser
+    default_analyser: Type["Analyser"] = DefaultCommandAnalyser  # type: ignore
     custom_types: Dict[str, Type] = {}
     local_args: dict = {}
     action_list: _Actions
@@ -114,7 +113,7 @@ class Alconna(CommandNode):
             is_fuzzy_match: 是否开启模糊匹配, 默认为 False
         """
         if all((not headers, not command)):
-            command = sys.modules["__main__"].__file__.split("/")[-1].split(".")[0]
+            command = sys.modules["__main__"].__file__.split("/")[-1].split(".")[0]  # type: ignore
         self.headers = headers or [""]
         self.command = command or ""
         self.options = options or []
@@ -198,9 +197,10 @@ class Alconna(CommandNode):
                     command_manager.add_shortcut(self, short_key, cmd, expiration)
                     return lang_config.shortcut_add_success.format(
                         shortcut=short_key, target=self.path.split(".")[-1])
-                raise ValueError(lang_config.shortcut_recent_command_error.format(
-                    target=self.path, source=alc.path
-                ))
+                raise ValueError(
+                    lang_config.shortcut_recent_command_error.format(
+                        target=self.path, source=getattr(alc, "path", "Unknown Source"))
+                )
             else:
                 raise ValueError(lang_config.shortcut_no_recent_command)
         except Exception as e:
@@ -229,12 +229,13 @@ class Alconna(CommandNode):
         command_manager.register(compile(self))
         return self
 
-    def set_action(self, action: Union[Callable, str, ArgAction], custom_types: Optional[Dict[str, Type]] = None):
+    def set_action(self, action: Union[Callable, str, ArgAction],
+                   custom_types: Optional[Dict[str, Type]] = None):  # type: ignore
         """设置针对main_args的action"""
         if isinstance(action, str):
             ns = {}
             exec(action, getattr(self, "custom_types", custom_types), ns)
-            action = ns.popitem()[1]
+            action: Callable = ns.popitem()[1]
         self.action = ArgAction.__validator__(action, self.args)
         return self
 
@@ -252,6 +253,7 @@ class Alconna(CommandNode):
     def parse(
             self,
             message: Union[str, DataCollection],
+            duplication=None,
             static: bool = True
     ) -> Arpamar:
         ...
