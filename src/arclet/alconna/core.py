@@ -270,7 +270,9 @@ class Alconna(CommandNode):
         else:
             analyser = compile(self)
         analyser.process_message(message)
-        arp = analyser.analyse().execute()
+        arp = analyser.analyse()
+        if arp.matched:
+            arp.execute()
         if duplication:
             return duplication(self).set_target(arp)
         return arp

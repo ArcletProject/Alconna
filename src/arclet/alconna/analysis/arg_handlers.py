@@ -2,7 +2,7 @@ import re
 from typing import Union, Dict, Any, Set
 
 from .analyser import Analyser
-from ..types import MultiArg, ArgPattern, DataUnit, PatternToken, AntiArg, Empty
+from ..types import MultiArg, ArgPattern, DataUnit, AntiArg, Empty
 from ..exceptions import ParamsUnmatched, ArgumentMissing
 from ..lang import lang_config
 
@@ -151,7 +151,7 @@ def anti_arg_handler(
                 if optional:
                     return
                 if may_arg:
-                    raise ArgumentMissing(lang_config.args_error.format(target=may_arg))
+                    raise ParamsUnmatched(lang_config.args_error.format(target=may_arg))
                 else:
                     raise ArgumentMissing(lang_config.args_missing.format(key=key))
             result_dict[key] = None if default is Empty else default
@@ -189,7 +189,7 @@ def common_arg_handler(
             if optional:
                 return
             if may_arg:
-                raise ArgumentMissing(lang_config.args_error.format(target=may_arg))
+                raise ParamsUnmatched(lang_config.args_error.format(target=may_arg))
             raise ArgumentMissing(lang_config.args_missing.format(key=key))
         arg_find = None if default is Empty else default
     # if value.token == PatternToken.REGEX_TRANSFORM and isinstance(arg_find, str):

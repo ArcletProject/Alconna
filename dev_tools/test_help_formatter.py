@@ -1,6 +1,6 @@
 from arclet.alconna import Alconna, Args, Option, Subcommand
-from arclet.alconna.visitor import AlconnaNodeVisitor
-from arclet.alconna.builtin.formatter import DefaultHelpTextFormatter, ArgParserHelpTextFormatter
+from arclet.alconna.components.visitor import AlconnaNodeVisitor
+from arclet.alconna.builtin.formatter import DefaultTextFormatter, ArgParserTextFormatter
 
 
 alc = Alconna("test_line", main_args="line:'...'")
@@ -21,5 +21,5 @@ b = AlconnaNodeVisitor(
         ]
     )
 )
-print(b.format_node(DefaultHelpTextFormatter(), b.require([])))
-print(b.format_node(ArgParserHelpTextFormatter(), b.require([])))
+print(b.format_node(DefaultTextFormatter(), b.require([])))
+print(b.format_node(ArgParserTextFormatter(), b.require([])))

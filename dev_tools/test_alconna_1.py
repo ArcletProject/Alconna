@@ -4,7 +4,7 @@ from arclet.alconna import Alconna, Args, AlconnaString, Subcommand, Option
 from arclet.alconna.arpamar import Arpamar
 from arclet.alconna.types import AnyIP, AnyDigit, AnyStr, AnyParam
 from graia.ariadne.message.chain import MessageChain
-from arclet.alconna.builtin.formatter import ArgParserHelpTextFormatter
+from arclet.alconna.builtin.formatter import ArgParserTextFormatter
 
 from graia.ariadne.message.element import At
 
@@ -56,7 +56,7 @@ pip = Alconna(
         Option("--trusted-host", Args["host_name":"url"], help_text="选择可信赖地址")
     ],
     help_text="简单的pip指令",
-    formatter=ArgParserHelpTextFormatter()
+    formatter=ArgParserTextFormatter()
 )
 print(pip.get_help())
 msg = "/pip install ces --upgrade -t 6 --trusted-host http://pypi.douban.com/simple"
@@ -87,7 +87,7 @@ weather = Alconna(
     headers=['渊白', 'cmd.', '/bot '],
     command="{city}天气",
     options=[
-        Option("时间")["days":str].separate('='),
+        Option("时间", "days:str").separate('='),
     ],
 )
 msg = MessageChain.create('渊白桂林天气 时间=明天')
@@ -129,9 +129,9 @@ print(result.div)
 
 ddd = Alconna(
     "点歌"
-).option(
+).add_option(
     "歌名", sep="：", args=Args(song_name=AnyStr)
-).option(
+).add_option(
     "歌手", sep="：", args=Args(singer_name=AnyStr)
 )
 msg = "点歌 歌名：Freejia"
@@ -206,6 +206,6 @@ sub = Alconna(
 print(sub.get_help())
 res = sub.parse("test_sub_main sub --subOption 123 a")
 print(res)
-print(res.sub.foo)
+print(res.query('sub.foo'))
 
 

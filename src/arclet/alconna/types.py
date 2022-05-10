@@ -115,6 +115,9 @@ class ArgPattern(Generic[T_Origin]):
     def __repr__(self):
         return self.pattern
 
+    def __hash__(self):
+        return hash(id(self))
+
     def __eq__(self, other):
         return isinstance(other, ArgPattern) and self.pattern == other.pattern and \
                self.origin_type == other.origin_type and self.alias == other.alias

@@ -68,7 +68,7 @@ print(alc4.parse("test_multi --foo ab --bar 1"))
 alc4.shortcut("st", "test_multi --foo ab --bar 1")
 result = alc4.parse("st")
 print(result)
-print(result.get_first_arg("foo"))
+print(result.query("foo"))
 
 alc5 = Alconna("test_anti", "path;A:int")
 print(alc5.parse("test_anti a"))
@@ -110,7 +110,7 @@ print(alc15.parse("my_string --foo 123 --bar"))
 
 alc16 = Alconna(
     "发涩图",
-    Args["min":r"(\d+)张", "?max":r"(\d+)张"] / "到",
+    Args["min":r"(\d+)张", "max;O":r"(\d+)张"] / "到",
     options=[Option("从", Args["tags;3":str] / "和")],
     action=lambda x, y: (int(x), int(y))
 )

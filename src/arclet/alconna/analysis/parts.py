@@ -74,7 +74,7 @@ def analyse_args(
                     if optional:
                         continue
                     if may_arg:
-                        raise ArgumentMissing(lang_config.args_error.format(target=may_arg))
+                        raise ParamsUnmatched(lang_config.args_error.format(target=may_arg))
                     raise ArgumentMissing(lang_config.args_missing.format(key=key))
                 arg_find = None if default is Empty else default
             option_dict[key] = arg_find

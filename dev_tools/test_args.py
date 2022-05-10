@@ -2,7 +2,7 @@ import time
 from typing import Union
 
 from arclet.alconna import Args
-from arclet.alconna.analysis import analyse_args
+from arclet.alconna.analysis.base import analyse_args
 
 print("\nArgs KVWord construct:")
 arg = Args(pak=str, upgrade=bool).default(upgrade=True)

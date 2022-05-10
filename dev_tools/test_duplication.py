@@ -1,6 +1,6 @@
 from arclet.alconna import Alconna, Args, Option, Subcommand
-from arclet.alconna.arpamar.duplication import AlconnaDuplication
-from arclet.alconna.arpamar.stub import ArgsStub, OptionStub, SubcommandStub
+from arclet.alconna.components.duplication import AlconnaDuplication
+from arclet.alconna.components.stub import ArgsStub, OptionStub, SubcommandStub
 
 
 class Demo(AlconnaDuplication):

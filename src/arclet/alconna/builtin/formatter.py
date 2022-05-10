@@ -126,9 +126,11 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         parts: List[dict] = trace.pop('sub_nodes')  # type: ignore
         sub_names = [i['name'] for i in parts if i['type'] == 'subcommand']
         opt_names = [i['name'] for i in parts if i['type'] == 'option']
-        sub_names = "" if not sub_names else [f" [{i}]" for i in sub_names] if len(sub_names) < 5 else " [COMMANDS]"
-        opt_names = "" if not opt_names else [f" [{i}]" for i in opt_names] if len(opt_names) < 6 else " [OPTIONS]"
-        topic = trace['name'].replace("ALCONNA::", "") + " " + sub_names + opt_names
+        sub_names = "" if not sub_names else " ".join(f"[{i}]" for i in sub_names) \
+            if len(sub_names) < 5 else " [COMMANDS]"
+        opt_names = "" if not opt_names else " ".join(f"[{i}]" for i in opt_names) \
+            if len(opt_names) < 6 else " [OPTIONS]"
+        topic = trace['name'].replace("ALCONNA::", "") + " " + sub_names + " " + opt_names
         header = self.header(trace)
         body = self.body(parts)  # type: ignore
         return topic + '\n' + header % body

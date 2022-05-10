@@ -60,7 +60,7 @@ def analyse_args(
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separator = ' '
+    _analyser.separators = {' '}
     _analyser.is_raise_exception = True
     try:
         _analyser.process_message(command)
@@ -77,7 +77,7 @@ def analyse_header(
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separator = sep
+    _analyser.separators = {sep}
     _analyser.is_raise_exception = True
     _analyser.process_message(command)
     _analyser.__init_header__(command_name, headers)
@@ -95,7 +95,7 @@ def analyse_option(
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separator = " "
+    _analyser.separators = {" "}
     _analyser.is_raise_exception = True
     try:
         _analyser.process_message(command)
@@ -110,7 +110,7 @@ def analyse_subcommand(
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separator = " "
+    _analyser.separators = {" "}
     _analyser.is_raise_exception = True
     try:
         _analyser.process_message(command)

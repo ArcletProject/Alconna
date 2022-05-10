@@ -135,7 +135,7 @@ class Arpamar:
     def __require__(
             self,
             parts: List[str]
-    ) -> Tuple[Optional[Union[Dict[str, Any], OptionResult, SubcommandResult]], str]:  # type: ignore
+    ) -> Tuple[Optional[Union[Dict[str, Any], OptionResult, SubcommandResult]], str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
         if len(parts) == 1:
             part = parts[0]
@@ -163,7 +163,7 @@ class Arpamar:
                 elif not (_c := _opts.get(_s.pop(0))):
                     return None, _p
             else:
-                _c = _opts[prefix]
+                _c = _opts[_p]
             if not _s:  # options.foo
                 return _c, ''
             _e = _s.pop(0)
@@ -191,6 +191,7 @@ class Arpamar:
                 raise RuntimeError(lang_config.arpamar_ambiguous_name.format(target=f"{prefix}.{end}"))
             if end == "options" or end in _cache['options']:
                 return _r_opt(end, parts, _cache['options'])
+        return None, prefix
 
     def query(self, path: str, default: Any = None) -> Union[Dict[str, Any], Any, None]:
         """根据path查询值"""
