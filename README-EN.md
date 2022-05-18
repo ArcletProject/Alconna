@@ -54,6 +54,29 @@ Output as follows:
 {'pak_name': 'cesloi', 'upgrade': Ellipsis}
 ```
 
+
+### With Simple Callback
+
+```python
+from arclet.alconna import Alconna, Option, Args
+from arclet.alconna.builtin.construct import ALCCommand
+
+def send_message(message: str, to: str = None):
+    print(f"sending {message} to {to}")
+
+command = ALCCommand(
+    Alconna("send_message", Args.message[str]) + Option("-t|--to", Args.to[str]),
+    send_message
+)
+
+command("send_message -t Alconna hello")
+```
+
+Output as follows:
+```
+sending hello to Alconna
+```
+
 ## Communication
 
 QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)

@@ -1,4 +1,3 @@
-import asyncio
 from asyncio import AbstractEventLoop
 import sys
 import re
@@ -12,6 +11,7 @@ from arclet.alconna.core import Alconna
 from arclet.alconna.base import Args, TAValue, ArgAction, Option, Subcommand, ArgFlag
 from arclet.alconna.util import split, split_once
 from arclet.alconna.lang import lang_config
+from arclet.alconna.manager import command_manager
 
 from .actions import store_value
 
@@ -24,7 +24,7 @@ def default_parser(
         local_arg: Optional[Dict[str, Any]],
         loop: Optional[AbstractEventLoop]
 ) -> Any:
-    return func(**{**args, **(local_arg or {})}, loop=loop)
+    return func(**{**args, **(local_arg or {})})
 
 
 class ALCCommand:
@@ -35,17 +35,14 @@ class ALCCommand:
     parser_func: PARSER_TYPE
     local_args: Dict[str, Any]
     exec_target: Callable
-    loop: AbstractEventLoop
 
     def __init__(
             self,
             command: Alconna,
-            target: Callable,
-            loop: AbstractEventLoop,
+            target: Callable
     ):
         self.command = command
         self.exec_target = target
-        self.loop = loop
         self.parser_func = default_parser
         self.local_args = {}
 
@@ -73,7 +70,12 @@ class ALCCommand:
             raise RuntimeError(lang_config.construct_decorate_error)
         result = self.command.parse(message)
         if result.matched:
-            self.parser_func(self.exec_target, result.all_matched_args, self.local_args, self.loop)
+            self.parser_func(
+                self.exec_target,
+                result.all_matched_args,
+                self.local_args,
+                command_manager.loop
+            )
 
     def from_commandline(self):
         """从命令行解析参数"""
@@ -112,16 +114,11 @@ class AlconnaDecorate:
         loop (AbstractEventLoop): 事件循环
     """
     namespace: str
-    loop: AbstractEventLoop
     building: bool
     __storage: Dict[str, Any]
     default_parser: PARSER_TYPE
 
-    def __init__(
-            self,
-            namespace: str = "Alconna",
-            loop: Optional[AbstractEventLoop] = None,
-    ):
+    def __init__(self, namespace: str = "Alconna", loop: Optional[AbstractEventLoop] = None):
         """
         初始化构造器
 
@@ -132,7 +129,8 @@ class AlconnaDecorate:
         self.namespace = namespace
         self.building = False
         self.__storage = {"options": []}
-        self.loop = loop or asyncio.new_event_loop()
+        if loop:
+            command_manager.loop = loop
         self.default_parser = default_parser
 
     def build_command(self, name: Optional[str] = None) -> Callable[[F], ALCCommand]:
@@ -157,7 +155,7 @@ class AlconnaDecorate:
                 help_text=help_string or command_name
             )
             self.building = False
-            return ALCCommand(command, self.__storage['func'], self.loop).set_parser(self.default_parser)
+            return ALCCommand(command, self.__storage['func']).set_parser(self.default_parser)
 
         return wrapper
 
@@ -789,4 +787,4 @@ AlconnaString = _from_string
 AlconnaFire = _from_object
 Argument = _argument
 
-__all__ = ["AlconnaFormat", "AlconnaString", "AlconnaFire", "Argument", "AlconnaDecorate", "delegate"]
+__all__ = ["AlconnaFormat", "AlconnaString", "AlconnaFire", "Argument", "AlconnaDecorate", "delegate", "ALCCommand"]

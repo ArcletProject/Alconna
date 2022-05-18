@@ -9,8 +9,7 @@ from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequen
 
 from .exceptions import InvalidParam, NullTextMessage
 from .typing import (
-    BasePattern, _All, Empty, DataUnit, AllParam, AnyOne, MultiArg, UnionArg, argument_type_validator,
-    PatternModel
+    BasePattern, _All, Empty, DataUnit, AllParam, AnyOne, MultiArg, UnionArg, argument_type_validator
 )
 from .lang import lang_config
 from .components.action import ArgAction

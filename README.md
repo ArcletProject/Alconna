@@ -36,6 +36,7 @@ pip install --upgrade arclet-alconna
 相关文档: [📚文档](https://graiax.cn/guide/alconna.html#alconna)
 
 ## 简单使用
+
 ```python
 from arclet.alconna import Alconna, Option, Subcommand, Args
 
@@ -53,6 +54,27 @@ print(result.get('install'))  # 或者 result.install
 其结果为
 ```
 {'pak_name': 'cesloi', 'upgrade': Ellipsis}
+```
+
+### 搭配响应函数
+
+```python
+from arclet.alconna import Alconna, Option, Args
+from arclet.alconna.builtin.construct import ALCCommand
+
+def send_message(message: str, to: str = None):
+    print(f"sending {message} to {to}")
+
+command = ALCCommand(
+    Alconna("send_message", Args.message[str]) + Option("-t|--to", Args.to[str]),
+    send_message
+)
+
+command("send_message -t Alconna hello")
+```
+输出为
+```
+sending hello to Alconna
 ```
 
 ## 讨论
