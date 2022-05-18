@@ -2,7 +2,7 @@ from typing import Union, Dict
 
 from arclet.alconna import compile
 from arclet.alconna.builtin.construct import AlconnaString, AlconnaFormat
-from arclet.alconna.types import UnionArg, pattern_gen
+from arclet.alconna.typing import UnionArg, pattern_gen
 from arclet.alconna import Alconna, Args, Option
 from arclet.alconna import command_manager
 from graia.ariadne.message.element import At

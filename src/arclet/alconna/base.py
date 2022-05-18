@@ -2,20 +2,21 @@
 
 import re
 import inspect
+from copy import copy
 from enum import Enum
-from typing import Union, Tuple, Type, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, \
+from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, \
     MutableSequence, TypedDict, Set
 
 from .exceptions import InvalidParam, NullTextMessage
-from .types import (
-    ArgPattern,
-    _AnyParam, Empty, DataUnit, AllParam, AnyParam, MultiArg, AntiArg, UnionArg, argument_type_validator, TypePattern
+from .typing import (
+    BasePattern, _All, Empty, DataUnit, AllParam, AnyOne, MultiArg, UnionArg, argument_type_validator,
+    PatternModel
 )
 from .lang import lang_config
 from .components.action import ArgAction
 
 
-TAValue = Union[ArgPattern, TypePattern, Type[DataUnit], _AnyParam]
+TAValue = Union[BasePattern, _All, type]
 TADefault = Union[Any, DataUnit, Empty]
 
 
@@ -129,12 +130,12 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
             default = arg[2].strip(" ") if _le > 2 else None
             value = AllParam if arg[0].startswith("...") else (
-                AnyParam if arg[0].startswith("..") else (
+                AnyOne if arg[0].startswith("..") else (
                     arg[1].strip(" ") if _le > 1 else arg[0].lstrip(".-"))
             )
             name = arg[0].replace("...", "").replace("..", "")
 
-            if not isinstance(value, AnyParam.__class__):
+            if value not in (AllParam, AnyOne):
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
                     raise InvalidParam(lang_config.common_custom_type_error.format(target=custom_types[value]))
                 try:
@@ -170,7 +171,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             anno = param.annotation
             de = param.default
             if anno == inspect.Signature.empty:
-                anno = type(de) if de not in (inspect.Signature.empty, None) else AnyParam
+                anno = type(de) if de not in (inspect.Signature.empty, None) else AnyOne
             if de is inspect.Signature.empty:
                 de = None
             elif de is None:
@@ -274,31 +275,32 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             _limit = False
             for flag in flags:
                 if flag == ArgFlag.FORCE and not _limit:
-                    _value = value if not isinstance(value, str) else ArgPattern(value)
+                    _value = BasePattern.of(value) if not isinstance(value, str) else BasePattern(value)
                     _limit = True
                 if flag == ArgFlag.ANTI and not _limit:
                     if isinstance(_value, UnionArg):
-                        _value.anti = True
-                    elif not isinstance(_value, _AnyParam):
-                        _value = AntiArg(_value)
+                        _value.reverse()
+                    elif _value not in (AnyOne, AllParam):
+                        _value = copy(_value)
+                        _value.reverse()
                     _limit = True
                 if flag == ArgFlag.VAR_KEYWORD and not _limit:
                     if self.var_keyword:
                         raise InvalidParam(lang_config.args_duplicate_kwargs)
-                    if not isinstance(_value, (_AnyParam, UnionArg)):
+                    if _value not in (AnyOne, AllParam):
                         _value = MultiArg(_value, flag='kwargs')
                         self.var_keyword = (name, _value)
                     _limit = True
                 if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                     if self.var_positional:
                         raise InvalidParam(lang_config.args_duplicate_varargs)
-                    if not isinstance(_value, (_AnyParam, UnionArg)):
+                    if _value not in (AnyOne, AllParam):
                         _value = MultiArg(_value)
                         self.var_positional = (name, _value)
                 if flag.isdigit() and not _limit:
                     if self.var_positional:
                         raise InvalidParam(lang_config.args_duplicate_varargs)
-                    if not isinstance(_value, (_AnyParam, UnionArg)):
+                    if _value not in (AnyOne, AllParam):
                         _value = MultiArg(_value, array_length=int(flag))
                         self.var_positional = (name, _value)
                 if flag == ArgFlag.OPTIONAL:

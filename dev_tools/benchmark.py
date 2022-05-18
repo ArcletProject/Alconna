@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Arpamar, Args, AnyParam, compile, command_manager
+from arclet.alconna import Alconna, Arpamar, Args, AnyOne, compile, command_manager
 import cProfile
 import pstats
 
@@ -23,7 +23,7 @@ class At:
 ping = Alconna(
     headers=["."],
     command="test",
-    main_args=Args["bar":AnyParam]
+    main_args=Args["bar":AnyOne]
 )
 s_ping = compile(ping)
 

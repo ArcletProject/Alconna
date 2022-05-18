@@ -1,8 +1,6 @@
-from typing import Union
+from typing import Union, Any
 
 from arclet.alconna import Alconna, Args, AlconnaString, Subcommand, Option
-from arclet.alconna.arpamar import Arpamar
-from arclet.alconna.types import AnyIP, AnyDigit, AnyStr, AnyParam
 from graia.ariadne.message.chain import MessageChain
 from arclet.alconna.builtin.formatter import ArgParserTextFormatter
 
@@ -28,7 +26,7 @@ ping = Alconna(
         Option("-n|--num", Args["count":int:123], help_text="输入数字"),
         Option("-u", Args(At=At), help_text="输入需要At的用户")
     ],
-    main_args=Args(IP=AnyIP),
+    main_args=Args["IP":"ip"],
     help_text="简单的ping指令"
 )
 print(ping.get_help())
@@ -111,12 +109,12 @@ ddd = Alconna(
             options=[
                 Option(
                     "--round| -r",
-                    args=Args(decimal=AnyDigit),
+                    args=Args(decimal=int),
                     action=lambda x: x + "a",
                     help_text="保留n位小数"
                 )
             ],
-            args=Args(num_a=AnyDigit, num_b=AnyDigit),
+            args=Args(num_a=int, num_b=int),
             help_text="除法计算"
         )
     ],
@@ -130,9 +128,9 @@ print(result.div)
 ddd = Alconna(
     "点歌"
 ).add_option(
-    "歌名", sep="：", args=Args(song_name=AnyStr)
+    "歌名", sep="：", args=Args(song_name=str)
 ).add_option(
-    "歌手", sep="：", args=Args(singer_name=AnyStr)
+    "歌手", sep="：", args=Args(singer_name=str)
 )
 msg = "点歌 歌名：Freejia"
 print(msg)
@@ -152,7 +150,7 @@ def test_act(content):
 wild = Alconna(
     headers=[At(12345)],
     command="丢漂流瓶",
-    main_args=Args["wild":AnyParam],
+    main_args=Args["wild":Any],
     action=test_act,
     help_text="丢漂流瓶"
 )

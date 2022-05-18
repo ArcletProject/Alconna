@@ -2,9 +2,8 @@ from typing import TYPE_CHECKING, Union, Callable, Optional, List, Any, Tuple
 import traceback
 
 from .analyser import Analyser
-from .arg_handlers import multi_arg_handler, anti_arg_handler, common_arg_handler
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
-from ..types import DataCollection, MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, MappingArg
+from ..typing import DataCollection
 from ..base import Args, Option, Subcommand
 
 if TYPE_CHECKING:
@@ -24,7 +23,7 @@ def compile(alconna: "Alconna", params_generator: Optional[Callable[[Analyser], 
 def analyse(alconna: "Alconna", command: Union[str, DataCollection]) -> "Arpamar":
     ana = compile(alconna)
     ana.process_message(command)
-    return ana.analyse()
+    return ana.analyse().execute()
 
 
 class AnalyseError(Exception):
@@ -39,13 +38,6 @@ class _DummyAnalyser(Analyser):
 
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore
-        cls.add_arg_handler(MultiArg, multi_arg_handler)
-        cls.add_arg_handler(ArgPattern, common_arg_handler)
-        cls.add_arg_handler(AntiArg, anti_arg_handler)
-        cls.add_arg_handler(UnionArg, common_arg_handler)
-        cls.add_arg_handler(ObjectPattern, common_arg_handler)
-        cls.add_arg_handler(SequenceArg, common_arg_handler)
-        cls.add_arg_handler(MappingArg, common_arg_handler)
         cls.command_params = {}
         cls.param_ids = []
         return super().__new__(cls)

@@ -1,12 +1,14 @@
 """Alconna 负责记录命令的部分"""
 
 import asyncio
+import weakref
+from datetime import datetime
 from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
 import shelve
 
 from .exceptions import DuplicateCommand, ExceedMaxCount
 from .util import Singleton, LruCache
-from .types import DataCollection
+from .typing import DataCollection
 from .lang import lang_config
 
 if TYPE_CHECKING:
@@ -21,6 +23,7 @@ class CommandManager(metaclass=Singleton):
 
     命令管理器负责记录命令, 并存储快捷指令。
     """
+
     sign: str
     default_namespace: str
     current_count: int
@@ -43,12 +46,17 @@ class CommandManager(metaclass=Singleton):
         self.__abandons = []
         self.__shortcuts = LruCache()
         self.__record = LruCache(100)
+        weakref.finalize(self, self.__del__)
 
     def __del__(self):  # td: save to file
-        self.__commands.clear()
-        self.__abandons.clear()
-        self.__record.clear()
-        self.__shortcuts.clear()
+        try:
+            self.__commands.clear()
+            self.__abandons.clear()
+            self.__record.clear()
+            self.__shortcuts.clear()
+            Singleton.remove(self.__class__)
+        except AttributeError:
+            pass
 
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """设置事件循环"""
@@ -324,6 +332,17 @@ class CommandManager(metaclass=Singleton):
     def reuse(self, index: int = -1):
         key = list(self.__record.cache.keys())[index]
         return self.__record.get(key)[1]
+
+    def __repr__(self):
+        return f"Current: {hex(id(self))} in {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}\n" + \
+               "Commands:\n" + \
+               f"[{', '.join(map(lambda x: x.path, self.get_commands()))}]" + \
+               "\nShortcuts:\n" + \
+               "\n".join(f" {k} => {v}" for k, v in self.__shortcuts.items()) + \
+               "\nRecords:\n" + \
+               "\n".join(f" [{k}]: {v[1][1].origin}" for k, v in enumerate(self.__record.items(20))) + \
+               "\nDisabled Commands:\n" + \
+               f"[{', '.join(map(lambda x: x.path, self.__abandons))}]"
 
 
 command_manager = CommandManager()

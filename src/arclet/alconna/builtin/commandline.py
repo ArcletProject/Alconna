@@ -4,12 +4,12 @@ import re
 import json
 
 from arclet.alconna import Alconna, Args, Arpamar, Option, AllParam, command_manager, alconna_version
-from arclet.alconna.types import ArgPattern, PatternToken, AnyIP, AnyUrl, Email, Bool, AnyDigit, AnyFloat
+from arclet.alconna.typing import PatternModel, BasePattern, pattern_map
 from arclet.alconna import lang_config
 
-args_type = ArgPattern(
+args_type = BasePattern(
     r"(\[.+])*",
-    token=PatternToken.REGEX_TRANSFORM,
+    model=PatternModel.REGEX_CONVERT,
     origin_type=list,
     converter=lambda x: [re.split("[:|=]", p) for p in re.findall(r"\[(.*?)]", x)]
 )
@@ -194,17 +194,17 @@ class CommandLine:
                         if command_parts[i].startswith("--"):
                             break
                         _arg_key = f"{part[2:]}_arg_{_arg_index}"
-                        if AnyDigit.match(command_parts[i]):
+                        if pattern_map[int].match(command_parts[i]):
                             command_parts[i] += "%int"
-                        elif AnyFloat.match(command_parts[i]):
+                        elif pattern_map[float].match(command_parts[i]):
                             command_parts[i] += "%float"
-                        elif Bool.match(command_parts[i]):
+                        elif pattern_map[bool].match(command_parts[i]):
                             command_parts[i] += "%bool"
-                        elif AnyIP.match(command_parts[i]):
+                        elif pattern_map['ip'].match(command_parts[i]):
                             command_parts[i] += "%\"ip\""
-                        elif AnyUrl.match(command_parts[i]):
+                        elif pattern_map['url'].match(command_parts[i]):
                             command_parts[i] += "%\"url\""
-                        elif Email.match(command_parts[i]):
+                        elif pattern_map['email'].match(command_parts[i]):
                             command_parts[i] += "%\"email\""
                         else:
                             command_parts[i] += "%str"

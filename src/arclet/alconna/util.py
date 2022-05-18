@@ -1,4 +1,5 @@
 """杂物堆"""
+import contextlib
 import random
 import functools
 import warnings
@@ -7,7 +8,8 @@ import logging
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from inspect import stack
-from typing import Callable, TypeVar, Optional, Dict, Any, List, Iterator, Generic, Hashable, Tuple, Set, Union
+from typing import Callable, TypeVar, Optional, Dict, Any, List, Iterator, Generic, Hashable, Tuple, Set, Union, \
+    get_origin, get_args
 
 R = TypeVar('R')
 
@@ -20,6 +22,10 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+    @classmethod
+    def remove(mcs, cls):
+        mcs._instances.pop(cls, None)
 
 
 def get_module_name() -> Optional[str]:
@@ -232,3 +238,38 @@ class LruCache(Generic[_K, _V]):
             except KeyError:
                 return None
         return None
+
+    def items(self, size: int = -1) -> Iterator[Tuple[_K, _V]]:
+        if size == -1:
+            return iter(self.cache.items())
+        try:
+            return iter(list(self.cache.items())[:size])
+        except IndexError:
+            return iter(self.cache.items())
+
+
+def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> bool:
+    """检查 obj 是否是 args 中的一个类型, 支持泛型, Any, Union
+
+    Args:
+        obj (Any): 要检查的对象
+        par (Union[type, Any, Tuple[type, ...]]): 要检查的对象的类型
+
+    Returns:
+        bool: 是否是类型
+    """
+    if par is Any:
+        return True
+    with contextlib.suppress(TypeError):
+        if isinstance(par, (type, tuple)):
+            return isinstance(obj, par)
+        if get_origin(par) in (tuple, list, set, frozenset, dict):
+            return isinstance(obj, par)
+        if get_origin(par) is Union:
+            return any(generic_isinstance(obj, p) for p in get_args(par))
+        if isinstance(par, TypeVar):
+            if par.__constraints__:
+                return any(generic_isinstance(obj, p) for p in par.__constraints__)
+            if par.__bound__:
+                return generic_isinstance(obj, par.__bound__)
+    return False

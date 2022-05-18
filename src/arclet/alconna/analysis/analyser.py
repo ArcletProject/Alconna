@@ -1,7 +1,7 @@
 import re
 import traceback
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Type, Callable, Pattern, Generic, TypeVar, \
+from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Pattern, Generic, TypeVar, \
     Set
 
 from ..manager import command_manager
@@ -9,7 +9,7 @@ from ..exceptions import NullTextMessage
 from ..base import Args, Option, Subcommand
 from ..arpamar import Arpamar
 from ..util import split_once, split
-from ..types import DataUnit, DataCollection, pattern_map
+from ..typing import DataUnit, DataCollection, pattern_map
 from ..lang import lang_config
 
 if TYPE_CHECKING:
@@ -30,12 +30,12 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     alconna: 'Alconna'  # Alconna实例
     current_index: int  # 当前数据的index
     content_index: int  # 内部index
-    is_str: bool  # 是否是字符串
+    is_str: bool  # 是否是字符串  # TODO
     # raw_data: Dict[int, Union[List[str], Any]]  # 原始数据
     raw_data: List[Union[Any, List[str]]]  # 原始数据
     ndata: int  # 原始数据的长度
-    command_params: Dict[str, Union[Option, Subcommand]]  # 参数
-    param_ids: List[str]
+    command_params: Dict[str, Union[Option, Subcommand]]  # 参数  # TODO
+    param_ids: List[str]  # TODO
     # 命令头部
     command_header: Union[
         Pattern,
@@ -43,7 +43,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         List[Tuple[Any, Pattern]]
     ]
     separators: Set[str]  # 分隔符
-    is_raise_exception: bool  # 是否抛出异常
+    is_raise_exception: bool  # 是否抛出异常  # TODO
     options: Dict[str, Any]  # 存放解析到的所有选项
     subcommands: Dict[str, Any]  # 存放解析到的所有子命令
     main_args: Dict[str, Any]  # 主参数
@@ -53,37 +53,19 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     part_len: range  # 分段长度
     default_main_only: bool  # 默认只有主参数
     self_args: Args  # 自身参数
-    ARGHANDLER_TYPE = Callable[["Analyser", Any, str, Type, Any, int, Set[str], Dict[str, Any], bool], Any]
-    arg_handlers: Dict[Type, ARGHANDLER_TYPE]
-    filter_out: List[str]  # 元素黑名单
+    filter_out: List[str]  # 元素黑名单  # TODO
     temporary_data: Dict[str, Any]  # 临时数据
     origin_data: T_Origin  # 原始数据
     temp_token: int  # 临时token
     used_tokens: Set[int]  # 已使用的token
 
     def __init_subclass__(cls, **kwargs):
-        cls.arg_handlers = {}
-        for base in reversed(cls.__bases__):
-            if issubclass(base, Analyser):
-                cls.arg_handlers.update(getattr(base, "arg_handlers", {}))
         if not hasattr(cls, "filter_out"):
             raise TypeError(lang_config.analyser_filter_missing)
 
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]], hs=hash) -> int:
-        return hs(str(data))
-
-    @classmethod
-    def add_arg_handler(cls, arg_type: Type, handler: Optional[ARGHANDLER_TYPE] = None):
-        if handler:
-            cls.arg_handlers[arg_type] = handler
-            return handler
-
-        def __wrapper(func):
-            cls.arg_handlers[arg_type] = func
-            return func
-
-        return __wrapper
+        return hs(repr(data))
 
     def __init__(self, alconna: "Alconna"):
         self.reset()

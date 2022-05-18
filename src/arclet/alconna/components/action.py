@@ -2,7 +2,7 @@ import inspect
 from types import LambdaType
 from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING, Union
 
-from ..types import _AnyParam, argument_type_validator
+from ..typing import AnyOne, AllParam, argument_type_validator
 from ..lang import lang_config
 from ..exceptions import InvalidParam
 from ..manager import command_manager
@@ -95,7 +95,7 @@ class ArgAction:
                 if anno == inspect.Signature.empty:
                     anno = type(argument[i][2]) if argument[i][2] is not inspect.Signature.empty else str
                 value = args.argument[k]['value']
-                if isinstance(value, _AnyParam):
+                if value in (AnyOne, AllParam):
                     continue
                 if value != argument_type_validator(anno, args.extra):
                     raise InvalidParam(lang_config.action_args_error.format(
@@ -115,8 +115,10 @@ class ActionHandler(ArpamarBehavior):
             var_key = None
             if '__kwargs__' in result_dict:
                 kwargs, kw_key = result_dict.pop('__kwargs__')
+                result_dict.pop(kw_key)
             if '__varargs__' in result_dict:
                 varargs, var_key = result_dict.pop('__varargs__')
+                result_dict.pop(var_key)
             if kwargs:
                 addition_kwargs = interface.source.local_args.copy()
                 addition_kwargs.update(kwargs)

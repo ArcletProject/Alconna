@@ -2,14 +2,10 @@ from typing import Union
 
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.arpamar import Arpamar
-from arclet.alconna.types import MultiArg, ArgPattern, AntiArg, UnionArg, ObjectPattern, SequenceArg, \
-    MappingArg, DataCollection
+from arclet.alconna.typing import DataCollection
 from arclet.alconna.components.visitor import AlconnaNodeVisitor
 from arclet.alconna.analysis.analyser import Analyser
 from arclet.alconna.manager import command_manager
-from arclet.alconna.analysis.arg_handlers import (
-    multi_arg_handler, common_arg_handler, anti_arg_handler
-)
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from arclet.alconna.util import levenshtein_norm, split_once
@@ -154,12 +150,3 @@ class DefaultCommandAnalyser(Analyser):
         if self.is_raise_exception:
             raise exc
         return self.export(fail=True, exception=exc)
-
-
-DefaultCommandAnalyser.add_arg_handler(MultiArg, multi_arg_handler)
-DefaultCommandAnalyser.add_arg_handler(AntiArg, anti_arg_handler)
-DefaultCommandAnalyser.add_arg_handler(UnionArg, common_arg_handler)
-DefaultCommandAnalyser.add_arg_handler(ArgPattern, common_arg_handler)
-DefaultCommandAnalyser.add_arg_handler(ObjectPattern, common_arg_handler)
-DefaultCommandAnalyser.add_arg_handler(SequenceArg, common_arg_handler)
-DefaultCommandAnalyser.add_arg_handler(MappingArg, common_arg_handler)

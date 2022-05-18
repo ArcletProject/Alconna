@@ -1,5 +1,5 @@
 from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple
-from .types import DataCollection
+from .typing import DataCollection
 from .lang import lang_config
 from .base import SubcommandResult, OptionResult
 from .exceptions import BehaveCancelled

@@ -1,13 +1,88 @@
 import re
-from typing import Iterable, Union, List, Any, Dict, Pattern, Tuple
+from typing import Iterable, Union, List, Any, Dict, Pattern, Tuple, Set
 
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
-from ..types import AnyParam, AllParam, Empty, TypePattern
+from ..typing import AllParam, Empty, DataUnit, MultiArg, BasePattern
 from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
 from ..util import levenshtein_norm, split_once
 from ..manager import command_manager
 from ..lang import lang_config
+
+
+def multi_arg_handler(
+    analyser: Analyser,
+    may_arg: Union[str, DataUnit],
+    key: str,
+    value: MultiArg,
+    default: Any,
+    nargs: int,
+    seps: Set[str],
+    result_dict: Dict[str, Any]
+):
+    # 当前args 已经解析 m 个参数， 总共需要 n 个参数，总共剩余p个参数，
+    # q = n - m 为剩余需要参数（包括自己）， p - q + 1 为自己可能需要的参数个数
+    _m_rest_arg = nargs - len(result_dict) - 1
+    _m_all_args_count = analyser.rest_count(seps) - _m_rest_arg + 1
+    if value.array_length:
+        _m_all_args_count = min(_m_all_args_count, value.array_length)
+    analyser.reduce_data(may_arg)
+    if value.flag == 'args':
+        result = []
+        for i in range(_m_all_args_count):
+            _m_arg, _m_str = analyser.next_data(seps)
+            if _m_str and _m_arg in analyser.param_ids:
+                analyser.reduce_data(_m_arg)
+                for ii in range(min(len(result), _m_rest_arg)):
+                    analyser.reduce_data(result.pop(-1))
+                break
+            try:
+                result.append(value.match(_m_arg))
+            except ParamsUnmatched:
+                analyser.reduce_data(_m_arg)
+                break
+        if len(result) == 0:
+            result = [default] if default else []
+        result_dict[key] = tuple(result)
+    else:
+        result = {}
+
+        def __putback(data):
+            analyser.reduce_data(data)
+            for j in range(min(len(result), _m_rest_arg)):
+                arg = result.popitem()  # type: ignore
+                analyser.reduce_data(arg[0] + '=' + arg[1])
+
+        for i in range(_m_all_args_count):
+            _m_arg, _m_str = analyser.next_data(seps)
+            if not _m_str:
+                analyser.reduce_data(_m_arg)
+                break
+            if _m_str and _m_arg in analyser.command_params:
+                __putback(_m_arg)
+                break
+            if _kwarg := re.match(r'^([^=]+)=([^=]+?)$', _m_arg):
+                _key = _kwarg.group(1)
+                _m_arg = _kwarg.group(2)
+                try:
+                    result[_key] = value.match(_m_arg)
+                except ParamsUnmatched:
+                    analyser.reduce_data(_m_arg)
+                    break
+            elif _kwarg := re.match(r'^([^=]+)=\s?$', _m_arg):
+                _key = _kwarg.group(1)
+                _m_arg, _m_str = analyser.next_data(seps)
+                try:
+                    result[_key] = value.match(_m_arg)
+                except ParamsUnmatched:
+                    __putback(_m_arg)
+                    break
+            else:
+                analyser.reduce_data(_m_arg)
+                break
+        if len(result) == 0:
+            result = [default] if default else []
+        result_dict[key] = result
 
 
 def analyse_args(
@@ -34,6 +109,13 @@ def analyse_args(
         kwonly = arg['kwonly']
         optional = arg['optional']
         may_arg, _str = analyser.next_data(seps)
+        if not may_arg:
+            if default is None:
+                if optional:
+                    continue
+                raise ArgumentMissing(lang_config.args_missing.format(key=key))
+            option_dict[key] = None if default is Empty else default
+            continue
         if kwonly:
             _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
             if not _kwarg:
@@ -62,25 +144,18 @@ def analyse_args(
                 raise ArgumentMissing(lang_config.args_missing.format(key=key))
             else:
                 option_dict[key] = None if default is Empty else default
-        elif value.__class__ in analyser.arg_handlers:
-            analyser.arg_handlers[value.__class__](
-                analyser, may_arg, key, value, default, nargs, seps, option_dict, optional
-            )
-        elif value.__class__ is TypePattern: 
-            arg_find = value.match(may_arg)  # type: ignore
-            if arg_find is None:
-                analyser.reduce_data(may_arg)
-                if default is None:
+        elif isinstance(value, BasePattern):
+            if value.__class__ is MultiArg:
+                multi_arg_handler(analyser, may_arg, key, value, default, nargs, seps, option_dict)  # type: ignore
+            else:
+                res, state = value.validate(may_arg, default)
+                if state != "V":
+                    analyser.reduce_data(may_arg)
+                if state == "E":
                     if optional:
                         continue
-                    if may_arg:
-                        raise ParamsUnmatched(lang_config.args_error.format(target=may_arg))
-                    raise ArgumentMissing(lang_config.args_missing.format(key=key))
-                arg_find = None if default is Empty else default
-            option_dict[key] = arg_find
-        elif value is AnyParam:
-            if may_arg:
-                option_dict[key] = may_arg
+                    raise res
+                option_dict[key] = res
         elif value is AllParam:
             rest_data = analyser.recover_raw_data()
             if not rest_data:
@@ -91,28 +166,13 @@ def analyse_args(
                 rest_data.insert(0, may_arg)
             option_dict[key] = rest_data
             return option_dict
-        else:
-            if may_arg.__class__ is value:
-                option_dict[key] = may_arg
-            elif isinstance(value, type) and isinstance(may_arg, value):
-                option_dict[key] = may_arg
-            elif default is not None:
-                option_dict[key] = None if default is Empty else default
-                analyser.reduce_data(may_arg)
-            else:
-                analyser.reduce_data(may_arg)
-                if optional:
-                    continue
-                if may_arg:
-                    raise ParamsUnmatched(lang_config.args_type_error.format(target=may_arg.__class__))
-                raise ArgumentMissing(lang_config.args_missing.format(key=key))
     if opt_args.var_keyword:
-        kwargs = option_dict.pop(opt_args.var_keyword[0])
+        kwargs = option_dict[opt_args.var_keyword[0]]
         if not isinstance(kwargs, dict):
             kwargs = {opt_args.var_keyword[0]: kwargs}
         option_dict['__kwargs__'] = (kwargs, opt_args.var_keyword[0])
     if opt_args.var_positional:
-        varargs = option_dict.pop(opt_args.var_positional[0])
+        varargs = option_dict[opt_args.var_positional[0]]
         if not isinstance(varargs, Iterable):
             varargs = [varargs]
         elif not isinstance(varargs, list):
@@ -265,7 +325,7 @@ def analyse_header(
                 analyser.head_matched = False
                 raise ParamsUnmatched(lang_config.header_error.format(target=head_text))
             for ht in headers_text:
-                if levenshtein_norm(source, ht) >= 0.6:
+                if levenshtein_norm(source, ht) >= 0.6:  # TODO
                     analyser.head_matched = True
                     raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(target=source, source=ht))
         raise ParamsUnmatched(lang_config.header_error.format(target=head_text))

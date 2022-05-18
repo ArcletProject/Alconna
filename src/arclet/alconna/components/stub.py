@@ -2,7 +2,7 @@ from inspect import isclass
 from typing import Dict, Any, List, TypeVar, Union, Type, Generic
 from abc import ABCMeta, abstractmethod
 
-from ..types import ArgPattern, _AnyParam
+from ..typing import BasePattern, AllParam
 from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
 from ..lang import lang_config
 
@@ -47,9 +47,9 @@ class ArgsStub(BaseStub[Args]):
         self._origin = args
         self.value = {}
         for key, value in args.argument.items():
-            if isinstance(value['value'], _AnyParam):
+            if value['value'] is AllParam:
                 self.__annotations__[key] = Any
-            elif isinstance(value['value'], ArgPattern):
+            elif isinstance(value['value'], BasePattern):
                 self.__annotations__[key] = value['value'].origin_type
             else:
                 self.__annotations__[key] = value['value']

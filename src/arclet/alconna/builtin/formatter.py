@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Union, Set
 import re
 
-from arclet.alconna.types import Empty, ArgPattern, _AnyParam, TypePattern
+from arclet.alconna.typing import Empty, BasePattern, AllParam
 from arclet.alconna.components.output import AbstractTextFormatter
 
 
@@ -19,9 +19,9 @@ class DefaultTextFormatter(AbstractTextFormatter):
         arg = ("<" if not parameter['optional'] else "[") + parameter['name']
         _sep = "=" if parameter['kwonly'] else ":"
         if not parameter['hidden']:
-            if isinstance(parameter['value'], _AnyParam):
+            if parameter['value'] is AllParam:
                 arg += f"{_sep}WildMatch"
-            elif isinstance(parameter['value'], (ArgPattern, TypePattern)):
+            elif isinstance(parameter['value'], BasePattern):
                 arg += f"{_sep}{parameter['value'].alias or parameter['value'].origin_type.__name__}"
             else:
                 try:
@@ -57,18 +57,10 @@ class DefaultTextFormatter(AbstractTextFormatter):
             example = ""
         headers = root['additional_info'].get('headers')
         command = root['additional_info'].get('command')
-        headers_text = []
-        if headers and headers != [""]:
-            for i in headers:
-                if isinstance(i, str):
-                    headers_text.append(i + command)
-                else:
-                    headers_text.extend((f"{i}", command))
-        elif command:
-            headers_text.append(command)
+        headers = f"{'|'.join(f'{v}' for v in headers)}" if headers != [''] else ""
+        cmd = f"{headers}{command}"
         sep = root['separators'].copy().pop()
-        command_string = f"{'|'.join(headers_text)}{sep}" \
-            if headers_text else root['name'] + sep
+        command_string = cmd or (root['name'] + sep)
         return (
             f"{command_string}{self.parameters(root['parameters'], root['param_separators'])}"
             f"{help_string}{usage}\n%s{example}"
@@ -140,9 +132,9 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         arg = f"{parameter['name'].upper()}" if not parameter['optional'] else f"[{parameter['name'].upper()}"
         _sep = "=(%s)" if parameter['kwonly'] else "(%s)"
         if not parameter['hidden']:
-            if isinstance(parameter['value'], _AnyParam):
-                arg += _sep % "Any"
-            elif isinstance(parameter['value'], (ArgPattern, TypePattern)):
+            if parameter['value'] is AllParam:
+                arg += _sep % "Wildcard"
+            elif isinstance(parameter['value'], BasePattern):
                 arg += _sep % f"{parameter['value'].alias or parameter['value'].origin_type.__name__}"
             else:
                 try:
@@ -178,18 +170,10 @@ class ArgParserTextFormatter(AbstractTextFormatter):
             example = ""
         headers = root['additional_info'].get('headers')
         command = root['additional_info'].get('command')
-        headers_text = []
-        if headers and headers != [""]:
-            for i in headers:
-                if isinstance(i, str):
-                    headers_text.append(i + command)
-                else:
-                    headers_text.extend((f"{i}", command))
-        elif command:
-            headers_text.append(command)
+        header_text = f"[{'|'.join(f'{v}' for v in headers)}]" if headers != [''] else ""
+        cmd = f"{header_text}{command}"
         sep = root['separators'].copy().pop()
-        command_string = f"{'|'.join(headers_text)}{sep}" \
-            if headers_text else root['name'] + sep
+        command_string = cmd or (root['name'] + sep)
         return (
             f"\n命令: {command_string}{help_string}{usage}"
             f"{self.parameters(root['parameters'], root['param_separators'])}\n%s{example}"
