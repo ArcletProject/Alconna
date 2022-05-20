@@ -278,14 +278,13 @@ def _from_format(
                         main_args.__merge__(value)
                     elif not isinstance(value, Option) and not isinstance(value, List):
                         main_args.__merge__(Args(**{key: value}))
+                elif isinstance(value, Option):
+                    options.append(value)
+                elif isinstance(value, Args):
+                    options[-1].args = value
                 else:
-                    if isinstance(value, Option):
-                        options.append(value)
-                    elif isinstance(value, Args):
-                        options[-1].args = value
-                    else:
-                        options[-1].args.argument.update({key: value})
-                        options[-1].nargs += 1
+                    options[-1].args.argument.update({key: value})
+                    options[-1].nargs += 1
         except KeyError:
             may_parts = re.split(r"[:=]", key.replace(" ", ''))
             if len(may_parts) == 1:
@@ -300,8 +299,7 @@ def _from_format(
                     options.append(Option(_string_stack.pop(-1), _arg))
             else:
                 main_args.__merge__(_arg)
-    alc = Alconna(command=command, options=options, main_args=main_args)
-    return alc
+    return Alconna(command=command, options=options, main_args=main_args)
 
 
 # ----------------------------------------
@@ -373,17 +371,7 @@ config_key = Literal["headers", "raise_exception", "description", "get_subcomman
 
 def visit_config(obj: Any, config_keys: Iterable[str]):
     result = {}
-    if not isinstance(obj, (FunctionType, MethodType)):
-        config = inspect.getmembers(
-            obj, predicate=lambda x: inspect.isclass(x) and x.__name__.endswith("Config")
-        )
-        if config:
-            config = config[0][1]
-            configs = list(filter(lambda x: not x.startswith("_"), dir(config)))
-            for key in config_keys:
-                if key in configs:
-                    result[key] = getattr(config, key)
-    else:
+    if isinstance(obj, (FunctionType, MethodType)):
         codes, _ = inspect.getsourcelines(obj)
         _get_config = False
         _start_indent = 0
@@ -401,6 +389,16 @@ def visit_config(obj: Any, config_keys: Iterable[str]):
                 _contents = re.split(r"\s*=\s*", line.strip())
                 if len(_contents) == 2 and _contents[0] in config_keys:
                     result[_contents[0]] = eval(_contents[1])
+    elif config := inspect.getmembers(
+        obj,
+        predicate=lambda x: inspect.isclass(x)
+        and x.__name__.endswith("Config"),
+    ):
+        config = config[0][1]
+        configs = list(filter(lambda x: not x.startswith("_"), dir(config)))
+        for key in config_keys:
+            if key in configs:
+                result[key] = getattr(config, key)
     return result
 
 
@@ -648,7 +646,7 @@ class ModuleMounter(AlconnaMounter):
     def _parse_action(self, message):
         if self.command.startswith("_"):
             if isinstance(message, str):
-                message = self.command + " " + message
+                message = f"{self.command} {message}"
             else:
                 message.inject(0, self.command)
         return message
@@ -734,11 +732,10 @@ def _from_object(
         r = ClassMounter(target, config)
     elif inspect.ismodule(target):
         r = ModuleMounter(target, config)
+    elif target:
+        r = ObjectMounter(target, config)
     else:
-        if target:
-            r = ObjectMounter(target, config)
-        else:
-            r = ModuleMounter(inspect.getmodule(inspect.stack()[1][0]) or sys.modules["__main__"], config)
+        r = ModuleMounter(inspect.getmodule(inspect.stack()[1][0]) or sys.modules["__main__"], config)
     command = command or (" ".join(sys.argv[1:]) if len(sys.argv) > 1 else None)
     if command:
         r.parse(command)

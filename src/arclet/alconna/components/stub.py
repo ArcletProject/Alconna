@@ -32,8 +32,13 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
         """
 
     def __repr__(self):
-        return "{" + ", ".join(
-            "{}={}".format(k, v) for k, v in vars(self).items() if v and not k.startswith("_")
+        return (
+            "{"
+            + ", ".join(
+                f"{k}={v}"
+                for k, v in vars(self).items()
+                if v and not k.startswith("_")
+            )
         ) + "}"
 
 
@@ -68,14 +73,13 @@ class ArgsStub(BaseStub[Args]):
     def get(self, item: Union[str, Type[T]], default=None) -> Union[T, Any]:
         if isinstance(item, str):
             return self.value.get(item, default)
-        else:
-            for k, v in self.__annotations__.items():
-                if isclass(item):
-                    if v == item:
-                        return self.value.get(k, default)
-                elif isinstance(item, v):
+        for k, v in self.__annotations__.items():
+            if isclass(item):
+                if v == item:
                     return self.value.get(k, default)
-            return default
+            elif isinstance(item, v):
+                return self.value.get(k, default)
+        return default
 
     def __contains__(self, item):
         return item in self.value

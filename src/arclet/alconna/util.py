@@ -18,10 +18,10 @@ class Singleton(type):
     """单例模式"""
     _instances = {}
 
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
+    def __call__(self, *args, **kwargs):
+        if self not in self._instances:
+            self._instances[self] = super(Singleton, self).__call__(*args, **kwargs)
+        return self._instances[self]
 
     @classmethod
     def remove(mcs, cls):
@@ -49,13 +49,13 @@ def get_module_filepath() -> Optional[str]:
             return ".".join(frame.filename.split("/")[1:]).replace('.py', '')
 
 
-def split_once(text: str, separates: Union[str, Set[str]]):  # 相当于另类的pop, 不会改变本来的字符串
+def split_once(text: str, separates: Union[str, Set[str]]):    # 相当于另类的pop, 不会改变本来的字符串
     """单次分隔字符串"""
     out_text = ""
     quotation = ""
     is_split = True
     separates = separates if isinstance(separates, set) else {separates}
-    for index, char in enumerate(text):
+    for char in text:
         if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
                 is_split = False
@@ -132,7 +132,12 @@ def deprecated(remove_ver: str) -> Callable[[Callable[..., R]], Callable[..., R]
     def out_wrapper(func: Callable[..., R]) -> Callable[..., R]:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> R:
-            warnings.warn("{} will be removed in {}!".format(func.__qualname__, remove_ver), DeprecationWarning, 2)
+            warnings.warn(
+                f"{func.__qualname__} will be removed in {remove_ver}!",
+                DeprecationWarning,
+                2,
+            )
+
             logging.warning(f"{func.__qualname__} will be removed in {remove_ver}!")
             return func(*args, **kwargs)
 
@@ -188,11 +193,10 @@ class LruCache(Generic[_K, _V]):
         self.record[key] = (datetime.now(), timedelta(seconds=expiration))
 
     def delete(self, key: _K) -> None:
-        if key in self.cache:
-            self.cache.pop(key)
-            self.record.pop(key)
-        else:
+        if key not in self.cache:
             raise KeyError(key)
+        self.cache.pop(key)
+        self.record.pop(key)
 
     def size(self) -> int:
         return self.__size

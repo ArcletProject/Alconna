@@ -69,27 +69,27 @@ class ArgsMeta(type):
         cls.selecting = True
         return cls
 
-    def __getitem__(cls, item):
+    def __getitem__(self, item):
         if isinstance(item, slice):
-            return cls(args=[item])
+            return self(args=[item])
         elif isinstance(item, str):
-            if cls.selecting:
-                cls.selecting = False
-                return cls(args=[(cls.last_key, item)])
-            return cls(args=[(item, item)])
+            if self.selecting:
+                self.selecting = False
+                return self(args=[(self.last_key, item)])
+            return self(args=[(item, item)])
         elif not isinstance(item, tuple):
-            if cls.selecting:
-                cls.selecting = False
-                return cls(args=[(cls.last_key, item)])
-            return cls(args=[(item,)])
-        args: "Args" = cls(args=filter(lambda x: isinstance(x, slice), item))
+            if self.selecting:
+                self.selecting = False
+                return self(args=[(self.last_key, item)])
+            return self(args=[(item,)])
+        args: "Args" = self(args=filter(lambda x: isinstance(x, slice), item))
         iters = list(filter(lambda x: isinstance(x, (list, tuple)), item))
         items = list(filter(lambda x: not isinstance(x, slice), item))
         iters += list(map(lambda x: (x,), filter(lambda x: isinstance(x, str), item)))
         if items:
-            if cls.selecting:
-                args.__setitem__(cls.last_key, items)
-                cls.selecting = False
+            if self.selecting:
+                args.__setitem__(self.last_key, items)
+                self.selecting = False
             else:
                 list(filter(args.__check_var__, iters))
         return args
@@ -274,7 +274,12 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             _limit = False
             for flag in flags:
                 if flag == ArgFlag.FORCE and not _limit:
-                    _value = BasePattern.of(value) if not isinstance(value, str) else BasePattern(value)
+                    _value = (
+                        BasePattern(value)
+                        if isinstance(value, str)
+                        else BasePattern.of(value)
+                    )
+
                     _limit = True
                 if flag == ArgFlag.ANTI and not _limit:
                     if isinstance(_value, UnionArg):
@@ -419,7 +424,7 @@ class CommandNode:
             separators(Set[str]): 命令分隔符
             help_text(str): 命令帮助信息
         """
-        if name.lstrip() == "":
+        if not name.lstrip():
             raise InvalidParam(lang_config.node_name_empty)
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidParam(lang_config.node_name_error)
@@ -440,7 +445,7 @@ class CommandNode:
             self.separators = set(separators)
         self.help_text = help_text or self.dest
         self.nargs = len(self.args.argument)
-        self.is_compact = True if self.separators == {''} else False
+        self.is_compact = self.separators == {''}
 
     is_compact: bool
     nargs: int
@@ -468,7 +473,7 @@ class Option(CommandNode):
             help_text: Optional[str] = None,
 
     ):
-        self.aliases = alias if alias else []
+        self.aliases = alias or []
         if "|" in name:
             aliases = name.replace(' ', '').split('|')
             aliases.sort(key=len, reverse=True)

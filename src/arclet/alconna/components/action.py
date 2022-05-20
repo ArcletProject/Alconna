@@ -124,13 +124,13 @@ class ActionHandler(ArpamarBehavior):
                 addition_kwargs.update(kwargs)
             else:
                 addition_kwargs = kwargs
-                result_dict.update(interface.source.local_args)
+                result_dict |= interface.source.local_args
             res = func.handle(result_dict, varargs, addition_kwargs, interface.source.is_raise_exception)
             if kw_key:
                 res[kw_key] = kwargs
             if var_key:
                 res[var_key] = varargs
-            args.update(res)
+            args |= res
 
         def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction):
             if not data['args']:

@@ -102,7 +102,7 @@ class BasePattern(Generic[TOrigin]):
         初始化参数匹配表达式
         """
         self.pattern = pattern
-        self.regex_pattern = re.compile("^" + pattern + "$")
+        self.regex_pattern = re.compile(f"^{pattern}$")
         self.model = model
         self.origin_type = origin_type
         self.alias = alias
@@ -210,10 +210,20 @@ class MultiArg(BasePattern):
         self.array_length = array_length
         if flag == 'args':
             _t = Tuple[base.origin_type, ...]
-            alias = (f"*{alias_content}" if not array_length else f"*{alias_content}[:{array_length}]")
+            alias = (
+                f"*{alias_content}[:{array_length}]"
+                if array_length
+                else f"*{alias_content}"
+            )
+
         else:
             _t = Dict[str, base.origin_type]
-            alias = f"**{alias_content}" if not array_length else f"**{alias_content}[:{array_length}]"
+            alias = (
+                f"**{alias_content}[:{array_length}]"
+                if array_length
+                else f"**{alias_content}"
+            )
+
         super().__init__(
             base.pattern, base.model, _t,
             alias=alias, converter=base.converter, previous=base.previous, accepts=base.accepts
@@ -259,7 +269,7 @@ class UnionArg(BasePattern):
     def match(self, text: Union[str, Any]):
         if self.anti:
             validate = False
-            equal = True if text in self.for_equal else False
+            equal = text in self.for_equal
             for pat in self.for_validate:
                 try:
                     pat.match(text)
@@ -271,7 +281,7 @@ class UnionArg(BasePattern):
                 raise ParamsUnmatched(lang_config.args_error.format(target=text))
             return text
         not_match = True
-        not_equal = False if text in self.for_equal else True
+        not_equal = text not in self.for_equal
         if not_equal:
             for pat in self.for_validate:
                 try:
@@ -440,9 +450,13 @@ AnyPathFile = BasePattern(
 _Digit = BasePattern(r"(\-?\d+)", PatternModel.REGEX_CONVERT, int, lambda x: int(x), "int")
 _Float = BasePattern(r"(\-?\d+\.?\d*)", PatternModel.REGEX_CONVERT, float, lambda x: float(x), "float")
 _Bool = BasePattern(
-    r"(True|False|true|false)", PatternModel.REGEX_CONVERT, bool,
-    lambda x: True if x.lower() == "true" else False, "bool"
+    r"(True|False|true|false)",
+    PatternModel.REGEX_CONVERT,
+    bool,
+    lambda x: x.lower() == "true",
+    "bool",
 )
+
 _List = BasePattern(r"(\[.+?\])", PatternModel.REGEX_CONVERT, list, alias="list")
 _Tuple = BasePattern(r"(\(.+?\))", PatternModel.REGEX_CONVERT, tuple, alias="tuple")
 _Set = BasePattern(r"(\{.+?\})", PatternModel.REGEX_CONVERT, set, alias="set")
@@ -472,8 +486,8 @@ def argument_type_validator(item: Any, extra: str = "allow"):
     if not inspect.isclass(item) and item.__class__.__name__ in "_GenericAlias":
         origin = get_origin(item)
         if origin in (Union, Literal):
-            _args = list(set(argument_type_validator(t, extra) for t in get_args(item)))
-            return item if len(_args) == 0 else (_args[0] if len(_args) == 1 else _args)
+            _args = list({argument_type_validator(t, extra) for t in get_args(item)})
+            return (_args[0] if len(_args) == 1 else _args) if _args else item
         if origin in (dict, ABCMapping, ABCMutableMapping):
             arg_key = argument_type_validator(get_args(item)[0], 'ignore')
             arg_value = argument_type_validator(get_args(item)[1], 'ignore')
@@ -565,34 +579,33 @@ class ObjectPattern(BasePattern):
                         self._require_map[name] = suppliers[name]
                         if flag == "http":
                             _re_patterns.append(f"{name}=(?P<{name}>.+?)")  # &
-                        elif flag == "part":
-                            _re_patterns.append(f"(?P<{name}>.+?)")  # ;
                         elif flag == "json":
                             _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>.+?)\\'")  # ,
+                        elif flag == "part":
+                            _re_patterns.append(f"(?P<{name}>.+?)")  # ;
+                    else:
+                        raise TypeError(
+                            lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__)
+                        )
+                elif isinstance(suppliers[name], LambdaType):
+                    if len(_s_sig.parameters) == 0:
+                        self._supplement_map[name] = suppliers[name]
+                    elif len(_s_sig.parameters) == 1:
+                        self._require_map[name] = suppliers[name]
+                        if flag == "http":
+                            _re_patterns.append(f"{name}=(?P<{name}>.+?)")  # &
+                        elif flag == "json":
+                            _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>.+?)\\'")  # ,
+                        elif flag == "part":
+                            _re_patterns.append(f"(?P<{name}>.+?)")  # ;
                     else:
                         raise TypeError(
                             lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__)
                         )
                 else:
-                    if isinstance(suppliers[name], LambdaType):
-                        if len(_s_sig.parameters) == 0:
-                            self._supplement_map[name] = suppliers[name]
-                        elif len(_s_sig.parameters) == 1:
-                            self._require_map[name] = suppliers[name]
-                            if flag == "http":
-                                _re_patterns.append(f"{name}=(?P<{name}>.+?)")  # &
-                            elif flag == "part":
-                                _re_patterns.append(f"(?P<{name}>.+?)")  # ;
-                            elif flag == "json":
-                                _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>.+?)\\'")  # ,
-                        else:
-                            raise TypeError(
-                                lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__)
-                            )
-                    else:
-                        raise TypeError(lang_config.types_supplier_return_error.format(
-                            target=name, origin=origin.__name__, source=param.annotation
-                        ))
+                    raise TypeError(lang_config.types_supplier_return_error.format(
+                        target=name, origin=origin.__name__, source=param.annotation
+                    ))
             elif param.default not in (Empty, None, Ellipsis):
                 self._params[name] = param.default
             else:
@@ -627,10 +640,10 @@ class ObjectPattern(BasePattern):
         if _re_patterns:
             if flag == "http":
                 _re_pattern = (rf"{head}\?" if head else "") + "&".join(_re_patterns)
-            elif flag == "part":
-                _re_pattern = (f"{head};" if head else "") + ";".join(_re_patterns)
             elif flag == "json":
                 _re_pattern = (f"{head}:" if head else "") + "{" + ",".join(_re_patterns) + "}"
+            elif flag == "part":
+                _re_pattern = (f"{head};" if head else "") + ";".join(_re_patterns)
         else:
             _re_pattern = f"{head}" if head else f"{self.origin.__name__}"
 

@@ -16,9 +16,9 @@ class DefaultTextFormatter(AbstractTextFormatter):
         return header % body
 
     def param(self, parameter: Dict[str, Any]) -> str:
-        arg = ("<" if not parameter['optional'] else "[") + parameter['name']
-        _sep = "=" if parameter['kwonly'] else ":"
+        arg = ("[" if parameter['optional'] else "<") + parameter['name']
         if not parameter['hidden']:
+            _sep = "=" if parameter['kwonly'] else ":"
             if parameter['value'] is AllParam:
                 arg += f"{_sep}WildMatch"
             elif isinstance(parameter['value'], BasePattern):
@@ -32,12 +32,10 @@ class DefaultTextFormatter(AbstractTextFormatter):
                 arg += ", default=None"
             elif parameter['default'] is not None:
                 arg += f", default={parameter['default']}"
-        return arg + (">" if not parameter['optional'] else "]")
+        return arg + ("]" if parameter['optional'] else ">")
 
     def parameters(self, params: List[Dict[str, Any]], separators: Set[str]) -> str:
-        param_texts = []
-        for param in params:
-            param_texts.append(self.param(param))
+        param_texts = [self.param(param) for param in params]
         if len(separators) == 1:
             separator = separators.copy().pop()
             return separator.join(param_texts)
@@ -46,12 +44,12 @@ class DefaultTextFormatter(AbstractTextFormatter):
     def header(self, root: Dict[str, Any]) -> str:
         help_string = ("\n" + root['description']) if root.get('description') else ""
         if usage := re.findall(r".*Usage:(.+?);", help_string, flags=re.S):
-            help_string = help_string.replace("Usage:" + usage[0] + ";", "")
+            help_string = help_string.replace(f"Usage:{usage[0]};", "")
             usage = '\n用法:\n' + usage[0]
         else:
             usage = ""
         if example := re.findall(r".*Example:(.+?);", help_string, flags=re.S):
-            help_string = help_string.replace("Example:" + example[0] + ";", "")
+            help_string = help_string.replace(f"Example:{example[0]};", "")
             example = '\n使用示例:\n' + example[0]
         else:
             example = ""
@@ -118,10 +116,26 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         parts: List[dict] = trace.pop('sub_nodes')  # type: ignore
         sub_names = [i['name'] for i in parts if i['type'] == 'subcommand']
         opt_names = [i['name'] for i in parts if i['type'] == 'option']
-        sub_names = "" if not sub_names else " ".join(f"[{i}]" for i in sub_names) \
-            if len(sub_names) < 5 else " [COMMANDS]"
-        opt_names = "" if not opt_names else " ".join(f"[{i}]" for i in opt_names) \
-            if len(opt_names) < 6 else " [OPTIONS]"
+        sub_names = (
+            (
+                " ".join(f"[{i}]" for i in sub_names)
+                if len(sub_names) < 5
+                else " [COMMANDS]"
+            )
+            if sub_names
+            else ""
+        )
+
+        opt_names = (
+            (
+                " ".join(f"[{i}]" for i in opt_names)
+                if len(opt_names) < 6
+                else " [OPTIONS]"
+            )
+            if opt_names
+            else ""
+        )
+
         topic = trace['name'].replace("ALCONNA::", "") + " " + sub_names + " " + opt_names
         header = self.header(trace)
         body = self.body(parts)  # type: ignore
@@ -129,9 +143,14 @@ class ArgParserTextFormatter(AbstractTextFormatter):
 
     def param(self, parameter: Dict[str, Any]) -> str:
         # FOO(str), BAR=(int)
-        arg = f"{parameter['name'].upper()}" if not parameter['optional'] else f"[{parameter['name'].upper()}"
-        _sep = "=(%s)" if parameter['kwonly'] else "(%s)"
+        arg = (
+            f"[{parameter['name'].upper()}"
+            if parameter['optional']
+            else f"{parameter['name'].upper()}"
+        )
+
         if not parameter['hidden']:
+            _sep = "=(%s)" if parameter['kwonly'] else "(%s)"
             if parameter['value'] is AllParam:
                 arg += _sep % "Wildcard"
             elif isinstance(parameter['value'], BasePattern):
@@ -145,12 +164,10 @@ class ArgParserTextFormatter(AbstractTextFormatter):
                 arg += "=None"
             elif parameter['default'] is not None:
                 arg += f"={parameter['default']}"
-        return (arg + "") if not parameter['optional'] else (arg + "]")
+        return f"{arg}]" if parameter['optional'] else f"{arg}"
 
     def parameters(self, params: List[Dict[str, Any]], separators: Set[str]) -> str:
-        param_texts = []
-        for param in params:
-            param_texts.append(self.param(param))
+        param_texts = [self.param(param) for param in params]
         if len(separators) == 1:
             separator = separators.copy().pop()
             return separator.join(param_texts)
@@ -159,12 +176,12 @@ class ArgParserTextFormatter(AbstractTextFormatter):
     def header(self, root: Dict[str, Any]) -> str:
         help_string = ("\n描述: " + root['description'] + "\n") if root.get('description') else ""
         if usage := re.findall(r".*Usage:(.+?);", help_string, flags=re.S):
-            help_string = help_string.replace("Usage:" + usage[0] + ";", "")
+            help_string = help_string.replace(f"Usage:{usage[0]};", "")
             usage = '\n用法:' + usage[0] + '\n'
         else:
             usage = ""
         if example := re.findall(r".*Example:(.+?);", help_string, flags=re.S):
-            help_string = help_string.replace("Example:" + example[0] + ";", "")
+            help_string = help_string.replace(f"Example:{example[0]};", "")
             example = '\n样例:' + example[0] + '\n'
         else:
             example = ""

@@ -57,7 +57,7 @@ class Arpamar:
     @staticmethod
     def _filter_sub(sub: SubcommandResult):
         val = {k: Arpamar._filter_opt(v) for k, v in sub['options'].items()}
-        val.update(sub['args'])
+        val |= sub['args']
         if val:
             val = val.copy()
             val.pop('__varargs__', None)
@@ -68,9 +68,7 @@ class Arpamar:
     @property
     def header(self):
         """返回可能解析到的命令头中的信息"""
-        if self._header:
-            return self._header
-        return self.head_matched
+        return self._header or self.head_matched
 
     @property
     def non_component(self) -> bool:

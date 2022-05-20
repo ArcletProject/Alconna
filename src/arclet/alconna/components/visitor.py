@@ -28,19 +28,19 @@ class _BaseNode:
     def __init__(self, nid: int, target: CommandNode, node_type: Literal['command', 'subcommand', 'option']):
         self.node_id = nid
         self.type = node_type
-        self.name = target.name
-        self.description = target.help_text
-        self.parameters = []
         self.separators = target.separators
         self.param_separators = target.args.separators
         self.additional_info = {'dest': target.dest}
-        for key, arg in target.args.argument.items():
-            self.parameters.append({'name': key, **arg})
+        self.name = target.name
+        self.description = target.help_text
+        self.parameters = [
+            {'name': key, **arg} for key, arg in target.args.argument.items()
+        ]
+
         self.sub_nodes = []
 
     def __repr__(self):
-        res = f'[{self.name}, {self.description}; {self.parameters}; {self.sub_nodes}]'
-        return res
+        return f'[{self.name}, {self.description}; {self.parameters}; {self.sub_nodes}]'
 
 
 class AlconnaNodeVisitor:
@@ -62,19 +62,19 @@ class AlconnaNodeVisitor:
         for node in alconna.options:
             real_name = node.name.lstrip('-')
             if isinstance(node, Option):
-                if "option:" + real_name in self.name_list:
+                if f"option:{real_name}" in self.name_list:
                     raise DuplicateCommand(lang_config.visitor_duplicate_option.format(target=real_name))
-                self.name_list.append("option:" + real_name)
+                self.name_list.append(f"option:{real_name}")
             elif isinstance(node, Subcommand):
-                if "subcommand:" + real_name in self.name_list:
+                if f"subcommand:{real_name}" in self.name_list:
                     raise DuplicateCommand(lang_config.visitor_duplicate_subcommand.format(target=real_name))
-                self.name_list.append("subcommand:" + real_name)
+                self.name_list.append(f"subcommand:{real_name}")
             new_id = max(self.node_map) + 1
             if isinstance(node, Subcommand):
                 self.node_map[new_id] = _BaseNode(new_id, node, 'subcommand')
                 for sub_node in node.options:
                     real_sub_name = sub_node.name.lstrip('-')
-                    if "subcommand:" + real_name + ":" + real_sub_name in self.name_list:
+                    if f"subcommand:{real_name}:{real_sub_name}" in self.name_list:
                         raise DuplicateCommand(lang_config.visitor_duplicate_suboption.format(target=real_sub_name))
                     self.name_list.append(f"subcommand:{real_name}:{real_sub_name}")
                     sub_new_id = max(self.node_map) + 1
@@ -101,17 +101,20 @@ class AlconnaNodeVisitor:
                 _cache_name = part
                 continue
             if _cache_name:
-                _cache_name = _cache_name + ':' + part
+                _cache_name = f'{_cache_name}:{part}'
                 if _cache_name in self.name_list:
                     _cache_node = self.node_map[self.name_list.index(_cache_name)]
             else:
-                if 'option:' + part in self.name_list and 'subcommand:' + part in self.name_list:
+                if (
+                    f'option:{part}' in self.name_list
+                    and f'subcommand:{part}' in self.name_list
+                ):
                     raise ValueError(lang_config.visitor_ambiguous_name.format(target=part))
-                if "subcommand:" + part in self.name_list:
-                    _cache_name = "subcommand:" + part
+                if f"subcommand:{part}" in self.name_list:
+                    _cache_name = f"subcommand:{part}"
                     _cache_node = self.node_map[self.name_list.index(_cache_name)]
-                elif "option:" + part in self.name_list:
-                    _cache_name = "option:" + part
+                elif f"option:{part}" in self.name_list:
+                    _cache_name = f"option:{part}"
                     _cache_node = self.node_map[self.name_list.index(_cache_name)]
         return _cache_node
 

@@ -81,12 +81,11 @@ class CommandLine:
                 option_text = "\n    options=[\n"
                 for option in options:
                     _opt_name = option.get("name")
-                    _opt_args = option.get("args")
-                    if _opt_args:
+                    if _opt_args := option.get("args"):
                         _opt_args_text = "Args["
                         for _opt_arg_name, _opt_arg_value in _opt_args.items():
                             _opt_args_text += f"\"{_opt_arg_name}\": {_opt_arg_value.split('%')[1]}, "
-                        _opt_args_text = _opt_args_text[:-2] + "]"
+                        _opt_args_text = f"{_opt_args_text[:-2]}]"
                         _opt = f"\tOption(\"{_opt_name}\", {_opt_args_text}),\n"
                     else:
                         _opt = f"\tOption(\"{_opt_name}\"),\n"
@@ -123,8 +122,8 @@ class CommandLine:
                         arg_text = "["
                         for arg in o['option_args']:
                             arg[1] = f'"{arg[1]}"' if arg[1] not in ["str", "int", "float", "bool", "..."] else arg[1]
-                            arg_text += f'"{arg[0]}":{arg[1]}' + ", "
-                        arg_text = arg_text[:-2] + "]"
+                            arg_text += f'"{arg[0]}":{arg[1]}, '
+                        arg_text = f"{arg_text[:-2]}]"
                         option_texts.append(f'Option("{opt_name}", Args{arg_text}),')
                     else:
                         option_texts.append(f'Option("{opt_name}"),')
@@ -134,8 +133,8 @@ class CommandLine:
                     arg_text = "["
                     for arg in option['option_args']:
                         arg[1] = f'"{arg[1]}"' if arg[1] not in ["str", "int", "float", "bool", "..."] else arg[1]
-                        arg_text += f'"{arg[0]}":{arg[1]}' + ", "
-                    arg_text = arg_text[:-2] + "]"
+                        arg_text += f'"{arg[0]}":{arg[1]}, '
+                    arg_text = f"{arg_text[:-2]}]"
                     option_texts.append(f'Option("{opt_name}", Args{arg_text}),')
                 else:
                     option_texts.append(f'Option("{opt_name}"),')
@@ -144,7 +143,7 @@ class CommandLine:
             header_text = "["
             for h in header:
                 header_text += f'"{h}", '
-            header_text = header_text[:-2] + "]"
+            header_text = f"{header_text[:-2]}]"
             construct_command = (
                 f"Alconna(\n"
                 f"    header={header_text},\n"
@@ -223,11 +222,7 @@ class CommandLine:
             print(lang_config.cli_command_not_found)
             return
         using_result = {}
-        exec(
-            "alc = " + construct_command,
-            globals(),
-            using_result
-        )
+        exec(f"alc = {construct_command}", globals(), using_result)
         alc: Alconna = using_result['alc']
         alc.reset_namespace("ALCLI/USING")
         result = alc.parse(command[0])

@@ -94,13 +94,12 @@ class CommandManager(metaclass=Singleton):
         if delegate.alconna.namespace not in self.__commands:
             self.__commands[delegate.alconna.namespace] = {}
         cid = delegate.alconna.name.replace(self.sign, "")
-        if cid not in self.__commands[delegate.alconna.namespace]:
-            self.__commands[delegate.alconna.namespace][cid] = delegate
-            self.current_count += 1
-        else:
+        if cid in self.__commands[delegate.alconna.namespace]:
             raise DuplicateCommand(
                 lang_config.manager_duplicate_command.format(target=f"{delegate.alconna.namespace}.{cid}")
             )
+        self.__commands[delegate.alconna.namespace][cid] = delegate
+        self.current_count += 1
 
     def require(self, command: Union["Alconna", str]) -> "Analyser":
         """获取命令解析器"""
@@ -124,9 +123,7 @@ class CommandManager(metaclass=Singleton):
 
     def is_disable(self, command: "Alconna") -> bool:
         """判断命令是否被禁用"""
-        if command in self.__abandons:
-            return True
-        return False
+        return command in self.__abandons
 
     def set_enable(self, command: Union["Alconna", str]) -> None:
         """启用命令"""
@@ -152,13 +149,14 @@ class CommandManager(metaclass=Singleton):
             _ = self.__commands[namespace][name]
         except KeyError:
             raise ValueError(lang_config.manager_undefined_command.format(target=f"{namespace}.{name}"))
-        if isinstance(source, Arpamar):
-            if source.matched:
-                self.__shortcuts.set(f"{namespace}.{name}::{shortcut}", source, expiration)
-            else:
-                raise ValueError(lang_config.manager_incorrect_shortcut.format(target=f"{shortcut}"))
-        else:
+        if (
+            isinstance(source, Arpamar)
+            and source.matched
+            or not isinstance(source, Arpamar)
+        ):
             self.__shortcuts.set(f"{namespace}.{name}::{shortcut}", source, expiration)
+        else:
+            raise ValueError(lang_config.manager_incorrect_shortcut.format(target=f"{shortcut}"))
 
     def find_shortcut(self, shortcut: str, target: Optional[Union["Alconna", str]] = None):
         """查找快捷命令"""
@@ -295,8 +293,7 @@ class CommandManager(metaclass=Singleton):
     def command_help(self, command: str) -> Optional[str]:
         """获取单个命令的帮助"""
         command_parts = self._command_part(command)
-        cmd = self.get_command(f"{command_parts[0]}.{command_parts[1]}")
-        if cmd:
+        if cmd := self.get_command(f"{command_parts[0]}.{command_parts[1]}"):
             return cmd.get_help()
 
     def record(

@@ -110,15 +110,16 @@ ddd = Alconna(
                 Option(
                     "--round| -r",
                     args=Args(decimal=int),
-                    action=lambda x: x + "a",
-                    help_text="保留n位小数"
+                    action=lambda x: f"{x}a",
+                    help_text="保留n位小数",
                 )
             ],
             args=Args(num_a=int, num_b=int),
-            help_text="除法计算"
+            help_text="除法计算",
         )
     ],
 )
+
 msg = "Cal -div 12 23 --round 2"
 print(msg)
 print(ddd.get_help())

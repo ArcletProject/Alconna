@@ -35,4 +35,4 @@ alc2 = Alconna(
 )
 for i in range(4):
     time.sleep(0.2)
-    print(alc2.parse("test_cool_down {}".format(i)))
+    print(alc2.parse(f"test_cool_down {i}"))

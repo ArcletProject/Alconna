@@ -24,10 +24,7 @@ class Positional:
         self.default = default
 
     def convert(self):
-        if self.type == bool:
-            alc_type = Bool
-        else:
-            alc_type = AnyStr
+        alc_type = Bool if self.type == bool else AnyStr
         if not self.default:
             return alc_type
         return Default(alc_type, self.default)
@@ -51,10 +48,7 @@ class AdditionParam(Decorator):
 
     def convert(self, key: str):
         opt_list = []
-        if self.type == bool:
-            alc_type = Bool
-        else:
-            alc_type = AnyStr
+        alc_type = Bool if self.type == bool else AnyStr
         for param in self.params:
             if re.match(r"^.+{(.+)}", param):
                 if self.default:
