@@ -19,10 +19,7 @@ class Positional:
         self.default = default
 
     def convert(self):
-        if self.type == bool:
-            alc_type = Bool
-        else:
-            alc_type = AnyStr
+        alc_type = Bool if self.type == bool else AnyStr
         if not self.default:
             return alc_type
         return Default(alc_type, self.default)

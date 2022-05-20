@@ -49,9 +49,9 @@ def multi_arg_handler(
 
         def __putback(data):
             analyser.reduce_data(data)
-            for j in range(min(len(result), _m_rest_arg)):
+            for _ in range(min(len(result), _m_rest_arg)):
                 arg = result.popitem()  # type: ignore
-                analyser.reduce_data(arg[0] + '=' + arg[1])
+                analyser.reduce_data(f'{arg[0]}={arg[1]}')
 
         for i in range(_m_all_args_count):
             _m_arg, _m_str = analyser.next_data(seps)
@@ -242,7 +242,7 @@ def analyse_subcommand(
 
     args = False
     subcommand = res['options']
-    need_args = True if param.nargs > 0 else False
+    need_args = param.nargs > 0
     for _ in param.sub_part_len:
         text, _str = analyser.next_data(param.separators, pop=False)
         sub_param = param.sub_params.get(text, None) if _str else Ellipsis
@@ -301,10 +301,9 @@ def analyse_header(
                 ):
                     analyser.head_matched = True
                     return _command_find.groupdict() or True
-            else:
-                if (_command_find := command[1].fullmatch(may_command)) and head_text in command[0][0]:  # type: ignore
-                    analyser.head_matched = True
-                    return _command_find.groupdict() or True
+            elif (_command_find := command[1].fullmatch(may_command)) and head_text in command[0][0]:  # type: ignore
+                analyser.head_matched = True
+                return _command_find.groupdict() or True
 
     if not analyser.head_matched:
         if _str and analyser.alconna.is_fuzzy_match:

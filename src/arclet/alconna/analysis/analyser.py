@@ -85,10 +85,10 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         nargs = nargs or len(main_args)
         if nargs > 0 and nargs > main_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = 0
-        for k, a in main_args.argument.items():
-            if a['default'] is not None:
-                _de_count += 1
+        _de_count = sum(
+            a['default'] is not None for k, a in main_args.argument.items()
+        )
+
         if _de_count and _de_count == nargs:
             self.default_main_only = True
 
@@ -111,38 +111,37 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                         parts[i] = f"(?P<{_parts[0]}>.+?)"
                     elif not _parts[0] and not _parts[1]:
                         parts[i] = ".+?"
-                    elif not _parts[0] and _parts[1]:
+                    elif not _parts[0]:
                         parts[i] = f"{pattern_map.get(_parts[1], _parts[1])}".replace("(", "").replace(")", "")
-                    elif _parts[0] and not _parts[1]:
+                    elif not _parts[1]:
                         parts[i] = f"(?P<{_parts[0]}>.+?)"
                     else:
                         parts[i] = f"(?P<{_parts[0]}>{pattern_map.get(_parts[1], _parts[1])})"
             command_name = "".join(parts)
 
-        if headers != [""]:
-            if isinstance(headers[0], tuple):
-                mixins = []
-                for h in headers:
-                    mixins.append((h[0], re.compile(re.escape(h[1]) + command_name)))  # type: ignore
-                self.command_header = mixins
-            else:
-                elements = []
-                ch_text = ""
-                for h in headers:
-                    if isinstance(h, str):
-                        ch_text += re.escape(h) + "|"
-                    else:
-                        elements.append(h)
-                if not elements:
-                    self.command_header = re.compile("(?:{})".format(ch_text[:-1]) + command_name)  # noqa
-                elif not ch_text:
-                    self.command_header = (elements, re.compile(command_name))
-                else:
-                    self.command_header = (
-                        (elements, re.compile("(?:{})".format(ch_text[:-1]))), re.compile(command_name)  # noqa
-                    )
-        else:
+        if headers == [""]:
             self.command_header = re.compile(command_name)
+
+        elif isinstance(headers[0], tuple):
+            mixins = [(h[0], re.compile(re.escape(h[1]) + command_name)) for h in headers]
+            self.command_header = mixins
+        else:
+            elements = []
+            ch_text = ""
+            for h in headers:
+                if isinstance(h, str):
+                    ch_text += f"{re.escape(h)}|"
+                else:
+                    elements.append(h)
+            if not elements:
+                self.command_header = re.compile(f"(?:{ch_text[:-1]})" + command_name)
+            elif not ch_text:
+                self.command_header = (elements, re.compile(command_name))
+            else:
+                self.command_header = (
+                    elements,
+                    re.compile(f"(?:{ch_text[:-1]})"),
+                ), re.compile(command_name)
 
     def __init_actions__(self):
         actions = self.alconna.action_list

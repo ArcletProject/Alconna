@@ -23,16 +23,14 @@ class OutputActionManager(metaclass=Singleton):
     ):
         """修改help_send_action"""
         if action is None:
-            if command is None:
-                return self.send_action
-            return self.outputs[command].action
+            return self.send_action if command is None else self.outputs[command].action
         if command is None:
             self.send_action = action
+        elif self.outputs.get(command):
+            self.outputs[command].action = action
+
         else:
-            if not self.outputs.get(command):
-                self.cache[command] = action
-            else:
-                self.outputs[command].action = action
+            self.cache[command] = action
 
 
 output_manager = OutputActionManager()
@@ -47,8 +45,7 @@ class OutputAction(ArgAction):
         self.command = command
 
     def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
-        action = output_manager.require_send_action(command=self.command)
-        if action:
+        if action := output_manager.require_send_action(command=self.command):
             return super().handle({"help": self.output_text_call()}, varargs, kwargs, is_raise_exception)
         return option_dict
 

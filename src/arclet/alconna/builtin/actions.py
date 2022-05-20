@@ -30,9 +30,7 @@ if TYPE_CHECKING:
 
     def version(value: Optional[tuple]):
         """返回一个以元组形式存储的版本信息"""
-        if value:
-            return _StoreValue(value)
-        return _StoreValue(alconna_version)
+        return _StoreValue(value) if value else _StoreValue(alconna_version)
 
 
 def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[str] = None):
@@ -130,10 +128,10 @@ def inclusion(*targets: str, flag: Literal["any", "all"] = "any"):
                         interface.error_info = OutBoundsBehavior(lang_config.behavior_inclusion_matched)
                         break
             else:
-                all_count = len(targets)
-                for target in targets:
-                    if interface.require(target):
-                        all_count -= 1
+                all_count = len(targets) - sum(
+                    1 for target in targets if interface.require(target)
+                )
+
                 if all_count > 0:
                     interface.matched = False
                     interface.error_info = OutBoundsBehavior(lang_config.behavior_inclusion_matched)

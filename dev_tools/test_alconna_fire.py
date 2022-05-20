@@ -44,7 +44,7 @@ alc.parse("!test_fire talk ALC subcmd set")
 
 def test_function(name="world"):
     """测试从函数中构建对象"""
-    print("Hello {}!".format(name))
+    print(f"Hello {name}!")
 
 
 alc1 = AlconnaFire(test_function)
