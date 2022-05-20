@@ -194,6 +194,7 @@ print(choice.get_help())
 
 sub = Alconna(
     command="test_sub_main",
+    main_args="baz:int",
     options=[
         Subcommand(
             "sub",
@@ -203,7 +204,7 @@ sub = Alconna(
     ]
 )
 print(sub.get_help())
-res = sub.parse("test_sub_main sub --subOption 123 a")
+res = sub.parse("test_sub_main 1 sub --subOption 123 a")
 print(res)
 print(res.query('sub.foo'))
 

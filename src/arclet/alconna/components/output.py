@@ -22,13 +22,10 @@ class OutputActionManager(metaclass=Singleton):
             command: Optional[str] = None
     ):
         """修改help_send_action"""
-        if action is None:
-            return self.send_action if command is None else self.outputs[command].action
         if command is None:
             self.send_action = action
-        elif self.outputs.get(command):
-            self.outputs[command].action = action
-
+        elif cmd := self.outputs.get(command):
+            cmd.action = action
         else:
             self.cache[command] = action
 
@@ -45,9 +42,7 @@ class OutputAction(ArgAction):
         self.command = command
 
     def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
-        if action := output_manager.require_send_action(command=self.command):
-            return super().handle({"help": self.output_text_call()}, varargs, kwargs, is_raise_exception)
-        return option_dict
+        return super().handle({"help": self.output_text_call()}, varargs, kwargs, is_raise_exception)
 
 
 def output_send(command: str, output_call: Callable[[], str]):

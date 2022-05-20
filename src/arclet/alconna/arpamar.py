@@ -57,7 +57,7 @@ class Arpamar:
     @staticmethod
     def _filter_sub(sub: SubcommandResult):
         val = {k: Arpamar._filter_opt(v) for k, v in sub['options'].items()}
-        val |= sub['args']
+        val.update(sub['args'])
         if val:
             val = val.copy()
             val.pop('__varargs__', None)

@@ -122,10 +122,10 @@ class BasePattern(Generic[TOrigin]):
         if self.model == PatternModel.REGEX_MATCH:
             text = self.alias or self.pattern
         elif self.model == PatternModel.REGEX_CONVERT:
-            text = f"{self.pattern} -> {self.alias or self.origin_type.__name__}"
+            text = self.alias or self.origin_type.__name__
         else:
-            text = f"{('|'.join(x.__name__ for x in self.accepts)) if self.accepts else 'Any'}" \
-                   f" -> {self.alias or self.origin_type.__name__}"
+            text = f"{(('|'.join(x.__name__ for x in self.accepts)) + ' -> ') if self.accepts else '' }" \
+                   f"{self.alias or self.origin_type.__name__}"
         return f"{(f'{self.previous.__repr__()}, ' if self.previous else '')}{'!' if self.anti else ''}{text}"
 
     def __hash__(self):
@@ -210,20 +210,10 @@ class MultiArg(BasePattern):
         self.array_length = array_length
         if flag == 'args':
             _t = Tuple[base.origin_type, ...]
-            alias = (
-                f"*{alias_content}[:{array_length}]"
-                if array_length
-                else f"*{alias_content}"
-            )
-
+            alias = f"*{alias_content}[:{array_length}]" if array_length else f"*{alias_content}"
         else:
             _t = Dict[str, base.origin_type]
-            alias = (
-                f"**{alias_content}[:{array_length}]"
-                if array_length
-                else f"**{alias_content}"
-            )
-
+            alias = f"**{alias_content}[:{array_length}]" if array_length else f"**{alias_content}"
         super().__init__(
             base.pattern, base.model, _t,
             alias=alias, converter=base.converter, previous=base.previous, accepts=base.accepts
@@ -258,12 +248,12 @@ class UnionArg(BasePattern):
                 self.for_validate.append(arg)
             else:
                 self.for_equal.append(arg)
-        alias_content = ", ".join(
-            [a.alias or a.origin_type.__name__ for a in self.for_validate] +
+        alias_content = "|".join(
+            [repr(a) for a in self.for_validate] +
             [repr(a) for a in self.for_equal]
         )
         super().__init__(
-            r"(.+?)", PatternModel.KEEP, str, alias=f"Union[{alias_content}]", anti=anti
+            r"(.+?)", PatternModel.KEEP, str, alias=alias_content, anti=anti
         )
 
     def match(self, text: Union[str, Any]):
@@ -295,9 +285,9 @@ class UnionArg(BasePattern):
         return text
 
     def __repr__(self):
-        return ("!" if self.anti else "") + ("(" + "|".join(
+        return ("!" if self.anti else "") + ("|".join(
             [repr(a) for a in self.for_validate] + [repr(a) for a in self.for_equal]
-        ) + ")")
+        ))
 
     def __class_getitem__(cls, item):
         return cls(cls.__validator__(item))
@@ -514,7 +504,7 @@ def argument_type_validator(item: Any, extra: str = "allow"):
     if item is None or type(None) == item:
         return Empty
     if isinstance(item, str):
-        return BasePattern(item)
+        return BasePattern(item, alias=f"\'{item}\'")
     if extra == "ignore":
         return AnyOne
     elif extra == "reject":

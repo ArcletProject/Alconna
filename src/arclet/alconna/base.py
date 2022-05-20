@@ -14,7 +14,6 @@ from .typing import (
 from .lang import lang_config
 from .components.action import ArgAction
 
-
 TAValue = Union[BasePattern, _All, type]
 TADefault = Union[Any, DataUnit, Empty]
 
@@ -267,59 +266,58 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             default = Empty
         if _value is Empty:
             raise InvalidParam(lang_config.args_value_error.format(target=name))
-        _addition = {'optional': False, 'hidden': False, 'kwonly': False}
-        if res := re.match(r"^.+?;(?P<flag>.+?)$", name):
+        name, arg = self.__handle_flags__(name, value, _value, default)
+        self.argument[name] = arg
+
+    def __handle_flags__(self, name, value, _value, default):
+        slot = {'value': _value, 'default': default, 'optional': False, 'hidden': False, 'kwonly': False}
+        if res := re.match(r"^.+?;(?P<flag>[^;]+?)$", name):
             flags = res.group("flag").split("|")
             name = name.replace(f";{res.group('flag')}", "")
             _limit = False
             for flag in flags:
                 if flag == ArgFlag.FORCE and not _limit:
-                    _value = (
-                        BasePattern(value)
-                        if isinstance(value, str)
-                        else BasePattern.of(value)
+                    slot['value'] = (
+                        BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value)
                     )
-
                     _limit = True
                 if flag == ArgFlag.ANTI and not _limit:
                     if isinstance(_value, UnionArg):
-                        _value.reverse()
+                        slot['value'].reverse()
                     elif _value not in (AnyOne, AllParam):
-                        _value = copy(_value)
-                        _value.reverse()
+                        slot['value'] = copy(_value).reverse()
                     _limit = True
                 if flag == ArgFlag.VAR_KEYWORD and not _limit:
                     if self.var_keyword:
                         raise InvalidParam(lang_config.args_duplicate_kwargs)
                     if _value not in (AnyOne, AllParam):
-                        _value = MultiArg(_value, flag='kwargs')
+                        slot['value'] = MultiArg(_value, flag='kwargs')
                         self.var_keyword = (name, _value)
                     _limit = True
                 if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                     if self.var_positional:
                         raise InvalidParam(lang_config.args_duplicate_varargs)
                     if _value not in (AnyOne, AllParam):
-                        _value = MultiArg(_value)
+                        slot['value'] = MultiArg(_value)
                         self.var_positional = (name, _value)
                 if flag.isdigit() and not _limit:
                     if self.var_positional:
                         raise InvalidParam(lang_config.args_duplicate_varargs)
                     if _value not in (AnyOne, AllParam):
-                        _value = MultiArg(_value, array_length=int(flag))
+                        slot['value'] = MultiArg(_value, array_length=int(flag))
                         self.var_positional = (name, _value)
                 if flag == ArgFlag.OPTIONAL:
                     if self.var_keyword or self.var_positional:
                         raise InvalidParam(lang_config.args_exclude_mutable_args)
-                    _addition['optional'] = True
+                    slot['optional'] = True
                     self.optional_count += 1
                 if flag == ArgFlag.HIDDEN:
-                    _addition['hidden'] = True
+                    slot['hidden'] = True
                 if flag == ArgFlag.KWONLY:
                     if self.var_keyword or self.var_positional:
                         raise InvalidParam(lang_config.args_exclude_mutable_args)
-                    _addition['kwonly'] = True
-        self.argument[name] = {"value": _value, "default": default}  # type: ignore
-        self.argument[name].update(_addition)  # type: ignore
+                    slot['kwonly'] = True
+        return name, slot
 
     def __len__(self):
         return len(self.argument)
@@ -380,7 +378,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         repr_string = "Args({0})"
         repr_args = ", ".join(
             [
-                f"'{name}': '{arg['value']}'" + (f" = '{arg['default']}'" if arg['default'] is not None else "")
+                f"'{name}': {arg['value']}" + (f" = '{arg['default']}'" if arg['default'] is not None else "")
                 for name, arg in self.argument.items()
             ]
         )

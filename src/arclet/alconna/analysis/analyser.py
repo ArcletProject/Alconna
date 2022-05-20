@@ -134,14 +134,11 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 else:
                     elements.append(h)
             if not elements:
-                self.command_header = re.compile(f"(?:{ch_text[:-1]})" + command_name)
+                self.command_header = re.compile(f"(?:{ch_text[:-1]})" + command_name)   # noqa
             elif not ch_text:
                 self.command_header = (elements, re.compile(command_name))
             else:
-                self.command_header = (
-                    elements,
-                    re.compile(f"(?:{ch_text[:-1]})"),
-                ), re.compile(command_name)
+                self.command_header = (elements, re.compile(f"(?:{ch_text[:-1]})")), re.compile(command_name)   # noqa
 
     def __init_actions__(self):
         actions = self.alconna.action_list

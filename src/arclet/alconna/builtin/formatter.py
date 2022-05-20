@@ -22,16 +22,16 @@ class DefaultTextFormatter(AbstractTextFormatter):
             if parameter['value'] is AllParam:
                 arg += f"{_sep}WildMatch"
             elif isinstance(parameter['value'], BasePattern):
-                arg += f"{_sep}{parameter['value'].alias or parameter['value'].origin_type.__name__}"
+                arg += f"{_sep}{parameter['value']}"
             else:
                 try:
                     arg += f"{_sep}Type@{parameter['value'].__name__}"
                 except AttributeError:
                     arg += f"{_sep}Type@{repr(parameter['value'])}"
             if parameter['default'] is Empty:
-                arg += ", default=None"
+                arg += " = None"
             elif parameter['default'] is not None:
-                arg += f", default={parameter['default']}"
+                arg += f" = {parameter['default']}"
         return arg + ("]" if parameter['optional'] else ">")
 
     def parameters(self, params: List[Dict[str, Any]], separators: Set[str]) -> str:
@@ -55,12 +55,12 @@ class DefaultTextFormatter(AbstractTextFormatter):
             example = ""
         headers = root['additional_info'].get('headers')
         command = root['additional_info'].get('command')
-        headers = f"{'|'.join(f'{v}' for v in headers)}" if headers != [''] else ""
+        headers = f"[{''.join(headers)}]" if headers != [''] else ""
         cmd = f"{headers}{command}"
         sep = root['separators'].copy().pop()
         command_string = cmd or (root['name'] + sep)
         return (
-            f"{command_string}{self.parameters(root['parameters'], root['param_separators'])}"
+            f"{command_string} {self.parameters(root['parameters'], root['param_separators'])}"
             f"{help_string}{usage}\n%s{example}"
         )
 
@@ -88,24 +88,17 @@ class DefaultTextFormatter(AbstractTextFormatter):
 
     def body(self, parts: List[Dict[str, Any]]) -> str:
         option_string = "".join(
-            [
-                self.part(opt, 'option') for opt in
-                filter(lambda x: x['type'] == 'option', parts)
-                if opt['name'] not in {"--help", "--shortcut"}
-            ]
+            self.part(opt, 'option') for opt in
+            filter(lambda x: x['type'] == 'option', parts)
+            if opt['name'] not in {"--help", "--shortcut"}
         )
         subcommand_string = "".join(
-            [
-                self.part(sub, 'subcommand') for sub in
-                filter(lambda x: x['type'] == 'subcommand', parts)
-            ]
+            self.part(sub, 'subcommand') for sub in
+            filter(lambda x: x['type'] == 'subcommand', parts)
         )
         option_help = "可用的选项有:\n" if option_string else ""
         subcommand_help = "可用的子命令有:\n" if subcommand_string else ""
-        return (
-            f"{subcommand_help}{subcommand_string}"
-            f"{option_help}{option_string}"
-        )
+        return f"{subcommand_help}{subcommand_string}{option_help}{option_string}"
 
 
 class ArgParserTextFormatter(AbstractTextFormatter):
@@ -117,24 +110,14 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         sub_names = [i['name'] for i in parts if i['type'] == 'subcommand']
         opt_names = [i['name'] for i in parts if i['type'] == 'option']
         sub_names = (
-            (
-                " ".join(f"[{i}]" for i in sub_names)
-                if len(sub_names) < 5
-                else " [COMMANDS]"
-            )
-            if sub_names
-            else ""
-        )
+            " ".join(f"[{i}]" for i in sub_names)
+            if len(sub_names) < 5 else " [COMMANDS]"
+        ) if sub_names else ""
 
         opt_names = (
-            (
-                " ".join(f"[{i}]" for i in opt_names)
-                if len(opt_names) < 6
-                else " [OPTIONS]"
-            )
-            if opt_names
-            else ""
-        )
+            " ".join(f"[{i}]" for i in opt_names)
+            if len(opt_names) < 6 else " [OPTIONS]"
+        ) if opt_names else ""
 
         topic = trace['name'].replace("ALCONNA::", "") + " " + sub_names + " " + opt_names
         header = self.header(trace)
@@ -142,19 +125,14 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         return topic + '\n' + header % body
 
     def param(self, parameter: Dict[str, Any]) -> str:
-        # FOO(str), BAR=(int)
-        arg = (
-            f"[{parameter['name'].upper()}"
-            if parameter['optional']
-            else f"{parameter['name'].upper()}"
-        )
-
+        # FOO[str], BAR=<int>
+        arg = f"[{parameter['name'].upper()}" if parameter['optional'] else f"{parameter['name'].upper()}"
         if not parameter['hidden']:
-            _sep = "=(%s)" if parameter['kwonly'] else "(%s)"
+            _sep = "=[%s]" if parameter['kwonly'] else "[%s]"
             if parameter['value'] is AllParam:
                 arg += _sep % "Wildcard"
             elif isinstance(parameter['value'], BasePattern):
-                arg += _sep % f"{parameter['value'].alias or parameter['value'].origin_type.__name__}"
+                arg += _sep % f"{parameter['value']}"
             else:
                 try:
                     arg += _sep % f"Type_{parameter['value'].__name__}"
@@ -187,7 +165,7 @@ class ArgParserTextFormatter(AbstractTextFormatter):
             example = ""
         headers = root['additional_info'].get('headers')
         command = root['additional_info'].get('command')
-        header_text = f"[{'|'.join(f'{v}' for v in headers)}]" if headers != [''] else ""
+        header_text = f"/{''.join(headers)}/" if headers != [''] else ""
         cmd = f"{header_text}{command}"
         sep = root['separators'].copy().pop()
         command_string = cmd or (root['name'] + sep)

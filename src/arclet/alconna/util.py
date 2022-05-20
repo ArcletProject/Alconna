@@ -18,10 +18,10 @@ class Singleton(type):
     """单例模式"""
     _instances = {}
 
-    def __call__(self, *args, **kwargs):
-        if self not in self._instances:
-            self._instances[self] = super(Singleton, self).__call__(*args, **kwargs)
-        return self._instances[self]
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
     @classmethod
     def remove(mcs, cls):
@@ -132,12 +132,7 @@ def deprecated(remove_ver: str) -> Callable[[Callable[..., R]], Callable[..., R]
     def out_wrapper(func: Callable[..., R]) -> Callable[..., R]:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> R:
-            warnings.warn(
-                f"{func.__qualname__} will be removed in {remove_ver}!",
-                DeprecationWarning,
-                2,
-            )
-
+            warnings.warn("{} will be removed in {}!".format(func.__qualname__, remove_ver), DeprecationWarning, 2)
             logging.warning(f"{func.__qualname__} will be removed in {remove_ver}!")
             return func(*args, **kwargs)
 
