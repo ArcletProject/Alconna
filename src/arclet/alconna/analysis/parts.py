@@ -166,6 +166,14 @@ def analyse_args(
                 rest_data.insert(0, may_arg)
             option_dict[key] = rest_data
             return option_dict
+        elif may_arg == value:
+            option_dict[key] = may_arg
+        else:
+            if default is None:
+                if optional:
+                    continue
+                raise ParamsUnmatched(lang_config.args_error.format(target=may_arg))
+            option_dict[key] = None if default is Empty else default
     if opt_args.var_keyword:
         kwargs = option_dict[opt_args.var_keyword[0]]
         if not isinstance(kwargs, dict):
@@ -285,23 +293,28 @@ def analyse_header(
             return _head_find.groupdict() or True
     else:
         may_command, _m_str = analyser.next_data(separators)
-        if _m_str:
-            if isinstance(command, List) and not _str:
+        if _m_str and not _str:
+            if isinstance(command, List):
                 for _command in command:
                     if (_head_find := _command[1].fullmatch(may_command)) and head_text == _command[0]:
                         analyser.head_matched = True
                         return _head_find.groupdict() or True
-            elif isinstance(command[0], list) and not _str:
+            elif isinstance(command[0], list):
                 if (_head_find := command[1].fullmatch(may_command)) and head_text in command[0]:  # type: ignore
                     analyser.head_matched = True
                     return _head_find.groupdict() or True
-            elif _str:
-                if (_command_find := command[1].fullmatch(may_command)) and (  # type: ignore
-                        _head_find := command[0][1].fullmatch(head_text)
-                ):
+            else:
+                if (_command_find := command[1].fullmatch(may_command)) and head_text in command[0][0]:  # type: ignore
                     analyser.head_matched = True
                     return _command_find.groupdict() or True
-            elif (_command_find := command[1].fullmatch(may_command)) and head_text in command[0][0]:  # type: ignore
+
+        elif _m_str and _str:
+            pat = re.compile(command[0][1].pattern + command[1].pattern)
+            if _head_find := pat.fullmatch(head_text):
+                analyser.reduce_data(may_command)
+                analyser.head_matched = True
+                return _head_find.groupdict() or True
+            elif _command_find := pat.fullmatch(head_text + may_command):
                 analyser.head_matched = True
                 return _command_find.groupdict() or True
 

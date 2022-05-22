@@ -480,11 +480,11 @@ def argument_type_validator(item: Any, extra: str = "allow"):
             return (_args[0] if len(_args) == 1 else _args) if _args else item
         if origin in (dict, ABCMapping, ABCMutableMapping):
             arg_key = argument_type_validator(get_args(item)[0], 'ignore')
-            arg_value = argument_type_validator(get_args(item)[1], 'ignore')
+            arg_value = argument_type_validator(get_args(item)[1], 'allow')
             if isinstance(arg_value, list):
                 arg_value = UnionArg(arg_value)
             return MappingArg(arg_key=arg_key, arg_value=arg_value)
-        args = argument_type_validator(get_args(item)[0], 'ignore')
+        args = argument_type_validator(get_args(item)[0], 'allow')
         if isinstance(args, list):
             args = UnionArg(args)
         if origin in (ABCMutableSequence, list):
@@ -493,13 +493,14 @@ def argument_type_validator(item: Any, extra: str = "allow"):
             return SequenceArg(args, form="tuple")
         if origin in (ABCMutableSet, ABCSet, set):
             return SequenceArg(args, form="set")
+        return BasePattern("", PatternModel.KEEP, origin, alias=f"{repr(item).split('.')[-1]}", accepts=[origin])
 
     if isinstance(item, (list, tuple, set)):
         return UnionArg(list(map(argument_type_validator, item)))
     if isinstance(item, dict):
         return MappingArg(
             arg_key=argument_type_validator(list(item.keys())[0], 'ignore'),
-            arg_value=argument_type_validator(list(item.values())[0], 'ignore')
+            arg_value=argument_type_validator(list(item.values())[0], 'allow')
         )
     if item is None or type(None) == item:
         return Empty

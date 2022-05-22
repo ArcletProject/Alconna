@@ -53,9 +53,9 @@ class DefaultTextFormatter(AbstractTextFormatter):
             example = '\n使用示例:\n' + example[0]
         else:
             example = ""
-        headers = root['additional_info'].get('headers')
-        command = root['additional_info'].get('command')
-        headers = f"[{''.join(headers)}]" if headers != [''] else ""
+        headers = root['additional_info'].get('headers', [''])
+        command = root['additional_info'].get('command', root['name'])
+        headers = f"[{''.join(map(str, headers))}]" if headers != [''] else ""
         cmd = f"{headers}{command}"
         sep = root['separators'].copy().pop()
         command_string = cmd or (root['name'] + sep)
@@ -163,9 +163,9 @@ class ArgParserTextFormatter(AbstractTextFormatter):
             example = '\n样例:' + example[0] + '\n'
         else:
             example = ""
-        headers = root['additional_info'].get('headers')
-        command = root['additional_info'].get('command')
-        header_text = f"/{''.join(headers)}/" if headers != [''] else ""
+        headers = root['additional_info'].get('headers', [''])
+        command = root['additional_info'].get('command', root['name'])
+        header_text = f"/{''.join(map(str, headers))}/" if headers != [''] else ""
         cmd = f"{header_text}{command}"
         sep = root['separators'].copy().pop()
         command_string = cmd or (root['name'] + sep)

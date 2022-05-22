@@ -49,7 +49,7 @@ def get_module_filepath() -> Optional[str]:
             return ".".join(frame.filename.split("/")[1:]).replace('.py', '')
 
 
-def split_once(text: str, separates: Union[str, Set[str]]):    # 相当于另类的pop, 不会改变本来的字符串
+def split_once(text: str, separates: Union[str, Set[str]]):  # 相当于另类的pop, 不会改变本来的字符串
     """单次分隔字符串"""
     out_text = ""
     quotation = ""
@@ -247,6 +247,33 @@ class LruCache(Generic[_K, _V]):
             return iter(self.cache.items())
 
 
+def generic_issubclass(cls: type, par: Union[type, Any, Tuple[type, ...]]) -> bool:
+    """检查 cls 是否是 args 中的一个子类, 支持泛型, Any, Union
+
+    Args:
+        cls (type): 要检查的类
+        par (Union[type, Any, Tuple[type, ...]]): 要检查的类的父类
+
+    Returns:
+        bool: 是否是父类
+    """
+    if par is Any:
+        return True
+    with contextlib.suppress(TypeError):
+        if isinstance(par, (type, tuple)):
+            return issubclass(cls, par)
+        if issubclass(cls, get_origin(par)):
+            return True
+        if get_origin(par) is Union:
+            return any(generic_issubclass(cls, p) for p in get_args(par))
+        if isinstance(par, TypeVar):
+            if par.__constraints__:
+                return any(generic_issubclass(cls, p) for p in par.__constraints__)
+            if par.__bound__:
+                return generic_issubclass(cls, par.__bound__)
+    return False
+
+
 def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> bool:
     """检查 obj 是否是 args 中的一个类型, 支持泛型, Any, Union
 
@@ -262,8 +289,8 @@ def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> boo
     with contextlib.suppress(TypeError):
         if isinstance(par, (type, tuple)):
             return isinstance(obj, par)
-        if get_origin(par) in (tuple, list, set, frozenset, dict):
-            return isinstance(obj, par)
+        if isinstance(obj, get_origin(par)):
+            return True
         if get_origin(par) is Union:
             return any(generic_isinstance(obj, p) for p in get_args(par))
         if isinstance(par, TypeVar):

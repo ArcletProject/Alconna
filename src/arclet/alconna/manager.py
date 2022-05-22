@@ -4,6 +4,7 @@ import asyncio
 import weakref
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
+from collections import ChainMap
 import shelve
 
 from .exceptions import DuplicateCommand, ExceedMaxCount
@@ -251,6 +252,7 @@ class CommandManager(metaclass=Singleton):
 
     def all_command_help(
             self,
+            show_index: bool = False,
             namespace: Optional[str] = None,
             header: Optional[str] = None,
             pages: Optional[str] = None,
@@ -262,6 +264,7 @@ class CommandManager(metaclass=Singleton):
         获取所有命令的帮助信息
 
         Args:
+            show_index: 是否展示索引
             namespace: 指定的命名空间, 如果为None则选择所有命令
             header: 帮助信息的页眉
             pages: 帮助信息的页码
@@ -272,23 +275,31 @@ class CommandManager(metaclass=Singleton):
         header = header or lang_config.manager_help_header
         pages = pages or lang_config.manager_help_pages
         footer = footer or lang_config.manager_help_footer
-        command_string = ""
-        cmds = self.__commands[namespace or self.default_namespace]
+        cmds = self.__commands[namespace] if namespace else ChainMap(*(v for v in self.__commands.values()))
+
         if max_length < 1:
-            for name, cmd in cmds.items():
-                command_string += "\n - " + name + " : " + cmd.alconna.help_text
+            command_string = "\n".join(
+                f" - {name} : {cmd.alconna.help_text}" for name, cmd in cmds.items()
+            ) if not show_index else "\n".join(
+                f" {str(index).rjust(len(str(len(cmds.items()))), '0')}"
+                f" {slot[0]} : {slot[1].alconna.help_text}"  # type: ignore
+                for index, slot in enumerate(cmds.items())
+            )
         else:
             max_page = len(cmds) // max_length + 1
             if page < 1 or page > max_page:
                 page = 1
             header += "\t" + pages.format(current=page, total=max_page)
-            for name in list(cmds.keys())[(page - 1) * max_length: page * max_length]:
-                alc = cmds[name].alconna
-                command_string += "\n - " + (
-                    f"[{'|'.join([f'{h}' for h in alc.headers])}]" if len(alc.headers) > 1
-                    else f"{alc.headers[0]}" if alc.headers != [''] else ""
-                ) + alc.command + " : " + alc.help_text
-        return f"{header}{command_string}\n{footer}"
+            command_string = "\n".join(
+                f" - {name} : {cmds[name].alconna.help_text}"
+                for name in list(cmds.keys())[(page - 1) * max_length: page * max_length]
+            ) if not show_index else "\n".join(
+                f" {str(index).rjust(len(str(page * max_length)), '0')} {name} : {cmds[name].alconna.help_text}"
+                for index, name in enumerate(
+                    list(cmds.keys())[(page - 1) * max_length: page * max_length], start=(page - 1) * max_length
+                )
+            )
+        return f"{header}\n{command_string}\n{footer}"
 
     def command_help(self, command: str) -> Optional[str]:
         """获取单个命令的帮助"""
