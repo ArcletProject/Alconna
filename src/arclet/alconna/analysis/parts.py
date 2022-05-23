@@ -308,13 +308,13 @@ def analyse_header(
                     analyser.head_matched = True
                     return _command_find.groupdict() or True
 
-        elif _m_str and _str:
+        elif _str:
             pat = re.compile(command[0][1].pattern + command[1].pattern)
             if _head_find := pat.fullmatch(head_text):
                 analyser.reduce_data(may_command)
                 analyser.head_matched = True
                 return _head_find.groupdict() or True
-            elif _command_find := pat.fullmatch(head_text + may_command):
+            elif _m_str and (_command_find := pat.fullmatch(head_text + may_command)):
                 analyser.head_matched = True
                 return _command_find.groupdict() or True
 

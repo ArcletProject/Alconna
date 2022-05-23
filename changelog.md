@@ -30,13 +30,14 @@
 4. `split` 以及 `separator` 现在需要传入 `Set[str]` 类型.
 5. 修复 bug.
 
-## Alconna 0.9.3:
+## Alconna 0.9.3 - 0.9.3.3:
 1. 合并 `ArgPattern` 与 `TypePattern` 为 `BasePattern`, 并将诸多分散特性(如 `anti`, `any`) 移动到 `BasePattern` 中.
 2. 取消 `Analyser` 中有关 `arg_handler` 的部分
 3. `AnyStr`、`AnyDigit`、`AnyFloat` 等现在不被公开.
 4. `AnyParam` 重写为由 `BasePattern` 实现, 并改名为 `AnyOne`.
 5. `alconna.types` 变为 `alconna.typing`.
-6. 修复 bug.
+6. 为 `all_command_help` 增加索引选项
+7. 修复 bug.
 
 # Alconna 0.8.x:
 
