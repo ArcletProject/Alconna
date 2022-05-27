@@ -220,9 +220,11 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def rest_count(self, separate: Optional[Set[str]] = None) -> int:
         """获取剩余的数据个数"""
         _result = 0
+        is_cur = False
         for _data in self.raw_data[self.current_index:]:
             if isinstance(_data, list):
-                for s in _data[self.content_index:]:
+                for s in (_data[self.content_index:] if not is_cur else _data):
+                    is_cur = True
                     if separate and self.separators.difference(separate) == self.separators:
                         _result += len(split(s, separate))
                     else:
@@ -261,9 +263,14 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def recover_raw_data(self) -> List[Union[str, Any]]:
         """将处理过的命令数据大概还原"""
         _result = []
+        is_cur = False
         for _data in self.raw_data[self.current_index:]:
             if isinstance(_data, list):
-                _result.append(f'{self.separators.copy().pop()}'.join(_data[self.content_index:]))
+                if not is_cur:
+                    _result.append(f'{self.separators.copy().pop()}'.join(_data[self.content_index:]))
+                    is_cur = True
+                else:
+                    _result.append(f'{self.separators.copy().pop()}'.join(_data))
             else:
                 _result.append(_data)
         self.current_index = self.ndata

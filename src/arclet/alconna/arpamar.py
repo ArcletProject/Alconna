@@ -1,4 +1,4 @@
-from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple
+from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload
 from .typing import DataCollection
 from .lang import lang_config
 from .base import SubcommandResult, OptionResult
@@ -212,7 +212,7 @@ class Arpamar:
         else:
             cache[endpoint] = value
 
-    def query_with(self, arg_type: Type[T], name: Optional[str] = None) -> Optional[Dict[str, T]]:
+    def query_with(self, arg_type: Type[T], name: Optional[str] = None) -> Optional[Union[Dict[str, T], T]]:
         """根据类型查询参数"""
         if name:
             res = self.query(name)
@@ -223,8 +223,19 @@ class Arpamar:
         """查询是否存在"""
         return any([name in self.components, name in self.main_args, name in self.other_args])
 
+    @overload
+    def __getitem__(self, item: Type[T]) -> Optional[T]:
+        ...
+
+    @overload
     def __getitem__(self, item: str) -> Any:
-        return self.query(item)
+        ...
+
+    def __getitem__(self, item: Union[str, Type[T]]) -> Union[T, Any, None]:
+        if isinstance(item, str):
+            return self.query(item)
+        if data := self.query_with(item):
+            return data.popitem()[1]
 
     def __getattr__(self, item):
         return self.all_matched_args.get(item)
