@@ -6,7 +6,7 @@ from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Patte
 
 from ..manager import command_manager
 from ..exceptions import NullTextMessage
-from ..base import Args, Option, Subcommand
+from ..base import Args, Option, Subcommand, Sentence
 from ..arpamar import Arpamar
 from ..util import split_once, split
 from ..typing import DataUnit, DataCollection, pattern_map
@@ -34,15 +34,15 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     # raw_data: Dict[int, Union[List[str], Any]]  # 原始数据
     raw_data: List[Union[Any, List[str]]]  # 原始数据
     ndata: int  # 原始数据的长度
-    command_params: Dict[str, Union[Option, Subcommand]]  # 参数  # TODO
-    param_ids: List[str]  # TODO
+    command_params: Dict[str, Union[Sentence, List[Option], Subcommand]]  # 参数  # TODO
+    param_ids: Set[str]  # TODO
     # 命令头部
     command_header: Union[
         Pattern,
         Tuple[Union[Tuple[List[Any], Pattern], List[Any]], Pattern],
         List[Tuple[Any, Pattern]]
-    ]
-    separators: Set[str]  # 分隔符
+    ]  # TODO
+    separators: Set[str]  # 分隔符  # TODO
     is_raise_exception: bool  # 是否抛出异常  # TODO
     options: Dict[str, Any]  # 存放解析到的所有选项
     subcommands: Dict[str, Any]  # 存放解析到的所有子命令
@@ -58,6 +58,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     origin_data: T_Origin  # 原始数据
     temp_token: int  # 临时token
     used_tokens: Set[int]  # 已使用的token
+    sentences: List[str]  # 存放解析到的所有句子
 
     def __init_subclass__(cls, **kwargs):
         if not hasattr(cls, "filter_out"):
@@ -85,10 +86,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         nargs = nargs or len(main_args)
         if nargs > 0 and nargs > main_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = sum(
-            a['default'] is not None for k, a in main_args.argument.items()
-        )
-
+        _de_count = sum(a['default'] is not None for k, a in main_args.argument.items())
         if _de_count and _de_count == nargs:
             self.default_main_only = True
 
@@ -154,20 +152,31 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                         actions['subcommands'][f"{opt.dest}.{option.dest}"] = option.action
 
     @staticmethod
-    def default_params_generator(analyser: "Analyser"):
-        analyser.param_ids = []
+    def default_params_generator(analyser: "Analyser"):  # TODO: 同名option组合为一个列表
+        analyser.param_ids = set()
         analyser.command_params = {}
+        analyser.part_len = range(len(analyser.alconna.options) + 1)
         for opts in analyser.alconna.options:
-            if isinstance(opts, Subcommand):
-                analyser.param_ids.append(opts.name)
-                for sub_opts in opts.options:
-                    opts.sub_params.setdefault(sub_opts.name, sub_opts)
-                    analyser.param_ids.extend(sub_opts.aliases)
+            if isinstance(opts, Option):
+                if analyser.command_params.get(opts.name):
+                    analyser.command_params[opts.name].append(opts)
+                else:
+                    analyser.command_params[opts.name] = [opts]
+                analyser.param_ids.update(opts.aliases)
+            elif isinstance(opts, Subcommand):
+                analyser.command_params[opts.name] = opts
+                analyser.param_ids.add(opts.name)
                 opts.sub_part_len = range(len(opts.options) + 1)
-            else:
-                analyser.param_ids.extend(opts.aliases)
-            analyser.command_params[opts.name] = opts
-        analyser.part_len = range(len(analyser.command_params) + 1)
+                for sub_opts in opts.options:
+                    if opts.sub_params.get(sub_opts.name):
+                        opts.sub_params[sub_opts.name].append(sub_opts)
+                    else:
+                        opts.sub_params[sub_opts.name] = [sub_opts]
+                    if sub_opts.requires:
+                        opts.sub_params.update({k: Sentence(name=k) for k in sub_opts.requires})
+                    analyser.param_ids.update(sub_opts.aliases)
+            if opts.requires:
+                analyser.command_params.update({k: Sentence(name=k) for k in opts.requires})
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>"
@@ -190,6 +199,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.main_args = {}
         self.options = {}
         self.subcommands = {}
+        self.sentences = []
 
     def next_data(self, separate: Optional[Set[str]] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
@@ -201,7 +211,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         if isinstance(_current_data, list):
             _rest_text: str = ""
             _text = _current_data[self.content_index]
-            if separate and self.separators.difference(separate) == self.separators:
+            if separate and not self.separators.issuperset(separate):
                 _text, _rest_text = split_once(_text, separate)
             if pop:
                 if _rest_text:  # 这里实际上还是pop了
@@ -225,10 +235,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             if isinstance(_data, list):
                 for s in (_data[self.content_index:] if not is_cur else _data):
                     is_cur = True
-                    if separate and self.separators.difference(separate) == self.separators:
-                        _result += len(split(s, separate))
-                    else:
-                        _result += 1
+                    _result += len(split(s, separate)) if separate and not self.separators.issuperset(separate) else 1
             else:
                 _result += 1
         return _result
@@ -294,7 +301,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         else:
             separates = self.separators
             i, __t, exc = 0, False, None
-            raw_data = []
+            raw_data = self.raw_data
             for unit in data:  # type: ignore
                 if text := getattr(unit, 'text', None):
                     if not (res := split(text.lstrip(), separates)):
@@ -317,7 +324,6 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                     raise exp
                 self.temporary_data["fail"] = exp
             else:
-                self.raw_data = raw_data
                 self.ndata = i
                 self.temp_token = self.generate_token(raw_data)
         return self
@@ -337,13 +343,13 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         result.head_matched = self.head_matched
         if fail:
             tb = traceback.format_exc(limit=1)
-            result.error_info = repr(exception) or repr(tb)
+            result.error_info = repr(exception or tb)
             result.error_data = self.recover_raw_data()
             result.matched = False
         else:
             result.matched = True
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
-            command_manager.record(self.temp_token, self.origin_data, self.alconna.path, result)  # type: ignore
+            command_manager.record(self.temp_token, self.origin_data, result)  # type: ignore
             self.used_tokens.add(self.temp_token)
         self.reset()
         return result

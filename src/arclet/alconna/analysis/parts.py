@@ -4,7 +4,7 @@ from typing import Iterable, Union, List, Any, Dict, Pattern, Tuple, Set
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from ..typing import AllParam, Empty, DataUnit, MultiArg, BasePattern
-from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
+from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult, Sentence
 from ..util import levenshtein_norm, split_once
 from ..manager import command_manager
 from ..lang import lang_config
@@ -189,6 +189,40 @@ def analyse_args(
     return option_dict
 
 
+def analyse_params(
+        analyser: Analyser,
+        params: Dict[str, Union[Sentence, List[Option], Subcommand]]
+):
+    _text, _str = analyser.next_data(analyser.separators, pop=False)
+    if not _str:
+        return Ellipsis
+    if not _text:
+        return _text
+    if param := params.get(_text, None):
+        return param
+    for p in params:
+        _p = params[p]
+        if isinstance(_p, List):
+            res = []
+            for _o in _p:
+                if not _o.is_compact:
+                    _may_param, _ = split_once(_text, _o.separators)
+                    if _may_param in _o.aliases:
+                        res.append(_o)
+                        continue
+                    if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.6:
+                        raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=p))
+                elif any(map(lambda x: _text.startswith(x), _o.aliases)):
+                    res.append(_o)
+            return res
+        else:
+            _may_param, _ = split_once(_text, _p.separators)
+            if _may_param == _p.name:
+                return _p
+            if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.6:
+                raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=p))
+
+
 def analyse_option(
         analyser: Analyser,
         param: Option,
@@ -200,6 +234,11 @@ def analyse_option(
         analyser: 使用的分析器
         param: 目标Option
     """
+    if param.requires:
+        for text in param.requires:
+            if text not in analyser.sentences:
+                raise ArgumentMissing(f"{param.name} missing required '{text}'")
+            analyser.sentences.remove(text)
     if param.is_compact:
         name, _ = analyser.next_data()
         for al in param.aliases:
@@ -232,6 +271,11 @@ def analyse_subcommand(
         analyser: 使用的分析器
         param: 目标Subcommand
     """
+    if param.requires:
+        for text in param.requires:
+            if text not in analyser.sentences:
+                raise ArgumentMissing(f"{param.name} missing required '{text}'")
+            analyser.sentences.remove(text)
     if param.is_compact:
         name, _ = analyser.next_data()
         if name.startswith(param.name):
@@ -252,19 +296,22 @@ def analyse_subcommand(
     subcommand = res['options']
     need_args = param.nargs > 0
     for _ in param.sub_part_len:
-        text, _str = analyser.next_data(param.separators, pop=False)
-        sub_param = param.sub_params.get(text, None) if _str else Ellipsis
-        if not sub_param and text != "":
-            for sp in param.sub_params:
-                _may_param, _ = split_once(text, param.sub_params[sp].separators)
-                if _may_param in param.sub_params[sp].aliases:
-                    sub_param = param.sub_params[sp]
+        sub_param = analyse_params(analyser, param.sub_params)
+        if isinstance(sub_param, List):
+            for p in sub_param:
+                _current_index = analyser.current_index
+                _content_index = analyser.content_index
+                try:
+                    subcommand.setdefault(*analyse_option(analyser, p))
                     break
-                if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, sp) >= 0.6:
-                    raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=sp))
-        if isinstance(sub_param, Option):
-            opt_n, opt_v = analyse_option(analyser, sub_param)
-            subcommand[opt_n] = opt_v
+                except Exception as e:
+                    exc = e
+                    analyser.current_index = _current_index
+                    analyser.content_index = _content_index
+                    continue
+            else:
+                raise exc  # noqa
+
         elif not args:
             res['args'] = analyse_args(analyser, param.args, param.nargs)
             args = True

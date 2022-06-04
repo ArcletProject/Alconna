@@ -119,7 +119,7 @@ class ArgParserTextFormatter(AbstractTextFormatter):
             if len(opt_names) < 6 else " [OPTIONS]"
         ) if opt_names else ""
 
-        topic = trace['name'].replace("ALCONNA::", "") + " " + sub_names + " " + opt_names
+        topic = trace['name'] + " " + sub_names + " " + opt_names
         header = self.header(trace)
         body = self.body(parts)  # type: ignore
         return topic + '\n' + header % body

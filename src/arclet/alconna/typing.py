@@ -1,6 +1,7 @@
 """Alconna 参数相关"""
 import re
 import inspect
+from copy import copy
 from collections.abc import (
     Iterable as ABCIterable,
     Sequence as ABCSequence,
@@ -10,17 +11,24 @@ from collections.abc import (
     MutableMapping as ABCMutableMapping,
     Mapping as ABCMapping,
 )
+from functools import lru_cache
+from pathlib import Path
 from enum import IntEnum
 from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Union, Sequence, \
     List, Dict, get_args, Literal, Tuple, get_origin, Iterable, Generic
-from types import LambdaType
-from pathlib import Path
+
+try:
+    from typing import Annotated
+except ImportError:
+    from typing_extensions import Annotated
 
 from .exceptions import ParamsUnmatched
 from .lang import lang_config
 from .util import generic_isinstance
 
 DataUnit = TypeVar("DataUnit")
+GenericAlias = type(List[int])
+AnnotatedAlias = type(Annotated[int, lambda x: x > 0])
 
 
 class DataCollection(Protocol[DataUnit]):
@@ -30,6 +38,9 @@ class DataCollection(Protocol[DataUnit]):
         ...
 
     def __iter__(self) -> DataUnit:
+        ...
+
+    def __len__(self) -> int:
         ...
 
 
@@ -78,6 +89,7 @@ class BasePattern(Generic[TOrigin]):
     pattern: str
     model: PatternModel
     converter: Callable[[Union[str, Any]], TOrigin]
+    validator: Callable[[TOrigin], bool]
 
     anti: bool
     origin_type: Type[TOrigin]
@@ -85,18 +97,22 @@ class BasePattern(Generic[TOrigin]):
     alias: Optional[str]
     previous: Optional["BasePattern"]
 
-    __slots__ = "regex_pattern", "pattern", "model", "converter", "origin_type", "accepts", "alias", "previous", "anti"
+    __slots__ = (
+        "regex_pattern", "pattern", "model", "converter", "anti",
+        "origin_type", "accepts", "alias", "previous", "validator"
+    )
 
     def __init__(
-        self,
-        pattern: str = "(.+?)",
-        model: PatternModel = PatternModel.REGEX_MATCH,
-        origin_type: Type[TOrigin] = str,
-        converter: Optional[Callable[[Union[str, Any]], TOrigin]] = None,
-        alias: Optional[str] = None,
-        previous: Optional["BasePattern"] = None,
-        accepts: Optional[List[Type]] = None,
-        anti: bool = False
+            self,
+            pattern: str = "(.+?)",
+            model: PatternModel = PatternModel.REGEX_MATCH,
+            origin_type: Type[TOrigin] = str,
+            converter: Optional[Callable[[Union[str, Any]], TOrigin]] = None,
+            alias: Optional[str] = None,
+            previous: Optional["BasePattern"] = None,
+            accepts: Optional[List[Type]] = None,
+            validator: Optional[Callable[[TOrigin], bool]] = None,
+            anti: bool = False
     ):
         """
         初始化参数匹配表达式
@@ -114,6 +130,7 @@ class BasePattern(Generic[TOrigin]):
             self.converter = lambda x: origin_type(x)
         else:
             self.converter = lambda x: eval(x)
+        self.validator = validator or (lambda x: True)
         self.anti = anti
 
     def __repr__(self):
@@ -124,7 +141,7 @@ class BasePattern(Generic[TOrigin]):
         elif self.model == PatternModel.REGEX_CONVERT:
             text = self.alias or self.origin_type.__name__
         else:
-            text = f"{(('|'.join(x.__name__ for x in self.accepts)) + ' -> ') if self.accepts else '' }" \
+            text = f"{(('|'.join(x.__name__ for x in self.accepts)) + ' -> ') if self.accepts else ''}" \
                    f"{self.alias or self.origin_type.__name__}"
         return f"{(f'{self.previous.__repr__()}, ' if self.previous else '')}{'!' if self.anti else ''}{text}"
 
@@ -158,7 +175,10 @@ class BasePattern(Generic[TOrigin]):
         if self.model == PatternModel.KEEP:
             return input_
         if self.model == PatternModel.TYPE_CONVERT:
-            return self.converter(input_)
+            res = self.converter(input_)
+            if not generic_isinstance(res, self.origin_type):
+                raise ParamsUnmatched(lang_config.args_error.format(target=input_))
+            return res
         if not isinstance(input_, str):
             raise ParamsUnmatched(lang_config.args_type_error.format(target=type(input_)))
         if r := self.regex_pattern.findall(input_):
@@ -168,16 +188,21 @@ class BasePattern(Generic[TOrigin]):
     def validate(self, input_: Union[str, Any], default: Optional[Any] = None) -> Tuple[Any, Literal["V", "E", "D"]]:
         if not self.anti:
             try:
-                return self.match(input_), "V"
+                res = self.match(input_)
+                if self.validator(res):
+                    return res, "V"
+                raise ParamsUnmatched(lang_config.args_error.format(target=input_))
             except Exception as e:
                 if default is None:
                     return e, "E"
                 return None if default is Empty else default, "D"
         try:
-            self.match(input_)
+            res = self.match(input_)
         except ParamsUnmatched:
             return input_, "V"
         else:
+            if not self.validator(res):
+                return input_, "E"
             if default is None:
                 return ParamsUnmatched(lang_config.args_error.format(target=input_)), "E"
             return None if default is Empty else default, "D"
@@ -229,22 +254,23 @@ class MultiArg(BasePattern):
 
 class UnionArg(BasePattern):
     """多类型参数的匹配"""
+    optional: bool
     arg_value: Sequence[Union[BasePattern, object, str]]
     for_validate: List[BasePattern]
     for_equal: List[Union[str, object]]
 
-    __validator__: Callable = lambda x: x if isinstance(x, Sequence) else [x]
-
     def __init__(self, base: Sequence[Union[BasePattern, object, str]], anti: bool = False):
         self.arg_value = base
+        self.optional = False
 
         self.for_validate = []
         self.for_equal = []
 
         for arg in self.arg_value:
             if arg == Empty:
-                continue
-            if isinstance(arg, BasePattern):
+                self.optional = True
+                self.for_equal.append(None)
+            elif isinstance(arg, BasePattern):
                 self.for_validate.append(arg)
             else:
                 self.for_equal.append(arg)
@@ -257,6 +283,8 @@ class UnionArg(BasePattern):
         )
 
     def match(self, text: Union[str, Any]):
+        if not text:
+            text = None
         if self.anti:
             validate = False
             equal = text in self.for_equal
@@ -278,7 +306,7 @@ class UnionArg(BasePattern):
                     text = pat.match(text)
                     not_match = False
                     break
-                except ParamsUnmatched:
+                except (ParamsUnmatched, TypeError):
                     continue
         if not_match and not_equal:
             raise ParamsUnmatched(lang_config.args_error.format(target=text))
@@ -288,9 +316,6 @@ class UnionArg(BasePattern):
         return ("!" if self.anti else "") + ("|".join(
             [repr(a) for a in self.for_validate] + [repr(a) for a in self.for_equal]
         ))
-
-    def __class_getitem__(cls, item):
-        return cls(cls.__validator__(item))
 
 
 class SequenceArg(BasePattern):
@@ -439,14 +464,7 @@ AnyPathFile = BasePattern(
 
 _Digit = BasePattern(r"(\-?\d+)", PatternModel.REGEX_CONVERT, int, lambda x: int(x), "int")
 _Float = BasePattern(r"(\-?\d+\.?\d*)", PatternModel.REGEX_CONVERT, float, lambda x: float(x), "float")
-_Bool = BasePattern(
-    r"(True|False|true|false)",
-    PatternModel.REGEX_CONVERT,
-    bool,
-    lambda x: x.lower() == "true",
-    "bool",
-)
-
+_Bool = BasePattern(r"(True|False|true|false)", PatternModel.REGEX_CONVERT, bool, lambda x: x.lower() == "true", "bool")
 _List = BasePattern(r"(\[.+?\])", PatternModel.REGEX_CONVERT, list, alias="list")
 _Tuple = BasePattern(r"(\(.+?\))", PatternModel.REGEX_CONVERT, tuple, alias="tuple")
 _Set = BasePattern(r"(\{.+?\})", PatternModel.REGEX_CONVERT, set, alias="set")
@@ -473,11 +491,18 @@ def argument_type_validator(item: Any, extra: str = "allow"):
             return pat
     except TypeError:
         pass
-    if not inspect.isclass(item) and item.__class__.__name__ in "_GenericAlias":
+    if not inspect.isclass(item) and isinstance(item, GenericAlias):
+        if isinstance(item, AnnotatedAlias):
+            _o = argument_type_validator(item.__origin__, extra)  # type: ignore
+            if not isinstance(_o, BasePattern):
+                return _o
+            _arg = copy(_o)
+            _arg.validator = lambda x: all(i(x) for i in item.__metadata__)
+            return _arg
         origin = get_origin(item)
         if origin in (Union, Literal):
             _args = list({argument_type_validator(t, extra) for t in get_args(item)})
-            return (_args[0] if len(_args) == 1 else _args) if _args else item
+            return (_args[0] if len(_args) == 1 else UnionArg(_args)) if _args else item
         if origin in (dict, ABCMapping, ABCMutableMapping):
             arg_key = argument_type_validator(get_args(item)[0], 'ignore')
             arg_value = argument_type_validator(get_args(item)[1], 'allow')
@@ -515,157 +540,34 @@ def argument_type_validator(item: Any, extra: str = "allow"):
     return item
 
 
-UnionArg.__validator__ = lambda x: [
-    argument_type_validator(t, "allow") for t in (x if isinstance(x, Sequence) else [x])
-]
+class Bind:
+    __slots__ = ()
 
+    def __new__(cls, *args, **kwargs):
+        raise TypeError("Type Bind cannot be instantiated.")
 
-class ObjectPattern(BasePattern):
-
-    def __init__(
-            self,
-            origin: Type[TOrigin],
-            limit: Tuple[str, ...] = (),
-            head: str = "",
-            flag: Literal["http", "part", "json"] = "part",
-            **suppliers: Callable
-    ):
-        """
-        将传入的对象类型转换为接收序列号参数解析后实例化的对象
-
-        Args:
-            origin: 原始对象
-            limit: 指定该对象初始化时需要的参数
-            head: 是否需要匹配一个头部
-            flag: 匹配类型
-            suppliers: 对象属性的匹配方法
-        """
-        self.origin = origin
-        self._require_map: Dict[str, Callable] = {}
-        self._supplement_map: Dict[str, Callable] = {}
-        self._transform_map: Dict[str, Callable] = {}
-        self._params: Dict[str, Any] = {}
-        _re_pattern = ""
-        _re_patterns = []
-        sig = inspect.signature(origin.__init__)
-        for param in sig.parameters.values():
-            name = param.name
-            if name in ("self", "cls"):
-                continue
-            if limit and name not in limit:
-                continue
-            if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
-                continue
-            self._params[name] = None
-            if name in suppliers:
-                _s_sig = inspect.signature(suppliers[name])
-                if _s_sig.return_annotation in get_args(param.annotation):
-                    if len(_s_sig.parameters) == 0 or (
-                            len(_s_sig.parameters) == 1 and inspect.ismethod(suppliers[name])
-                    ):
-                        self._supplement_map[name] = suppliers[name]
-                    elif len(_s_sig.parameters) == 1 or (
-                            len(_s_sig.parameters) == 2 and inspect.ismethod(suppliers[name])
-                    ):
-                        self._require_map[name] = suppliers[name]
-                        if flag == "http":
-                            _re_patterns.append(f"{name}=(?P<{name}>.+?)")  # &
-                        elif flag == "json":
-                            _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>.+?)\\'")  # ,
-                        elif flag == "part":
-                            _re_patterns.append(f"(?P<{name}>.+?)")  # ;
-                    else:
-                        raise TypeError(
-                            lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__)
-                        )
-                elif isinstance(suppliers[name], LambdaType):
-                    if len(_s_sig.parameters) == 0:
-                        self._supplement_map[name] = suppliers[name]
-                    elif len(_s_sig.parameters) == 1:
-                        self._require_map[name] = suppliers[name]
-                        if flag == "http":
-                            _re_patterns.append(f"{name}=(?P<{name}>.+?)")  # &
-                        elif flag == "json":
-                            _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>.+?)\\'")  # ,
-                        elif flag == "part":
-                            _re_patterns.append(f"(?P<{name}>.+?)")  # ;
-                    else:
-                        raise TypeError(
-                            lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__)
-                        )
-                else:
-                    raise TypeError(lang_config.types_supplier_return_error.format(
-                        target=name, origin=origin.__name__, source=param.annotation
-                    ))
-            elif param.default not in (Empty, None, Ellipsis):
-                self._params[name] = param.default
-            else:
-                pat = param.annotation
-                if not (args := get_args(param.annotation)):
-                    args = (pat,)
-                for anno in args:
-                    pat = pattern_map.get(anno, None)
-                    if pat is not None:
-                        break
-                else:
-                    if param.annotation is Empty:
-                        pat = _String
-                    elif inspect.isclass(param.annotation) and issubclass(param.annotation, str):
-                        pat = _String
-                    elif inspect.isclass(param.annotation) and issubclass(param.annotation, int):
-                        pat = _Digit
-                    elif pat is None:
-                        raise TypeError(lang_config.types_supplier_missing.format(target=name, origin=origin.__name__))
-
-                if isinstance(pat, ObjectPattern):
-                    raise TypeError(lang_config.types_type_error.format(target=pat))
-                self._require_map[name] = pat.match
-                if pat.model == PatternModel.REGEX_CONVERT:
-                    self._transform_map[name] = pat.converter
-                if flag == "http":
-                    _re_patterns.append(f"{name}=(?P<{name}>{pat.pattern.strip('()')})")  # &
-                elif flag == "part":
-                    _re_patterns.append(f"(?P<{name}>{pat.pattern.strip('()')})")  # ;
-                elif flag == "json":
-                    _re_patterns.append(f"\\'{name}\\':\\'(?P<{name}>{pat.pattern.strip('()')})\\'")  # ,
-        if _re_patterns:
-            if flag == "http":
-                _re_pattern = (rf"{head}\?" if head else "") + "&".join(_re_patterns)
-            elif flag == "json":
-                _re_pattern = (f"{head}:" if head else "") + "{" + ",".join(_re_patterns) + "}"
-            elif flag == "part":
-                _re_pattern = (f"{head};" if head else "") + ";".join(_re_patterns)
-        else:
-            _re_pattern = f"{head}" if head else f"{self.origin.__name__}"
-
-        super().__init__(
-            _re_pattern,
-            model=PatternModel.REGEX_MATCH, origin_type=self.origin, alias=head or self.origin.__name__,
-        )
-        set_converter(self)
-
-    def match(self, text: str):
-        if matched := self.regex_pattern.fullmatch(text):
-            args = matched.groupdict()
-            for k in self._require_map:
-                if k in args:
-                    self._params[k] = self._require_map[k](args[k])
-                    if self._transform_map.get(k, None):
-                        self._params[k] = self._transform_map[k](self._params[k])
-            for k in self._supplement_map:
-                self._params[k] = self._supplement_map[k]()
-            return self.origin(**self._params)
-        raise ParamsUnmatched(lang_config.args_error.format(target=text))
-
-    def __call__(self, *args, **kwargs):
-        return self.origin(*args, **kwargs)
-
-    def __eq__(self, other):
-        return isinstance(other, ObjectPattern) and self.origin == other.origin
+    @classmethod
+    @lru_cache(maxsize=None)
+    def __class_getitem__(cls, params):
+        if not isinstance(params, tuple) or len(params) != 2:
+            raise TypeError(
+                "Bind[...] should be used with only two arguments (a type and an annotation)."
+            )
+        if not (pattern := pattern_map.get(params[0]) if not isinstance(params[0], BasePattern) else params[0]):
+            raise ValueError(
+                "Bind[...] first argument should be a BasePattern."
+            )
+        if not callable(params[1]):
+            raise TypeError(
+                "Bind[...] second argument should be a callable."
+            )
+        pattern = copy(pattern)
+        pattern.validator = params[1]
+        return pattern
 
 
 __all__ = [
     "DataUnit", "DataCollection", "Empty", "AnyOne", "AllParam", "_All", "PatternModel",
-    "BasePattern", "MultiArg", "SequenceArg", "UnionArg", "MappingArg", "ObjectPattern",
+    "BasePattern", "MultiArg", "SequenceArg", "UnionArg", "MappingArg", "Bind",
     "pattern_gen", "pattern_map", "set_converter", "set_converters", "remove_converter", "argument_type_validator"
 ]

@@ -1,15 +1,11 @@
 """杂物堆"""
 import contextlib
 import random
-import functools
-import warnings
-import logging
 
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from inspect import stack
-from typing import Callable, TypeVar, Optional, Dict, Any, List, Iterator, Generic, Hashable, Tuple, Set, Union, \
-    get_origin, get_args
+from typing import TypeVar, Optional, Dict, Any, List, Iterator, Generic, Hashable, Tuple, Set, Union, get_origin, \
+    get_args
 
 R = TypeVar('R')
 
@@ -26,27 +22,6 @@ class Singleton(type):
     @classmethod
     def remove(mcs, cls):
         mcs._instances.pop(cls, None)
-
-
-def get_module_name() -> Optional[str]:
-    """获取当前模块名"""
-    for frame in stack():
-        if name := frame.frame.f_locals.get("__name__"):
-            return name
-
-
-def get_module_filename() -> Optional[str]:
-    """获取当前模块的文件名"""
-    for frame in stack():
-        if frame.frame.f_locals.get("__name__"):
-            return frame.filename.split("/")[-1].split(".")[0]
-
-
-def get_module_filepath() -> Optional[str]:
-    """获取当前模块的路径"""
-    for frame in stack():
-        if frame.frame.f_locals.get("__name__"):
-            return ".".join(frame.filename.split("/")[1:]).replace('.py', '')
 
 
 def split_once(text: str, separates: Union[str, Set[str]]):  # 相当于另类的pop, 不会改变本来的字符串
@@ -82,23 +57,22 @@ def split(text: str, separates: Optional[Set[str]] = None):
     """
     separates = separates or {" "}
     result = []
-    quote = ""
-    quoted = False
+    quotation = ""
     cache = ""
     for index, char in enumerate(text):
         if char in {"'", '"'}:
-            if not quoted:
-                quote, quoted = char, True
+            if not quotation:
+                quotation = char
                 if index and text[index - 1] == "\\":
                     cache += char
-            elif char == quote:
-                quote, quoted = "", False
+            elif char == quotation:
+                quotation = ""
                 if index and text[index - 1] == "\\":
                     cache += char
-        elif char in {"\n", "\r"} or (not quoted and char in separates and cache):
+        elif char in {"\n", "\r"} or (not quotation and char in separates and cache):
             result.append(cache)
             cache = ""
-        elif char != "\\" and (char not in separates or quoted):
+        elif char != "\\" and (char not in separates or quotation):
             cache += char
     if cache:
         result.append(cache)
@@ -124,21 +98,6 @@ def levenshtein(source: str, target: str) -> int:
             sub_distance = matrix[i - 1][j - 1] + sub_trans_cost
             matrix[i][j] = min(del_distance, ins_distance, sub_distance)
     return matrix[len(source)][len(target)]
-
-
-def deprecated(remove_ver: str) -> Callable[[Callable[..., R]], Callable[..., R]]:
-    """标注一个方法 / 函数已被弃用"""
-
-    def out_wrapper(func: Callable[..., R]) -> Callable[..., R]:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> R:
-            warnings.warn("{} will be removed in {}!".format(func.__qualname__, remove_ver), DeprecationWarning, 2)
-            logging.warning(f"{func.__qualname__} will be removed in {remove_ver}!")
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return out_wrapper
 
 
 _K = TypeVar("_K", bound=Hashable)
@@ -242,7 +201,7 @@ class LruCache(Generic[_K, _V]):
         if size == -1:
             return iter(self.cache.items())
         try:
-            return iter(list(self.cache.items())[:size])
+            return iter(list(self.cache.items())[:-size:-1])
         except IndexError:
             return iter(self.cache.items())
 

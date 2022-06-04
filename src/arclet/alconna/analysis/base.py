@@ -39,7 +39,7 @@ class _DummyAnalyser(Analyser):
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore
         cls.command_params = {}
-        cls.param_ids = []
+        cls.param_ids = set()
         return super().__new__(cls)
 
     def analyse(self, message: Union[str, DataCollection, None] = None):

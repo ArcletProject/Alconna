@@ -243,11 +243,9 @@ class Arpamar:
     def __repr__(self):
         if self.error_info:
             attrs = ((s, getattr(self, s)) for s in ["matched", "head_matched", "error_data", "error_info"])
-            return ", ".join([f"{a}={v}" for a, v in attrs if v is not None])
+            return ", ".join(f"{a}={v}" for a, v in attrs if v is not None)
         else:
-            attrs = [(s, getattr(self, s)) for s in [
-                "matched", "header", "options", "subcommands"
-            ]]
+            attrs = [(s, getattr(self, s)) for s in ["matched", "header", "options", "subcommands"]]
             margs = self.main_args.copy()
             margs.pop('__varargs__', None)
             margs.pop('__kwargs__', None)
@@ -257,4 +255,4 @@ class Arpamar:
             other_args.pop('__kwargs__', None)
             attrs.append(("other_args", other_args))
 
-            return ", ".join([f"{a}={v}" for a, v in attrs if v])
+            return ", ".join(f"{a}={v}" for a, v in attrs if v)

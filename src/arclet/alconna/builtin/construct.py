@@ -184,7 +184,7 @@ class AlconnaDecorate:
             if not self.__storage.get('func'):
                 self.__storage['func'] = func
             self.__storage['options'].append(
-                Option(name, args=args, action=action, separator=sep, help_text=help or name)
+                Option(name, args=args, action=action, separators=sep, help_text=help or name)
             )
             return func
 
