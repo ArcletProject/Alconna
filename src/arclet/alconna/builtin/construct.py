@@ -288,7 +288,7 @@ def _from_format(
         except KeyError:
             may_parts = re.split(r"[:=]", key.replace(" ", ''))
             if len(may_parts) == 1:
-                _arg = Args[may_parts[0]:Any]
+                _arg = Args[may_parts[0], Any]
             else:
                 _arg = Args.from_string_list([may_parts], {})
             if _string_stack:

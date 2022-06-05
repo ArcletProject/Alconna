@@ -376,6 +376,7 @@ class CommandNode:
     separators: Set[str]
     action: Optional[ArgAction]
     help_text: str
+    requires: Union[Sequence[str], Set[str]]
 
     def __init__(
             self, name: str,
@@ -405,7 +406,9 @@ class CommandNode:
             [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
         )
         self.action = ArgAction.__validator__(action, self.args)
-        self.separators = {' '} if not separators else {separators} if isinstance(separators, str) else set(separators)
+        self.separators = {' '} if separators is None else (
+            {separators} if isinstance(separators, str) else set(separators)
+        )
         self.nargs = len(self.args.argument)
         self.is_compact = self.separators == {''}
         self.requires = [] if not requires else (requires if isinstance(requires, (list, tuple, set)) else (requires,))

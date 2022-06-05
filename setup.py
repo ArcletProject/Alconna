@@ -5,7 +5,7 @@ with open("README.rst", "r", encoding='utf-8') as fh:
 
 setuptools.setup(
     name="arclet-alconna",
-    version="0.9.3.4",
+    version="0.9.4",
     author="ArcletProject",
     author_email="rf_tar_railt@qq.com",
     description="A Fast Command Analyser based on Dict",
@@ -20,6 +20,7 @@ setuptools.setup(
             'alconna = arclet.alconna.__main__:main'
         ]
     },
+    install_requires=['typing_extensions'],
     extras_require={
         'graia': [
             'arclet-alconna-graia',
@@ -34,7 +35,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     include_package_data=True,
-    keywords=['command', 'argparse', 'dict', 'fast', 'alconna', 'cli', 'parsing', 'optparse'],
+    keywords=['command', 'argparse', 'fast', 'alconna', 'cli', 'parsing', 'optparse', 'command-line', 'parser'],
     python_requires='>=3.8',
     project_urls={
         'Documentation': 'https://arcletproject.github.io/docs/alconna/tutorial',

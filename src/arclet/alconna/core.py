@@ -46,7 +46,10 @@ class AlconnaGroup(CommandNode):
     def __handler_help_text__(self):
         self.help_text = "\n"
         for command in self.commands:
-            self.help_text += f" * {command.name} : {command.help_text}\n"
+            self.help_text += (
+                f" * {command.name} : "
+                f"{command.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}\n"
+            )
         return self
 
     @property
@@ -215,14 +218,14 @@ class Alconna(CommandNode):
             f"{command_manager.sign}{command or self.headers[0]}",
             main_args,
             action=action,
-            separators=separators or self.__class__.global_separators,
+            separators=separators or self.__class__.global_separators.copy(),
             help_text=help_text or "Unknown Information"
         )
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = namespace or command_manager.default_namespace
         self.options.extend([HelpOption, ShortcutOption])
         self.analyser_type = analyser_type or self.__class__.global_analyser_type
-        self.behaviors = behaviors or self.__class__.global_behaviors
+        self.behaviors = behaviors or self.__class__.global_behaviors.copy()
         self.behaviors.insert(0, ActionHandler())
         self.formatter_type = formatter_type or self.__class__.global_formatter_type
         self.is_fuzzy_match = is_fuzzy_match or self.__class__.global_fuzzy_match

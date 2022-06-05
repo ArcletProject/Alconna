@@ -214,7 +214,8 @@ def analyse_params(
                         raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=p))
                 elif any(map(lambda x: _text.startswith(x), _o.aliases)):
                     res.append(_o)
-            return res
+            if res:
+                return res
         else:
             _may_param, _ = split_once(_text, _p.separators)
             if _may_param == _p.name:
@@ -297,7 +298,7 @@ def analyse_subcommand(
     need_args = param.nargs > 0
     for _ in param.sub_part_len:
         sub_param = analyse_params(analyser, param.sub_params)
-        if isinstance(sub_param, List):
+        if sub_param and isinstance(sub_param, List):
             for p in sub_param:
                 _current_index = analyser.current_index
                 _content_index = analyser.content_index

@@ -98,7 +98,7 @@ from arclet.alconna import Alconna, Args
 from pathlib import Path
 
 read = Alconna(
-    "read", Args["data":bytes], 
+    "read", Args["data", bytes], 
     action=lambda data: print(type(data))
 )
 
