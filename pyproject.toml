@@ -2,6 +2,25 @@
 requires = ["setuptools>=58.3.0", "wheel>=0.37.0"]
 build-backend = "setuptools.build_meta"
 
+# Project metadata
+[project]
+name = "arclet-alconna"
+version = "0.9.4"
+description = "A Fast Command Analyser based on Dict"
+readme = "README.md"
+requires_python = ">=3.8"
+license = "MIT"
+keywords = [
+    "command",
+    "argparse",
+    "fast",
+    "alconna",
+    "cli",
+    "command-line",
+    "parsing",
+    "optparse"
+]
+
 [tool.pylint.BASIC]
 class-const-naming-style = "any"
 

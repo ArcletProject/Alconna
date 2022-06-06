@@ -69,9 +69,9 @@ alc.parse("Test1 calculator 1 2 3 4 5 d=4 f=5")
 
 @delegate
 class Test:
-    args = Args["foo":int, "bar":str]
+    args = Args["foo", int]["bar", str]
     opt1 = Option("--opt", alias=["-o"])
-    sub1 = Subcommand("sub1", args=Args["baz":int])
+    sub1 = Subcommand("sub1", args=Args["baz", int])
 
 
 print(Test.parse("Test --opt sub1 1 123 abc"))

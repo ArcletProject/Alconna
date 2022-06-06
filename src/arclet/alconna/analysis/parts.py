@@ -4,7 +4,7 @@ from typing import Iterable, Union, List, Any, Dict, Pattern, Tuple, Set
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from ..typing import AllParam, Empty, DataUnit, MultiArg, BasePattern
-from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
+from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult, Sentence
 from ..util import levenshtein_norm, split_once
 from ..manager import command_manager
 from ..lang import lang_config
@@ -166,19 +166,62 @@ def analyse_args(
                 rest_data.insert(0, may_arg)
             option_dict[key] = rest_data
             return option_dict
+        elif may_arg == value:
+            option_dict[key] = may_arg
+        else:
+            if default is None:
+                if optional:
+                    continue
+                raise ParamsUnmatched(lang_config.args_error.format(target=may_arg))
+            option_dict[key] = None if default is Empty else default
     if opt_args.var_keyword:
-        kwargs = option_dict[opt_args.var_keyword[0]]
+        kwargs = option_dict[opt_args.var_keyword]
         if not isinstance(kwargs, dict):
-            kwargs = {opt_args.var_keyword[0]: kwargs}
-        option_dict['__kwargs__'] = (kwargs, opt_args.var_keyword[0])
+            kwargs = {opt_args.var_keyword: kwargs}
+        option_dict['__kwargs__'] = (kwargs, opt_args.var_keyword)
     if opt_args.var_positional:
-        varargs = option_dict[opt_args.var_positional[0]]
+        varargs = option_dict[opt_args.var_positional]
         if not isinstance(varargs, Iterable):
             varargs = [varargs]
         elif not isinstance(varargs, list):
             varargs = list(varargs)
-        option_dict['__varargs__'] = (varargs, opt_args.var_positional[0])
+        option_dict['__varargs__'] = (varargs, opt_args.var_positional)
     return option_dict
+
+
+def analyse_params(
+        analyser: Analyser,
+        params: Dict[str, Union[List[Option], Sentence, Subcommand]]
+):
+    _text, _str = analyser.next_data(analyser.separators, pop=False)
+    if not _str:
+        return Ellipsis
+    if not _text:
+        return _text
+    if param := params.get(_text, None):
+        return param
+    for p in params:
+        _p = params[p]
+        if isinstance(_p, List):
+            res = []
+            for _o in _p:
+                if not _o.is_compact:
+                    _may_param, _ = split_once(_text, _o.separators)
+                    if _may_param in _o.aliases:
+                        res.append(_o)
+                        continue
+                    if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.6:
+                        raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=p))
+                elif any(map(lambda x: _text.startswith(x), _o.aliases)):
+                    res.append(_o)
+            if res:
+                return res
+        else:
+            _may_param, _ = split_once(_text, _p.separators)
+            if _may_param == _p.name:
+                return _p
+            if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.6:
+                raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=p))
 
 
 def analyse_option(
@@ -192,6 +235,10 @@ def analyse_option(
         analyser: 使用的分析器
         param: 目标Option
     """
+    if param.requires:
+        if analyser.sentences != param.requires:
+            raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
+        analyser.sentences = []
     if param.is_compact:
         name, _ = analyser.next_data()
         for al in param.aliases:
@@ -224,6 +271,10 @@ def analyse_subcommand(
         analyser: 使用的分析器
         param: 目标Subcommand
     """
+    if param.requires:
+        if analyser.sentences != param.requires:
+            raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
+        analyser.sentences = []
     if param.is_compact:
         name, _ = analyser.next_data()
         if name.startswith(param.name):
@@ -244,19 +295,22 @@ def analyse_subcommand(
     subcommand = res['options']
     need_args = param.nargs > 0
     for _ in param.sub_part_len:
-        text, _str = analyser.next_data(param.separators, pop=False)
-        sub_param = param.sub_params.get(text, None) if _str else Ellipsis
-        if not sub_param and text != "":
-            for sp in param.sub_params:
-                _may_param, _ = split_once(text, param.sub_params[sp].separators)
-                if _may_param in param.sub_params[sp].aliases:
-                    sub_param = param.sub_params[sp]
+        sub_param = analyse_params(analyser, param.sub_params)  # type: ignore
+        if sub_param and isinstance(sub_param, List):
+            for p in sub_param:
+                _current_index = analyser.current_index
+                _content_index = analyser.content_index
+                try:
+                    subcommand.setdefault(*analyse_option(analyser, p))
                     break
-                if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, sp) >= 0.6:
-                    raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=sp))
-        if isinstance(sub_param, Option):
-            opt_n, opt_v = analyse_option(analyser, sub_param)
-            subcommand[opt_n] = opt_v
+                except Exception as e:
+                    exc = e
+                    analyser.current_index = _current_index
+                    analyser.content_index = _content_index
+                    continue
+            else:
+                raise exc  # type: ignore  # noqa
+
         elif not args:
             res['args'] = analyse_args(analyser, param.args, param.nargs)
             args = True
@@ -285,23 +339,28 @@ def analyse_header(
             return _head_find.groupdict() or True
     else:
         may_command, _m_str = analyser.next_data(separators)
-        if _m_str:
-            if isinstance(command, List) and not _str:
+        if _m_str and not _str:
+            if isinstance(command, List):
                 for _command in command:
                     if (_head_find := _command[1].fullmatch(may_command)) and head_text == _command[0]:
                         analyser.head_matched = True
                         return _head_find.groupdict() or True
-            elif isinstance(command[0], list) and not _str:
+            elif isinstance(command[0], list):
                 if (_head_find := command[1].fullmatch(may_command)) and head_text in command[0]:  # type: ignore
                     analyser.head_matched = True
                     return _head_find.groupdict() or True
-            elif _str:
-                if (_command_find := command[1].fullmatch(may_command)) and (  # type: ignore
-                        _head_find := command[0][1].fullmatch(head_text)
-                ):
+            else:
+                if (_command_find := command[1].fullmatch(may_command)) and head_text in command[0][0]:  # type: ignore
                     analyser.head_matched = True
                     return _command_find.groupdict() or True
-            elif (_command_find := command[1].fullmatch(may_command)) and head_text in command[0][0]:  # type: ignore
+
+        elif _str:
+            pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
+            if _head_find := pat.fullmatch(head_text):
+                analyser.reduce_data(may_command)
+                analyser.head_matched = True
+                return _head_find.groupdict() or True
+            elif _m_str and (_command_find := pat.fullmatch(head_text + may_command)):
                 analyser.head_matched = True
                 return _command_find.groupdict() or True
 
@@ -319,12 +378,12 @@ def analyse_header(
             if isinstance(command, Pattern):
                 source = head_text
             else:
-                source = head_text + analyser.separators.copy().pop() + str(may_command)  # noqa
+                source = head_text + analyser.separators.copy().pop() + str(may_command)  # type: ignore  # noqa
             if command_manager.get_command(source):
                 analyser.head_matched = False
                 raise ParamsUnmatched(lang_config.header_error.format(target=head_text))
             for ht in headers_text:
-                if levenshtein_norm(source, ht) >= 0.6:  # TODO
+                if levenshtein_norm(source, ht) >= 0.6:
                     analyser.head_matched = True
                     raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(target=source, source=ht))
         raise ParamsUnmatched(lang_config.header_error.format(target=head_text))

@@ -39,7 +39,7 @@ class _DummyAnalyser(Analyser):
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore
         cls.command_params = {}
-        cls.param_ids = []
+        cls.param_ids = set()
         return super().__new__(cls)
 
     def analyse(self, message: Union[str, DataCollection, None] = None):
@@ -48,7 +48,8 @@ class _DummyAnalyser(Analyser):
 
 def analyse_args(
         args: Args,
-        command: Union[str, DataCollection]
+        command: Union[str, DataCollection],
+        raise_exception: bool = True
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
@@ -58,32 +59,36 @@ def analyse_args(
         _analyser.process_message(command)
         return ala(_analyser, args, len(args))
     except Exception as e:
-        traceback.print_exception(AnalyseError, e, e.__traceback__)
+        if raise_exception:
+            traceback.print_exception(AnalyseError, e, e.__traceback__)
+        return
 
 
 def analyse_header(
         headers: Union[List[Union[str, Any]], List[Tuple[Any, str]]],
         command_name: str,
         command: Union[str, DataCollection],
-        sep: str = " "
+        sep: str = " ",
+        raise_exception: bool = True
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {sep}
     _analyser.is_raise_exception = True
-    _analyser.process_message(command)
     _analyser.__init_header__(command_name, headers)
-    r = alh(_analyser)
-    if r is False:
-        traceback.print_exception(
-            AnalyseError, AnalyseError(f"header {_analyser.recover_raw_data()} analyse failed"), None
-        )
-    return r
+    try:
+        _analyser.process_message(command)
+        return alh(_analyser)
+    except Exception as e:
+        if raise_exception:
+            traceback.print_exception(AnalyseError, e, e.__traceback__)
+        return
 
 
 def analyse_option(
         option: Option,
         command: Union[str, DataCollection],
+        raise_exception: bool = True
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
@@ -93,12 +98,15 @@ def analyse_option(
         _analyser.process_message(command)
         return alo(_analyser, option)
     except Exception as e:
-        traceback.print_exception(AnalyseError, e, e.__traceback__)
+        if raise_exception:
+            traceback.print_exception(AnalyseError, e, e.__traceback__)
+        return
 
 
 def analyse_subcommand(
         subcommand: Subcommand,
         command: Union[str, DataCollection],
+        raise_exception: bool = True
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
@@ -108,4 +116,6 @@ def analyse_subcommand(
         _analyser.process_message(command)
         return als(_analyser, subcommand)
     except Exception as e:
-        traceback.print_exception(AnalyseError, e, e.__traceback__)
+        if raise_exception:
+            traceback.print_exception(AnalyseError, e, e.__traceback__)
+        return

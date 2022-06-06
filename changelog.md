@@ -30,13 +30,30 @@
 4. `split` 以及 `separator` 现在需要传入 `Set[str]` 类型.
 5. 修复 bug.
 
-## Alconna 0.9.3:
+## Alconna 0.9.3 - 0.9.3.3:
 1. 合并 `ArgPattern` 与 `TypePattern` 为 `BasePattern`, 并将诸多分散特性(如 `anti`, `any`) 移动到 `BasePattern` 中.
 2. 取消 `Analyser` 中有关 `arg_handler` 的部分
 3. `AnyStr`、`AnyDigit`、`AnyFloat` 等现在不被公开.
 4. `AnyParam` 重写为由 `BasePattern` 实现, 并改名为 `AnyOne`.
 5. `alconna.types` 变为 `alconna.typing`.
-6. 修复 bug.
+6. 为 `all_command_help` 增加索引选项
+7. 修复 bug.
+
+## Alconna 0.9.4:
+1. 修改 `Args` 的构造方法, 取消使用 slice 传入参数. 请从 `Args[foo:int, bar:str:default]` 修改为 `Args[foo, int][bar, str, default]`.
+2. Option 与 Subcommand 现支持 requires 参数, 该参数允许解析该节点时判断 require 的字段是否存在.
+3. Option 与 Subcommand 的 requires 可以通过 name 传入, 用空格分隔. 该特性要求 Option 中传入别名时不能用空格.
+4. 允许同名的 Option 与 Subcommand 在同一个命令中, 应保证能用 require 参数来区分.
+5. 允许简单的选项重载, 如 `Option("foo", Args.bar[int])` 可以与 `Option("foo")` 一起使用.
+6. BasePattern 增加 `validator` 属性, 负责对匹配结果进行验证.
+7. Args 支持 Annotated 的传入, 如 `Args.bar[Annotated[int, lambda x: x > 0]]`, 或使用 `arclet.alconna.typing.Bind`
+8. 加入 `AlconnaGroup` 类, 用于组合多个 `Alconna` 对象. 其解析行为与 `Alconna` 相同.
+9. 取消不能构建多个重名的 `Alconna` 对象, 以 `AlconnaGroup` 代替. (暂定)
+10. 删除 `arclet.alconna.components.visitor`, 修改 `Formatter` 的传入参数.
+11. 增加 `Alconna.config` 类方法, 用于设置全局配置.
+12. 移出 `arclet.alconna.builtin.commandline`, 独立为一个模块 `alconna-cli`.
+13. `ObjectPattern` 移动到 `arclet.alconna.builtin.pattern` 模块.
+14. 修复 bug.
 
 # Alconna 0.8.x:
 

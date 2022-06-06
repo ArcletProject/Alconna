@@ -4,17 +4,16 @@ import re
 import inspect
 from copy import copy
 from enum import Enum
-from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, \
-    MutableSequence, TypedDict, Set
+from dataclasses import dataclass, field
+from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
 
 from .exceptions import InvalidParam, NullTextMessage
-from .typing import (
-    BasePattern, _All, Empty, DataUnit, AllParam, AnyOne, MultiArg, UnionArg, argument_type_validator
-)
+from .typing import BasePattern, Empty, DataUnit, AllParam, AnyOne, MultiArg, UnionArg, argument_type_validator
 from .lang import lang_config
 from .components.action import ArgAction
 
-TAValue = Union[BasePattern, _All, type]
+
+TAValue = Union[BasePattern, AllParam.__class__, type]
 TADefault = Union[Any, DataUnit, Empty]
 
 
@@ -23,13 +22,13 @@ class ArgFlag(str, Enum):
     参数标记
     """
 
-    VAR_POSITIONAL = "S"  # '*'
-    VAR_KEYWORD = "W"  # '**'
-    OPTIONAL = 'O'  # '?'
-    KWONLY = 'K'  # '@'
-    HIDDEN = "H"  # '_'
-    FORCE = "F"  # '#'
-    ANTI = "A"  # '!'
+    VAR_POSITIONAL = "S"
+    VAR_KEYWORD = "W"
+    OPTIONAL = 'O'
+    KWONLY = 'K'
+    HIDDEN = "H"
+    FORCE = "F"
+    ANTI = "A"
 
 
 class ArgUnit(TypedDict):
@@ -70,28 +69,17 @@ class ArgsMeta(type):
 
     def __getitem__(self, item):
         if isinstance(item, slice):
-            return self(args=[item])
-        elif isinstance(item, str):
+            raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
+        if not isinstance(item, tuple):
             if self.selecting:
                 self.selecting = False
                 return self(args=[(self.last_key, item)])
-            return self(args=[(item, item)])
-        elif not isinstance(item, tuple):
-            if self.selecting:
-                self.selecting = False
-                return self(args=[(self.last_key, item)])
-            return self(args=[(item,)])
-        args: "Args" = self(args=filter(lambda x: isinstance(x, slice), item))
-        iters = list(filter(lambda x: isinstance(x, (list, tuple)), item))
-        items = list(filter(lambda x: not isinstance(x, slice), item))
-        iters += list(map(lambda x: (x,), filter(lambda x: isinstance(x, str), item)))
-        if items:
-            if self.selecting:
-                args.__setitem__(self.last_key, items)
-                self.selecting = False
-            else:
-                list(filter(args.__check_var__, iters))
-        return args
+            return self(args=[(str(item), item)])
+        arg = list(filter(lambda x: not isinstance(x, slice), item))
+        if self.selecting:
+            self.selecting = False
+            return self(args=[(self.last_key, *arg[:2])])
+        return self(args=[arg[:3]])
 
 
 class Args(metaclass=ArgsMeta):  # type: ignore
@@ -103,8 +91,8 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     """
     extra: Literal["allow", "ignore", "reject"]
     argument: Dict[str, ArgUnit]
-    var_positional: Optional[Tuple[str, MultiArg]]
-    var_keyword: Optional[Tuple[str, MultiArg]]
+    var_positional: Optional[str]
+    var_keyword: Optional[str]
     optional_count: int
     separators: Set[str]
 
@@ -137,8 +125,10 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
                     raise InvalidParam(lang_config.common_custom_type_error.format(target=custom_types[value]))
                 try:
-                    value = eval(value, custom_types)
-                except NameError:
+                    value = eval(value, custom_types)  # type: ignore
+                    if default:
+                        default = value(default)
+                except (NameError, ValueError, TypeError):
                     pass
             _args.add_argument(name, value=value, default=default)
         return _args
@@ -183,7 +173,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     def __init__(
             self,
-            args: Optional[Iterable[Union[slice, Sequence]]] = None,
+            args: Optional[Iterable[Sequence]] = None,
             extra: Literal["allow", "ignore", "reject"] = "allow",
             separators: Union[str, Iterable[str]] = " ",
             **kwargs: TAValue
@@ -216,22 +206,16 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separators"
 
-    def add_argument(
-            self,
-            name: str,
-            *,
-            value: Any,
-            default: Optional[Any] = None,
-            flags: Optional[Iterable[ArgFlag]] = None
-    ):
+    def add_argument(self, name: str, *, value: Any, default: Any = None, flags: Optional[Iterable[ArgFlag]] = None):
         """
         添加一个参数
         """
         if name in self.argument:
-            return  # raise InvalidParam(lang_config.common_argument_exist_error.format(target=name))
+            return self
         if flags:
             name += ";" + "|".join(flags)
         self.__check_var__([name, value, default])
+        return self
 
     def default(self, **kwargs: TADefault):
         """设置参数的默认值"""
@@ -245,23 +229,17 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.separators = set(separator)
         return self
 
-    def __check_var__(self, val: Union[slice, Sequence]):
-        if isinstance(val, slice):
-            name, value, default = val.start, val.stop, val.step
-        else:
-            name, value, default = val[0], val[1] if len(val) > 1 else val[0], val[2] if len(val) > 2 else None
+    def __check_var__(self, val: Sequence):
+        if not val:
+            raise InvalidParam(lang_config.args_name_empty)
+        name, value, default = val[0], val[1] if len(val) > 1 else val[0], val[2] if len(val) > 2 else None
         if not isinstance(name, str):
             raise InvalidParam(lang_config.args_name_error)
         if not name.strip():
             raise InvalidParam(lang_config.args_name_empty)
         _value = argument_type_validator(value, self.extra)
-        if isinstance(_value, (Sequence, MutableSequence)):
-            if len(_value) == 2 and Empty in _value:
-                _value.remove(Empty)
-                _value = _value[0]
-                default = Empty if default is None else default
-            else:
-                _value = UnionArg(_value)
+        if isinstance(_value, UnionArg) and _value.optional:
+            default = Empty if default is None else default
         if default in ("...", Ellipsis):
             default = Empty
         if _value is Empty:
@@ -292,20 +270,20 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                         raise InvalidParam(lang_config.args_duplicate_kwargs)
                     if _value not in (AnyOne, AllParam):
                         slot['value'] = MultiArg(_value, flag='kwargs')
-                        self.var_keyword = (name, _value)
+                        self.var_keyword = name
                     _limit = True
                 if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                     if self.var_positional:
                         raise InvalidParam(lang_config.args_duplicate_varargs)
                     if _value not in (AnyOne, AllParam):
                         slot['value'] = MultiArg(_value)
-                        self.var_positional = (name, _value)
+                        self.var_positional = name
                 if flag.isdigit() and not _limit:
                     if self.var_positional:
                         raise InvalidParam(lang_config.args_duplicate_varargs)
                     if _value not in (AnyOne, AllParam):
                         slot['value'] = MultiArg(_value, array_length=int(flag))
-                        self.var_positional = (name, _value)
+                        self.var_positional = name
                 if flag == ArgFlag.OPTIONAL:
                     if self.var_keyword or self.var_positional:
                         raise InvalidParam(lang_config.args_exclude_mutable_args)
@@ -328,7 +306,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     def __setattr__(self, key, value):
         if key in self.__ignore__:
             super().__setattr__(key, value)
-        elif isinstance(value, Iterable):
+        elif isinstance(value, Sequence):
             values = list(value)
             self.__check_var__([key, values[0], values[1]])
         else:
@@ -342,13 +320,12 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             else:
                 raise KeyError(lang_config.args_key_not_found)
         if isinstance(item, slice):
-            self.__check_var__(item)
-        elif isinstance(item, Iterable):
-            slices = list(filter(lambda x: isinstance(x, slice), item))
-            items = list(filter(lambda x: isinstance(x, Sequence), item))
-            items += list(map(lambda x: (x,), filter(lambda x: isinstance(x, str), item)))
-            list(filter(self.__check_var__, items))
-            list(filter(self.__check_var__, slices))
+            raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
+        if not isinstance(item, tuple):
+            self.__check_var__([str(item), item])
+        else:
+            arg = list(filter(lambda x: not isinstance(x, slice), item))
+            self.__check_var__(arg[:3])
         return self
 
     def __merge__(self, other) -> "Args":
@@ -356,7 +333,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             self.argument.update(other.argument)
             del other
         elif isinstance(other, Sequence):
-            self.__getitem__([other])
+            self.__check_var__(other)
         return self
 
     def __add__(self, other) -> "Args":
@@ -377,10 +354,8 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             return "Empty"
         repr_string = "Args({0})"
         repr_args = ", ".join(
-            [
-                f"'{name}': {arg['value']}" + (f" = '{arg['default']}'" if arg['default'] is not None else "")
-                for name, arg in self.argument.items()
-            ]
+            f"'{name}': {arg['value']}" + (f" = '{arg['default']}'" if arg['default'] is not None else "")
+            for name, arg in self.argument.items()
         )
         return repr_string.format(repr_args)
 
@@ -403,14 +378,15 @@ class CommandNode:
     separators: Set[str]
     action: Optional[ArgAction]
     help_text: str
+    requires: Union[Sequence[str], Set[str]]
 
     def __init__(
-            self, name: str,
-            args: Union[Args, str, None] = None,
+            self, name: str, args: Union[Args, str, None] = None,
             dest: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            separators: Optional[Union[str, Iterable[str]]] = None,
+            separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
             help_text: Optional[str] = None,
+            requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
     ):
         """
         初始化命令节点
@@ -422,28 +398,26 @@ class CommandNode:
             separators(Set[str]): 命令分隔符
             help_text(str): 命令帮助信息
         """
-        if not name.lstrip():
+        if not name:
             raise InvalidParam(lang_config.node_name_empty)
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidParam(lang_config.node_name_error)
-        self.name = name
-        if args is None:
-            self.args = Args()
-        elif isinstance(args, str):
-            self.args = Args.from_string_list([re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {})
-        else:
-            self.args = args
-        self.dest = (dest or name).lstrip('-')
+        _parts = name.split(" ")
+        self.name = _parts[-1]
+        self.requires = _parts[:-1] if not requires else (
+            requires if isinstance(requires, (list, tuple, set)) else (requires,)
+        )
+        self.args = Args() if not args else args if isinstance(args, Args) else Args.from_string_list(
+            [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
+        )
         self.action = ArgAction.__validator__(action, self.args)
-        if separators is None:
-            self.separators = {' '}
-        elif isinstance(separators, str):
-            self.separators = {separators}
-        else:
-            self.separators = set(separators)
-        self.help_text = help_text or self.dest
+        self.separators = {' '} if separators is None else (
+            {separators} if isinstance(separators, str) else set(separators)
+        )
         self.nargs = len(self.args.argument)
         self.is_compact = self.separators == {''}
+        self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name).lstrip('-')
+        self.help_text = help_text or self.dest
 
     is_compact: bool
     nargs: int
@@ -454,6 +428,12 @@ class CommandNode:
 
     def __repr__(self):
         return f"<{self.name} args={self.args}>"
+
+    def __hash__(self):
+        return hash(str(vars(self)))
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self.__hash__() == other.__hash__()
 
 
 class Option(CommandNode):
@@ -467,24 +447,29 @@ class Option(CommandNode):
             alias: Optional[List[str]] = None,
             dest: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            separator: Optional[Union[str, Iterable[str]]] = None,
+            separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
             help_text: Optional[str] = None,
+            requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
 
     ):
         self.aliases = alias or []
+        parts = name.split(" ")
+        name, rest = parts[-1], parts[:-1]
         if "|" in name:
-            aliases = name.replace(' ', '').split('|')
+            aliases = name.split('|')
             aliases.sort(key=len, reverse=True)
             name = aliases[0]
             self.aliases.extend(aliases[1:])
         self.aliases.insert(0, name)
-        super().__init__(name, args, dest, action, separator, help_text)
+        super().__init__(
+            " ".join(rest) + (" " if rest else "") + name, args, dest, action, separators, help_text, requires
+        )
 
 
 class Subcommand(CommandNode):
     """子命令, 次于主命令, 可解析 SubOption"""
     options: List[Option]
-    sub_params: Dict[str, Option]
+    sub_params: Dict[str, Union[List[Option], 'Sentence']]
     sub_part_len: range
 
     def __init__(
@@ -494,13 +479,20 @@ class Subcommand(CommandNode):
             args: Union[Args, str, None] = None,
             dest: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
-            separator: Optional[Union[str, Iterable[str]]] = None,
+            separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
             help_text: Optional[str] = None,
+            requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
     ):
         self.options = options or []
-        super().__init__(name, args, dest, action, separator, help_text)
+        super().__init__(name, args, dest, action, separators, help_text, requires)
         self.sub_params = {}
         self.sub_part_len = range(self.nargs)
+
+
+@dataclass
+class Sentence:
+    name: str
+    separators: Set[str] = field(default_factory=lambda: {' '})
 
 
 class OptionResult(TypedDict):
@@ -512,3 +504,11 @@ class SubcommandResult(TypedDict):
     value: Any
     args: Dict[str, Any]
     options: Dict[str, OptionResult]
+
+
+HelpOption = Option("--help|-h", help_text="显示帮助信息")
+ShortcutOption = Option(
+    '--shortcut|-SCT',
+    Args["delete;O", "delete"]["name", str]["command", str, "_"]["expiration;K", int, 0],
+    help_text='设置快捷命令'
+)

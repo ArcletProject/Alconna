@@ -43,16 +43,16 @@ def _(func, args, l_args, loo):
 
 
 @c1.build_command()
-@c1.option("--count", Args["num":int], help="Test Option Count")
-@c1.option("--foo", Args["bar":str], help="Test Option Foo")
+@c1.option("--count", Args["num", int], help="Test Option Count")
+@c1.option("--foo", Args["bar", str], help="Test Option Foo")
 def hello(bar: str, num: int = 1):
     """测试DOC"""
     print(bar * num)
 
 
 @c2.build_command("halo")
-@c2.option("--count", Args["num":int], help="Test Option Count")
-@c2.option("--foo", Args["bar":str], help="Test Option Foo")
+@c2.option("--count", Args["num", int], help="Test Option Count")
+@c2.option("--foo", Args["bar", str], help="Test Option Foo")
 def halo(bar: str, num: int = 1):
     """测试DOC"""
     print(bar * num)

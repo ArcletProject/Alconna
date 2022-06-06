@@ -6,11 +6,11 @@ from arclet.alconna.builtin.formatter import ArgParserTextFormatter
 
 from graia.ariadne.message.element import At
 
-ar = Args["test":bool:True]["aaa":str:"bbb"] << Args["perm":str:...] + ["month", int]
+ar = Args["test", bool, True]["aaa", str, "bbb"] << Args["perm", str, ...] + ["month", int]
 a = "bbb"
 b = str
 c = "fff"
-ar1 = Args[a:b:c]
+ar1 = Args[a, b, c]
 ar["foo"] = ["bar", ...]
 print(ar)
 print(ar1)
@@ -20,13 +20,13 @@ ping = Alconna(
     command="ping",
     options=[
         Subcommand(
-            "test", [Option("-u", Args["username":str], help_text="输入用户名")], args=Args["test":"Test"],
+            "test", [Option("-u", Args["username", str], help_text="输入用户名")], args=Args["test", "Test"],
             help_text="测试用例"
         ),
-        Option("-n|--num", Args["count":int:123], help_text="输入数字"),
+        Option("-n|--num", Args["count", int, 123], help_text="输入数字"),
         Option("-u", Args(At=At), help_text="输入需要At的用户")
     ],
-    main_args=Args["IP":"ip"],
+    main_args=Args["IP", "ip"],
     help_text="简单的ping指令"
 )
 print(ping.get_help())
@@ -47,21 +47,21 @@ print(result.head_matched)
 pip = Alconna(
     command="/pip",
     options=[
-        Subcommand("install", [Option("--upgrade", help_text="升级包")], Args["pak":str], help_text="安装一个包"),
-        Option("--retries", Args["retries":int], help_text="设置尝试次数"),
-        Option("-t| --timeout", Args["sec":int], help_text="设置超时时间"),
-        Option("--exists-action", Args["action":str], help_text="添加行为"),
-        Option("--trusted-host", Args["host_name":"url"], help_text="选择可信赖地址")
+        Subcommand("install", [Option("--upgrade", help_text="升级包")], Args["pak", str], help_text="安装一个包"),
+        Option("--retries", Args["retries", int], help_text="设置尝试次数"),
+        Option("-t|--timeout", Args["sec", int], help_text="设置超时时间"),
+        Option("--exists-action", Args["action", str], help_text="添加行为"),
+        Option("--trusted-host", Args["host_name", "url"], help_text="选择可信赖地址")
     ],
     help_text="简单的pip指令",
-    formatter=ArgParserTextFormatter()
+    formatter_type=ArgParserTextFormatter
 )
 print(pip.get_help())
 msg = "/pip install ces --upgrade -t 6 --trusted-host http://pypi.douban.com/simple"
 print(msg)
 print(pip.parse(msg).all_matched_args)
 
-aaa = Alconna(headers=[".", "!"], command="摸一摸", main_args=Args["At":At])
+aaa = Alconna(headers=[".", "!"], command="摸一摸", main_args=Args["At", At])
 msg = MessageChain.create(".摸一摸", At(123))
 print(msg)
 print(aaa.parse(msg).matched)
@@ -69,7 +69,7 @@ print(aaa.parse(msg).matched)
 ccc = Alconna(
     headers=[""],
     command="4help",
-    main_args=Args["aaa":str],
+    main_args=Args["aaa", str],
 )
 msg = "4help 'what he say?'"
 print(msg)
@@ -108,7 +108,7 @@ ddd = Alconna(
             "-div",
             options=[
                 Option(
-                    "--round| -r",
+                    "--round|-r",
                     args=Args(decimal=int),
                     action=lambda x: f"{x}a",
                     help_text="保留n位小数",
@@ -124,7 +124,7 @@ msg = "Cal -div 12 23 --round 2"
 print(msg)
 print(ddd.get_help())
 result = ddd.parse(msg)
-print(result.div)
+print(result.query('div'))
 
 ddd = Alconna(
     "点歌"
@@ -151,7 +151,7 @@ def test_act(content):
 wild = Alconna(
     headers=[At(12345)],
     command="丢漂流瓶",
-    main_args=Args["wild":Any],
+    main_args=Args["wild", Any],
     action=test_act,
     help_text="丢漂流瓶"
 )
@@ -186,7 +186,7 @@ print(result)
 
 choice = Alconna(
     command="choice",
-    main_args=Args["part":["a", "b", "c"]],
+    main_args=Args["part", ["a", "b", "c"]],
     help_text="选择一个部分"
 )
 print(choice.parse("choice d"))
@@ -198,7 +198,7 @@ sub = Alconna(
     options=[
         Subcommand(
             "sub",
-            options=[Option("--subOption", Args["subOption":Union[At, int]])],
+            options=[Option("--subOption", Args["subOption", Union[At, int]])],
             args=Args.foo[str]
         )
     ]

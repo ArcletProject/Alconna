@@ -3,7 +3,7 @@ from arclet.alconna.components.behavior import ArpamarBehavior
 from arclet.alconna.builtin.actions import set_default, exclusion, cool_down
 import time
 
-alc = Alconna("command", Args["bar":int]) + Option("foo")
+alc = Alconna("command", Args["bar", int]) + Option("foo")
 
 
 @alc.behaviors.append
@@ -30,7 +30,7 @@ print(alc1.parse("test_exclusion\nfoo"))
 
 alc2 = Alconna(
     "test_cool_down",
-    main_args=Args["bar":int],
+    main_args=Args["bar", int],
     behaviors=[cool_down(0.3)]
 )
 for i in range(4):

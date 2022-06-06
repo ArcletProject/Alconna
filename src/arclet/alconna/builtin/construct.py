@@ -184,7 +184,7 @@ class AlconnaDecorate:
             if not self.__storage.get('func'):
                 self.__storage['func'] = func
             self.__storage['options'].append(
-                Option(name, args=args, action=action, separator=sep, help_text=help or name)
+                Option(name, args=args, action=action, separators=sep, help_text=help or name)
             )
             return func
 
@@ -231,14 +231,23 @@ def _from_format(
     """
     以格式化字符串的方式构造 Alconna
 
+    该方法建议使用多个重名的命令时使用
+
     Examples:
 
         >>> from arclet.alconna import AlconnaFormat
         >>> alc1 = AlconnaFormat(
         ...     "lp user {target:str} perm set {perm:str} {default}",
-        ...     {"default": Args["de":bool:True]},
+        ...     {"default": Args["val", bool, True]},
+        ... )
+        >>> alc2 = AlconnaFormat(
+        ...     "lp user {target:str} perm del {perm:str}",
+        ... )
+        >>> alc3 = AlconnaFormat(
+        ...     "lp user {target:str} perm info {perm:str}"
         ... )
         >>> alc1.parse("lp user AAA perm set admin.all False")
+        >>> alc1.parse("lp user AAA perm info admin.all")
     """
     format_args = format_args or {}
     _key_ref = 0
@@ -258,20 +267,16 @@ def _from_format(
         try:
             value = format_args[key]
             try:
-                _param = _string_stack.pop(-1)
+                _name, _requires = _string_stack[-1], _string_stack[:-1]
                 if isinstance(value, Option):
-                    options.append(Subcommand(_param, [value]))
+                    options.append(Subcommand(_name, [value], requires=_requires))
                 elif isinstance(value, List):
-                    options.append(Subcommand(_param, value))
-                elif _key_ref > 1 and isinstance(options[-1], Option):
-                    if isinstance(value, Args):
-                        options.append(Subcommand(_param, [options.pop(-1)], args=value))
-                    else:
-                        options.append(Subcommand(_param, [options.pop(-1)], args=Args(**{key: value})))
+                    options.append(Subcommand(_name, value, requires=_requires))
                 elif isinstance(value, Args):
-                    options.append(Option(_param, args=value))
+                    options.append(Option(_name, args=value, requires=_requires))
                 else:
-                    options.append(Option(_param, Args(**{key: value})))
+                    options.append(Option(_name, Args(**{key: value}), requires=_requires))
+                _string_stack.clear()
             except IndexError:
                 if i == 0:
                     if isinstance(value, Args):
@@ -281,22 +286,21 @@ def _from_format(
                 elif isinstance(value, Option):
                     options.append(value)
                 elif isinstance(value, Args):
-                    options[-1].args = value
+                    options[-1].args.__merge__(value)
+                    options[-1].nargs = len(options[-1].args.argument)
                 else:
                     options[-1].args.argument.update({key: value})
                     options[-1].nargs += 1
         except KeyError:
             may_parts = re.split(r"[:=]", key.replace(" ", ''))
-            if len(may_parts) == 1:
-                _arg = Args[may_parts[0]:Any]
-            else:
-                _arg = Args.from_string_list([may_parts], {})
+            _arg = Args[may_parts[0], Any] if len(may_parts) == 1 else Args.from_string_list([may_parts], {})
             if _string_stack:
                 if _key_ref > 1:
                     options[-1].args.__merge__(_arg)
                     options[-1].nargs += 1
                 else:
-                    options.append(Option(_string_stack.pop(-1), _arg))
+                    options.append(Option(_string_stack[-1], _arg, requires=_string_stack[:-1]))
+                    _string_stack.clear()
             else:
                 main_args.__merge__(_arg)
     return Alconna(command=command, options=options, main_args=main_args)
