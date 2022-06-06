@@ -30,20 +30,19 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     alconna: 'Alconna'  # Alconna实例
     current_index: int  # 当前数据的index
     content_index: int  # 内部index
-    is_str: bool  # 是否是字符串  # TODO
-    # raw_data: Dict[int, Union[List[str], Any]]  # 原始数据
+    is_str: bool  # 是否是字符串
     raw_data: List[Union[Any, List[str]]]  # 原始数据
     ndata: int  # 原始数据的长度
-    command_params: Dict[str, Union[Sentence, List[Option], Subcommand]]  # 参数  # TODO
-    param_ids: Set[str]  # TODO
+    command_params: Dict[str, Union[Sentence, List[Option], Subcommand]]
+    param_ids: Set[str]
     # 命令头部
     command_header: Union[
         Pattern,
         Tuple[Union[Tuple[List[Any], Pattern], List[Any]], Pattern],
         List[Tuple[Any, Pattern]]
-    ]  # TODO
-    separators: Set[str]  # 分隔符  # TODO
-    is_raise_exception: bool  # 是否抛出异常  # TODO
+    ]
+    separators: Set[str]  # 分隔符
+    is_raise_exception: bool  # 是否抛出异常
     options: Dict[str, Any]  # 存放解析到的所有选项
     subcommands: Dict[str, Any]  # 存放解析到的所有子命令
     main_args: Dict[str, Any]  # 主参数
@@ -53,7 +52,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     part_len: range  # 分段长度
     default_main_only: bool  # 默认只有主参数
     self_args: Args  # 自身参数
-    filter_out: List[str]  # 元素黑名单  # TODO
+    filter_out: List[str]  # 元素黑名单
     temporary_data: Dict[str, Any]  # 临时数据
     origin_data: T_Origin  # 原始数据
     temp_token: int  # 临时token
@@ -121,7 +120,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             self.command_header = re.compile(command_name)
 
         elif isinstance(headers[0], tuple):
-            mixins = [(h[0], re.compile(re.escape(h[1]) + command_name)) for h in headers]
+            mixins = [(h[0], re.compile(re.escape(h[1]) + command_name)) for h in headers]  # type: ignore
             self.command_header = mixins
         else:
             elements = []
@@ -152,14 +151,14 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                         actions['subcommands'][f"{opt.dest}.{option.dest}"] = option.action
 
     @staticmethod
-    def default_params_generator(analyser: "Analyser"):  # TODO: 同名option组合为一个列表
+    def default_params_generator(analyser: "Analyser"):
         analyser.param_ids = set()
         analyser.command_params = {}
         analyser.part_len = range(len(analyser.alconna.options) + 1)
         for opts in analyser.alconna.options:
             if isinstance(opts, Option):
                 if analyser.command_params.get(opts.name):
-                    analyser.command_params[opts.name].append(opts)
+                    analyser.command_params[opts.name].append(opts)  # type: ignore
                 else:
                     analyser.command_params[opts.name] = [opts]
                 analyser.param_ids.update(opts.aliases)
@@ -169,13 +168,14 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 opts.sub_part_len = range(len(opts.options) + 1)
                 for sub_opts in opts.options:
                     if opts.sub_params.get(sub_opts.name):
-                        opts.sub_params[sub_opts.name].append(sub_opts)
+                        opts.sub_params[sub_opts.name].append(sub_opts)  # type: ignore
                     else:
                         opts.sub_params[sub_opts.name] = [sub_opts]
                     if sub_opts.requires:
                         opts.sub_params.update({k: Sentence(name=k) for k in sub_opts.requires})
                     analyser.param_ids.update(sub_opts.aliases)
             if opts.requires:
+                analyser.param_ids.update(opts.requires)
                 analyser.command_params.update({k: Sentence(name=k) for k in opts.requires})
 
     def __repr__(self):

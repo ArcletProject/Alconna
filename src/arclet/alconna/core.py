@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, 
 from .lang import lang_config
 from .analysis.base import compile
 from .base import CommandNode, Args, ArgAction, Option, Subcommand, HelpOption, ShortcutOption
-from .typing import DataCollection, DataUnit
+from .typing import DataCollection
 from .manager import command_manager
 from .arpamar import Arpamar
 from .components.action import ActionHandler
@@ -40,7 +40,9 @@ class AlconnaGroup(CommandNode):
     ):
         self.commands = list(commands)
         self.namespace = namespace
+        name = command_manager.sign + name
         super().__init__(name, )
+        self.name.replace(command_manager.sign, '')
         self.__handler_help_text__()
 
     def __handler_help_text__(self):
@@ -127,7 +129,7 @@ class Alconna(CommandNode):
         - main_args: 命令主参数
     """
     _group = False
-    headers: Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]]  # type: ignore
+    headers: Union[List[Union[str, object]], List[Tuple[object, str]]]
     command: str
     options: List[Union[Option, Subcommand]]
     analyser_type: Type["Analyser"]
@@ -138,10 +140,10 @@ class Alconna(CommandNode):
     local_args = {}
     custom_types = {}
 
-    global_headers: Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]] = [""]
+    global_headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = [""]
     global_behaviors: List[Union[ArpamarBehavior, Type[ArpamarBehavior]]] = []
-    global_analyser_type: Type["Analyser"] = DefaultCommandAnalyser
-    global_formatter_type: Type[AbstractTextFormatter] = DefaultTextFormatter
+    global_analyser_type: Type["Analyser"] = DefaultCommandAnalyser  # type: ignore
+    global_formatter_type: Type[AbstractTextFormatter] = DefaultTextFormatter  # type: ignore
     global_separators = {" "}
     global_fuzzy_match: bool = False
     global_raise_exception: bool = False
@@ -150,7 +152,7 @@ class Alconna(CommandNode):
     def config(
         cls,
         *,
-        headers: Optional[Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]]] = None,
+        headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
         behaviors: Optional[List[Union[ArpamarBehavior, Type[ArpamarBehavior]]]] = None,
         analyser_type: Optional[Type["Analyser"]] = None,
         formatter_type: Optional[Type[AbstractTextFormatter]] = None,
@@ -179,7 +181,7 @@ class Alconna(CommandNode):
             self,
             command: Optional[str] = None,
             main_args: Union[Args, str, None] = None,
-            headers: Optional[Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]]] = None,
+            headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
             options: Optional[List[Union[Option, Subcommand]]] = None,
             is_raise_exception: bool = False,
             action: Optional[Union[ArgAction, Callable]] = None,
@@ -218,7 +220,7 @@ class Alconna(CommandNode):
             f"{command_manager.sign}{command or self.headers[0]}",
             main_args,
             action=action,
-            separators=separators or self.__class__.global_separators.copy(),
+            separators=separators or self.__class__.global_separators.copy(),  # type: ignore
             help_text=help_text or "Unknown Information"
         )
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
@@ -324,8 +326,7 @@ class Alconna(CommandNode):
         command_manager.register(compile(self))
         return self
 
-    def set_action(self, action: Union[Callable, str, ArgAction],
-                   custom_types: Optional[Dict[str, Type]] = None):  # type: ignore
+    def set_action(self, action: Union[Callable, str, ArgAction], custom_types: Optional[Dict[str, Type]] = None):  # type: ignore
         """设置针对main_args的action"""
         if isinstance(action, str):
             ns = {}
@@ -377,15 +378,23 @@ class Alconna(CommandNode):
         self.reset_namespace(other)
         return self
 
-    def __radd__(self, other):
+    def __rshift__(self, other):
         if isinstance(other, Option):
             command_manager.delete(self)
             self.options.append(other)
             command_manager.register(compile(self))
+        elif isinstance(other, str):
+            command_manager.delete(self)
+            _part = other.split("/")
+            self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
+            command_manager.register(compile(self))
         return self
 
     def __add__(self, other):
-        return self.__radd__(other)
+        return self.__rshift__(other)
 
     def __hash__(self):
-        return hash((self.path + str(self.args) + str(self.headers), *self.options))
+        return hash(
+            (self.path + str(self.args.argument.keys()) + str([i['value'] for i in self.args.argument.values()])
+             + str(self.headers), *self.options)
+        )

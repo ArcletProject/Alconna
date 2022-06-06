@@ -17,8 +17,7 @@
 
 ## 关于
 
-`Alconna` 隶属于 `ArcletProject`, 是 `Cesloi-CommandAnalysis` 的高级版，
-支持解析消息链或者其他原始消息数据
+`Alconna` 隶属于 `ArcletProject`, 是 `CommandAnalysis` 的重构版，是一个简单、灵活、高效的命令参数解析器, 并不局限于解析字符串。
 
 `Alconna` 拥有复杂的解析功能与命令组件，但 一般情况下请当作~~奇妙~~简易的消息链解析器/命令解析器(雾)
 
@@ -85,7 +84,7 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 * 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`; 测试脚本: [benchmark](dev_tools/benchmark.py) 
 * 精简、多样的构造方法
-* 强大的自动类型转换功能
+* 强大的类型解析与转换功能
 * 可传入同步与异步的 action 函数
 * 高度自定义的 HelpFormat、Analyser
 * 自定义语言文件, 支持 i18n
@@ -116,11 +115,27 @@ read.parse(["read", Path("test_fire.py")])
 模糊匹配示范:
 ```python
 from arclet.alconna import Alconna
+
 alc = Alconna('!test_fuzzy', "foo:str", is_fuzzy_match=True)
 alc.parse("！test_fuzy foo bar")
 
 '''
 ！test_fuzy not matched. Are you mean "!test_fuzzy"?
+'''
+```
+
+typing 支持示范:
+```python
+from typing import Annotated  # or typing_extensions.Annotated
+from arclet.alconna import Alconna, Args
+
+alc = Alconna("test", Args.foo[Annotated[int, lambda x: x % 2 == 0]])
+alc.parse("test 2")
+alc.parse("test 3")
+
+'''
+'foo': 2
+ParamsUnmatched: 参数 3 不正确
 '''
 ```
 

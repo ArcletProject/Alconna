@@ -4,8 +4,7 @@ import random
 
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import TypeVar, Optional, Dict, Any, List, Iterator, Generic, Hashable, Tuple, Set, Union, get_origin, \
-    get_args
+from typing import TypeVar, Optional, Dict, Any, Iterator, Generic, Hashable, Tuple, Set, Union, get_origin, get_args
 
 R = TypeVar('R')
 
@@ -207,21 +206,15 @@ class LruCache(Generic[_K, _V]):
 
 
 def generic_issubclass(cls: type, par: Union[type, Any, Tuple[type, ...]]) -> bool:
-    """检查 cls 是否是 args 中的一个子类, 支持泛型, Any, Union
-
-    Args:
-        cls (type): 要检查的类
-        par (Union[type, Any, Tuple[type, ...]]): 要检查的类的父类
-
-    Returns:
-        bool: 是否是父类
+    """
+    检查 cls 是否是 par 中的一个子类, 支持泛型, Any, Union, GenericAlias
     """
     if par is Any:
         return True
     with contextlib.suppress(TypeError):
         if isinstance(par, (type, tuple)):
             return issubclass(cls, par)
-        if issubclass(cls, get_origin(par)):
+        if issubclass(cls, get_origin(par)):  # type: ignore
             return True
         if get_origin(par) is Union:
             return any(generic_issubclass(cls, p) for p in get_args(par))
@@ -234,21 +227,15 @@ def generic_issubclass(cls: type, par: Union[type, Any, Tuple[type, ...]]) -> bo
 
 
 def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> bool:
-    """检查 obj 是否是 args 中的一个类型, 支持泛型, Any, Union
-
-    Args:
-        obj (Any): 要检查的对象
-        par (Union[type, Any, Tuple[type, ...]]): 要检查的对象的类型
-
-    Returns:
-        bool: 是否是类型
+    """
+    检查 obj 是否是 par 中的一个类型, 支持泛型, Any, Union, GenericAlias
     """
     if par is Any:
         return True
     with contextlib.suppress(TypeError):
         if isinstance(par, (type, tuple)):
             return isinstance(obj, par)
-        if isinstance(obj, get_origin(par)):
+        if isinstance(obj, get_origin(par)):   # type: ignore
             return True
         if get_origin(par) is Union:
             return any(generic_isinstance(obj, p) for p in get_args(par))

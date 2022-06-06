@@ -15,7 +15,7 @@
 
 ## About
 
-`Alconna` is a powerful cli tool for parsing message chain or other raw message data. It is an overload version of `Cesloi-CommandAnalysis`, affiliated to `ArcletProject`.
+`Alconna` is a powerful cli tool for parsing message chain or other raw message data. It is an overload version of `CommandAnalysis`, affiliated to `ArcletProject`.
 
 `Alconna` has a large number of built-in components and complex parsing functions. ~~But do not afraid~~, you can use it as a simple command parser.
 
@@ -85,7 +85,7 @@ QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 * High Performance. On i5-10210U, performance is about `41000~101000 msg/s`; test script: [benchmark](dev_tools/benchmark.py)
 * Simple and Flexible Constructor 
-* Powerful Automatic Type Conversion
+* Powerful Automatic Type Parse and Conversion
 * Support Synchronous and Asynchronous Actions
 * Customizable HelpFormatter and Analyser
 * Customizable Language File, Support i18n
@@ -123,6 +123,22 @@ alc.parse("！test_fuzy foo bar")
 
 '''
 ！test_fuzy not matched. Are you mean "!test_fuzzy"?
+'''
+```
+
+
+Example of `typing` Support:
+```python
+from typing import Annotated  # or typing_extensions.Annotated
+from arclet.alconna import Alconna, Args
+
+alc = Alconna("test", Args.foo[Annotated[int, lambda x: x % 2 == 0]])
+alc.parse("test 2")
+alc.parse("test 3")
+
+'''
+'foo': 2
+ParamsUnmatched: param 3 is incorrect
 '''
 ```
 

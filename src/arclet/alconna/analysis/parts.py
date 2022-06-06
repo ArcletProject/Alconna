@@ -175,23 +175,23 @@ def analyse_args(
                 raise ParamsUnmatched(lang_config.args_error.format(target=may_arg))
             option_dict[key] = None if default is Empty else default
     if opt_args.var_keyword:
-        kwargs = option_dict[opt_args.var_keyword[0]]
+        kwargs = option_dict[opt_args.var_keyword]
         if not isinstance(kwargs, dict):
-            kwargs = {opt_args.var_keyword[0]: kwargs}
-        option_dict['__kwargs__'] = (kwargs, opt_args.var_keyword[0])
+            kwargs = {opt_args.var_keyword: kwargs}
+        option_dict['__kwargs__'] = (kwargs, opt_args.var_keyword)
     if opt_args.var_positional:
-        varargs = option_dict[opt_args.var_positional[0]]
+        varargs = option_dict[opt_args.var_positional]
         if not isinstance(varargs, Iterable):
             varargs = [varargs]
         elif not isinstance(varargs, list):
             varargs = list(varargs)
-        option_dict['__varargs__'] = (varargs, opt_args.var_positional[0])
+        option_dict['__varargs__'] = (varargs, opt_args.var_positional)
     return option_dict
 
 
 def analyse_params(
         analyser: Analyser,
-        params: Dict[str, Union[Sentence, List[Option], Subcommand]]
+        params: Dict[str, Union[List[Option], Sentence, Subcommand]]
 ):
     _text, _str = analyser.next_data(analyser.separators, pop=False)
     if not _str:
@@ -236,10 +236,9 @@ def analyse_option(
         param: 目标Option
     """
     if param.requires:
-        for text in param.requires:
-            if text not in analyser.sentences:
-                raise ArgumentMissing(f"{param.name} missing required '{text}'")
-            analyser.sentences.remove(text)
+        if analyser.sentences != param.requires:
+            raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
+        analyser.sentences = []
     if param.is_compact:
         name, _ = analyser.next_data()
         for al in param.aliases:
@@ -273,10 +272,9 @@ def analyse_subcommand(
         param: 目标Subcommand
     """
     if param.requires:
-        for text in param.requires:
-            if text not in analyser.sentences:
-                raise ArgumentMissing(f"{param.name} missing required '{text}'")
-            analyser.sentences.remove(text)
+        if analyser.sentences != param.requires:
+            raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
+        analyser.sentences = []
     if param.is_compact:
         name, _ = analyser.next_data()
         if name.startswith(param.name):
@@ -297,7 +295,7 @@ def analyse_subcommand(
     subcommand = res['options']
     need_args = param.nargs > 0
     for _ in param.sub_part_len:
-        sub_param = analyse_params(analyser, param.sub_params)
+        sub_param = analyse_params(analyser, param.sub_params)  # type: ignore
         if sub_param and isinstance(sub_param, List):
             for p in sub_param:
                 _current_index = analyser.current_index
@@ -311,7 +309,7 @@ def analyse_subcommand(
                     analyser.content_index = _content_index
                     continue
             else:
-                raise exc  # noqa
+                raise exc  # type: ignore  # noqa
 
         elif not args:
             res['args'] = analyse_args(analyser, param.args, param.nargs)
@@ -357,7 +355,7 @@ def analyse_header(
                     return _command_find.groupdict() or True
 
         elif _str:
-            pat = re.compile(command[0][1].pattern + command[1].pattern)
+            pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
             if _head_find := pat.fullmatch(head_text):
                 analyser.reduce_data(may_command)
                 analyser.head_matched = True
@@ -380,12 +378,12 @@ def analyse_header(
             if isinstance(command, Pattern):
                 source = head_text
             else:
-                source = head_text + analyser.separators.copy().pop() + str(may_command)  # noqa
+                source = head_text + analyser.separators.copy().pop() + str(may_command)  # type: ignore  # noqa
             if command_manager.get_command(source):
                 analyser.head_matched = False
                 raise ParamsUnmatched(lang_config.header_error.format(target=head_text))
             for ht in headers_text:
-                if levenshtein_norm(source, ht) >= 0.6:  # TODO
+                if levenshtein_norm(source, ht) >= 0.6:
                     analyser.head_matched = True
                     raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(target=source, source=ht))
         raise ParamsUnmatched(lang_config.header_error.format(target=head_text))

@@ -8,11 +8,12 @@ from dataclasses import dataclass, field
 from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
 
 from .exceptions import InvalidParam, NullTextMessage
-from .typing import BasePattern, _All, Empty, DataUnit, AllParam, AnyOne, MultiArg, UnionArg, argument_type_validator
+from .typing import BasePattern, Empty, DataUnit, AllParam, AnyOne, MultiArg, UnionArg, argument_type_validator
 from .lang import lang_config
 from .components.action import ArgAction
 
-TAValue = Union[BasePattern, _All, type]
+
+TAValue = Union[BasePattern, AllParam.__class__, type]
 TADefault = Union[Any, DataUnit, Empty]
 
 
@@ -90,8 +91,8 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     """
     extra: Literal["allow", "ignore", "reject"]
     argument: Dict[str, ArgUnit]
-    var_positional: Optional[Tuple[str, MultiArg]]
-    var_keyword: Optional[Tuple[str, MultiArg]]
+    var_positional: Optional[str]
+    var_keyword: Optional[str]
     optional_count: int
     separators: Set[str]
 
@@ -124,8 +125,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
                     raise InvalidParam(lang_config.common_custom_type_error.format(target=custom_types[value]))
                 try:
-                    value = eval(value, custom_types)
-                    default = value(default)
+                    value = eval(value, custom_types)  # type: ignore
+                    if default:
+                        default = value(default)
                 except (NameError, ValueError, TypeError):
                     pass
             _args.add_argument(name, value=value, default=default)
@@ -268,20 +270,20 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                         raise InvalidParam(lang_config.args_duplicate_kwargs)
                     if _value not in (AnyOne, AllParam):
                         slot['value'] = MultiArg(_value, flag='kwargs')
-                        self.var_keyword = (name, _value)
+                        self.var_keyword = name
                     _limit = True
                 if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                     if self.var_positional:
                         raise InvalidParam(lang_config.args_duplicate_varargs)
                     if _value not in (AnyOne, AllParam):
                         slot['value'] = MultiArg(_value)
-                        self.var_positional = (name, _value)
+                        self.var_positional = name
                 if flag.isdigit() and not _limit:
                     if self.var_positional:
                         raise InvalidParam(lang_config.args_duplicate_varargs)
                     if _value not in (AnyOne, AllParam):
                         slot['value'] = MultiArg(_value, array_length=int(flag))
-                        self.var_positional = (name, _value)
+                        self.var_positional = name
                 if flag == ArgFlag.OPTIONAL:
                     if self.var_keyword or self.var_positional:
                         raise InvalidParam(lang_config.args_exclude_mutable_args)
@@ -379,8 +381,7 @@ class CommandNode:
     requires: Union[Sequence[str], Set[str]]
 
     def __init__(
-            self, name: str,
-            args: Union[Args, str, None] = None,
+            self, name: str, args: Union[Args, str, None] = None,
             dest: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
             separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
@@ -401,7 +402,11 @@ class CommandNode:
             raise InvalidParam(lang_config.node_name_empty)
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
             raise InvalidParam(lang_config.node_name_error)
-        self.name = name
+        _parts = name.split(" ")
+        self.name = _parts[-1]
+        self.requires = _parts[:-1] if not requires else (
+            requires if isinstance(requires, (list, tuple, set)) else (requires,)
+        )
         self.args = Args() if not args else args if isinstance(args, Args) else Args.from_string_list(
             [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
         )
@@ -411,8 +416,7 @@ class CommandNode:
         )
         self.nargs = len(self.args.argument)
         self.is_compact = self.separators == {''}
-        self.requires = [] if not requires else (requires if isinstance(requires, (list, tuple, set)) else (requires,))
-        self.dest = (dest or (("_".join(requires) + "_") if self.requires else "") + name).lstrip('-')
+        self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name).lstrip('-')
         self.help_text = help_text or self.dest
 
     is_compact: bool
@@ -449,13 +453,17 @@ class Option(CommandNode):
 
     ):
         self.aliases = alias or []
+        parts = name.split(" ")
+        name, rest = parts[-1], parts[:-1]
         if "|" in name:
-            aliases = name.replace(' ', '').split('|')
+            aliases = name.split('|')
             aliases.sort(key=len, reverse=True)
             name = aliases[0]
             self.aliases.extend(aliases[1:])
         self.aliases.insert(0, name)
-        super().__init__(name, args, dest, action, separators, help_text, requires)
+        super().__init__(
+            " ".join(rest) + (" " if rest else "") + name, args, dest, action, separators, help_text, requires
+        )
 
 
 class Subcommand(CommandNode):

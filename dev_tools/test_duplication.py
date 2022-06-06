@@ -11,10 +11,10 @@ class Demo(AlconnaDuplication):
 
 alc = Alconna(
     "test",
-    Args["foo":int],
+    Args["foo", int],
     options=[
-        Option("--bar", Args["bar":str]),
-        Subcommand("sub", options=[Option("--sub1", Args["baz":str])])
+        Option("--bar", Args["bar", str]),
+        Subcommand("sub", options=[Option("--sub1", Args["baz", str])])
     ]
 )
 result = alc.parse("test 123 --bar abc sub --sub1 xyz")

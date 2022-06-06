@@ -15,16 +15,14 @@ setuptools.setup(
     url="https://github.com/ArcletProject/Alconna",
     package_dir={"": "src"},
     packages=setuptools.find_namespace_packages(where="src"),
-    entry_points={
-        'console_scripts': [
-            'alconna = arclet.alconna.__main__:main'
-        ]
-    },
     install_requires=['typing_extensions'],
     extras_require={
         'graia': [
             'arclet-alconna-graia',
-        ]
+        ],
+        'cli': [
+            'arclet-alconna-cli'
+        ],
     },
     classifiers=[
         "Development Status :: 4 - Beta",

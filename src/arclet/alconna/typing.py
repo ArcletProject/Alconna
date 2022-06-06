@@ -18,7 +18,7 @@ from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Un
     List, Dict, get_args, Literal, Tuple, get_origin, Iterable, Generic
 
 try:
-    from typing import Annotated
+    from typing import Annotated  # type: ignore
 except ImportError:
     from typing_extensions import Annotated
 
@@ -26,7 +26,7 @@ from .exceptions import ParamsUnmatched
 from .lang import lang_config
 from .util import generic_isinstance
 
-DataUnit = TypeVar("DataUnit")
+DataUnit = TypeVar("DataUnit", covariant=True)
 GenericAlias = type(List[int])
 AnnotatedAlias = type(Annotated[int, lambda x: x > 0])
 
@@ -69,9 +69,6 @@ class _All:
 
     def __repr__(self):
         return "AllParam"
-
-    def __getstate__(self):
-        return {"type": self.__repr__()}
 
 
 AllParam = _All()
@@ -152,7 +149,7 @@ class BasePattern(Generic[TOrigin]):
         return isinstance(other, BasePattern) and self.__repr__() == other.__repr__()
 
     @classmethod
-    def of(cls, unit: Type[DataUnit]):
+    def of(cls, unit: Type[TOrigin]):
         """
         提供原来 TAValue 中的 Type[DataUnit] 类型的构造方法
         """
@@ -167,13 +164,13 @@ class BasePattern(Generic[TOrigin]):
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
         """
         if self.model > 1 and generic_isinstance(input_, self.origin_type):
-            return input_
+            return input_  # type: ignore
         if self.accepts and not isinstance(input_, tuple(self.accepts)):
             if not self.previous:
                 raise ParamsUnmatched(lang_config.args_type_error.format(target=input_.__class__))
             input_ = self.previous.match(input_)
         if self.model == PatternModel.KEEP:
-            return input_
+            return input_  # type: ignore
         if self.model == PatternModel.TYPE_CONVERT:
             res = self.converter(input_)
             if not generic_isinstance(res, self.origin_type):
@@ -274,13 +271,8 @@ class UnionArg(BasePattern):
                 self.for_validate.append(arg)
             else:
                 self.for_equal.append(arg)
-        alias_content = "|".join(
-            [repr(a) for a in self.for_validate] +
-            [repr(a) for a in self.for_equal]
-        )
-        super().__init__(
-            r"(.+?)", PatternModel.KEEP, str, alias=alias_content, anti=anti
-        )
+        alias_content = "|".join([repr(a) for a in self.for_validate] + [repr(a) for a in self.for_equal])
+        super().__init__(r"(.+?)", PatternModel.KEEP, str, alias=alias_content, anti=anti)
 
     def match(self, text: Union[str, Any]):
         if not text:
@@ -418,10 +410,9 @@ def set_converter(
             pattern_map[k] = target
         else:
             al_pat = pattern_map[k]
-            if isinstance(al_pat, UnionArg):
-                pattern_map[k] = UnionArg([*al_pat.arg_value, target])
-            else:
-                pattern_map[k] = UnionArg([al_pat, target])
+            pattern_map[k] = UnionArg([*al_pat.arg_value, target]) if isinstance(al_pat, UnionArg) else (
+                UnionArg([al_pat, target])
+            )
 
 
 def set_converters(
@@ -459,7 +450,7 @@ def remove_converter(origin_type: type, alias: Optional[str] = None):
 StrPath = BasePattern(model=PatternModel.TYPE_CONVERT, origin_type=Path, alias="path", accepts=[str])
 AnyPathFile = BasePattern(
     model=PatternModel.TYPE_CONVERT, origin_type=bytes, alias="file", accepts=[Path], previous=StrPath,
-    converter=lambda x: x.read_bytes() if x.exists() and x.is_file() else None
+    converter=lambda x: x.read_bytes() if x.exists() and x.is_file() else None  # type: ignore
 )
 
 _Digit = BasePattern(r"(\-?\d+)", PatternModel.REGEX_CONVERT, int, lambda x: int(x), "int")
@@ -567,7 +558,7 @@ class Bind:
 
 
 __all__ = [
-    "DataUnit", "DataCollection", "Empty", "AnyOne", "AllParam", "_All", "PatternModel",
+    "DataUnit", "DataCollection", "Empty", "AnyOne", "AllParam", "PatternModel",
     "BasePattern", "MultiArg", "SequenceArg", "UnionArg", "MappingArg", "Bind",
     "pattern_gen", "pattern_map", "set_converter", "set_converters", "remove_converter", "argument_type_validator"
 ]

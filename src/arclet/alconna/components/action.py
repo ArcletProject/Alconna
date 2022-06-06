@@ -99,7 +99,7 @@ class ArgAction:
                     continue
                 if value != argument_type_validator(anno, args.extra):
                     raise InvalidParam(lang_config.action_args_error.format(
-                        target=argument[i][0], key=k, source=value.origin_type
+                        target=argument[i][0], key=k, source=value.origin_type  # type: ignore
                     ))
         return ArgAction(action)
 
@@ -145,7 +145,7 @@ class ActionHandler(ArpamarBehavior):
 
         for path, action in interface.source.action_list['options'].items():
             if d := interface.query(path, None):
-                _exec(d, action)
+                _exec(d, action)  # type: ignore
         for path, action in interface.source.action_list['subcommands'].items():
             if d := interface.query(path, None):
-                _exec(d, action)
+                _exec(d, action)  # type: ignore

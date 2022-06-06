@@ -84,7 +84,7 @@ class CommandManager(metaclass=Singleton):
 
     def _command_part(self, command: str) -> Tuple[str, str]:
         """获取命令的组成部分"""
-        command_parts = command.split(".", 1)
+        command_parts = command.split(".")[-2:]
         if len(command_parts) != 2:
             command_parts.insert(0, self.default_namespace)
         return command_parts[0], command_parts[1]
@@ -101,9 +101,6 @@ class CommandManager(metaclass=Singleton):
             if _cmd == delegate.alconna:
                 return
             _cmd.__union__(delegate.alconna)
-            # raise DuplicateCommand(
-            #     lang_config.manager_duplicate_command.format(target=f"{delegate.alconna.namespace}.{cid}")
-            # )
         else:
             self.__commands[delegate.alconna.namespace][cid] = delegate.alconna
             self.current_count += 1
@@ -137,10 +134,7 @@ class CommandManager(metaclass=Singleton):
             namespace, name = self._command_part(command)
             if namespace not in self.__commands or name not in self.__commands[namespace]:
                 raise ValueError(lang_config.manager_undefined_command.format(target=command))
-            temp = []
-            for cmd in self.__abandons:
-                if cmd.path == f"{namespace}.{name}":
-                    temp.append(cmd)
+            temp = [cmd for cmd in self.__abandons if cmd.path == f"{namespace}.{name}"]
             for cmd in temp:
                 self.__abandons.remove(cmd)
             return
@@ -160,11 +154,7 @@ class CommandManager(metaclass=Singleton):
             _ = self.__commands[namespace][name]
         except KeyError:
             raise ValueError(lang_config.manager_undefined_command.format(target=f"{namespace}.{name}"))
-        if (
-                isinstance(source, Arpamar)
-                and source.matched
-                or not isinstance(source, Arpamar)
-        ):
+        if isinstance(source, Arpamar) and source.matched or not isinstance(source, Arpamar):
             self.__shortcuts.set(f"{namespace}.{name}::{shortcut}", source, expiration)
         else:
             raise ValueError(lang_config.manager_incorrect_shortcut.format(target=f"{shortcut}"))
@@ -190,31 +180,18 @@ class CommandManager(metaclass=Singleton):
             raise ValueError(lang_config.manager_undefined_shortcut.format(target=f"{shortcut}"))
 
     def update_shortcut(self, random: bool = False):
-        if random:
-            self.__shortcuts.update()
-        else:
-            self.__shortcuts.update_all()
+        return self.__shortcuts.update() if random else self.__shortcuts.update_all()
 
     def delete_shortcut(self, shortcut: str, target: Optional[Union["Alconna", str]] = None):
         """删除快捷命令"""
-        if target:
-            namespace, name = self._command_part(target if isinstance(target, str) else target.path)
-            try:
-                _ = self.__commands[namespace][name]
-            except KeyError:
-                raise ValueError(lang_config.manager_undefined_command.format(target=f"{namespace}.{name}"))
-            try:
-                self.__shortcuts.delete(f"{namespace}.{name}::{shortcut}")
-            except KeyError:
-                raise ValueError(
-                    lang_config.manager_target_command_error.format(target=f"{namespace}.{name}", shortcut=shortcut)
-                )
-        else:
-            for key in self.__shortcuts:
-                if key.split("::")[1] == shortcut:
-                    self.__shortcuts.delete(key)
-                    return
-            raise ValueError(lang_config.manager_undefined_shortcut.format(target=f"{shortcut}"))
+        try:
+            res = self.find_shortcut(shortcut, target)
+        except ValueError:
+            raise
+        for k, v in self.__shortcuts.items():
+            if v == res:
+                self.__shortcuts.delete(k)
+                return
 
     def set_disable(self, command: Union["Alconna", str]) -> None:
         """禁用命令"""
@@ -223,11 +200,10 @@ class CommandManager(metaclass=Singleton):
             if namespace not in self.__commands or name not in self.__commands[namespace]:
                 raise ValueError(lang_config.manager_undefined_command.format(target=f"{namespace}.{name}"))
             cmd = self.__commands[namespace][name]
-            if hasattr(cmd, 'commands'):
-                self.__abandons.extend(cmd.commands)
-            else:
-                self.__abandons.append(cmd)
-            return
+            return (
+                self.__abandons.extend(cmd.commands) # type: ignore
+                if hasattr(cmd, 'commands') else self.__abandons.append(cmd)  # type: ignore
+            )
         self.__abandons.append(command)
 
     def get_command(self, command: str) -> Union["Alconna", "AlconnaGroup", None]:
@@ -248,7 +224,7 @@ class CommandManager(metaclass=Singleton):
     def broadcast(self, message: Union[str, DataCollection], namespace: Optional[str] = None) -> Optional['Arpamar']:
         """将一段命令广播给当前空间内的所有命令"""
         for cmd in self.get_commands(namespace):
-            if (res := cmd.parse(message)).matched:
+            if (res := cmd.parse(message)) and res.matched:
                 return res
 
     def all_command_help(

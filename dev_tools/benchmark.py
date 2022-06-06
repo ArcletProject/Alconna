@@ -23,7 +23,7 @@ class At:
 ping = Alconna(
     headers=["."],
     command="test",
-    main_args=Args["bar":AnyOne]
+    main_args=Args["bar", AnyOne]
 )
 s_ping = compile(ping)
 

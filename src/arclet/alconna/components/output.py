@@ -26,9 +26,9 @@ class OutputActionManager(metaclass=Singleton):
 
         finalize(self, _clr, self)
 
-    def require_send_action(
+    def set_send_action(
             self,
-            action: Optional[Callable[[str], Any]] = None,
+            action: Callable[[str], Any],
             command: Optional[str] = None
     ):
         """修改help_send_action"""
@@ -99,11 +99,11 @@ class AbstractTextFormatter(metaclass=ABCMeta):
                 command.args, command.separators, command.options
             )
 
-        for cmd in base.commands if base._group else [base]:
+        for cmd in base.commands if base._group else [base]:  # type: ignore
             if self.data and self.data[-1].head['name'] == cmd.name:
-                self.data[-1].union(_handle(cmd))
+                self.data[-1].union(_handle(cmd))  # type: ignore
             else:
-                self.data.append(_handle(cmd))
+                self.data.append(_handle(cmd))  # type: ignore
 
     def format_node(self, end: Optional[List[str]] = None):
         """
