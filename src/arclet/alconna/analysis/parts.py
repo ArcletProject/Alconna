@@ -338,13 +338,14 @@ def analyse_header(
                 (isinstance(command[0], list) and head_text in command[0]) or
                 (isinstance(command[0], tuple) and head_text in command[0][0])
             ):
-                if isinstance(command[1], Pattern) and _m_str and (_command_find := command[1].fullmatch(may_command)):
-                    analyser.head_matched = True
-                    return _command_find.groupdict() or True
-                elif _command_find := command[1].validate(head_text, Empty)[0]:
+                if isinstance(command[1], Pattern):
+                    if _m_str and (_command_find := command[1].fullmatch(may_command)):
+                        analyser.head_matched = True
+                        return _command_find.groupdict() or True
+                elif _command_find := command[1].validate(may_command, Empty)[0]:
                     analyser.head_matched = True
                     return _command_find or True
-            elif isinstance(command[0][1], Pattern):
+            elif _str and isinstance(command[0][1], Pattern):
                 if not _m_str:
                     if isinstance(command[1], BasePattern) and (_head_find := command[0][1].fullmatch(head_text)) and (
                         _command_find := command[1].validate(may_command, Empty)[0]

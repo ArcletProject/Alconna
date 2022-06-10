@@ -17,18 +17,11 @@ class Arpamar:
     """
     亚帕玛尔(Arpamar), Alconna的珍藏宝书
 
-    Example:
-
     - `Arpamar.main_args`: 当 Alconna 写入了 main_argument 时,该参数返回对应的解析出来的值
-
     - `Arpamar.header`: 当 Alconna 的 command 内写有正则表达式时,该参数返回对应的匹配值
-
     - `Arpamar.find`: 判断 Arpamar 内是否有对应的属性
-
     - `Arpamar.query`: 返回 Arpamar 中指定的属性
-
     - `Arpamar.matched`: 返回命令是否匹配成功
-
     """
 
     def __init__(self, alc: "Alconna"):
@@ -118,10 +111,7 @@ class Arpamar:
                     self.other_args = {**self.other_args, **vv['args']}
 
     def execute(self, behaviors: Optional[List[T_ABehavior]] = None):
-        behaviors = [
-            *self.source.behaviors,
-            *(behaviors or [])
-        ]
+        behaviors = [*self.source.behaviors, *(behaviors or [])]
         for behavior in behaviors:
             for b in requirement_handler(behavior):
                 try:
@@ -130,10 +120,7 @@ class Arpamar:
                     continue
         return self
 
-    def __require__(
-            self,
-            parts: List[str]
-    ) -> Tuple[Optional[Union[Dict[str, Any], OptionResult, SubcommandResult]], str]:
+    def __require__(self, parts: List[str]) -> Tuple[Union[Dict[str, Any], OptionResult, SubcommandResult, None], str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
         if len(parts) == 1:
             part = parts[0]
@@ -215,8 +202,7 @@ class Arpamar:
     def query_with(self, arg_type: Type[T], name: Optional[str] = None) -> Optional[Union[Dict[str, T], T]]:
         """根据类型查询参数"""
         if name:
-            res = self.query(name)
-            return res if isinstance(res, arg_type) else None
+            return res if isinstance(res := self.query(name), arg_type) else None
         return {k: v for k, v in self.all_matched_args.items() if isinstance(v, arg_type)}
 
     def find(self, name: str) -> bool:

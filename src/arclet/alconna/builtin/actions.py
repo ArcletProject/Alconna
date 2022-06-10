@@ -51,13 +51,13 @@ def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[s
                 raise BehaveCancelled
             if option and subcommand is None:
                 options = interface.query("options", {})
-                options[option] = {"value": value, "args": {}}
+                options.setdefault(option, {"value": value, "args": {}})
             if subcommand and option is None:
                 subcommands = interface.query("subcommands", {})
-                subcommands[subcommand] = {"value": value, "args": {}, "options": {}}
+                subcommands.setdefault(subcommand, {"value": value, "args": {}, "options": {}})
             if option and subcommand:
                 sub_options = interface.query(f"{subcommand}.options", {})
-                sub_options[option] = {"value": value, "args": {}}
+                sub_options.setdefault(option, {"value": value, "args": {}})
 
     return _SetDefault()
 
@@ -74,6 +74,7 @@ def exclusion(target_path: str, other_path: str):
     class _EXCLUSION(ArpamarBehavior):
         def operate(self, interface: "Arpamar"):
             if interface.query(target_path) and interface.query(other_path):
+                interface.matched = False
                 if interface.source.is_raise_exception:
                     raise OutBoundsBehavior(
                         config.lang.behavior_exclude_matched.format(target=target_path, other=other_path)
@@ -128,10 +129,7 @@ def inclusion(*targets: str, flag: Literal["any", "all"] = "any"):
                         interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)
                         break
             else:
-                all_count = len(targets) - sum(
-                    1 for target in targets if interface.require(target)
-                )
-
+                all_count = len(targets) - sum(1 for target in targets if interface.require(target))
                 if all_count > 0:
                     interface.matched = False
                     interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)

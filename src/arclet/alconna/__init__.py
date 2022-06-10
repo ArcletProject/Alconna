@@ -13,9 +13,10 @@ from .manager import command_manager
 from .config import config, load_lang_file
 
 from .builtin.actions import store_value, set_default, exclusion, cool_down
-from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, AlconnaFire, Argument
+from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, AlconnaFire, Argument, delegate
 from .builtin.formatter import ArgParserTextFormatter, DefaultTextFormatter
 from .builtin.pattern import ObjectPattern
+from .components.behavior import ArpamarBehavior
 from .components.output import output_send, output_manager, AbstractTextFormatter
 from .components.duplication import AlconnaDuplication
 from .components.stub import ArgsStub, OptionStub, SubcommandStub

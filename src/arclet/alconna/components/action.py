@@ -22,12 +22,7 @@ class ArgAction:
     action: Callable[..., Any]
 
     def __init__(self, action: Callable):
-        """
-        ArgAction的构造函数
-
-        Args:
-            action: (...) -> Sequence
-        """
+        """ArgAction的构造函数"""
         self.action = action
 
     def handle(

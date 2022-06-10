@@ -16,7 +16,6 @@ from arclet.alconna.components.output import output_send
 class DefaultCommandAnalyser(Analyser):
     """
     内建的默认分析器
-
     """
 
     filter_out = ["Source", "File", "Quote"]
@@ -45,8 +44,7 @@ class DefaultCommandAnalyser(Analyser):
                 self.reset()
                 if isinstance(_res, Arpamar):
                     return _res
-                self.process_message(_res)
-                return self.analyse()
+                return self.process_message(_res).analyse()
             except ValueError:
                 return self.export(fail=True, exception=e)
         except FuzzyMatchSuccess as Fuzzy:
@@ -56,25 +54,22 @@ class DefaultCommandAnalyser(Analyser):
         for _ in self.part_len:
             _param = analyse_params(self, self.command_params)
             try:
-                if not _param or _param is Ellipsis:
-                    if not self.main_args:
-                        self.main_args = analyse_args(self, self.self_args, self.alconna.nargs)
+                if not _param or _param is Ellipsis and not self.main_args:
+                    self.main_args = analyse_args(self, self.self_args, self.alconna.nargs)
                 elif isinstance(_param, list):
                     for opt in _param:
                         if opt.name == "--help":
                             return handle_help(self)
                         if opt.name == "--shortcut":
                             return handle_shortcut(self)
-                        _current_index = self.current_index
-                        _content_index = self.content_index
+                        _current_index, _content_index = self.current_index, self.content_index
                         try:
                             opt_n, opt_v = analyse_option(self, opt)
                             self.options[opt_n] = opt_v
                             break
                         except Exception as e:
                             exc = e
-                            self.current_index = _current_index
-                            self.content_index = _content_index
+                            self.current_index, self.content_index = _current_index, _content_index
                             continue
                     else:
                         raise exc  # noqa
@@ -83,10 +78,8 @@ class DefaultCommandAnalyser(Analyser):
                     self.subcommands[sub_n] = sub_v
                 elif isinstance(_param, Sentence):
                     self.sentences.append(self.next_data(self.separators)[0])
-            except FuzzyMatchSuccess as Fuzzy:
-                output_send(
-                    self.alconna.name, lambda: str(Fuzzy)
-                ).handle({}, is_raise_exception=self.is_raise_exception)
+            except FuzzyMatchSuccess as e:
+                output_send(self.alconna.name, lambda: str(e)).handle({}, is_raise_exception=self.is_raise_exception)
                 return self.export(fail=True)
             except (ParamsUnmatched, ArgumentMissing):
                 if self.is_raise_exception:

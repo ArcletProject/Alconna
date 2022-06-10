@@ -21,9 +21,7 @@ def compile(alconna: "Alconna", params_generator: Optional[Callable[[Analyser], 
 
 
 def analyse(alconna: "Alconna", command: DataCollection[Union[str, Any]]) -> "Arpamar":
-    ana = compile(alconna)
-    ana.process_message(command)
-    return ana.analyse().execute()
+    return compile(alconna).process_message(command).analyse().execute()
 
 
 class AnalyseError(Exception):
@@ -47,11 +45,7 @@ class _DummyAnalyser(Analyser):
         pass
 
 
-def analyse_args(
-        args: Args,
-        command: DataCollection[Union[str, Any]],
-        raise_exception: bool = True
-):
+def analyse_args(args: Args, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {' '}
@@ -86,11 +80,7 @@ def analyse_header(
         return
 
 
-def analyse_option(
-        option: Option,
-        command: DataCollection[Union[str, Any]],
-        raise_exception: bool = True
-):
+def analyse_option(option: Option, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {" "}
@@ -107,11 +97,7 @@ def analyse_option(
         return
 
 
-def analyse_subcommand(
-        subcommand: Subcommand,
-        command: DataCollection[Union[str, Any]],
-        raise_exception: bool = True
-):
+def analyse_subcommand(subcommand: Subcommand, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {" "}

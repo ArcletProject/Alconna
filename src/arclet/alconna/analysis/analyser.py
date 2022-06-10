@@ -41,9 +41,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     param_ids: Set[str]
     # 命令头部
     command_header: Union[
-        Union[Pattern, BasePattern],
+        Union[Pattern, BasePattern], List[Tuple[Any, Pattern]],
         Tuple[Union[Tuple[List[Any], Pattern], List[Any]], Union[Pattern, BasePattern]],
-        List[Tuple[Any, Pattern]]
     ]
     separators: Set[str]  # 分隔符
     is_raise_exception: bool  # 是否抛出异常
@@ -106,11 +105,11 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             command_name: Union[str, type, BasePattern],
             headers: Union[List[Union[str, Any]], List[Tuple[Any, str]]]
     ):
-        if isinstance(command_name, str) and len(parts := re.split("({.*})", command_name)) > 1:
+        if isinstance(command_name, str) and len(parts := re.split(r"(\{.*?})", command_name)) > 1:
             for i, part in enumerate(parts):
                 if not part:
                     continue
-                if res := re.match("{(.*?)}", part):
+                if res := re.match(r"\{(.*?)}", part):
                     _res = res.group(1)
                     if not _res:
                         parts[i] = ".+?"
@@ -120,12 +119,15 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                         parts[i] = f"(?P<{_parts[0]}>.+?)"
                     elif not _parts[0] and not _parts[1]:
                         parts[i] = ".+?"
-                    elif not _parts[0]:
+                    elif not _parts[0] and _parts[1]:
                         parts[i] = f"{pattern_map.get(_parts[1], _parts[1])}".replace("(", "").replace(")", "")
-                    elif not _parts[1]:
+                    elif not _parts[1] and _parts[0]:
                         parts[i] = f"(?P<{_parts[0]}>.+?)"
                     else:
-                        parts[i] = f"(?P<{_parts[0]}>{pattern_map.get(_parts[1], _parts[1])})"
+                        parts[i] = (
+                            f"(?P<{_parts[0]}>"
+                            f"{pattern_map[_parts[1]].pattern if _parts[1] in pattern_map else _parts[1]})"
+                        )
             command_name = "".join(parts)
 
         if isinstance(command_name, str):
@@ -201,7 +203,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 analyser.command_params.update({k: Sentence(name=k) for k in opts.requires})
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}>"
+        return f"<{self.__class__.__name__} of {self.alconna.path}>"
 
     def reset(self):
         """重置分析器"""
@@ -334,7 +336,6 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     @abstractmethod
     def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None) -> Arpamar:
         """主体解析函数, 应针对各种情况进行解析"""
-        pass
 
     @staticmethod
     def converter(command: str) -> T_Origin:
@@ -344,13 +345,11 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         """创建arpamar, 其一定是一次解析的最后部分"""
         result = Arpamar(self.alconna)
         result.head_matched = self.head_matched
+        result.matched = not fail
         if fail:
-            tb = traceback.format_exc(limit=1)
-            result.error_info = repr(exception or tb)
+            result.error_info = repr(exception or traceback.format_exc(limit=1))
             result.error_data = self.recover_raw_data()
-            result.matched = False
         else:
-            result.matched = True
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
             if config.enable_message_cache:
                 command_manager.record(self.temp_token, self.origin_data, result)  # type: ignore

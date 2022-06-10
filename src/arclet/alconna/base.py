@@ -4,6 +4,7 @@ import re
 import inspect
 from copy import copy
 from enum import Enum
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
 
@@ -21,7 +22,6 @@ class ArgFlag(str, Enum):
     """
     参数标记
     """
-
     VAR_POSITIONAL = "S"
     VAR_KEYWORD = "W"
     OPTIONAL = 'O'
@@ -35,19 +35,14 @@ class ArgUnit(TypedDict):
     """
     参数单元
     """
-
     value: TAValue
     """参数值"""
-
     default: TADefault
     """默认值"""
-
     optional: bool
     """是否可选"""
-
     kwonly: bool
     """是否键值对参数"""
-
     hidden: bool
     """是否隐藏类型参数"""
 
@@ -61,7 +56,7 @@ class ArgsMeta(type):
         cls.selecting = False
 
     def __getattr__(cls, name):
-        if name == 'shape':
+        if name in ('shape', '__test__', '_pytestfixturefunction'):
             return super().__getattribute__(name)
         cls.last_key = name
         cls.selecting = True
@@ -110,8 +105,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         """
         _args = cls()
         for arg in args:
-            _le = len(arg)
-            if _le == 0:
+            if (_le := len(arg)) == 0:
                 raise NullMessage
 
             default = arg[2].strip(" ") if _le > 2 else None
@@ -124,12 +118,10 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             if value not in (AllParam, AnyOne):
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
                     raise InvalidParam(config.lang.common_custom_type_error.format(target=custom_types[value]))
-                try:
+                with suppress(NameError, ValueError, TypeError):
                     value = eval(value, custom_types)  # type: ignore
                     if default:
                         default = value(default)
-                except (NameError, ValueError, TypeError):
-                    pass
             _args.add_argument(name, value=value, default=default)
         return _args
 
@@ -191,15 +183,10 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.var_positional = None
         self.var_keyword = None
         self.optional_count = 0
-        if isinstance(separators, str):
-            self.separators = {separators}
-        else:
-            self.separators = set(separators)
+        self.separators = {separators} if isinstance(separators, str) else set(separators)
         self.argument = {  # type: ignore
-            k: {
-                "value": args_type_parser(v),
-                "default": None, 'optional': False, 'hidden': False, 'kwonly': False
-            } for k, v in kwargs.items()
+            k: {"value": args_type_parser(v), "default": None, 'optional': False, 'hidden': False, 'kwonly': False}
+            for k, v in kwargs.items()
         }
         for arg in (args or []):
             self.__check_var__(arg)
@@ -508,7 +495,6 @@ class SubcommandResult(TypedDict):
 
 HelpOption = Option("--help|-h", help_text="显示帮助信息")
 ShortcutOption = Option(
-    '--shortcut|-SCT',
-    Args["delete;O", "delete"]["name", str]["command", str, "_"]["expiration;K", int, 0],
+    '--shortcut|-SCT', Args["delete;O", "delete"]["name", str]["command", str, "_"]["expiration;K", int, 0],
     help_text='设置快捷命令'
 )

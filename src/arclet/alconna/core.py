@@ -36,7 +36,6 @@ class AlconnaGroup(CommandNode):
             name: str,
             *commands: "Alconna",
             namespace: Optional[str] = None,
-
     ):
         self.commands = list(commands)
         self.namespace = namespace

@@ -80,23 +80,16 @@ def split(text: str, separates: Optional[Set[str]] = None):
 
 def levenshtein_norm(source: str, target: str) -> float:
     """编辑距离算法, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似"""
-    return 1 - float(levenshtein(source, target)) / max(len(source), len(target))
-
-
-def levenshtein(source: str, target: str) -> int:
-    """编辑距离算法的具体内容"""
-    s_range = range(len(source) + 1)
-    t_range = range(len(target) + 1)
+    l_s, l_t = len(source), len(target)
+    s_range, t_range = range(l_s + 1), range(l_t + 1)
     matrix = [[(i if j == 0 else j) for j in t_range] for i in s_range]
 
     for i in s_range[1:]:
         for j in t_range[1:]:
-            del_distance = matrix[i - 1][j] + 1
-            ins_distance = matrix[i][j - 1] + 1
-            sub_trans_cost = 0 if source[i - 1] == target[j - 1] else 1
-            sub_distance = matrix[i - 1][j - 1] + sub_trans_cost
-            matrix[i][j] = min(del_distance, ins_distance, sub_distance)
-    return matrix[len(source)][len(target)]
+            sub_distance = matrix[i - 1][j - 1] + (0 if source[i - 1] == target[j - 1] else 1)
+            matrix[i][j] = min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, sub_distance)
+
+    return 1 - float(matrix[l_s][l_t]) / max(l_s, l_t)
 
 
 _K = TypeVar("_K", bound=Hashable)
@@ -189,20 +182,15 @@ class LruCache(Generic[_K, _V]):
 
     @property
     def recent(self) -> Optional[_V]:
-        if self.cache:
-            try:
-                return self.cache[list(self.cache.keys())[-1]]
-            except KeyError:
-                return None
+        with contextlib.suppress(KeyError):
+            return self.cache[list(self.cache.keys())[-1]]
         return None
 
     def items(self, size: int = -1) -> Iterator[Tuple[_K, _V]]:
-        if size == -1:
-            return iter(self.cache.items())
-        try:
-            return iter(list(self.cache.items())[:-size:-1])
-        except IndexError:
-            return iter(self.cache.items())
+        if size > 0:
+            with contextlib.suppress(IndexError):
+                return iter(list(self.cache.items())[:-size:-1])
+        return iter(self.cache.items())
 
 
 def generic_issubclass(cls: type, par: Union[type, Any, Tuple[type, ...]]) -> bool:

@@ -72,15 +72,11 @@ def generate_duplication(command: "Alconna") -> AlconnaDuplication:
     options = filter(lambda x: isinstance(x, Option), command.options)
     subcommands = filter(lambda x: isinstance(x, Subcommand), command.options)
     return cast(AlconnaDuplication, type(
-        command.name.replace("ALCONNA::", "") + 'Interface',
-        (AlconnaDuplication,),
-        {
+        command.name.strip("/\\.-:") + 'Interface',
+        (AlconnaDuplication,), {
             "__annotations__": {
                 **{"args": ArgsStub},
-                **{
-                    opt.dest: OptionStub for opt in options
-                    if opt.name.lstrip('-') not in ("help", "shortcut")
-                },
+                **{opt.dest: OptionStub for opt in options if opt.name.lstrip('-') not in ("help", "shortcut")},
                 **{sub.dest: SubcommandStub for sub in subcommands},
             }
         }

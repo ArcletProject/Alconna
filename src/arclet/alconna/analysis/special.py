@@ -12,9 +12,7 @@ def handle_help(analyser: Analyser):
         formatter = analyser.alconna.formatter_type(analyser.alconna)
         return formatter.format_node(_help_param)
 
-    output_send(analyser.alconna.name, _get_help).handle(
-        {}, is_raise_exception=analyser.is_raise_exception
-    )
+    output_send(analyser.alconna.name, _get_help).handle({}, is_raise_exception=analyser.is_raise_exception)
     return analyser.export(fail=True)
 
 
@@ -30,11 +28,7 @@ def handle_shortcut(analyser: Analyser):
             opt_v['args']['name'], opt_v['args']['command'],
             opt_v['args']['expiration'], True if opt_v['args'].get('delete') else False
         )
-        output_send(
-            analyser.alconna.name, lambda: msg
-        ).handle({}, is_raise_exception=analyser.is_raise_exception)
+        output_send(analyser.alconna.name, lambda: msg).handle({}, is_raise_exception=analyser.is_raise_exception)
     except Exception as e:
-        output_send(analyser.alconna.name, lambda: str(e)).handle(
-            {}, is_raise_exception=analyser.is_raise_exception
-        )
+        output_send(analyser.alconna.name, lambda: str(e)).handle({}, is_raise_exception=analyser.is_raise_exception)
     return analyser.export(fail=True)
