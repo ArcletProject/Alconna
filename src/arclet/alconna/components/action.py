@@ -2,10 +2,9 @@ import inspect
 from types import LambdaType
 from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING, Union
 
-from ..typing import AnyOne, AllParam, argument_type_validator
-from ..lang import lang_config
+from ..typing import AnyOne, AllParam, args_type_parser
+from ..config import config
 from ..exceptions import InvalidParam
-from ..manager import command_manager
 from .behavior import ArpamarBehavior
 
 if TYPE_CHECKING:
@@ -51,7 +50,7 @@ class ArgAction:
         kwargs = kwargs or {}
         try:
             if inspect.iscoroutinefunction(self.action):
-                loop = command_manager.loop
+                loop = config.loop
                 if loop.is_running():
                     loop.create_task(self.action(*option_dict.values(), *varargs, **kwargs))
                     return option_dict
@@ -88,7 +87,7 @@ class ArgAction:
             if name not in ["self", "cls", "option_dict", "exception_in_time"]
         ]
         if len(argument) != len(args.argument):
-            raise InvalidParam(lang_config.action_length_error)
+            raise InvalidParam(config.lang.action_length_error)
         if not isinstance(action, LambdaType):
             for i, k in enumerate(args.argument):
                 anno = argument[i][1]
@@ -97,9 +96,9 @@ class ArgAction:
                 value = args.argument[k]['value']
                 if value in (AnyOne, AllParam):
                     continue
-                if value != argument_type_validator(anno, args.extra):
-                    raise InvalidParam(lang_config.action_args_error.format(
-                        target=argument[i][0], key=k, source=value.origin_type  # type: ignore
+                if value != args_type_parser(anno, args.extra):
+                    raise InvalidParam(config.lang.action_args_error.format(
+                        target=argument[i][0], key=k, source=value.origin  # type: ignore
                     ))
         return ArgAction(action)
 

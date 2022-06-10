@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, cast, Optional
 from inspect import isclass
 
-from ..lang import lang_config
+from ..config import config
 from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Option
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ class AlconnaDuplication:
                             setattr(self, key, OptionStub(option))  # type: ignore
                             self.__stubs__["options"].append(key)
                 else:
-                    raise TypeError(lang_config.duplication_stub_type_error.format(target=value))
+                    raise TypeError(config.lang.duplication_stub_type_error.format(target=value))
 
     def __repr__(self):
         return f'<{self.__class__.__name__} with {self.__stubs__}>'

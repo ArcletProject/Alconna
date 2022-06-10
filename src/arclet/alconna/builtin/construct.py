@@ -10,7 +10,7 @@ from arclet.alconna.typing import DataCollection
 from arclet.alconna.core import Alconna
 from arclet.alconna.base import Args, TAValue, ArgAction, Option, Subcommand, ArgFlag
 from arclet.alconna.util import split, split_once
-from arclet.alconna.lang import lang_config
+from arclet.alconna.config import config as global_config
 from arclet.alconna.manager import command_manager
 
 from .actions import store_value
@@ -65,9 +65,9 @@ class ALCCommand:
         self.parser_func = parser_func
         return self
 
-    def __call__(self, message: Union[str, DataCollection]) -> Any:
+    def __call__(self, message: DataCollection[Union[str, Any]]) -> Any:
         if not self.exec_target:
-            raise RuntimeError(lang_config.construct_decorate_error)
+            raise RuntimeError(global_config.lang.construct_decorate_error)
         result = self.command.parse(message)
         if result.matched:
             self.parser_func(
@@ -80,7 +80,7 @@ class ALCCommand:
     def from_commandline(self):
         """从命令行解析参数"""
         if not self.command:
-            raise RuntimeError(lang_config.construct_decorate_error)
+            raise RuntimeError(global_config.lang.construct_decorate_error)
         args = sys.argv[1:]
         args.insert(0, self.command.command)
         self.__call__(" ".join(args))
@@ -178,7 +178,7 @@ class AlconnaDecorate:
             sep (str): 参数分隔符
         """
         if not self.building:
-            raise RuntimeError(lang_config.construct_decorate_error)
+            raise RuntimeError(global_config.lang.construct_decorate_error)
 
         def wrapper(func: FC) -> FC:
             if not self.__storage.get('func'):
@@ -198,7 +198,7 @@ class AlconnaDecorate:
             args (Args): 参数
         """
         if not self.building:
-            raise RuntimeError(lang_config.construct_decorate_error)
+            raise RuntimeError(global_config.lang.construct_decorate_error)
 
         def wrapper(func: FC) -> FC:
             if not self.__storage.get('func'):
@@ -428,7 +428,7 @@ class AlconnaMounter(Alconna):
     def _parse_action(self, message):
         ...
 
-    def parse(self, message: Union[str, DataCollection], duplication: Optional[Any] = None,
+    def parse(self, message: DataCollection[Union[str, Any]], duplication: Optional[Any] = None,
               static: bool = True):  # noqa
         message = self._parse_action(message) or message
         return super(AlconnaMounter, self).parse(message, duplication=duplication, static=static)
@@ -440,7 +440,7 @@ class FuncMounter(AlconnaMounter):
         config = config or visit_config(func, self.config_keys)
         func_name = func.__name__
         if func_name.startswith("_"):
-            raise ValueError(lang_config.construct_function_name_error)
+            raise ValueError(global_config.lang.construct_function_name_error)
         _args, method = Args.from_callable(func, extra=config.get("extra", "ignore"))
         if method and isinstance(func, MethodType):
             self.instance = func.__self__

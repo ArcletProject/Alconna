@@ -1,12 +1,12 @@
 """Alconna 主体"""
 import sys
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, TYPE_CHECKING, TypedDict, \
-    Iterable
+    Iterable, Any
 
-from .lang import lang_config
+from .config import config
 from .analysis.base import compile
 from .base import CommandNode, Args, ArgAction, Option, Subcommand, HelpOption, ShortcutOption
-from .typing import DataCollection
+from .typing import DataCollection, BasePattern
 from .manager import command_manager
 from .arpamar import Arpamar
 from .components.action import ActionHandler
@@ -84,7 +84,7 @@ class AlconnaGroup(CommandNode):
         except StopIteration:
             raise KeyError(item)
 
-    def parse(self, message: Union[str, DataCollection]):
+    def parse(self, message: DataCollection[Union[str, Any]]):
         res = None
         for command in self.commands:
             if (res := command.parse(message)).matched:
@@ -130,7 +130,7 @@ class Alconna(CommandNode):
     """
     _group = False
     headers: Union[List[Union[str, object]], List[Tuple[object, str]]]
-    command: str
+    command: Union[str, type, BasePattern]
     options: List[Union[Option, Subcommand]]
     analyser_type: Type["Analyser"]
     formatter_type: Type[AbstractTextFormatter]
@@ -144,9 +144,6 @@ class Alconna(CommandNode):
     global_behaviors: List[Union[ArpamarBehavior, Type[ArpamarBehavior]]] = []
     global_analyser_type: Type["Analyser"] = DefaultCommandAnalyser  # type: ignore
     global_formatter_type: Type[AbstractTextFormatter] = DefaultTextFormatter  # type: ignore
-    global_separators = {" "}
-    global_fuzzy_match: bool = False
-    global_raise_exception: bool = False
 
     @classmethod
     def config(
@@ -156,9 +153,7 @@ class Alconna(CommandNode):
         behaviors: Optional[List[Union[ArpamarBehavior, Type[ArpamarBehavior]]]] = None,
         analyser_type: Optional[Type["Analyser"]] = None,
         formatter_type: Optional[Type[AbstractTextFormatter]] = None,
-        separator: Optional[str] = None,
-        fuzzy_match: bool = False,
-        raise_exception: bool = False,
+        separator: Optional[str] = None
     ):
         """
         配置 Alconna 的默认属性
@@ -172,14 +167,12 @@ class Alconna(CommandNode):
         if formatter_type is not None:
             cls.global_formatter_type = formatter_type
         if separator is not None:
-            cls.global_separators = {separator}
-        cls.global_fuzzy_match = fuzzy_match
-        cls.global_raise_exception = raise_exception
+            config.separators = {separator}
         return cls
 
     def __init__(
             self,
-            command: Optional[str] = None,
+            command: Optional[Union[str, type, BasePattern]] = None,
             main_args: Union[Args, str, None] = None,
             headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
             options: Optional[List[Union[Option, Subcommand]]] = None,
@@ -220,18 +213,18 @@ class Alconna(CommandNode):
             f"{command_manager.sign}{command or self.headers[0]}",
             main_args,
             action=action,
-            separators=separators or self.__class__.global_separators.copy(),  # type: ignore
+            separators=separators or config.separators.copy(),  # type: ignore
             help_text=help_text or "Unknown Information"
         )
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
-        self.namespace = namespace or command_manager.default_namespace
+        self.namespace = namespace or config.namespace
         self.options.extend([HelpOption, ShortcutOption])
         self.analyser_type = analyser_type or self.__class__.global_analyser_type
         self.behaviors = behaviors or self.__class__.global_behaviors.copy()
         self.behaviors.insert(0, ActionHandler())
         self.formatter_type = formatter_type or self.__class__.global_formatter_type
-        self.is_fuzzy_match = is_fuzzy_match or self.__class__.global_fuzzy_match
-        self.is_raise_exception = is_raise_exception or self.__class__.global_raise_exception
+        self.is_fuzzy_match = is_fuzzy_match or config.fuzzy_match
+        self.is_raise_exception = is_raise_exception or config.raise_exception
 
         command_manager.register(compile(self))
         self.name = self.name.replace(command_manager.sign, "")
@@ -283,24 +276,24 @@ class Alconna(CommandNode):
         try:
             if delete:
                 command_manager.delete_shortcut(short_key, self)
-                return lang_config.shortcut_delete_success.format(
+                return config.lang.shortcut_delete_success.format(
                     shortcut=short_key, target=self.path.split(".")[-1])
             if command:
                 command_manager.add_shortcut(self, short_key, command, expiration)
-                return lang_config.shortcut_add_success.format(
+                return config.lang.shortcut_add_success.format(
                     shortcut=short_key, target=self.path.split(".")[-1])
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
                     command_manager.add_shortcut(self, short_key, cmd, expiration)
-                    return lang_config.shortcut_add_success.format(
+                    return config.lang.shortcut_add_success.format(
                         shortcut=short_key, target=self.path.split(".")[-1])
                 raise ValueError(
-                    lang_config.shortcut_recent_command_error.format(
+                    config.lang.shortcut_recent_command_error.format(
                         target=self.path, source=getattr(alc, "path", "Unknown Source"))
                 )
             else:
-                raise ValueError(lang_config.shortcut_no_recent_command)
+                raise ValueError(config.lang.shortcut_no_recent_command)
         except Exception as e:
             if self.is_raise_exception:
                 raise e
@@ -326,7 +319,11 @@ class Alconna(CommandNode):
         command_manager.register(compile(self))
         return self
 
-    def set_action(self, action: Union[Callable, str, ArgAction], custom_types: Optional[Dict[str, Type]] = None):  # type: ignore
+    def set_action(
+            self,
+            action: Union[Callable, str, ArgAction],  # type: ignore
+            custom_types: Optional[Dict[str, Type]] = None
+    ):
         """设置针对main_args的action"""
         if isinstance(action, str):
             ns = {}
@@ -338,7 +335,7 @@ class Alconna(CommandNode):
     @overload
     def parse(
             self,
-            message: Union[str, DataCollection],
+            message: DataCollection[Union[str, Any]],
             duplication: Type[T_Duplication],
             static: bool = True,
 
@@ -348,7 +345,7 @@ class Alconna(CommandNode):
     @overload
     def parse(
             self,
-            message: Union[str, DataCollection],
+            message: DataCollection[Union[str, Any]],
             duplication=None,
             static: bool = True
     ) -> Arpamar:
@@ -356,7 +353,7 @@ class Alconna(CommandNode):
 
     def parse(
             self,
-            message: Union[str, DataCollection],
+            message: DataCollection[Union[str, Any]],
             duplication: Optional[Type[T_Duplication]] = None,
             static: bool = True,
     ):

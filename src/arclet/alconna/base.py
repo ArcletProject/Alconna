@@ -7,14 +7,14 @@ from enum import Enum
 from dataclasses import dataclass, field
 from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
 
-from .exceptions import InvalidParam, NullTextMessage
-from .typing import BasePattern, Empty, DataUnit, AllParam, AnyOne, MultiArg, UnionArg, argument_type_validator
-from .lang import lang_config
+from .exceptions import InvalidParam, NullMessage
+from .typing import BasePattern, Empty, AllParam, AnyOne, MultiArg, UnionArg, args_type_parser
+from .config import config
 from .components.action import ArgAction
 
 
 TAValue = Union[BasePattern, AllParam.__class__, type]
-TADefault = Union[Any, DataUnit, Empty]
+TADefault = Union[Any, object, Empty]
 
 
 class ArgFlag(str, Enum):
@@ -112,7 +112,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         for arg in args:
             _le = len(arg)
             if _le == 0:
-                raise NullTextMessage
+                raise NullMessage
 
             default = arg[2].strip(" ") if _le > 2 else None
             value = AllParam if arg[0].startswith("...") else (
@@ -123,7 +123,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
             if value not in (AllParam, AnyOne):
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
-                    raise InvalidParam(lang_config.common_custom_type_error.format(target=custom_types[value]))
+                    raise InvalidParam(config.lang.common_custom_type_error.format(target=custom_types[value]))
                 try:
                     value = eval(value, custom_types)  # type: ignore
                     if default:
@@ -197,7 +197,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             self.separators = set(separators)
         self.argument = {  # type: ignore
             k: {
-                "value": argument_type_validator(v),
+                "value": args_type_parser(v),
                 "default": None, 'optional': False, 'hidden': False, 'kwonly': False
             } for k, v in kwargs.items()
         }
@@ -231,19 +231,19 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     def __check_var__(self, val: Sequence):
         if not val:
-            raise InvalidParam(lang_config.args_name_empty)
+            raise InvalidParam(config.lang.args_name_empty)
         name, value, default = val[0], val[1] if len(val) > 1 else val[0], val[2] if len(val) > 2 else None
         if not isinstance(name, str):
-            raise InvalidParam(lang_config.args_name_error)
+            raise InvalidParam(config.lang.args_name_error)
         if not name.strip():
-            raise InvalidParam(lang_config.args_name_empty)
-        _value = argument_type_validator(value, self.extra)
+            raise InvalidParam(config.lang.args_name_empty)
+        _value = args_type_parser(value, self.extra)
         if isinstance(_value, UnionArg) and _value.optional:
             default = Empty if default is None else default
         if default in ("...", Ellipsis):
             default = Empty
         if _value is Empty:
-            raise InvalidParam(lang_config.args_value_error.format(target=name))
+            raise InvalidParam(config.lang.args_value_error.format(target=name))
         name, arg = self.__handle_flags__(name, value, _value, default)
         self.argument[name] = arg
 
@@ -267,33 +267,33 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                     _limit = True
                 if flag == ArgFlag.VAR_KEYWORD and not _limit:
                     if self.var_keyword:
-                        raise InvalidParam(lang_config.args_duplicate_kwargs)
+                        raise InvalidParam(config.lang.args_duplicate_kwargs)
                     if _value not in (AnyOne, AllParam):
                         slot['value'] = MultiArg(_value, flag='kwargs')
                         self.var_keyword = name
                     _limit = True
                 if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                     if self.var_positional:
-                        raise InvalidParam(lang_config.args_duplicate_varargs)
+                        raise InvalidParam(config.lang.args_duplicate_varargs)
                     if _value not in (AnyOne, AllParam):
                         slot['value'] = MultiArg(_value)
                         self.var_positional = name
                 if flag.isdigit() and not _limit:
                     if self.var_positional:
-                        raise InvalidParam(lang_config.args_duplicate_varargs)
+                        raise InvalidParam(config.lang.args_duplicate_varargs)
                     if _value not in (AnyOne, AllParam):
-                        slot['value'] = MultiArg(_value, array_length=int(flag))
+                        slot['value'] = MultiArg(_value, length=int(flag))
                         self.var_positional = name
                 if flag == ArgFlag.OPTIONAL:
                     if self.var_keyword or self.var_positional:
-                        raise InvalidParam(lang_config.args_exclude_mutable_args)
+                        raise InvalidParam(config.lang.args_exclude_mutable_args)
                     slot['optional'] = True
                     self.optional_count += 1
                 if flag == ArgFlag.HIDDEN:
                     slot['hidden'] = True
                 if flag == ArgFlag.KWONLY:
                     if self.var_keyword or self.var_positional:
-                        raise InvalidParam(lang_config.args_exclude_mutable_args)
+                        raise InvalidParam(config.lang.args_exclude_mutable_args)
                     slot['kwonly'] = True
         return name, slot
 
@@ -318,7 +318,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             if self.argument.get(item):
                 return self.argument[item]['value'], self.argument[item]['default']
             else:
-                raise KeyError(lang_config.args_key_not_found)
+                raise KeyError(config.lang.args_key_not_found)
         if isinstance(item, slice):
             raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
         if not isinstance(item, tuple):
@@ -399,9 +399,9 @@ class CommandNode:
             help_text(str): 命令帮助信息
         """
         if not name:
-            raise InvalidParam(lang_config.node_name_empty)
+            raise InvalidParam(config.lang.node_name_empty)
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
-            raise InvalidParam(lang_config.node_name_error)
+            raise InvalidParam(config.lang.node_name_error)
         _parts = name.split(" ")
         self.name = _parts[-1]
         self.requires = _parts[:-1] if not requires else (

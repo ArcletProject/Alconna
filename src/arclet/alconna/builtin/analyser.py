@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Any
 
 from arclet.alconna.base import Subcommand, Sentence
 from arclet.alconna.arpamar import Arpamar
@@ -9,7 +9,7 @@ from arclet.alconna.analysis.special import handle_help, handle_shortcut
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header, \
     analyse_params
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
-from arclet.alconna.lang import lang_config
+from arclet.alconna.config import config
 from arclet.alconna.components.output import output_send
 
 
@@ -21,13 +21,13 @@ class DefaultCommandAnalyser(Analyser):
 
     filter_out = ["Source", "File", "Quote"]
 
-    def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:
+    def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None) -> Arpamar:
         if command_manager.is_disable(self.alconna):
             return self.export(fail=True)
 
         if self.ndata == 0 and not self.temporary_data.get('fail'):
             if not message:
-                raise ValueError(lang_config.analyser_handle_null_message.format(target=message))
+                raise ValueError(config.lang.analyser_handle_null_message.format(target=message))
             self.process_message(message)
         if self.temporary_data.get('fail'):
             self.reset()
@@ -105,10 +105,10 @@ class DefaultCommandAnalyser(Analyser):
         data_len = self.rest_count(self.separators)
         if data_len > 0:
             exc = ParamsUnmatched(
-                lang_config.analyser_param_unmatched.format(target=self.next_data(self.separators, pop=False)[0])
+                config.lang.analyser_param_unmatched.format(target=self.next_data(self.separators, pop=False)[0])
             )
         else:
-            exc = ArgumentMissing(lang_config.analyser_param_missing)
+            exc = ArgumentMissing(config.lang.analyser_param_missing)
         if self.is_raise_exception:
             raise exc
         return self.export(fail=True, exception=exc)

@@ -3,16 +3,16 @@ from typing import Iterable, Union, List, Any, Dict, Pattern, Tuple, Set
 
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
-from ..typing import AllParam, Empty, DataUnit, MultiArg, BasePattern
+from ..typing import AllParam, Empty, MultiArg, BasePattern
 from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult, Sentence
 from ..util import levenshtein_norm, split_once
 from ..manager import command_manager
-from ..lang import lang_config
+from ..config import config
 
 
 def multi_arg_handler(
     analyser: Analyser,
-    may_arg: Union[str, DataUnit],
+    may_arg: Union[str, Any],
     key: str,
     value: MultiArg,
     default: Any,
@@ -109,11 +109,12 @@ def analyse_args(
         kwonly = arg['kwonly']
         optional = arg['optional']
         may_arg, _str = analyser.next_data(seps)
-        if not may_arg:
+        if not may_arg or (_str and may_arg in analyser.param_ids):
+            analyser.reduce_data(may_arg)
             if default is None:
                 if optional:
                     continue
-                raise ArgumentMissing(lang_config.args_missing.format(key=key))
+                raise ArgumentMissing(config.lang.args_missing.format(key=key))
             option_dict[key] = None if default is Empty else default
             continue
         if kwonly:
@@ -121,10 +122,10 @@ def analyse_args(
             if not _kwarg:
                 analyser.reduce_data(may_arg)
                 if analyser.alconna.is_fuzzy_match and (k := may_arg.split('=')[0]) != may_arg:
-                    if levenshtein_norm(k, key) >= 0.6:
-                        raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=k, target=key))
+                    if levenshtein_norm(k, key) >= config.fuzzy_threshold:
+                        raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=k, target=key))
                 if default is None and analyser.is_raise_exception:
-                    raise ParamsUnmatched(lang_config.args_key_missing.format(target=may_arg, key=key))
+                    raise ParamsUnmatched(config.lang.args_key_missing.format(target=may_arg, key=key))
                 option_dict[key] = None if default is Empty else default
                 continue
             may_arg = _kwarg[0]
@@ -133,22 +134,14 @@ def analyse_args(
                 if _str:
                     analyser.reduce_data(may_arg)
                     if default is None and analyser.is_raise_exception:
-                        raise ParamsUnmatched(lang_config.args_type_error.format(target=may_arg.__class__))
+                        raise ParamsUnmatched(config.lang.args_type_error.format(target=may_arg.__class__))
                     option_dict[key] = None if default is Empty else default
                     continue
-        if may_arg in analyser.param_ids:
-            analyser.reduce_data(may_arg)
-            if default is None:
-                if optional:
-                    continue
-                raise ArgumentMissing(lang_config.args_missing.format(key=key))
-            else:
-                option_dict[key] = None if default is Empty else default
-        elif isinstance(value, BasePattern):
+        if isinstance(value, BasePattern):
             if value.__class__ is MultiArg:
                 multi_arg_handler(analyser, may_arg, key, value, default, nargs, seps, option_dict)  # type: ignore
             else:
-                res, state = value.validate(may_arg, default)
+                res, state = value.validate(may_arg, default) if not value.anti else value.invalidate(may_arg, default)
                 if state != "V":
                     analyser.reduce_data(may_arg)
                 if state == "E":
@@ -157,14 +150,8 @@ def analyse_args(
                     raise res
                 option_dict[key] = res
         elif value is AllParam:
-            rest_data = analyser.recover_raw_data()
-            if not rest_data:
-                rest_data = [may_arg]
-            elif isinstance(rest_data[0], str):
-                rest_data[0] = may_arg + seps.copy().pop() + rest_data[0]
-            else:
-                rest_data.insert(0, may_arg)
-            option_dict[key] = rest_data
+            analyser.reduce_data(may_arg)
+            option_dict[key] = analyser.recover_raw_data()
             return option_dict
         elif may_arg == value:
             option_dict[key] = may_arg
@@ -172,7 +159,7 @@ def analyse_args(
             if default is None:
                 if optional:
                     continue
-                raise ParamsUnmatched(lang_config.args_error.format(target=may_arg))
+                raise ParamsUnmatched(config.lang.args_error.format(target=may_arg))
             option_dict[key] = None if default is Empty else default
     if opt_args.var_keyword:
         kwargs = option_dict[opt_args.var_keyword]
@@ -210,8 +197,8 @@ def analyse_params(
                     if _may_param in _o.aliases:
                         res.append(_o)
                         continue
-                    if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.6:
-                        raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=p))
+                    if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= config.fuzzy_threshold:
+                        raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=p))
                 elif any(map(lambda x: _text.startswith(x), _o.aliases)):
                     res.append(_o)
             if res:
@@ -220,8 +207,8 @@ def analyse_params(
             _may_param, _ = split_once(_text, _p.separators)
             if _may_param == _p.name:
                 return _p
-            if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= 0.6:
-                raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(source=_may_param, target=p))
+            if analyser.alconna.is_fuzzy_match and levenshtein_norm(_may_param, p) >= config.fuzzy_threshold:
+                raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=p))
 
 
 def analyse_option(
@@ -315,7 +302,7 @@ def analyse_subcommand(
             res['args'] = analyse_args(analyser, param.args, param.nargs)
             args = True
     if need_args and not args:
-        raise ArgumentMissing(lang_config.subcommand_args_missing.format(name=name))
+        raise ArgumentMissing(config.lang.subcommand_args_missing.format(name=name))
     return name, res
 
 
@@ -333,36 +320,46 @@ def analyse_header(
     command = analyser.command_header
     separators = analyser.separators
     head_text, _str = analyser.next_data(separators)
-    if isinstance(command, Pattern):
-        if _str and (_head_find := command.fullmatch(head_text)):
-            analyser.head_matched = True
-            return _head_find.groupdict() or True
+    if isinstance(command, Pattern) and _str and (_head_find := command.fullmatch(head_text)):
+        analyser.head_matched = True
+        return _head_find.groupdict() or True
+    elif isinstance(command, BasePattern) and (_head_find := command.validate(head_text, Empty)[0]):
+        analyser.head_matched = True
+        return _head_find or True
     else:
         may_command, _m_str = analyser.next_data(separators)
-        if _m_str and not _str:
-            if isinstance(command, List):
-                for _command in command:
-                    if (_head_find := _command[1].fullmatch(may_command)) and head_text == _command[0]:
-                        analyser.head_matched = True
-                        return _head_find.groupdict() or True
-            elif isinstance(command[0], list):
-                if (_head_find := command[1].fullmatch(may_command)) and head_text in command[0]:  # type: ignore
+        if isinstance(command, List) and _m_str and not _str:
+            for _command in command:
+                if (_head_find := _command[1].fullmatch(may_command)) and head_text == _command[0]:
                     analyser.head_matched = True
                     return _head_find.groupdict() or True
-            else:
-                if (_command_find := command[1].fullmatch(may_command)) and head_text in command[0][0]:  # type: ignore
+        if isinstance(command, tuple):
+            if not _str and (
+                (isinstance(command[0], list) and head_text in command[0]) or
+                (isinstance(command[0], tuple) and head_text in command[0][0])
+            ):
+                if isinstance(command[1], Pattern) and _m_str and (_command_find := command[1].fullmatch(may_command)):
                     analyser.head_matched = True
                     return _command_find.groupdict() or True
-
-        elif _str:
-            pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
-            if _head_find := pat.fullmatch(head_text):
-                analyser.reduce_data(may_command)
-                analyser.head_matched = True
-                return _head_find.groupdict() or True
-            elif _m_str and (_command_find := pat.fullmatch(head_text + may_command)):
-                analyser.head_matched = True
-                return _command_find.groupdict() or True
+                elif _command_find := command[1].validate(head_text, Empty)[0]:
+                    analyser.head_matched = True
+                    return _command_find or True
+            elif isinstance(command[0][1], Pattern):
+                if not _m_str:
+                    if isinstance(command[1], BasePattern) and (_head_find := command[0][1].fullmatch(head_text)) and (
+                        _command_find := command[1].validate(may_command, Empty)[0]
+                    ):
+                        analyser.head_matched = True
+                        return _command_find or True
+                else:
+                    pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
+                    if _head_find := pat.fullmatch(head_text):
+                        analyser.reduce_data(may_command)
+                        analyser.head_matched = True
+                        return _head_find.groupdict() or True
+                    elif _command_find := pat.fullmatch(head_text + may_command):
+                        analyser.head_matched = True
+                        return _command_find.groupdict() or True
 
     if not analyser.head_matched:
         if _str and analyser.alconna.is_fuzzy_match:
@@ -375,15 +372,15 @@ def analyse_header(
                         headers_text.extend((f"{i}", analyser.alconna.command))
             elif analyser.alconna.command:
                 headers_text.append(analyser.alconna.command)
-            if isinstance(command, Pattern):
+            if isinstance(command, (Pattern, BasePattern)):
                 source = head_text
             else:
                 source = head_text + analyser.separators.copy().pop() + str(may_command)  # type: ignore  # noqa
             if command_manager.get_command(source):
                 analyser.head_matched = False
-                raise ParamsUnmatched(lang_config.header_error.format(target=head_text))
+                raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
             for ht in headers_text:
-                if levenshtein_norm(source, ht) >= 0.6:
+                if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
                     analyser.head_matched = True
-                    raise FuzzyMatchSuccess(lang_config.common_fuzzy_matched.format(target=source, source=ht))
-        raise ParamsUnmatched(lang_config.header_error.format(target=head_text))
+                    raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(target=source, source=ht))
+        raise ParamsUnmatched(config.lang.header_error.format(target=head_text))

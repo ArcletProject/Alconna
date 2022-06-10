@@ -36,25 +36,25 @@ print(r)
 print('\n')
 
 
-def test(wild, text: str, num: int, boolean: bool = False):
+def example(wild, text: str, num: int, boolean: bool = False):
     print('wild:', wild)
     print('text:', text)
     print('num:', num)
     print('boolean:', boolean)
 
 
-alc1 = Alconna("test5", action=test)
+alc1 = Alconna("test5", action=example)
 
 print(alc1)
 
 
 @pattern_gen("test_type", r"(\[.*?])")
-def test_type(text: str):
+def example_type(text: str):
     return eval(text)
 
 
 alc2 = Alconna("test", help_text="测试help直接发送") + \
-       Option("foo", Args["bar", str]["bar1", int, 12345]["bar2", test_type])
+       Option("foo", Args["bar", str]["bar1", int, 12345]["bar2", example_type])
 alc2.parse("test --help")
 
 alc4 = Alconna(

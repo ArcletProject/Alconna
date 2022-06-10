@@ -20,7 +20,7 @@ def compile(alconna: "Alconna", params_generator: Optional[Callable[[Analyser], 
     return _analyser
 
 
-def analyse(alconna: "Alconna", command: Union[str, DataCollection]) -> "Arpamar":
+def analyse(alconna: "Alconna", command: DataCollection[Union[str, Any]]) -> "Arpamar":
     ana = compile(alconna)
     ana.process_message(command)
     return ana.analyse().execute()
@@ -35,6 +35,7 @@ class _DummyAnalyser(Analyser):
 
     class _DummyALC:
         is_fuzzy_match = False
+        options = []
 
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore
@@ -42,13 +43,13 @@ class _DummyAnalyser(Analyser):
         cls.param_ids = set()
         return super().__new__(cls)
 
-    def analyse(self, message: Union[str, DataCollection, None] = None):
+    def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None):
         pass
 
 
 def analyse_args(
         args: Args,
-        command: Union[str, DataCollection],
+        command: DataCollection[Union[str, Any]],
         raise_exception: bool = True
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
@@ -67,7 +68,7 @@ def analyse_args(
 def analyse_header(
         headers: Union[List[Union[str, Any]], List[Tuple[Any, str]]],
         command_name: str,
-        command: Union[str, DataCollection],
+        command: DataCollection[Union[str, Any]],
         sep: str = " ",
         raise_exception: bool = True
 ):
@@ -87,13 +88,16 @@ def analyse_header(
 
 def analyse_option(
         option: Option,
-        command: Union[str, DataCollection],
+        command: DataCollection[Union[str, Any]],
         raise_exception: bool = True
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {" "}
     _analyser.is_raise_exception = True
+    _analyser.alconna.options.append(option)
+    _analyser.default_params_generator(_analyser)
+    _analyser.alconna.options.clear()
     try:
         _analyser.process_message(command)
         return alo(_analyser, option)
@@ -105,13 +109,16 @@ def analyse_option(
 
 def analyse_subcommand(
         subcommand: Subcommand,
-        command: Union[str, DataCollection],
+        command: DataCollection[Union[str, Any]],
         raise_exception: bool = True
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {" "}
     _analyser.is_raise_exception = True
+    _analyser.alconna.options.append(subcommand)
+    _analyser.default_params_generator(_analyser)
+    _analyser.alconna.options.clear()
     try:
         _analyser.process_message(command)
         return als(_analyser, subcommand)

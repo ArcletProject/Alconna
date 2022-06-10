@@ -1,6 +1,6 @@
 from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload
 from .typing import DataCollection
-from .lang import lang_config
+from .config import config
 from .base import SubcommandResult, OptionResult
 from .exceptions import BehaveCancelled
 from .components.behavior import T_ABehavior, requirement_handler
@@ -33,7 +33,7 @@ class Arpamar:
 
     def __init__(self, alc: "Alconna"):
         self.source: "Alconna" = alc
-        self.origin: Union[str, DataCollection] = ''
+        self.origin: DataCollection[Union[str, Any]] = ''
         self.matched: bool = False
         self.head_matched: bool = False
         self.error_data: List[Union[str, Any]] = []
@@ -152,7 +152,7 @@ class Arpamar:
             return None, part
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
-            raise RuntimeError(lang_config.arpamar_ambiguous_name.format(target=prefix))
+            raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=prefix))
 
         def _r_opt(_p: str, _s: List[str], _opts: Dict[str, OptionResult]):
             if _p == "options":
@@ -186,7 +186,7 @@ class Arpamar:
             if end in _cache['args']:
                 return _cache['args'], end
             if end == "options" and end in _cache['options']:
-                raise RuntimeError(lang_config.arpamar_ambiguous_name.format(target=f"{prefix}.{end}"))
+                raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{prefix}.{end}"))
             if end == "options" or end in _cache['options']:
                 return _r_opt(end, parts, _cache['options'])
         return None, prefix

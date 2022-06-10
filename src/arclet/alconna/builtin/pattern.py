@@ -2,7 +2,7 @@ import inspect
 from types import LambdaType
 from typing import Type, Tuple, Callable, Literal, TypeVar, Dict, Any, get_args
 
-from arclet.alconna import lang_config, ParamsUnmatched
+from arclet.alconna import config, ParamsUnmatched
 from arclet.alconna.typing import BasePattern, Empty, pattern_map, PatternModel, set_converter
 
 TOrigin = TypeVar("TOrigin")
@@ -64,7 +64,7 @@ class ObjectPattern(BasePattern):
                             _re_patterns.append(f"(?P<{name}>.+?)")  # ;
                     else:
                         raise TypeError(
-                            lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__)
+                            config.lang.types_supplier_params_error.format(target=name, origin=origin.__name__)
                         )
                 elif isinstance(suppliers[name], LambdaType):
                     if len(_s_sig.parameters) == 0:
@@ -79,10 +79,10 @@ class ObjectPattern(BasePattern):
                             _re_patterns.append(f"(?P<{name}>.+?)")  # ;
                     else:
                         raise TypeError(
-                            lang_config.types_supplier_params_error.format(target=name, origin=origin.__name__)
+                            config.lang.types_supplier_params_error.format(target=name, origin=origin.__name__)
                         )
                 else:
-                    raise TypeError(lang_config.types_supplier_return_error.format(
+                    raise TypeError(config.lang.types_supplier_return_error.format(
                         target=name, origin=origin.__name__, source=param.annotation
                     ))
             elif param.default not in (Empty, None, Ellipsis):
@@ -103,10 +103,10 @@ class ObjectPattern(BasePattern):
                     elif inspect.isclass(param.annotation) and issubclass(param.annotation, int):
                         pat = pattern_map[int]
                     if pat is None:
-                        raise TypeError(lang_config.types_supplier_missing.format(target=name, origin=origin.__name__))
+                        raise TypeError(config.lang.types_supplier_missing.format(target=name, origin=origin.__name__))
 
                 if isinstance(pat, ObjectPattern):
-                    raise TypeError(lang_config.types_type_error.format(target=pat))
+                    raise TypeError(config.lang.types_type_error.format(target=pat))
                 self._require_map[name] = pat.match
                 if pat.model == PatternModel.REGEX_CONVERT:
                     self._transform_map[name] = pat.converter
@@ -128,7 +128,7 @@ class ObjectPattern(BasePattern):
 
         super().__init__(
             _re_pattern,
-            model=PatternModel.REGEX_MATCH, origin_type=self.origin, alias=head or self.origin.__name__,
+            model=PatternModel.REGEX_MATCH, origin=self.origin, alias=head or self.origin.__name__,
         )
         set_converter(self)
 
@@ -143,7 +143,7 @@ class ObjectPattern(BasePattern):
             for k in self._supplement_map:
                 self._params[k] = self._supplement_map[k]()
             return self.origin(**self._params)
-        raise ParamsUnmatched(lang_config.args_error.format(target=text))
+        raise ParamsUnmatched(config.lang.args_error.format(target=text))
 
     def __call__(self, *args, **kwargs):
         return self.origin(*args, **kwargs)

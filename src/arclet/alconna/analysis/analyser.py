@@ -1,16 +1,18 @@
 import re
 import traceback
+from weakref import finalize
+from copy import copy
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Pattern, Generic, TypeVar, \
-    Set
+    Set, Callable
 
 from ..manager import command_manager
-from ..exceptions import NullTextMessage
+from ..exceptions import NullMessage
 from ..base import Args, Option, Subcommand, Sentence
 from ..arpamar import Arpamar
 from ..util import split_once, split
-from ..typing import DataUnit, DataCollection, pattern_map
-from ..lang import lang_config
+from ..typing import DataCollection, pattern_map, BasePattern, args_type_parser
+from ..config import config
 
 if TYPE_CHECKING:
     from ..core import Alconna
@@ -27,6 +29,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         content_index(int): 记录内部index
         head_matched: 是否匹配了命令头部
     """
+    preprocessors: Dict[str, Callable[..., Any]] = {}
+
     alconna: 'Alconna'  # Alconna实例
     current_index: int  # 当前数据的index
     content_index: int  # 内部index
@@ -37,8 +41,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     param_ids: Set[str]
     # 命令头部
     command_header: Union[
-        Pattern,
-        Tuple[Union[Tuple[List[Any], Pattern], List[Any]], Pattern],
+        Union[Pattern, BasePattern],
+        Tuple[Union[Tuple[List[Any], Pattern], List[Any]], Union[Pattern, BasePattern]],
         List[Tuple[Any, Pattern]]
     ]
     separators: Set[str]  # 分隔符
@@ -61,7 +65,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     def __init_subclass__(cls, **kwargs):
         if not hasattr(cls, "filter_out"):
-            raise TypeError(lang_config.analyser_filter_missing)
+            raise TypeError(config.lang.analyser_filter_missing)
 
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]], hs=hash) -> int:
@@ -81,6 +85,14 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.__init_header__(alconna.command, alconna.headers)
         self.__init_actions__()
 
+        def _clr(a: 'Analyser'):
+            a.reset()
+            a.used_tokens.clear()
+            del a.origin_data
+            del a.alconna
+
+        finalize(self, _clr, self)
+
     def __handle_main_args__(self, main_args: Args, nargs: Optional[int] = None):
         nargs = nargs or len(main_args)
         if nargs > 0 and nargs > main_args.optional_count:
@@ -91,10 +103,10 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     def __init_header__(
             self,
-            command_name: str,
-            headers: Union[List[Union[str, DataUnit]], List[Tuple[DataUnit, str]]]
+            command_name: Union[str, type, BasePattern],
+            headers: Union[List[Union[str, Any]], List[Tuple[Any, str]]]
     ):
-        if len(parts := re.split("({.*?})", command_name)) > 1:
+        if isinstance(command_name, str) and len(parts := re.split("({.*})", command_name)) > 1:
             for i, part in enumerate(parts):
                 if not part:
                     continue
@@ -116,11 +128,16 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                         parts[i] = f"(?P<{_parts[0]}>{pattern_map.get(_parts[1], _parts[1])})"
             command_name = "".join(parts)
 
+        if isinstance(command_name, str):
+            _command_name, _command_str = re.compile(command_name), command_name
+        else:
+            _command_name, _command_str = copy(args_type_parser(command_name)), str(command_name)
+
         if headers == [""]:
-            self.command_header = re.compile(command_name)
+            self.command_header = _command_name
 
         elif isinstance(headers[0], tuple):
-            mixins = [(h[0], re.compile(re.escape(h[1]) + command_name)) for h in headers]  # type: ignore
+            mixins = [(h[0], re.compile(re.escape(h[1]) + _command_str)) for h in headers]  # type: ignore
             self.command_header = mixins
         else:
             elements = []
@@ -131,11 +148,16 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 else:
                     elements.append(h)
             if not elements:
-                self.command_header = re.compile(f"(?:{ch_text[:-1]})" + command_name)   # noqa
+                if isinstance(_command_name, Pattern):
+                    self.command_header = re.compile(f"(?:{ch_text[:-1]}){_command_str}")   # noqa
+                else:
+                    _command_name.pattern = f"(?:{ch_text[:-1]}){_command_name.pattern}"
+                    _command_name.regex_pattern = re.compile(_command_name.pattern)
+                    self.command_header = _command_name
             elif not ch_text:
-                self.command_header = (elements, re.compile(command_name))
+                self.command_header = (elements, _command_name)
             else:
-                self.command_header = (elements, re.compile(f"(?:{ch_text[:-1]})")), re.compile(command_name)   # noqa
+                self.command_header = (elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name   # noqa
 
     def __init_actions__(self):
         actions = self.alconna.action_list
@@ -181,30 +203,18 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def __repr__(self):
         return f"<{self.__class__.__name__}>"
 
-    def __del__(self):
-        self.reset()
-
     def reset(self):
         """重置分析器"""
-        self.current_index = 0
-        self.content_index = 0
-        self.is_str = False
-        self.temporary_data = {}
-        self.raw_data = []
-        self.head_matched = False
-        self.ndata = 0
-        self.origin_data = None
-        self.temp_token = 0
-        self.header = None
-        self.main_args = {}
-        self.options = {}
-        self.subcommands = {}
-        self.sentences = []
+        self.current_index, self.content_index, self.ndata, self.temp_token = 0, 0, 0, 0
+        self.is_str, self.head_matched = False, False
+        self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
+        self.raw_data, self.sentences = [], []
+        self.origin_data, self.header = None, None
 
     def next_data(self, separate: Optional[Set[str]] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
-        if "separators" in self.temporary_data:
-            self.temporary_data.pop("separators", None)
+        if self.temporary_data.get("separators", None):
+            self.temporary_data["separators"] = None
         if self.current_index == self.ndata:
             return "", True
         _current_data = self.raw_data[self.current_index]
@@ -216,7 +226,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             if pop:
                 if _rest_text:  # 这里实际上还是pop了
                     self.temporary_data["separators"] = separate
-                    _current_data[self.content_index] = _rest_text  # self.raw_data[self.current_index]
+                    _current_data[self.content_index] = _rest_text
                 else:
                     self.content_index += 1
             if len(_current_data) == self.content_index:
@@ -284,52 +294,45 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.content_index = 0
         return _result
 
-    def process_message(self, data: Union[str, DataCollection]) -> 'Analyser':
+    def process_message(self, data: DataCollection[Union[str, Any]]) -> 'Analyser':
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
         self.origin_data = data
         if isinstance(data, str):
             self.is_str = True
-            if not (res := split(data.lstrip(), self.separators)):
-                exp = NullTextMessage(lang_config.analyser_handle_null_message.format(target=data))
-                if self.is_raise_exception:
-                    raise exp
-                self.temporary_data["fail"] = exp
-            else:
-                self.raw_data = [res]
-                self.ndata = 1
-                self.temp_token = self.generate_token(self.raw_data)
-        else:
-            separates = self.separators
-            i, __t, exc = 0, False, None
-            raw_data = self.raw_data
-            for unit in data:  # type: ignore
-                if text := getattr(unit, 'text', None):
-                    if not (res := split(text.lstrip(), separates)):
-                        continue
-                    raw_data.append(res)
-                    __t = True
-                elif isinstance(unit, str):
-                    if not (res := split(unit.lstrip(), separates)):
-                        continue
-                    raw_data.append(res)
-                    __t = True
-                elif unit.__class__.__name__ not in self.filter_out:
-                    raw_data.append(unit)
-                else:
+            data = [data]
+        separates = self.separators
+        i, exc = 0, None
+        raw_data = self.raw_data
+        for unit in data:
+            if text := getattr(unit, 'text', None):
+                if not (res := split(text.lstrip(), separates)):
                     continue
-                i += 1
-            if __t is False:
-                exp = NullTextMessage(lang_config.analyser_handle_null_message.format(target=data))
-                if self.is_raise_exception:
-                    raise exp
-                self.temporary_data["fail"] = exp
+                raw_data.append(res)
+            elif isinstance(unit, str):
+                if not (res := split(unit.lstrip(), separates)):
+                    continue
+                raw_data.append(res)
+            elif unit.__class__.__name__ not in self.filter_out:
+                if (proc := self.__class__.preprocessors.get(unit.__class__.__name__)) and (res := proc(unit)):
+                    raw_data.append(res)
+                else:
+                    raw_data.append(unit)
             else:
-                self.ndata = i
+                continue
+            i += 1
+        if i < 1:
+            exp = NullMessage(config.lang.analyser_handle_null_message.format(target=data))
+            if self.is_raise_exception:
+                raise exp
+            self.temporary_data["fail"] = exp
+        else:
+            self.ndata = i
+            if config.enable_message_cache:
                 self.temp_token = self.generate_token(raw_data)
         return self
 
     @abstractmethod
-    def analyse(self, message: Union[str, DataCollection, None] = None) -> Arpamar:
+    def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None) -> Arpamar:
         """主体解析函数, 应针对各种情况进行解析"""
         pass
 
@@ -349,7 +352,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         else:
             result.matched = True
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
-            command_manager.record(self.temp_token, self.origin_data, result)  # type: ignore
-            self.used_tokens.add(self.temp_token)
+            if config.enable_message_cache:
+                command_manager.record(self.temp_token, self.origin_data, result)  # type: ignore
+                self.used_tokens.add(self.temp_token)
         self.reset()
         return result

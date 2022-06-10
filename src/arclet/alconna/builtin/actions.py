@@ -5,7 +5,7 @@ from typing import Any, Optional, TYPE_CHECKING, Literal
 from arclet.alconna.components.action import ArgAction
 from arclet.alconna.components.behavior import ArpamarBehavior
 from arclet.alconna.exceptions import BehaveCancelled, OutBoundsBehavior
-from arclet.alconna.lang import lang_config
+from arclet.alconna.config import config
 
 
 class _StoreValue(ArgAction):
@@ -76,10 +76,10 @@ def exclusion(target_path: str, other_path: str):
             if interface.query(target_path) and interface.query(other_path):
                 if interface.source.is_raise_exception:
                     raise OutBoundsBehavior(
-                        lang_config.behavior_exclude_matched.format(target=target_path, other=other_path)
+                        config.lang.behavior_exclude_matched.format(target=target_path, other=other_path)
                     )
                 interface.error_info = OutBoundsBehavior(
-                    lang_config.behavior_exclude_matched.format(target=target_path, other=other_path)
+                    config.lang.behavior_exclude_matched.format(target=target_path, other=other_path)
                 )
 
     return _EXCLUSION()
@@ -101,9 +101,9 @@ def cool_down(seconds: float):
             current_time = datetime.now()
             if (current_time - self.last_time).total_seconds() < seconds:
                 if interface.source.is_raise_exception:
-                    raise OutBoundsBehavior(lang_config.behavior_cooldown_matched)
+                    raise OutBoundsBehavior(config.lang.behavior_cooldown_matched)
                 interface.matched = False
-                interface.error_info = OutBoundsBehavior(lang_config.behavior_cooldown_matched)
+                interface.error_info = OutBoundsBehavior(config.lang.behavior_cooldown_matched)
             else:
                 self.last_time = current_time
 
@@ -125,7 +125,7 @@ def inclusion(*targets: str, flag: Literal["any", "all"] = "any"):
                 for target in targets:
                     if not interface.query(target):
                         interface.matched = False
-                        interface.error_info = OutBoundsBehavior(lang_config.behavior_inclusion_matched)
+                        interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)
                         break
             else:
                 all_count = len(targets) - sum(
@@ -134,5 +134,5 @@ def inclusion(*targets: str, flag: Literal["any", "all"] = "any"):
 
                 if all_count > 0:
                     interface.matched = False
-                    interface.error_info = OutBoundsBehavior(lang_config.behavior_inclusion_matched)
+                    interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)
     return _Inclusion()

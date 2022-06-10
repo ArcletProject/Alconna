@@ -2,20 +2,14 @@
 import re
 import inspect
 from copy import copy
-from collections.abc import (
-    Iterable as ABCIterable,
-    Sequence as ABCSequence,
-    Set as ABCSet,
-    MutableSet as ABCMutableSet,
-    MutableSequence as ABCMutableSequence,
-    MutableMapping as ABCMutableMapping,
-    Mapping as ABCMapping,
-)
+from collections.abc import Iterable as ABCIterable, Sequence as ABCSeq, Set as ABCSet, \
+    MutableSet as ABCMuSet, MutableSequence as ABCMuSeq, MutableMapping as ABCMuMap, Mapping as ABCMap
+from contextlib import suppress
 from functools import lru_cache
 from pathlib import Path
 from enum import IntEnum
-from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Union, Sequence, \
-    List, Dict, get_args, Literal, Tuple, get_origin, Iterable, Generic
+from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Union, List, Dict, \
+    get_args, Literal, Tuple, get_origin, Iterable, Generic, Iterator, runtime_checkable
 
 try:
     from typing import Annotated  # type: ignore
@@ -23,7 +17,7 @@ except ImportError:
     from typing_extensions import Annotated
 
 from .exceptions import ParamsUnmatched
-from .lang import lang_config
+from .config import config
 from .util import generic_isinstance
 
 DataUnit = TypeVar("DataUnit", covariant=True)
@@ -31,42 +25,30 @@ GenericAlias = type(List[int])
 AnnotatedAlias = type(Annotated[int, lambda x: x > 0])
 
 
+@runtime_checkable
 class DataCollection(Protocol[DataUnit]):
     """数据集合协议"""
-
-    def __str__(self) -> str:
-        ...
-
-    def __iter__(self) -> DataUnit:
-        ...
-
-    def __len__(self) -> int:
-        ...
+    def __str__(self) -> str: ...
+    def __iter__(self) -> Iterator[DataUnit]: ...
+    def __len__(self) -> int: ...
 
 
 class PatternModel(IntEnum):
     """
     参数表达式匹配模式
     """
-
     REGEX_CONVERT = 3
     """正则匹配并转换"""
-
     TYPE_CONVERT = 2
     """传入值直接转换"""
-
     REGEX_MATCH = 1
     """正则匹配"""
-
     KEEP = 0
     """保持传入值"""
 
 
 class _All:
     """泛匹配"""
-
-    __slots__ = ()
-
     def __repr__(self):
         return "AllParam"
 
@@ -89,21 +71,20 @@ class BasePattern(Generic[TOrigin]):
     validator: Callable[[TOrigin], bool]
 
     anti: bool
-    origin_type: Type[TOrigin]
+    origin: Type[TOrigin]
     accepts: Optional[List[Type]]
     alias: Optional[str]
     previous: Optional["BasePattern"]
 
     __slots__ = (
-        "regex_pattern", "pattern", "model", "converter", "anti",
-        "origin_type", "accepts", "alias", "previous", "validator"
+        "regex_pattern", "pattern", "model", "converter", "anti", "origin", "accepts", "alias", "previous", "validator"
     )
 
     def __init__(
             self,
             pattern: str = "(.+?)",
             model: PatternModel = PatternModel.REGEX_MATCH,
-            origin_type: Type[TOrigin] = str,
+            origin: Type[TOrigin] = str,
             converter: Optional[Callable[[Union[str, Any]], TOrigin]] = None,
             alias: Optional[str] = None,
             previous: Optional["BasePattern"] = None,
@@ -117,30 +98,28 @@ class BasePattern(Generic[TOrigin]):
         self.pattern = pattern
         self.regex_pattern = re.compile(f"^{pattern}$")
         self.model = model
-        self.origin_type = origin_type
+        self.origin = origin
         self.alias = alias
         self.previous = previous
         self.accepts = accepts
-        if converter:
-            self.converter = converter
-        elif model == PatternModel.TYPE_CONVERT:
-            self.converter = lambda x: origin_type(x)
-        else:
-            self.converter = lambda x: eval(x)
+        self.converter = converter or (lambda x: origin(x) if model == PatternModel.TYPE_CONVERT else eval(x))
         self.validator = validator or (lambda x: True)
         self.anti = anti
 
     def __repr__(self):
         if self.model == PatternModel.KEEP:
-            return ('|'.join(x.__name__ for x in self.accepts)) if self.accepts else 'Any'
+            return self.alias or (('|'.join(x.__name__ for x in self.accepts)) if self.accepts else 'Any')
+        name = self.alias or self.origin.__name__
         if self.model == PatternModel.REGEX_MATCH:
             text = self.alias or self.pattern
         elif self.model == PatternModel.REGEX_CONVERT:
-            text = self.alias or self.origin_type.__name__
+            text = name
         else:
-            text = f"{(('|'.join(x.__name__ for x in self.accepts)) + ' -> ') if self.accepts else ''}" \
-                   f"{self.alias or self.origin_type.__name__}"
+            text = (('|'.join(x.__name__ for x in self.accepts) + ' -> ') if self.accepts else '') + name
         return f"{(f'{self.previous.__repr__()}, ' if self.previous else '')}{'!' if self.anti else ''}{text}"
+
+    def __str__(self):
+        return self.__repr__()
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -150,10 +129,13 @@ class BasePattern(Generic[TOrigin]):
 
     @classmethod
     def of(cls, unit: Type[TOrigin]):
-        """
-        提供原来 TAValue 中的 Type[DataUnit] 类型的构造方法
-        """
-        return cls(origin_type=unit, accepts=[unit], model=PatternModel.KEEP, alias=unit.__name__)
+        """提供原来 TAValue 中的 Type[DataUnit] 类型的构造方法"""
+        return cls('', PatternModel.KEEP, unit, alias=unit.__name__, accepts=[unit])
+
+    @classmethod
+    def on(cls, obj: TOrigin):
+        """提供原来 TAValue 中的 DataUnit 类型的构造方法"""
+        return cls('', PatternModel.KEEP, type(obj), alias=str(obj), validator=lambda x: x == obj)
 
     def reverse(self):
         self.anti = not self.anti
@@ -163,36 +145,37 @@ class BasePattern(Generic[TOrigin]):
         """
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
         """
-        if self.model > 1 and generic_isinstance(input_, self.origin_type):
+        if self.model > 1 and self.origin != Any and generic_isinstance(input_, self.origin):
             return input_  # type: ignore
         if self.accepts and not isinstance(input_, tuple(self.accepts)):
             if not self.previous:
-                raise ParamsUnmatched(lang_config.args_type_error.format(target=input_.__class__))
+                raise ParamsUnmatched(config.lang.args_type_error.format(target=input_.__class__))
             input_ = self.previous.match(input_)
         if self.model == PatternModel.KEEP:
             return input_  # type: ignore
         if self.model == PatternModel.TYPE_CONVERT:
             res = self.converter(input_)
-            if not generic_isinstance(res, self.origin_type):
-                raise ParamsUnmatched(lang_config.args_error.format(target=input_))
+            if not generic_isinstance(res, self.origin) or (not res and self.origin == Any):
+                raise ParamsUnmatched(config.lang.args_error.format(target=input_))
             return res
         if not isinstance(input_, str):
-            raise ParamsUnmatched(lang_config.args_type_error.format(target=type(input_)))
+            raise ParamsUnmatched(config.lang.args_type_error.format(target=type(input_)))
         if r := self.regex_pattern.findall(input_):
             return self.converter(r[0]) if self.model == PatternModel.REGEX_CONVERT else r[0]
-        raise ParamsUnmatched(lang_config.args_error.format(target=input_))
+        raise ParamsUnmatched(config.lang.args_error.format(target=input_))
 
     def validate(self, input_: Union[str, Any], default: Optional[Any] = None) -> Tuple[Any, Literal["V", "E", "D"]]:
-        if not self.anti:
-            try:
-                res = self.match(input_)
-                if self.validator(res):
-                    return res, "V"
-                raise ParamsUnmatched(lang_config.args_error.format(target=input_))
-            except Exception as e:
-                if default is None:
-                    return e, "E"
-                return None if default is Empty else default, "D"
+        try:
+            res = self.match(input_)
+            if self.validator(res):
+                return res, "V"
+            raise ParamsUnmatched(config.lang.args_error.format(target=input_))
+        except Exception as e:
+            if default is None:
+                return e, "E"
+            return None if default is Empty else default, "D"
+
+    def invalidate(self, input_: Union[str, Any], default: Optional[Any] = None) -> Tuple[Any, Literal["V", "E", "D"]]:
         try:
             res = self.match(input_)
         except ParamsUnmatched:
@@ -201,7 +184,7 @@ class BasePattern(Generic[TOrigin]):
             if not self.validator(res):
                 return input_, "E"
             if default is None:
-                return ParamsUnmatched(lang_config.args_error.format(target=input_)), "E"
+                return ParamsUnmatched(config.lang.args_error.format(target=input_)), "E"
             return None if default is Empty else default, "D"
 
 
@@ -221,49 +204,39 @@ class MultiArg(BasePattern):
     flag: str
     array_length: Optional[int]
 
-    def __init__(
-            self,
-            base: BasePattern,
-            flag: Literal['args', 'kwargs'] = 'args',
-            array_length: Optional[int] = None,
-    ):
-        alias_content = base.alias or base.origin_type.__name__
+    def __init__(self, base: BasePattern, flag: Literal['args', 'kwargs'] = 'args', length: Optional[int] = None):
         self.flag = flag
-        self.array_length = array_length
+        self.array_length = length
         if flag == 'args':
-            _t = Tuple[base.origin_type, ...]
-            alias = f"*{alias_content}[:{array_length}]" if array_length else f"*{alias_content}"
+            _t = Tuple[base.origin, ...]
+            alias = f"*{base}[:{length}]" if length else f"*{base}"
         else:
-            _t = Dict[str, base.origin_type]
-            alias = f"**{alias_content}[:{array_length}]" if array_length else f"**{alias_content}"
-        super().__init__(
-            base.pattern, base.model, _t,
-            alias=alias, converter=base.converter, previous=base.previous, accepts=base.accepts
-        )
+            _t = Dict[str, base.origin]
+            alias = f"**{base}[:{length}]" if length else f"**{base}"
+        super().__init__(base.pattern, base.model, _t, base.converter, alias, base.previous, base.accepts)
 
     def __repr__(self):
         ctn = super().__repr__()
         if self.flag == 'args':
             return f"{ctn}[{self.array_length}]" if self.array_length else f"({ctn}, ...)"
         elif self.flag == 'kwargs':
-            return f"{{KEY={ctn}, ...}}"
+            return f"{{${ctn}, ...}}"
 
 
 class UnionArg(BasePattern):
     """多类型参数的匹配"""
     optional: bool
-    arg_value: Sequence[Union[BasePattern, object, str]]
+    arg_value: List[Union[BasePattern, object, str]]
     for_validate: List[BasePattern]
     for_equal: List[Union[str, object]]
 
-    def __init__(self, base: Sequence[Union[BasePattern, object, str]], anti: bool = False):
-        self.arg_value = base
+    def __init__(self, base: Iterable[Union[BasePattern, object, str]], anti: bool = False):
+        self.arg_value = list(base)
         self.optional = False
-
         self.for_validate = []
         self.for_equal = []
 
-        for arg in self.arg_value:
+        for arg in base:
             if arg == Empty:
                 self.optional = True
                 self.for_equal.append(None)
@@ -277,37 +250,19 @@ class UnionArg(BasePattern):
     def match(self, text: Union[str, Any]):
         if not text:
             text = None
-        if self.anti:
-            validate = False
-            equal = text in self.for_equal
-            for pat in self.for_validate:
-                try:
-                    pat.match(text)
-                    validate = True
-                    break
-                except ParamsUnmatched:
-                    continue
-            if validate or equal:
-                raise ParamsUnmatched(lang_config.args_error.format(target=text))
-            return text
-        not_match = True
-        not_equal = text not in self.for_equal
-        if not_equal:
+        if text not in self.for_equal:
             for pat in self.for_validate:
                 try:
                     text = pat.match(text)
-                    not_match = False
                     break
                 except (ParamsUnmatched, TypeError):
                     continue
-        if not_match and not_equal:
-            raise ParamsUnmatched(lang_config.args_error.format(target=text))
+            else:
+                raise ParamsUnmatched(config.lang.args_error.format(target=text))
         return text
 
     def __repr__(self):
-        return ("!" if self.anti else "") + ("|".join(
-            [repr(a) for a in self.for_validate] + [repr(a) for a in self.for_equal]
-        ))
+        return ("!" if self.anti else "") + ("|".join(repr(a) for a in (*self.for_validate, *self.for_equal)))
 
 
 class SequenceArg(BasePattern):
@@ -319,27 +274,25 @@ class SequenceArg(BasePattern):
         if base is AnyOne:
             base = _String
         self.form = form
-        alias_content = base.alias or base.origin_type.__name__
         self.arg_value = base
         if form == "list":
-            super().__init__(r"\[(.+?)\]", PatternModel.REGEX_MATCH, list, alias=f"List[{alias_content}]")
+            super().__init__(r"\[(.+?)\]", PatternModel.REGEX_MATCH, list, alias=f"List[{base}]")
         elif form == "tuple":
-            super().__init__(r"\((.+?)\)", PatternModel.REGEX_MATCH, tuple, alias=f"Tuple[{alias_content}]")
+            super().__init__(r"\((.+?)\)", PatternModel.REGEX_MATCH, tuple, alias=f"Tuple[{base}]")
         elif form == "set":
-            super().__init__(r"\{(.+?)\}", PatternModel.REGEX_MATCH, set, alias=f"Set[{alias_content}]")
+            super().__init__(r"\{(.+?)\}", PatternModel.REGEX_MATCH, set, alias=f"Set[{base}]")
         else:
-            raise ValueError(lang_config.types_sequence_form_error.format(target=form))
+            raise ValueError(config.lang.types_sequence_form_error.format(target=form))
 
     def match(self, text: Union[str, Any]):
         _res = super().match(text)
-        sequence = re.split(r"\s*,\s*", _res) if isinstance(_res, str) else _res
         result = []
-        for s in sequence:
+        for s in (re.split(r"\s*,\s*", _res) if isinstance(_res, str) else _res):
             try:
                 result.append(self.arg_value.match(s))
-            except ParamsUnmatched:
-                raise ParamsUnmatched(f"{s} is not matched with {self.arg_value}")
-        return self.origin_type(result)
+            except ParamsUnmatched as e:
+                raise ParamsUnmatched(f"{s} is not matched with {self.arg_value}") from e
+        return self.origin(result)
 
     def __repr__(self):
         return f"{self.form}[{self.arg_value}]"
@@ -353,10 +306,7 @@ class MappingArg(BasePattern):
     def __init__(self, arg_key: BasePattern, arg_value: BasePattern):
         self.arg_key = arg_key
         self.arg_value = arg_value
-
-        alias_content = f"{self.arg_key.alias or self.arg_key.origin_type.__name__}, " \
-                        f"{self.arg_value.alias or self.arg_value.origin_type.__name__}"
-        super().__init__(r"\{(.+?)\}", PatternModel.REGEX_MATCH, dict, alias=f"Dict[{alias_content}]")
+        super().__init__(r"\{(.+?)\}", PatternModel.REGEX_MATCH, dict, alias=f"Dict[{self.arg_key}, {self.arg_value}]")
 
     def match(self, text: Union[str, Any]):
         _res = super().match(text)
@@ -366,24 +316,23 @@ class MappingArg(BasePattern):
             if isinstance(res, dict):
                 return res.items()
             for m in re.split(r"\s*,\s*", res):
-                _k, _v = re.split(r"\s*[:=]\s*", m)
-                yield _k, _v
+                yield re.split(r"\s*[:=]\s*", m)
 
         for k, v in _generator_items(_res):
             try:
                 real_key = self.arg_key.match(k)
-            except ParamsUnmatched:
-                raise ParamsUnmatched(f"{k} is not matched with {self.arg_key}")
+            except ParamsUnmatched as e:
+                raise ParamsUnmatched(f"{k} is not matched with {self.arg_key}") from e
             try:
                 arg_find = self.arg_value.match(v)
-            except ParamsUnmatched:
-                raise ParamsUnmatched(f"{v} is not matched with {self.arg_value}")
+            except ParamsUnmatched as e:
+                raise ParamsUnmatched(f"{v} is not matched with {self.arg_value}") from e
             result[real_key] = arg_find
 
         return result
 
     def __repr__(self):
-        return f"dict[{self.arg_key.origin_type.__name__}, {self.arg_value}]"
+        return f"dict[{self.arg_key.origin.__name__}, {self.arg_value}]"
 
 
 pattern_map = {
@@ -405,7 +354,7 @@ def set_converter(
         alias: 目标类型的别名
         cover: 是否覆盖已有的转换器
     """
-    for k in (alias, target.alias, target.origin_type):
+    for k in (alias, target.alias, target.origin):
         if k not in pattern_map or cover:
             pattern_map[k] = target
         else:
@@ -427,29 +376,21 @@ def set_converters(
 
 
 def remove_converter(origin_type: type, alias: Optional[str] = None):
-    """
-
-    :param origin_type:
-    :param alias:
-    :return:
-    """
     if alias and (al_pat := pattern_map.get(alias)):
         if isinstance(al_pat, UnionArg):
-            pattern_map[alias] = UnionArg(list(filter(lambda x: x.alias != alias, al_pat.arg_value)))  # type: ignore
+            pattern_map[alias] = UnionArg(filter(lambda x: x.alias != alias, al_pat.arg_value))  # type: ignore
         else:
             del pattern_map[alias]
     elif al_pat := pattern_map.get(origin_type):
         if isinstance(al_pat, UnionArg):
-            pattern_map[origin_type] = UnionArg(
-                list(filter(lambda x: x.origin_type != origin_type, al_pat.arg_value))  # type: ignore
-            )
+            pattern_map[origin_type] = UnionArg(filter(lambda x: x.origin != origin_type, al_pat.arg_value))
         else:
             del pattern_map[origin_type]
 
 
-StrPath = BasePattern(model=PatternModel.TYPE_CONVERT, origin_type=Path, alias="path", accepts=[str])
+StrPath = BasePattern(model=PatternModel.TYPE_CONVERT, origin=Path, alias="path", accepts=[str])
 AnyPathFile = BasePattern(
-    model=PatternModel.TYPE_CONVERT, origin_type=bytes, alias="file", accepts=[Path], previous=StrPath,
+    model=PatternModel.TYPE_CONVERT, origin=bytes, alias="file", accepts=[Path], previous=StrPath,
     converter=lambda x: x.read_bytes() if x.exists() and x.is_file() else None  # type: ignore
 )
 
@@ -473,51 +414,45 @@ def pattern_gen(name: str, re_pattern: str):
     return __wrapper
 
 
-def argument_type_validator(item: Any, extra: str = "allow"):
+def args_type_parser(item: Any, extra: str = "allow"):
     """对 Args 里参数类型的检查， 将一般数据类型转为 Args 使用的类型"""
     if isinstance(item, (BasePattern, _All)):
         return item
-    try:
+    with suppress(TypeError):
         if pat := pattern_map.get(item, None):
             return pat
-    except TypeError:
-        pass
     if not inspect.isclass(item) and isinstance(item, GenericAlias):
         if isinstance(item, AnnotatedAlias):
-            _o = argument_type_validator(item.__origin__, extra)  # type: ignore
-            if not isinstance(_o, BasePattern):
+            if not isinstance(_o := args_type_parser(item.__origin__, extra), BasePattern):  # type: ignore
                 return _o
             _arg = copy(_o)
             _arg.validator = lambda x: all(i(x) for i in item.__metadata__)
             return _arg
         origin = get_origin(item)
         if origin in (Union, Literal):
-            _args = list({argument_type_validator(t, extra) for t in get_args(item)})
-            return (_args[0] if len(_args) == 1 else UnionArg(_args)) if _args else item
-        if origin in (dict, ABCMapping, ABCMutableMapping):
-            arg_key = argument_type_validator(get_args(item)[0], 'ignore')
-            arg_value = argument_type_validator(get_args(item)[1], 'allow')
+            _args = {args_type_parser(t, extra) for t in get_args(item)}
+            return (_args.pop() if len(_args) == 1 else UnionArg(_args)) if _args else item
+        if origin in (dict, ABCMap, ABCMuMap):
+            arg_key = args_type_parser(get_args(item)[0], 'ignore')
+            arg_value = args_type_parser(get_args(item)[1], 'allow')
             if isinstance(arg_value, list):
                 arg_value = UnionArg(arg_value)
             return MappingArg(arg_key=arg_key, arg_value=arg_value)
-        args = argument_type_validator(get_args(item)[0], 'allow')
+        args = args_type_parser(get_args(item)[0], 'allow')
         if isinstance(args, list):
             args = UnionArg(args)
-        if origin in (ABCMutableSequence, list):
+        if origin in (ABCMuSeq, list):
             return SequenceArg(args)
-        if origin in (ABCSequence, ABCIterable, tuple):
+        if origin in (ABCSeq, ABCIterable, tuple):
             return SequenceArg(args, form="tuple")
-        if origin in (ABCMutableSet, ABCSet, set):
+        if origin in (ABCMuSet, ABCSet, set):
             return SequenceArg(args, form="set")
         return BasePattern("", PatternModel.KEEP, origin, alias=f"{repr(item).split('.')[-1]}", accepts=[origin])
 
-    if isinstance(item, (list, tuple, set)):
-        return UnionArg(list(map(argument_type_validator, item)))
-    if isinstance(item, dict):
-        return MappingArg(
-            arg_key=argument_type_validator(list(item.keys())[0], 'ignore'),
-            arg_value=argument_type_validator(list(item.values())[0], 'allow')
-        )
+    if isinstance(item, (list, tuple, set, ABCSeq, ABCIterable, ABCMuSeq, ABCSet, ABCMuSet)):  # Args[foo, [123, int]]
+        return UnionArg(map(args_type_parser, item))
+    if isinstance(item, (dict, ABCMap, ABCMuMap)):  # Args[foo, {'foo': 'bar'}]
+        return BasePattern(model=PatternModel.TYPE_CONVERT, origin=Any, converter=lambda x: item.get(x, None))
     if item is None or type(None) == item:
         return Empty
     if isinstance(item, str):
@@ -525,10 +460,10 @@ def argument_type_validator(item: Any, extra: str = "allow"):
     if extra == "ignore":
         return AnyOne
     elif extra == "reject":
-        raise TypeError(lang_config.types_validate_reject.format(target=item))
+        raise TypeError(config.lang.types_validate_reject.format(target=item))
     if inspect.isclass(item):
         return BasePattern.of(item)
-    return item
+    return BasePattern.on(item)
 
 
 class Bind:
@@ -541,24 +476,17 @@ class Bind:
     @lru_cache(maxsize=None)
     def __class_getitem__(cls, params):
         if not isinstance(params, tuple) or len(params) != 2:
-            raise TypeError(
-                "Bind[...] should be used with only two arguments (a type and an annotation)."
-            )
-        if not (pattern := pattern_map.get(params[0]) if not isinstance(params[0], BasePattern) else params[0]):
-            raise ValueError(
-                "Bind[...] first argument should be a BasePattern."
-            )
+            raise TypeError("Bind[...] should be used with only two arguments (a type and an annotation).")
+        if not (pattern := params[0] if isinstance(params[0], BasePattern) else pattern_map.get(params[0])):
+            raise ValueError("Bind[...] first argument should be a BasePattern.")
         if not callable(params[1]):
-            raise TypeError(
-                "Bind[...] second argument should be a callable."
-            )
+            raise TypeError("Bind[...] second argument should be a callable.")
         pattern = copy(pattern)
         pattern.validator = params[1]
         return pattern
 
 
 __all__ = [
-    "DataUnit", "DataCollection", "Empty", "AnyOne", "AllParam", "PatternModel",
-    "BasePattern", "MultiArg", "SequenceArg", "UnionArg", "MappingArg", "Bind",
-    "pattern_gen", "pattern_map", "set_converter", "set_converters", "remove_converter", "argument_type_validator"
+    "DataCollection", "Empty", "AnyOne", "AllParam", "PatternModel", "BasePattern", "MultiArg", "UnionArg", "Bind",
+    "pattern_gen", "pattern_map", "set_converter", "set_converters", "remove_converter", "args_type_parser"
 ]
