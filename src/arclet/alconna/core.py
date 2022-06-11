@@ -74,6 +74,13 @@ class AlconnaGroup(CommandNode):
             self.commands.append(other)
         return self
 
+    def reset_namespace(self, namespace: str):
+        """重新设置命名空间"""
+        command_manager.delete(self)
+        self.namespace = namespace
+        command_manager.register(self)
+        return self
+
     def __iter__(self):
         yield from self.commands
 
@@ -82,6 +89,9 @@ class AlconnaGroup(CommandNode):
             return next(filter(lambda x: x.name == item, self.commands))
         except StopIteration:
             raise KeyError(item)
+
+    def __add__(self, other):
+        return self.__union__(other)
 
     def parse(self, message: DataCollection[Union[str, Any]]):
         res = None
@@ -225,7 +235,7 @@ class Alconna(CommandNode):
         self.is_fuzzy_match = is_fuzzy_match or config.fuzzy_match
         self.is_raise_exception = is_raise_exception or config.raise_exception
 
-        command_manager.register(compile(self))
+        command_manager.register(self)
         self.name = self.name.replace(command_manager.sign, "")
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
@@ -246,7 +256,7 @@ class Alconna(CommandNode):
         """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
-        command_manager.register(compile(self))
+        command_manager.register(self)
         return self
 
     def reset_behaviors(self, behaviors: List[T_ABehavior]):
@@ -275,18 +285,15 @@ class Alconna(CommandNode):
         try:
             if delete:
                 command_manager.delete_shortcut(short_key, self)
-                return config.lang.shortcut_delete_success.format(
-                    shortcut=short_key, target=self.path.split(".")[-1])
+                return config.lang.shortcut_delete_success.format(shortcut=short_key, target=self.path.split(".")[-1])
             if command:
                 command_manager.add_shortcut(self, short_key, command, expiration)
-                return config.lang.shortcut_add_success.format(
-                    shortcut=short_key, target=self.path.split(".")[-1])
+                return config.lang.shortcut_add_success.format(shortcut=short_key, target=self.path.split(".")[-1])
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
                     command_manager.add_shortcut(self, short_key, cmd, expiration)
-                    return config.lang.shortcut_add_success.format(
-                        shortcut=short_key, target=self.path.split(".")[-1])
+                    return config.lang.shortcut_add_success.format(shortcut=short_key, target=self.path.split(".")[-1])
                 raise ValueError(
                     config.lang.shortcut_recent_command_error.format(
                         target=self.path, source=getattr(alc, "path", "Unknown Source"))
@@ -315,7 +322,7 @@ class Alconna(CommandNode):
         name, requires = names[-1], names[:-1]
         opt = Option(name, args, list(alias), separators=sep, help_text=help_text, requires=requires)
         self.options.append(opt)
-        command_manager.register(compile(self))
+        command_manager.register(self)
         return self
 
     def set_action(
@@ -375,15 +382,17 @@ class Alconna(CommandNode):
         return self
 
     def __rshift__(self, other):
+        if isinstance(other, Alconna):
+            return self.__union__(other)
         if isinstance(other, Option):
             command_manager.delete(self)
             self.options.append(other)
-            command_manager.register(compile(self))
+            command_manager.register(self)
         elif isinstance(other, str):
             command_manager.delete(self)
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
-            command_manager.register(compile(self))
+            command_manager.register(self)
         return self
 
     def __add__(self, other):
