@@ -6,7 +6,6 @@ from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from ..typing import AllParam, Empty, MultiArg, BasePattern
 from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult, Sentence
 from ..util import levenshtein_norm, split_once
-from ..manager import command_manager
 from ..config import config
 
 
@@ -377,7 +376,7 @@ def analyse_header(
                 source = head_text
             else:
                 source = head_text + analyser.separators.copy().pop() + str(may_command)  # type: ignore  # noqa
-            if command_manager.get_command(source):
+            if source == analyser.alconna.command:
                 analyser.head_matched = False
                 raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
             for ht in headers_text:

@@ -11,9 +11,9 @@ from .typing import DataCollection
 from .config import config
 
 if TYPE_CHECKING:
+    from .analysis.analyser import Analyser
     from .core import Alconna, AlconnaGroup
     from .arpamar import Arpamar
-    from .analysis.analyser import Analyser
 
 
 class CommandManager(metaclass=Singleton):
@@ -82,20 +82,25 @@ class CommandManager(metaclass=Singleton):
             command_parts.insert(0, config.namespace)
         return command_parts[0], command_parts[1]
 
-    def register(self, delegate: "Analyser") -> None:
+    def register(self, command: Union["Alconna", "AlconnaGroup"]) -> None:
         """注册命令解析器, 会同时记录解析器对应的命令"""
+        from .analysis.base import compile
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
-        self.__analysers[delegate.alconna] = delegate
-        if delegate.alconna.namespace not in self.__commands:
-            self.__commands[delegate.alconna.namespace] = {}
-        cid = delegate.alconna.name.replace(self.sign, "")
-        if _cmd := self.__commands[delegate.alconna.namespace].get(cid):
-            if _cmd == delegate.alconna:
-                return
-            _cmd.__union__(delegate.alconna)
+        if not command._group:   # noqa
+            self.__analysers[command] = compile(command)
         else:
-            self.__commands[delegate.alconna.namespace][cid] = delegate.alconna
+            for cmd in command.commands:
+                self.__analysers[cmd] = compile(command)
+        if command.namespace not in self.__commands:
+            self.__commands[command.namespace] = {}
+        cid = command.name.replace(self.sign, "")
+        if _cmd := self.__commands[command.namespace].get(cid):
+            if _cmd == command:
+                return
+            _cmd.__union__(command)
+        else:
+            self.__commands[command.namespace][cid] = command
             self.current_count += 1
 
     def require(self, command: "Alconna") -> "Analyser":
@@ -111,7 +116,7 @@ class CommandManager(metaclass=Singleton):
         namespace, name = self._command_part(command if isinstance(command, str) else command.path)
         try:
             base = self.__commands[namespace][name]
-            if hasattr(base, 'commands'):
+            if base._group:  # noqa
                 for cmd in base.commands:
                     del self.__analysers[cmd]
             else:

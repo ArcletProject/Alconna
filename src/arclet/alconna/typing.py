@@ -55,7 +55,6 @@ class _All:
 
 AllParam = _All()
 Empty = inspect.Signature.empty
-
 TOrigin = TypeVar("TOrigin")
 
 
@@ -216,13 +215,6 @@ class MultiArg(BasePattern):
         super().__init__(
             base.pattern, base.model, _t, base.converter, alias, base.previous, base.accepts, base.validators
         )
-
-    def __repr__(self):
-        ctn = super().__repr__()
-        if self.flag == 'args':
-            return f"{ctn}[{self.array_length}]" if self.array_length else f"({ctn}, ...)"
-        elif self.flag == 'kwargs':
-            return f"{{${ctn}, ...}}"
 
 
 class UnionArg(BasePattern):

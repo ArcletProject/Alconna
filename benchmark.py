@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Arpamar, Args, AnyOne, compile, command_manager
+from arclet.alconna import Alconna, Args, AnyOne, compile, command_manager
 import cProfile
 import pstats
 

@@ -62,7 +62,7 @@ class _AlconnaConfig:
     raise_exception: bool = False
     command_max_count: int = 200
     message_max_cache: int = 100
-    enable_message_cache: bool = False
+    enable_message_cache: bool = True
 
     @classmethod
     def set_loop(cls, loop: asyncio.AbstractEventLoop) -> None:
