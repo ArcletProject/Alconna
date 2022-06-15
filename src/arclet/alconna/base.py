@@ -13,7 +13,6 @@ from .typing import BasePattern, Empty, AllParam, AnyOne, MultiArg, UnionArg, ar
 from .config import config
 from .components.action import ArgAction
 
-
 TAValue = Union[BasePattern, AllParam.__class__, type]
 TADefault = Union[Any, object, Empty]
 
@@ -238,6 +237,12 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         name, arg = self.__handle_flags__(name, value, _value, default)
         self.argument[name] = arg
 
+    @staticmethod
+    def __handle_force__(slot: TAValue, value):
+        slot['value'] = (
+            BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value)
+        )
+
     def __handle_flags__(self, name, value, _value, default):
         slot = {'value': _value, 'default': default, 'optional': False, 'hidden': False, 'kwonly': False}
         if res := re.match(r"^.+?;(?P<flag>[^;]+?)$", name):
@@ -246,9 +251,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             _limit = False
             for flag in flags:
                 if flag == ArgFlag.FORCE and not _limit:
-                    slot['value'] = (
-                        BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value)
-                    )
+                    self.__handle_force__(slot, value)
                     _limit = True
                 if flag == ArgFlag.ANTI and not _limit:
                     if isinstance(_value, UnionArg):
@@ -259,20 +262,20 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 if flag == ArgFlag.VAR_KEYWORD and not _limit:
                     if self.var_keyword:
                         raise InvalidParam(config.lang.args_duplicate_kwargs)
-                    if _value not in (AnyOne, AllParam):
+                    if _value is not AllParam:
                         slot['value'] = MultiArg(_value, flag='kwargs')
                         self.var_keyword = name
                     _limit = True
                 if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                     if self.var_positional:
                         raise InvalidParam(config.lang.args_duplicate_varargs)
-                    if _value not in (AnyOne, AllParam):
+                    if _value is not AllParam:
                         slot['value'] = MultiArg(_value)
                         self.var_positional = name
                 if flag.isdigit() and not _limit:
                     if self.var_positional:
                         raise InvalidParam(config.lang.args_duplicate_varargs)
-                    if _value not in (AnyOne, AllParam):
+                    if _value is not AllParam:
                         slot['value'] = MultiArg(_value, length=int(flag))
                         self.var_positional = name
                 if flag == ArgFlag.OPTIONAL:
@@ -492,6 +495,10 @@ class SubcommandResult(TypedDict):
     value: Any
     args: Dict[str, Any]
     options: Dict[str, OptionResult]
+
+
+class StrMounter(List[str]):
+    pass
 
 
 HelpOption = Option("--help|-h", help_text="显示帮助信息")

@@ -148,7 +148,7 @@ class BasePattern(Generic[TOrigin]):
         """
         对传入的参数进行匹配, 如果匹配成功, 则返回转换后的值, 否则返回None
         """
-        if self.model > 1 and self.origin != Any and generic_isinstance(input_, self.origin):
+        if self.model > 0 and self.origin not in (str, Any) and generic_isinstance(input_, self.origin):
             return input_  # type: ignore
         if self.accepts and not isinstance(input_, tuple(self.accepts)):
             if not self.previous or not isinstance(input_ := self.previous.match(input_), tuple(self.accepts)):
@@ -250,9 +250,9 @@ class UnionArg(BasePattern):
             text = None
         if text not in self.for_equal:
             for pat in self.for_validate:
-                with suppress(ParamsUnmatched, TypeError):
-                    text = pat.match(text)
-                    break
+                res, v = pat.validate(text)
+                if v == 'V':
+                    return res
             else:
                 raise ParamsUnmatched(config.lang.args_error.format(target=text))
         return text
@@ -272,11 +272,11 @@ class SequenceArg(BasePattern):
         self.form = form
         self.arg_value = base
         if form == "list":
-            super().__init__(r"\[(.+?)\]", PatternModel.REGEX_MATCH, list, alias=f"List[{base}]")
+            super().__init__(r"\[(.+?)\]", PatternModel.REGEX_MATCH, list, alias=f"list[{base}]")
         elif form == "tuple":
-            super().__init__(r"\((.+?)\)", PatternModel.REGEX_MATCH, tuple, alias=f"Tuple[{base}]")
+            super().__init__(r"\((.+?)\)", PatternModel.REGEX_MATCH, tuple, alias=f"tuple[{base}]")
         elif form == "set":
-            super().__init__(r"\{(.+?)\}", PatternModel.REGEX_MATCH, set, alias=f"Set[{base}]")
+            super().__init__(r"\{(.+?)\}", PatternModel.REGEX_MATCH, set, alias=f"set[{base}]")
         else:
             raise ValueError(config.lang.types_sequence_form_error.format(target=form))
 
@@ -302,7 +302,7 @@ class MappingArg(BasePattern):
     def __init__(self, arg_key: BasePattern, arg_value: BasePattern):
         self.arg_key = arg_key
         self.arg_value = arg_value
-        super().__init__(r"\{(.+?)\}", PatternModel.REGEX_MATCH, dict, alias=f"Dict[{self.arg_key}, {self.arg_value}]")
+        super().__init__(r"\{(.+?)\}", PatternModel.REGEX_MATCH, dict, alias=f"dict[{self.arg_key}, {self.arg_value}]")
 
     def match(self, text: Union[str, Any]):
         _res = super().match(text)
@@ -406,15 +406,6 @@ _Dict = BasePattern(r"(\{.+?\})", PatternModel.REGEX_CONVERT, dict, alias="dict"
 set_converters([AnyPathFile, _String, _Digit, _Float, _Bool, _List, _Tuple, _Set, _Dict])
 
 
-def pattern_gen(name: str, re_pattern: str):
-    """便捷地设置转换器"""
-
-    def __wrapper(func):
-        return BasePattern(re_pattern, PatternModel.REGEX_CONVERT, converter=func, alias=name)
-
-    return __wrapper
-
-
 def args_type_parser(item: Any, extra: str = "allow"):
     """对 Args 里参数类型的检查， 将一般数据类型转为 Args 使用的类型"""
     if isinstance(item, (BasePattern, _All)):
@@ -493,6 +484,6 @@ def set_unit(target: type, predicate: Callable[..., bool]):
 
 __all__ = [
     "DataCollection", "Empty", "AnyOne", "AllParam", "PatternModel", "BasePattern", "MultiArg", "UnionArg", "Bind",
-    "pattern_gen", "pattern_map", "set_converter", "set_converters", "remove_converter", "args_type_parser", "set_unit",
+    "pattern_map", "set_converter", "set_converters", "remove_converter", "args_type_parser", "set_unit",
     "SequenceArg", "MappingArg"
 ]

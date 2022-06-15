@@ -8,7 +8,7 @@ from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Patte
 
 from ..manager import command_manager
 from ..exceptions import NullMessage
-from ..base import Args, Option, Subcommand, Sentence
+from ..base import Args, Option, Subcommand, Sentence, StrMounter
 from ..arpamar import Arpamar
 from ..util import split_once, split
 from ..typing import DataCollection, pattern_map, BasePattern, args_type_parser
@@ -36,7 +36,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     current_index: int  # 当前数据的index
     content_index: int  # 内部index
     is_str: bool  # 是否是字符串
-    raw_data: List[Union[Any, List[str]]]  # 原始数据
+    raw_data: List[Union[Any, StrMounter]]  # 原始数据
     ndata: int  # 原始数据的长度
     command_params: Dict[str, Union[Sentence, List[Option], Subcommand]]
     param_ids: Set[str]
@@ -220,7 +220,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         if self.current_index == self.ndata:
             return "", True
         _current_data = self.raw_data[self.current_index]
-        if isinstance(_current_data, list):
+        if isinstance(_current_data, StrMounter):
             _rest_text: str = ""
             _text = _current_data[self.content_index]
             if separate and not self.separators.issuperset(separate):
@@ -244,7 +244,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         _result = 0
         is_cur = False
         for _data in self.raw_data[self.current_index:]:
-            if isinstance(_data, list):
+            if isinstance(_data, StrMounter):
                 for s in (_data[self.content_index:] if not is_cur else _data):
                     is_cur = True
                     _result += len(split(s, separate)) if separate and not self.separators.issuperset(separate) else 1
@@ -267,7 +267,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                     self.raw_data[self.current_index] = data
         else:
             _current_data = self.raw_data[self.current_index]
-            if isinstance(_current_data, list) and isinstance(data, str):
+            if isinstance(_current_data, StrMounter) and isinstance(data, str):
                 if seps := self.temporary_data.get("separators", None):
                     _current_data[self.content_index] = f"{data}{seps.copy().pop()}{_current_data[self.content_index]}"
                 else:
@@ -284,7 +284,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         _result = []
         is_cur = False
         for _data in self.raw_data[self.current_index:]:
-            if isinstance(_data, list):
+            if isinstance(_data, StrMounter):
                 if not is_cur:
                     _result.append(f'{self.separators.copy().pop()}'.join(_data[self.content_index:]))
                     is_cur = True
@@ -313,7 +313,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             if text := getattr(unit, self.text_sign, unit if isinstance(unit, str) else None):
                 if not (res := split(text.lstrip(), separates)):
                     continue
-                raw_data.append(res)
+                raw_data.append(StrMounter(res))
             else:
                 raw_data.append(unit)
             i += 1
