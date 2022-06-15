@@ -30,6 +30,7 @@ class _Actions(TypedDict):
 
 class AlconnaGroup(CommandNode):
     _group = True
+    commands: List['Alconna']
 
     def __init__(
             self,
@@ -144,13 +145,13 @@ class Alconna(CommandNode):
     analyser_type: Type["Analyser"]
     formatter_type: Type[AbstractTextFormatter]
     namespace: str
-    behaviors: List[Union[ArpamarBehavior, Type[ArpamarBehavior]]]
+    behaviors: List[T_ABehavior]
     action_list: _Actions
     local_args = {}
     custom_types = {}
 
     global_headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = [""]
-    global_behaviors: List[Union[ArpamarBehavior, Type[ArpamarBehavior]]] = []
+    global_behaviors: List[T_ABehavior] = []
     global_analyser_type: Type["Analyser"] = DefaultCommandAnalyser  # type: ignore
     global_formatter_type: Type[AbstractTextFormatter] = DefaultTextFormatter  # type: ignore
 
@@ -159,7 +160,7 @@ class Alconna(CommandNode):
         cls,
         *,
         headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
-        behaviors: Optional[List[Union[ArpamarBehavior, Type[ArpamarBehavior]]]] = None,
+        behaviors: Optional[List[T_ABehavior]] = None,
         analyser_type: Optional[Type["Analyser"]] = None,
         formatter_type: Optional[Type[AbstractTextFormatter]] = None,
         separator: Optional[str] = None
