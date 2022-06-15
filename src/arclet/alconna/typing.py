@@ -28,8 +28,11 @@ AnnotatedAlias = type(Annotated[int, lambda x: x > 0])
 @runtime_checkable
 class DataCollection(Protocol[DataUnit]):
     """数据集合协议"""
+
     def __str__(self) -> str: ...
+
     def __iter__(self) -> Iterator[DataUnit]: ...
+
     def __len__(self) -> int: ...
 
 
@@ -49,6 +52,7 @@ class PatternModel(IntEnum):
 
 class _All:
     """泛匹配"""
+
     def __repr__(self):
         return "AllParam"
 
@@ -336,7 +340,8 @@ pattern_map = {
 def set_converter(
         target: BasePattern,
         alias: Optional[str] = None,
-        cover: bool = False
+        cover: bool = False,
+        data: Optional[dict] = None
 ):
     """
     增加 Alconna 内使用的类型转换器
@@ -345,39 +350,43 @@ def set_converter(
         target: 设置的表达式
         alias: 目标类型的别名
         cover: 是否覆盖已有的转换器
+        data: BasePattern的存储字典
     """
+    data = data or pattern_map
     for k in (alias, target.alias, target.origin):
-        if k not in pattern_map or cover:
-            pattern_map[k] = target
+        if k not in data or cover:
+            data[k] = target
         else:
-            al_pat = pattern_map[k]
-            pattern_map[k] = UnionArg([*al_pat.arg_value, target]) if isinstance(al_pat, UnionArg) else (
+            al_pat = data[k]
+            data[k] = UnionArg([*al_pat.arg_value, target]) if isinstance(al_pat, UnionArg) else (
                 UnionArg([al_pat, target])
             )
 
 
 def set_converters(
         patterns: Union[Iterable[BasePattern], Dict[str, BasePattern]],
-        cover: bool = False
+        cover: bool = False,
+        data: Optional[dict] = None
 ):
     for arg_pattern in patterns:
         if isinstance(patterns, Dict):
-            set_converter(patterns[arg_pattern], alias=arg_pattern, cover=cover)  # type: ignore
+            set_converter(patterns[arg_pattern], alias=arg_pattern, cover=cover, data=data)  # type: ignore
         else:
-            set_converter(arg_pattern, cover=cover)  # type: ignore
+            set_converter(arg_pattern, cover=cover, data=data)  # type: ignore
 
 
-def remove_converter(origin_type: type, alias: Optional[str] = None):
-    if alias and (al_pat := pattern_map.get(alias)):
+def remove_converter(origin_type: type, alias: Optional[str] = None, data: Optional[dict] = None):
+    data = data or pattern_map
+    if alias and (al_pat := data.get(alias)):
         if isinstance(al_pat, UnionArg):
-            pattern_map[alias] = UnionArg(filter(lambda x: x.alias != alias, al_pat.arg_value))  # type: ignore
+            data[alias] = UnionArg(filter(lambda x: x.alias != alias, al_pat.arg_value))  # type: ignore
         else:
-            del pattern_map[alias]
-    elif al_pat := pattern_map.get(origin_type):
+            del data[alias]
+    elif al_pat := data.get(origin_type):
         if isinstance(al_pat, UnionArg):
-            pattern_map[origin_type] = UnionArg(filter(lambda x: x.origin != origin_type, al_pat.arg_value))
+            data[origin_type] = UnionArg(filter(lambda x: x.origin != origin_type, al_pat.arg_value))
         else:
-            del pattern_map[origin_type]
+            del data[origin_type]
 
 
 StrPath = BasePattern(model=PatternModel.TYPE_CONVERT, origin=Path, alias="path", accepts=[str])
@@ -418,7 +427,7 @@ def args_type_parser(item: Any, extra: str = "allow"):
             if not isinstance(_o := args_type_parser(item.__origin__, extra), BasePattern):  # type: ignore
                 return _o
             _arg = copy(_o)
-            _arg.validators.extend(item.__metadata__)    # type: ignore
+            _arg.validators.extend(item.__metadata__)  # type: ignore
             return _arg
         origin = get_origin(item)
         if origin in (Union, Literal):
@@ -478,7 +487,12 @@ class Bind:
         return pattern
 
 
+def set_unit(target: type, predicate: Callable[..., bool]):
+    return Annotated[target, predicate]
+
+
 __all__ = [
     "DataCollection", "Empty", "AnyOne", "AllParam", "PatternModel", "BasePattern", "MultiArg", "UnionArg", "Bind",
-    "pattern_gen", "pattern_map", "set_converter", "set_converters", "remove_converter", "args_type_parser"
+    "pattern_gen", "pattern_map", "set_converter", "set_converters", "remove_converter", "args_type_parser", "set_unit",
+    "SequenceArg", "MappingArg"
 ]

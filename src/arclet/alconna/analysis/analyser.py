@@ -30,6 +30,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         head_matched: 是否匹配了命令头部
     """
     preprocessors: Dict[str, Callable[..., Any]] = {}
+    text_sign: str = 'text'
 
     alconna: 'Alconna'  # Alconna实例
     current_index: int  # 当前数据的index
@@ -215,8 +216,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     def next_data(self, separate: Optional[Set[str]] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
-        if self.temporary_data.get("separators", None):
-            self.temporary_data["separators"] = None
+        self.temporary_data["separators"] = None
         if self.current_index == self.ndata:
             return "", True
         _current_data = self.raw_data[self.current_index]
@@ -306,21 +306,16 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         i, exc = 0, None
         raw_data = self.raw_data
         for unit in data:
-            if text := getattr(unit, 'text', None):
+            if (uname := unit.__class__.__name__) in self.filter_out:
+                continue
+            if (proc := self.preprocessors.get(uname)) and (res := proc(unit)):
+                unit = res
+            if text := getattr(unit, self.text_sign, unit if isinstance(unit, str) else None):
                 if not (res := split(text.lstrip(), separates)):
                     continue
                 raw_data.append(res)
-            elif isinstance(unit, str):
-                if not (res := split(unit.lstrip(), separates)):
-                    continue
-                raw_data.append(res)
-            elif unit.__class__.__name__ not in self.filter_out:
-                if (proc := self.__class__.preprocessors.get(unit.__class__.__name__)) and (res := proc(unit)):
-                    raw_data.append(res)
-                else:
-                    raw_data.append(unit)
             else:
-                continue
+                raw_data.append(unit)
             i += 1
         if i < 1:
             exp = NullMessage(config.lang.analyser_handle_null_message.format(target=data))

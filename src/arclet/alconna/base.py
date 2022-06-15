@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
 
 from .exceptions import InvalidParam, NullMessage
-from .typing import BasePattern, Empty, AllParam, AnyOne, MultiArg, UnionArg, args_type_parser
+from .typing import BasePattern, Empty, AllParam, AnyOne, MultiArg, UnionArg, args_type_parser, pattern_map
 from .config import config
 from .components.action import ArgAction
 
@@ -63,7 +63,7 @@ class ArgsMeta(type):
         return cls
 
     def __getitem__(self, item):
-        if isinstance(item, slice):
+        if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
             raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
         if not isinstance(item, tuple):
             if self.selecting:
@@ -119,9 +119,13 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
                     raise InvalidParam(config.lang.common_custom_type_error.format(target=custom_types[value]))
                 with suppress(NameError, ValueError, TypeError):
-                    value = eval(value, custom_types)  # type: ignore
-                    if default:
-                        default = value(default)
+                    if value := pattern_map.get(value, None):
+                        if default:
+                            default = value.origin(default)
+                    else:
+                        value = eval(value, custom_types)  # type: ignore
+                        if default:
+                            default = value(default)
             _args.add_argument(name, value=value, default=default)
         return _args
 
@@ -301,12 +305,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         return self
 
     def __getitem__(self, item) -> Union["Args", Tuple[TAValue, TADefault]]:
-        if isinstance(item, str):
-            if self.argument.get(item):
-                return self.argument[item]['value'], self.argument[item]['default']
-            else:
-                raise KeyError(config.lang.args_key_not_found)
-        if isinstance(item, slice):
+        if isinstance(item, str) and self.argument.get(item):
+            return self.argument[item]['value'], self.argument[item]['default']
+        if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
             raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
         if not isinstance(item, tuple):
             self.__check_var__([str(item), item])

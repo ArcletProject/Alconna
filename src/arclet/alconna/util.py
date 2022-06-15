@@ -1,12 +1,18 @@
 """杂物堆"""
 import contextlib
 import random
-
+import inspect
+from functools import lru_cache
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import TypeVar, Optional, Dict, Any, Iterator, Generic, Hashable, Tuple, Set, Union, get_origin, get_args
 
 R = TypeVar('R')
+
+
+@lru_cache(4096)
+def isawaitable(o):
+    return inspect.iscoroutinefunction(o) or inspect.isawaitable(o)
 
 
 class Singleton(type):
@@ -223,7 +229,7 @@ def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> boo
     with contextlib.suppress(TypeError):
         if isinstance(par, (type, tuple)):
             return isinstance(obj, par)
-        if isinstance(obj, get_origin(par)):   # type: ignore
+        if isinstance(obj, get_origin(par)):  # type: ignore
             return True
         if get_origin(par) is Union:
             return any(generic_isinstance(obj, p) for p in get_args(par))
