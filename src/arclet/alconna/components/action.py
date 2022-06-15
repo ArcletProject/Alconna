@@ -5,7 +5,7 @@ from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING,
 from ..typing import AnyOne, AllParam, args_type_parser
 from ..config import config
 from ..exceptions import InvalidParam
-from ..util import iscoroutine
+from ..util import is_async
 from .behavior import ArpamarBehavior
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class ArgAction:
         varargs = varargs or []
         kwargs = kwargs or {}
         try:
-            if iscoroutine(self.action):
+            if is_async(self.action):
                 loop = config.loop
                 if loop.is_running():
                     loop.create_task(self.action(*option_dict.values(), *varargs, **kwargs))

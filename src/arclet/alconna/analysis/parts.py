@@ -35,11 +35,11 @@ def multi_arg_handler(
                 for ii in range(min(len(result), _m_rest_arg)):
                     analyser.reduce_data(result.pop(-1))
                 break
-            try:
-                result.append(value.match(_m_arg))
-            except ParamsUnmatched:
+            res, s = value.validate(_m_arg)
+            if s != 'V':
                 analyser.reduce_data(_m_arg)
                 break
+            result.append(res)
         if len(result) == 0:
             result = [default] if default else []
         result_dict[key] = tuple(result)
@@ -61,21 +61,19 @@ def multi_arg_handler(
                 __putback(_m_arg)
                 break
             if _kwarg := re.match(r'^([^=]+)=([^=]+?)$', _m_arg):
-                _key = _kwarg.group(1)
                 _m_arg = _kwarg.group(2)
-                try:
-                    result[_key] = value.match(_m_arg)
-                except ParamsUnmatched:
+                res, s = value.validate(_m_arg)
+                if s != 'V':
                     analyser.reduce_data(_m_arg)
                     break
+                result[_kwarg.group(1)] = res
             elif _kwarg := re.match(r'^([^=]+)=\s?$', _m_arg):
-                _key = _kwarg.group(1)
                 _m_arg, _m_str = analyser.next_data(seps)
-                try:
-                    result[_key] = value.match(_m_arg)
-                except ParamsUnmatched:
+                res, s = value.validate(_m_arg)
+                if s != 'V':
                     __putback(_m_arg)
                     break
+                result[_kwarg.group(1)] = res
             else:
                 analyser.reduce_data(_m_arg)
                 break
