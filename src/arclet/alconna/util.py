@@ -11,7 +11,7 @@ R = TypeVar('R')
 
 
 @lru_cache(4096)
-def is_async(o):
+def is_async(o: Any):
     return inspect.iscoroutinefunction(o) or inspect.isawaitable(o)
 
 

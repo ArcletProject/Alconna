@@ -1,5 +1,3 @@
-import pytest
-
 from arclet.alconna.config import config
 from arclet.alconna import Alconna, Args, Option
 
@@ -21,4 +19,5 @@ def test_alconna_config():
 
 
 if __name__ == '__main__':
+    import pytest
     pytest.main([__file__, "-vs"])

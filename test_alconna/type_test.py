@@ -1,4 +1,3 @@
-import pytest
 from arclet.alconna.typing import DataCollection, BasePattern, PatternModel, args_type_parser
 
 
@@ -102,4 +101,5 @@ def test_args_parser():
 
 
 if __name__ == '__main__':
+    import pytest
     pytest.main([__file__, "-vs"])

@@ -28,11 +28,8 @@ AnnotatedAlias = type(Annotated[int, lambda x: x > 0])
 @runtime_checkable
 class DataCollection(Protocol[DataUnit]):
     """数据集合协议"""
-
     def __str__(self) -> str: ...
-
     def __iter__(self) -> Iterator[DataUnit]: ...
-
     def __len__(self) -> int: ...
 
 
@@ -384,7 +381,7 @@ def remove_converter(origin_type: type, alias: Optional[str] = None, data: Optio
             del data[alias]
     elif al_pat := data.get(origin_type):
         if isinstance(al_pat, UnionArg):
-            data[origin_type] = UnionArg(filter(lambda x: x.origin != origin_type, al_pat.arg_value))
+            data[origin_type] = UnionArg(filter(lambda x: x.origin != origin_type, al_pat.for_validate))
         else:
             del data[origin_type]
 
@@ -439,7 +436,7 @@ def args_type_parser(item: Any, extra: str = "allow"):
             return SequenceArg(args, form="tuple")
         if origin in (ABCMuSet, ABCSet, set):
             return SequenceArg(args, form="set")
-        return BasePattern("", PatternModel.KEEP, origin, alias=f"{repr(item).split('.')[-1]}", accepts=[origin])
+        return BasePattern("", 0, origin, alias=f"{repr(item).split('.')[-1]}", accepts=[origin])  # type: ignore
 
     if isinstance(item, str):
         return BasePattern(item, alias=f"\'{item}\'")
@@ -478,7 +475,7 @@ class Bind:
         return pattern
 
 
-def set_unit(target: type, predicate: Callable[..., bool]):
+def set_unit(target: Type, predicate: Callable[..., bool]):
     return Annotated[target, predicate]
 
 

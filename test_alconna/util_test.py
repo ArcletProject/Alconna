@@ -1,5 +1,5 @@
-import pytest
 from arclet.alconna.util import split_once, split, LruCache
+from arclet.alconna.builtin.checker import simple_type
 
 
 def test_split_once():
@@ -34,5 +34,22 @@ def test_lru():
     assert cache.get("b", Ellipsis) == Ellipsis
 
 
+def test_checker():
+    @simple_type()
+    def hello(num: int):
+        return num
+
+    assert hello(123) == 123
+    assert hello("123") == 123  # type: ignore
+
+    @simple_type()
+    def test(foo: 'bar'):  # type: ignore
+        return foo
+
+    assert test("bar") == "bar"
+    assert test("foo") is None
+
+
 if __name__ == '__main__':
+    import pytest
     pytest.main([__file__, "-vs"])

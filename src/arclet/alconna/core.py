@@ -11,7 +11,7 @@ from .manager import command_manager
 from .arpamar import Arpamar
 from .components.action import ActionHandler
 from .components.output import AbstractTextFormatter
-from .components.behavior import ArpamarBehavior, T_ABehavior
+from .components.behavior import T_ABehavior
 from .components.duplication import AlconnaDuplication
 from .builtin.formatter import DefaultTextFormatter
 from .builtin.analyser import DefaultCommandAnalyser
@@ -39,7 +39,7 @@ class AlconnaGroup(CommandNode):
             namespace: Optional[str] = None,
     ):
         self.commands = list(commands)
-        self.namespace = namespace
+        self.namespace = namespace or config.namespace
         name = command_manager.sign + name
         super().__init__(name, )
         self.name.replace(command_manager.sign, '')
