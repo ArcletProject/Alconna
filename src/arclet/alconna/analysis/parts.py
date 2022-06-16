@@ -365,7 +365,7 @@ def analyse_header(
             if analyser.alconna.headers and analyser.alconna.headers != [""]:
                 for i in analyser.alconna.headers:
                     if isinstance(i, str):
-                        headers_text.append(i + analyser.alconna.command)
+                        headers_text.append(f"{i}{analyser.alconna.command}")
                     else:
                         headers_text.extend((f"{i}", analyser.alconna.command))
             elif analyser.alconna.command:

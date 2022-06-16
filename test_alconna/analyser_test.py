@@ -1,7 +1,4 @@
 from typing import Union
-
-import pytest
-
 from arclet.alconna.builtin.analyser import DefaultCommandAnalyser
 from arclet.alconna import Alconna, Args
 from arclet.alconna.typing import set_unit
@@ -69,4 +66,5 @@ def test_with_set_unit():
 
 
 if __name__ == '__main__':
+    import pytest
     pytest.main([__file__, "-vs"])

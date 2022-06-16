@@ -1,6 +1,5 @@
 from typing import Optional
 
-import pytest
 from arclet.alconna import AlconnaString, AlconnaFormat, AlconnaFire, AlconnaDecorate, delegate, Args
 
 
@@ -120,4 +119,5 @@ def test_click_like():
 
 
 if __name__ == '__main__':
+    import pytest
     pytest.main([__file__, "-vs"])

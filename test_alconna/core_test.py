@@ -1,6 +1,4 @@
-import pytest
 from arclet.alconna.core import AlconnaGroup
-
 from arclet.alconna import Alconna, Args, Option, Subcommand, ArgParserTextFormatter, AllParam
 
 
@@ -248,4 +246,5 @@ def test_shortcut():
 
 
 if __name__ == '__main__':
+    import pytest
     pytest.main([__file__, "-vs"])

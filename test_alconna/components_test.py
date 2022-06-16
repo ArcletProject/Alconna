@@ -1,4 +1,3 @@
-import pytest
 from arclet.alconna import Alconna, Option, Args, Subcommand, Arpamar, ArpamarBehavior, store_value
 from arclet.alconna.builtin.actions import set_default, exclusion, cool_down
 from arclet.alconna.components.duplication import AlconnaDuplication
@@ -74,4 +73,5 @@ def test_duplication():
 
 
 if __name__ == '__main__':
+    import pytest
     pytest.main([__file__, "-vs"])

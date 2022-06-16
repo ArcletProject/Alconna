@@ -30,7 +30,7 @@ def simple_type(raise_exception: bool = False):
                 result.pop(var_key)
             res_args.extend(v for v in result.values())
             res_args.extend(varargs)
-            return func(*res_args, **res_kwargs)
+            return func(*res_args, **res_kwargs)  # type: ignore
 
         return __wrapper__
 

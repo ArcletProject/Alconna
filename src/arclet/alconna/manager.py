@@ -4,6 +4,7 @@ import weakref
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple, Any
 import shelve
+import contextlib
 
 from .exceptions import ExceedMaxCount
 from .util import Singleton, LruCache
@@ -46,23 +47,19 @@ class CommandManager(metaclass=Singleton):
         self.__record = LruCache(config.message_max_cache)
         weakref.finalize(self, self.__del__)
 
-    def __del__(self):  # td: save to file
-        try:
+    def __del__(self):
+        with contextlib.suppress(AttributeError):
             self.__commands.clear()
             self.__abandons.clear()
             self.__record.clear()
             self.__shortcuts.clear()
             Singleton.remove(self.__class__)
-        except AttributeError:
-            pass
 
     def load_cache(self) -> None:
         """加载缓存"""
-        try:
+        with contextlib.suppress(FileNotFoundError, KeyError):
             with shelve.open(self.cache_path) as db:
                 self.__shortcuts.update(db["shortcuts"])  # type: ignore
-        except (FileNotFoundError, KeyError):
-            pass
 
     def dump_cache(self) -> None:
         """保存缓存"""
@@ -88,10 +85,10 @@ class CommandManager(metaclass=Singleton):
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         if not command._group:   # noqa
-            self.__analysers[command] = compile(command)
+            self.__analysers[command] = compile(command)  # type: ignore
         else:
-            for cmd in command.commands:
-                self.__analysers[cmd] = compile(command)
+            for cmd in command.commands:  # type: ignore
+                self.__analysers[cmd] = compile(cmd)
         if command.namespace not in self.__commands:
             self.__commands[command.namespace] = {}
         cid = command.name.replace(self.sign, "")
@@ -117,10 +114,10 @@ class CommandManager(metaclass=Singleton):
         try:
             base = self.__commands[namespace][name]
             if base._group:  # noqa
-                for cmd in base.commands:
+                for cmd in base.commands:  # type: ignore
                     del self.__analysers[cmd]
             else:
-                del self.__analysers[base]
+                del self.__analysers[base]  # type: ignore
             del self.__commands[namespace][name]
             self.current_count -= 1
         finally:

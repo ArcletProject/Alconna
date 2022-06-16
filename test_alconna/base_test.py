@@ -1,5 +1,3 @@
-import pytest
-
 from arclet.alconna.base import Option, Subcommand, CommandNode, Args
 from arclet.alconna.analysis.base import analyse_option, analyse_subcommand
 
@@ -72,4 +70,5 @@ def test_from_callable():
 
 
 if __name__ == '__main__':
+    import pytest
     pytest.main([__file__, "-vs"])

@@ -238,13 +238,13 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.argument[name] = arg
 
     @staticmethod
-    def __handle_force__(slot: TAValue, value):
+    def __handle_force__(slot: ArgUnit, value):
         slot['value'] = (
             BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value)
         )
 
     def __handle_flags__(self, name, value, _value, default):
-        slot = {'value': _value, 'default': default, 'optional': False, 'hidden': False, 'kwonly': False}
+        slot: ArgUnit = {'value': _value, 'default': default, 'optional': False, 'hidden': False, 'kwonly': False}
         if res := re.match(r"^.+?;(?P<flag>[^;]+?)$", name):
             flags = res.group("flag").split("|")
             name = name.replace(f";{res.group('flag')}", "")
@@ -254,9 +254,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                     self.__handle_force__(slot, value)
                     _limit = True
                 if flag == ArgFlag.ANTI and not _limit:
-                    if isinstance(_value, UnionArg):
+                    if isinstance(slot['value'], UnionArg):
                         slot['value'].reverse()
-                    elif _value not in (AnyOne, AllParam):
+                    elif slot['value'] not in (AnyOne, AllParam):
                         slot['value'] = copy(_value).reverse()
                     _limit = True
                 if flag == ArgFlag.VAR_KEYWORD and not _limit:

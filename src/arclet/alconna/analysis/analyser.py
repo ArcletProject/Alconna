@@ -130,14 +130,14 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                             f"{pattern_map[_parts[1]].pattern if _parts[1] in pattern_map else _parts[1]})"
                         )
             command_name = "".join(parts)
-
+        
         if isinstance(command_name, str):
             _command_name, _command_str = re.compile(command_name), command_name
         else:
             _command_name, _command_str = copy(args_type_parser(command_name)), str(command_name)
 
         if headers == [""]:
-            self.command_header = _command_name
+            self.command_header = _command_name  # type: ignore
 
         elif isinstance(headers[0], tuple):
             mixins = [(h[0], re.compile(re.escape(h[1]) + _command_str)) for h in headers]  # type: ignore
@@ -154,13 +154,13 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 if isinstance(_command_name, Pattern):
                     self.command_header = re.compile(f"(?:{ch_text[:-1]}){_command_str}")   # noqa
                 else:
-                    _command_name.pattern = f"(?:{ch_text[:-1]}){_command_name.pattern}"
-                    _command_name.regex_pattern = re.compile(_command_name.pattern)
-                    self.command_header = _command_name
+                    _command_name.pattern = f"(?:{ch_text[:-1]}){_command_name.pattern}"  # type: ignore
+                    _command_name.regex_pattern = re.compile(_command_name.pattern)  # type: ignore
+                    self.command_header = _command_name  # type: ignore
             elif not ch_text:
-                self.command_header = (elements, _command_name)
+                self.command_header = (elements, _command_name)  # type: ignore
             else:
-                self.command_header = (elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name   # noqa
+                self.command_header = (elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name # type: ignore # noqa
 
     def __init_actions__(self):
         actions = self.alconna.action_list

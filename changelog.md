@@ -1,3 +1,15 @@
+# Alconna 1.0.x:
+
+\^o^/
+
+## Alconna 1.0.0:
+1. 将`lang`迁移到新增的`config`中，并为`config`加入了如全局分隔、开启缓存等选项
+2. 压缩代码量并规范化
+3. 完善了测试代码, 位于[测试文件夹](test_alconna)内, 通过[入口文件](test_alconna/entry_test.py)可执行全部测试
+4. 加入一个类似`beartype`的[`checker`](src/arclet/alconna/builtin/checker.py)
+5. 命令头部允许使用非str类型, 即可以`Alconna(int)`
+6. 修复bugs
+
 # Alconna 0.9.x:
 
 ## Alconna 0.9.0 - 0.9.0.3:
