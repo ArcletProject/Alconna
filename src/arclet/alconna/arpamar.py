@@ -178,7 +178,7 @@ class Arpamar:
                 return _r_opt(end, parts, _cache['options'])
         return None, prefix
 
-    def query(self, path: str, default: Any = None) -> Union[Dict[str, Any], Any, None]:
+    def query(self, path: str, default: T = None) -> Union[Dict[str, Any], T, None]:
         """根据path查询值"""
         parts = path.split('.')
         cache, endpoint = self.__require__(parts)
@@ -199,10 +199,14 @@ class Arpamar:
         else:
             cache[endpoint] = value
 
-    def query_with(self, arg_type: Type[T], name: Optional[str] = None) -> Optional[Union[Dict[str, T], T]]:
+    def query_with(
+            self, arg_type: Type[T],
+            name: Optional[str] = None,
+            default: Any = None
+    ) -> Optional[Union[Dict[str, T], T]]:
         """根据类型查询参数"""
         if name:
-            return res if isinstance(res := self.query(name), arg_type) else None
+            return res if isinstance(res := self.query(name, default), arg_type) else None
         return {k: v for k, v in self.all_matched_args.items() if isinstance(v, arg_type)}
 
     def find(self, name: str) -> bool:

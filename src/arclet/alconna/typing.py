@@ -9,12 +9,12 @@ from functools import lru_cache
 from pathlib import Path
 from enum import IntEnum
 from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Union, List, Dict, \
-    get_args, Literal, Tuple, get_origin, Iterable, Generic, Iterator, runtime_checkable
+    Literal, Tuple, Iterable, Generic, Iterator, runtime_checkable
 
 try:
-    from typing import Annotated  # type: ignore
+    from typing import Annotated, get_args, get_origin  # type: ignore
 except ImportError:
-    from typing_extensions import Annotated
+    from typing_extensions import Annotated, get_args, get_origin
 
 from .exceptions import ParamsUnmatched
 from .config import config
@@ -22,7 +22,7 @@ from .util import generic_isinstance
 
 DataUnit = TypeVar("DataUnit", covariant=True)
 GenericAlias = type(List[int])
-AnnotatedAlias = type(Annotated[int, lambda x: x > 0])
+# AnnotatedAlias = type(Annotated[int, lambda x: x > 0])
 
 
 @runtime_checkable
@@ -103,7 +103,7 @@ class BasePattern(Generic[TOrigin]):
         self.previous = previous
         self.accepts = accepts
         self.converter = converter or (lambda x: origin(x) if model == PatternModel.TYPE_CONVERT else eval(x))
-        self.validators = validators or [(lambda x: True)]
+        self.validators = validators or []
         self.anti = anti
 
     def __repr__(self):
@@ -167,9 +167,10 @@ class BasePattern(Generic[TOrigin]):
     def validate(self, input_: Union[str, Any], default: Optional[Any] = None) -> Tuple[Any, Literal["V", "E", "D"]]:
         try:
             res = self.match(input_)
-            if all(i(res) for i in self.validators):
-                return res, "V"
-            raise ParamsUnmatched(config.lang.args_error.format(target=input_))
+            for i in self.validators:
+                if not i(res):
+                    raise ParamsUnmatched(config.lang.args_error.format(target=input_))
+            return res, "V"
         except Exception as e:
             if default is None:
                 return e, "E"
@@ -181,8 +182,9 @@ class BasePattern(Generic[TOrigin]):
         except ParamsUnmatched:
             return input_, "V"
         else:
-            if any((not i(res)) for i in self.validators):
-                return input_, "E"
+            for i in self.validators:
+                if not i(res):
+                    return input_, "E"
             if default is None:
                 return ParamsUnmatched(config.lang.args_error.format(target=input_)), "E"
             return None if default is Empty else default, "D"
@@ -351,6 +353,8 @@ def set_converter(
     """
     data = data or pattern_map
     for k in (alias, target.alias, target.origin):
+        if not k:
+            continue
         if k not in data or cover:
             data[k] = target
         else:
@@ -411,13 +415,14 @@ def args_type_parser(item: Any, extra: str = "allow"):
         if pat := pattern_map.get(item, None):
             return pat
     if not inspect.isclass(item) and isinstance(item, GenericAlias):
-        if isinstance(item, AnnotatedAlias):
-            if not isinstance(_o := args_type_parser(item.__origin__, extra), BasePattern):  # type: ignore
+        origin = get_origin(item)
+        if origin is Annotated:
+            org, meta = get_args(item)
+            if not isinstance(_o := args_type_parser(org, extra), BasePattern):  # type: ignore
                 return _o
             _arg = copy(_o)
-            _arg.validators.extend(item.__metadata__)  # type: ignore
+            _arg.validators.extend(meta if isinstance(meta, tuple) else [meta])  # type: ignore
             return _arg
-        origin = get_origin(item)
         if origin in (Union, Literal):
             _args = {args_type_parser(t, extra) for t in get_args(item)}
             return (_args.pop() if len(_args) == 1 else UnionArg(_args)) if _args else item

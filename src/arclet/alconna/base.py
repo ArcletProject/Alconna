@@ -6,7 +6,8 @@ from copy import copy
 from enum import Enum
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
+from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, \
+    Set, FrozenSet
 
 from .exceptions import InvalidParam, NullMessage
 from .typing import BasePattern, Empty, AllParam, AnyOne, MultiArg, UnionArg, args_type_parser, pattern_map
@@ -118,7 +119,8 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
                     raise InvalidParam(config.lang.common_custom_type_error.format(target=custom_types[value]))
                 with suppress(NameError, ValueError, TypeError):
-                    if value := pattern_map.get(value, None):
+                    if pattern_map.get(value, None):
+                        value = pattern_map[value]
                         if default:
                             default = value.origin(default)
                     else:
@@ -429,7 +431,7 @@ class CommandNode:
 
 class Option(CommandNode):
     """命令选项, 可以使用别名"""
-    aliases: List[str]
+    aliases: FrozenSet[str]
 
     def __init__(
             self,
@@ -443,15 +445,16 @@ class Option(CommandNode):
             requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
 
     ):
-        self.aliases = alias or []
+        aliases = alias or []
         parts = name.split(" ")
         name, rest = parts[-1], parts[:-1]
         if "|" in name:
             aliases = name.split('|')
             aliases.sort(key=len, reverse=True)
             name = aliases[0]
-            self.aliases.extend(aliases[1:])
-        self.aliases.insert(0, name)
+            aliases.extend(aliases[1:])
+        aliases.insert(0, name)
+        self.aliases = frozenset(aliases)
         super().__init__(
             " ".join(rest) + (" " if rest else "") + name, args, dest, action, separators, help_text, requires
         )

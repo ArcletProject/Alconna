@@ -5,7 +5,8 @@ import inspect
 from functools import lru_cache
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import TypeVar, Optional, Dict, Any, Iterator, Generic, Hashable, Tuple, Set, Union, get_origin, get_args
+from typing import TypeVar, Optional, Dict, Any, Iterator, Generic, Hashable, Tuple, Union
+from typing_extensions import get_origin, get_args
 
 R = TypeVar('R')
 
@@ -29,12 +30,13 @@ class Singleton(type):
         mcs._instances.pop(cls, None)
 
 
-def split_once(text: str, separates: Union[str, Set[str]]):  # 相当于另类的pop, 不会改变本来的字符串
+@lru_cache(4096)
+def split_once(text: str, separates: Union[str, Tuple[str, ...]]):  # 相当于另类的pop, 不会改变本来的字符串
     """单次分隔字符串"""
     out_text = ""
     quotation = ""
     is_split = True
-    separates = separates if isinstance(separates, set) else {separates}
+    separates = tuple(separates)
     for char in text:
         if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
@@ -46,11 +48,11 @@ def split_once(text: str, separates: Union[str, Set[str]]):  # 相当于另类�
         if char in separates and is_split:
             break
         out_text += char
-    result = "".join(out_text)
-    return result, text[len(result) + 1:]
+    return out_text, text[len(out_text) + 1:]
 
 
-def split(text: str, separates: Optional[Set[str]] = None):
+@lru_cache(4096)
+def split(text: str, separates: Optional[Tuple[str, ...]] = None):
     """尊重引号与转义的字符串切分
 
     Args:
@@ -61,27 +63,23 @@ def split(text: str, separates: Optional[Set[str]] = None):
         List[str]: 切割后的字符串, 可能含有空格
     """
     separates = separates or {" "}
-    result = []
+    result = ""
     quotation = ""
-    cache = ""
     for index, char in enumerate(text):
         if char in {"'", '"'}:
             if not quotation:
                 quotation = char
                 if index and text[index - 1] == "\\":
-                    cache += char
+                    result += char
             elif char == quotation:
                 quotation = ""
                 if index and text[index - 1] == "\\":
-                    cache += char
-        elif char in {"\n", "\r"} or (not quotation and char in separates and cache):
-            result.append(cache)
-            cache = ""
+                    result += char
+        elif char in {"\n", "\r"} or (not quotation and char in separates):
+            result += "\0"
         elif char != "\\" and (char not in separates or quotation):
-            cache += char
-    if cache:
-        result.append(cache)
-    return result
+            result += char
+    return result.split('\0')
 
 
 def levenshtein_norm(source: str, target: str) -> float:

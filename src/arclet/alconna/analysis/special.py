@@ -5,8 +5,8 @@ from .analyser import Analyser
 
 
 def handle_help(analyser: Analyser):
-    _help_param = analyser.recover_raw_data()
-    _help_param[0] = _help_param[0].replace("--help", "", 1).replace("-h", "", 1).lstrip()
+    analyser.current_index, analyser.content_index = analyser.head_pos
+    _help_param = analyser.rest_data()
 
     def _get_help():
         formatter = analyser.alconna.formatter_type(analyser.alconna)
@@ -17,16 +17,11 @@ def handle_help(analyser: Analyser):
 
 
 def handle_shortcut(analyser: Analyser):
-    def _shortcut(sct: str, command: str, expiration: int, delete: bool):
-        return analyser.alconna.shortcut(
-            sct, None if command == "_" else analyser.converter(command), delete, expiration
-        )
-
-    _, opt_v = analyse_option(analyser, ShortcutOption)
+    opt_v = analyse_option(analyser, ShortcutOption)[1]['args']
     try:
-        msg = _shortcut(
-            opt_v['args']['name'], opt_v['args']['command'],
-            opt_v['args']['expiration'], True if opt_v['args'].get('delete') else False
+        msg = analyser.alconna.shortcut(
+            opt_v['name'], None if opt_v['command'] == "_" else analyser.converter(opt_v['command']),
+            True if opt_v.get('delete') else False, opt_v['expiration']
         )
         output_send(analyser.alconna.name, lambda: msg).handle({}, is_raise_exception=analyser.is_raise_exception)
     except Exception as e:

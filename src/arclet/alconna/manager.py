@@ -74,7 +74,7 @@ class CommandManager(metaclass=Singleton):
     @staticmethod
     def _command_part(command: str) -> Tuple[str, str]:
         """获取命令的组成部分"""
-        command_parts = command.split(".")[-2:]
+        command_parts = command.split(".", maxsplit=1)[-2:]
         if len(command_parts) != 2:
             command_parts.insert(0, config.namespace)
         return command_parts[0], command_parts[1]

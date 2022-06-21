@@ -332,7 +332,8 @@ def _from_string(command: str, *option: str, sep: str = " ") -> "Alconna":
             res = re.split("[:=]", p)
             res[0] = f"{res[0]};O"
             opt_args.append(res)
-        _opt_args = Args.from_string_list(opt_args, custom_types.copy())
+        _typs = custom_types.copy()
+        _opt_args = Args.from_string_list(opt_args, _typs)
         opt_action_value = re.findall(r"&(.+?)(?:#.+?)?$", opt_others)
         if not (opt_help_string := re.findall(r"#(.+)$", opt_others)):
             opt_help_string = [opt_head]

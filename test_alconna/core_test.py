@@ -98,9 +98,9 @@ def test_alconna_special_help():
 def test_alconna_chain_option():
     alc5 = Alconna(
         "点歌"
-    ).add_option(
+    ).add(
         "歌名", sep="：", args=Args(song_name=str)
-    ).add_option(
+    ).add(
         "歌手", sep="：", args=Args(singer_name=str)
     )
     res = alc5.parse("点歌 歌名：Freejia")
@@ -216,7 +216,7 @@ def test_requires():
 
 def test_wildcard():
     alc13 = Alconna("core13", Args["foo", AllParam])
-    assert alc13.parse(["core13 abc def gh", 123, 5.0, "dsdf"]).foo == ['abc def gh', 123, 5.0, 'dsdf']
+    assert alc13.parse(["core13 abc def gh", 123, 5.0, "dsdf"]).foo == ['abc', 'def', 'gh', 123, 5.0, 'dsdf']
 
 
 def test_alconna_group():
@@ -243,7 +243,6 @@ def test_shortcut():
     res = alc16.parse("TEST")
     assert res.matched is True
     assert res.foo == 432
-
 
 if __name__ == '__main__':
     import pytest
