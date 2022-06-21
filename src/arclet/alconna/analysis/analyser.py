@@ -53,6 +53,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     header: Optional[Union[Dict[str, Any], bool]]  # 命令头部
     need_main_args: bool  # 是否需要主参数
     head_matched: bool  # 是否匹配了命令头部
+    head_pos: Tuple[int, int]
     part_len: range  # 分段长度
     default_main_only: bool  # 默认只有主参数
     self_args: Args  # 自身参数
@@ -62,6 +63,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     temp_token: int  # 临时token
     used_tokens: Set[int]  # 已使用的token
     sentences: List[str]  # 存放解析到的所有句子
+    default_separate: bool
 
     def __init_subclass__(cls, **kwargs):
         if not hasattr(cls, "filter_out"):
@@ -69,7 +71,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]], hs=hash) -> int:
-        return hs(repr(data))
+        # return hs(str(data))
+        return hs(tuple(i.__str__() for i in data))
 
     def __init__(self, alconna: "Alconna"):
         self.reset()
@@ -81,6 +84,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.is_raise_exception = alconna.is_raise_exception
         self.need_main_args = False
         self.default_main_only = False
+        self.default_separate = True
         self.__handle_main_args__(alconna.args, alconna.nargs)
         self.__init_header__(alconna.command, alconna.headers)
         self.__init_actions__()
@@ -179,26 +183,30 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def default_params_generator(analyser: "Analyser"):
         analyser.param_ids = set()
         analyser.command_params = {}
-        analyser.part_len = range(len(analyser.alconna.options) + 1)
+        analyser.part_len = range(len(analyser.alconna.options) + (1 if analyser.need_main_args else 0))
         for opts in analyser.alconna.options:
             if isinstance(opts, Option):
-                if analyser.command_params.get(opts.name):
-                    analyser.command_params[opts.name].append(opts)  # type: ignore
-                else:
-                    analyser.command_params[opts.name] = [opts]
+                for al in opts.aliases:
+                    if analyser.command_params.get(al):
+                        analyser.command_params[al].append(opts)  # type: ignore
+                    else:
+                        analyser.command_params[al] = [opts]
                 analyser.param_ids.update(opts.aliases)
             elif isinstance(opts, Subcommand):
                 analyser.command_params[opts.name] = opts
                 analyser.param_ids.add(opts.name)
-                opts.sub_part_len = range(len(opts.options) + 1)
+                opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0))
                 for sub_opts in opts.options:
-                    if opts.sub_params.get(sub_opts.name):
-                        opts.sub_params[sub_opts.name].append(sub_opts)  # type: ignore
-                    else:
-                        opts.sub_params[sub_opts.name] = [sub_opts]
+                    for al in sub_opts.aliases:
+                        if opts.sub_params.get(al):
+                            opts.sub_params[al].append(sub_opts)  # type: ignore
+                        else:
+                            opts.sub_params[al] = [sub_opts]
                     if sub_opts.requires:
                         opts.sub_params.update({k: Sentence(name=k) for k in sub_opts.requires})
                     analyser.param_ids.update(sub_opts.aliases)
+            if not analyser.separators.issuperset(opts.separators):
+                analyser.default_separate &= False
             if opts.requires:
                 analyser.param_ids.update(opts.requires)
                 analyser.command_params.update({k: Sentence(name=k) for k in opts.requires})
@@ -213,6 +221,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
         self.raw_data, self.sentences = [], []
         self.origin_data, self.header = None, None
+        self.head_pos = (0, 0)
 
     def next_data(self, separate: Optional[Set[str]] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
@@ -224,7 +233,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             _rest_text: str = ""
             _text = _current_data[self.content_index]
             if separate and not self.separators.issuperset(separate):
-                _text, _rest_text = split_once(_text, separate)
+                _text, _rest_text = split_once(_text, tuple(separate))
             if pop:
                 if _rest_text:  # 这里实际上还是pop了
                     self.temporary_data["separators"] = separate
@@ -239,21 +248,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             self.current_index += 1
         return _current_data, False
 
-    def rest_count(self, separate: Optional[Set[str]] = None) -> int:
-        """获取剩余的数据个数"""
-        _result = 0
-        is_cur = False
-        for _data in self.raw_data[self.current_index:]:
-            if isinstance(_data, StrMounter):
-                for s in (_data[self.content_index:] if not is_cur else _data):
-                    is_cur = True
-                    _result += len(split(s, separate)) if separate and not self.separators.issuperset(separate) else 1
-            else:
-                _result += 1
-        return _result
-
     def reduce_data(self, data: Union[str, Any], replace=False):
-        """把pop的数据放回 (实际只是‘指针’移动)"""
+        """把 pop的数据放回 (实际只是‘指针’移动)"""
         if not data:
             return
         if self.current_index == self.ndata:
@@ -269,7 +265,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             _current_data = self.raw_data[self.current_index]
             if isinstance(_current_data, StrMounter) and isinstance(data, str):
                 if seps := self.temporary_data.get("separators", None):
-                    _current_data[self.content_index] = f"{data}{seps.copy().pop()}{_current_data[self.content_index]}"
+                    _current_data[self.content_index] = f"{data}{tuple(seps)[0]}{_current_data[self.content_index]}"
                 else:
                     self.content_index -= 1
                     if replace:
@@ -279,21 +275,18 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 if replace:
                     self.raw_data[self.current_index] = data
 
-    def recover_raw_data(self) -> List[Union[str, Any]]:
-        """将处理过的命令数据大概还原"""
+    def rest_data(self, separate: Optional[Set[str]] = None) -> List[Union[str, Any]]:
         _result = []
         is_cur = False
         for _data in self.raw_data[self.current_index:]:
             if isinstance(_data, StrMounter):
-                if not is_cur:
-                    _result.append(f'{self.separators.copy().pop()}'.join(_data[self.content_index:]))
+                for s in _data[0 if is_cur else self.content_index:]:
+                    _result.extend(
+                        split(s, tuple(separate)) if separate and not self.separators.issuperset(separate) else [s]
+                    )
                     is_cur = True
-                else:
-                    _result.append(f'{self.separators.copy().pop()}'.join(_data))
             else:
                 _result.append(_data)
-        self.current_index = self.ndata
-        self.content_index = 0
         return _result
 
     def process_message(self, data: DataCollection[Union[str, Any]]) -> 'Analyser':
@@ -302,7 +295,6 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         if isinstance(data, str):
             self.is_str = True
             data = [data]
-        separates = self.separators
         i, exc = 0, None
         raw_data = self.raw_data
         for unit in data:
@@ -311,7 +303,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             if (proc := self.preprocessors.get(uname)) and (res := proc(unit)):
                 unit = res
             if text := getattr(unit, self.text_sign, unit if isinstance(unit, str) else None):
-                if not (res := split(text.lstrip(), separates)):
+                if not (res := split(text.lstrip(), tuple(self.separators))):
                     continue
                 raw_data.append(StrMounter(res))
             else:
@@ -343,7 +335,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         result.matched = not fail
         if fail:
             result.error_info = repr(exception or traceback.format_exc(limit=1))
-            result.error_data = self.recover_raw_data()
+            result.error_data = self.rest_data()
         else:
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
             if config.enable_message_cache:

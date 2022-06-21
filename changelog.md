@@ -8,7 +8,8 @@
 3. 完善了测试代码, 位于[测试文件夹](test_alconna)内, 通过[入口文件](test_alconna/entry_test.py)可执行全部测试
 4. 加入一个类似`beartype`的[`checker`](src/arclet/alconna/builtin/checker.py)
 5. 命令头部允许使用非str类型, 即可以`Alconna(int)`
-6. 修复bugs
+6. 解析器增加预处理器选项, 允许在分划数据单元前进行转化处理
+7. 修复bugs
 
 # Alconna 0.9.x:
 

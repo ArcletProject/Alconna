@@ -7,7 +7,7 @@ from arclet.alconna.manager import command_manager
 from arclet.alconna.analysis.analyser import Analyser
 from arclet.alconna.analysis.special import handle_help, handle_shortcut
 from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_subcommand, analyse_header, \
-    analyse_params
+    analyse_unmatch_params
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from arclet.alconna.config import config
 from arclet.alconna.components.output import output_send
@@ -29,18 +29,18 @@ class DefaultCommandAnalyser(Analyser):
                 raise ValueError(config.lang.analyser_handle_null_message.format(target=message))
             self.process_message(message)
         if self.temporary_data.get('fail'):
-            self.reset()
             return self.export(fail=True, exception=self.temporary_data.get('exception'))
         if (res := command_manager.get_record(self.temp_token)) and self.temp_token in self.used_tokens:
             self.reset()
             return res
         try:
             self.header = analyse_header(self)
+            self.head_pos = self.current_index, self.content_index
         except ParamsUnmatched as e:
             self.current_index = 0
             self.content_index = 0
             try:
-                _res = command_manager.find_shortcut(self.next_data(self.separators, pop=False)[0], self.alconna)
+                _res = command_manager.find_shortcut(self.next_data(pop=False)[0], self.alconna)
                 self.reset()
                 if isinstance(_res, Arpamar):
                     return _res
@@ -52,9 +52,14 @@ class DefaultCommandAnalyser(Analyser):
             return self.export(fail=True)
 
         for _ in self.part_len:
-            _param = analyse_params(self, self.command_params)
             try:
-                if not _param or _param is Ellipsis and not self.main_args:
+                _text, _str = self.next_data(pop=False)
+                _param = _param if (_param := (self.command_params.get(_text) if _str and _text else Ellipsis)) else (
+                    None if self.default_separate else analyse_unmatch_params(
+                        self.command_params.values(), _text, self.alconna.is_fuzzy_match
+                    )
+                )
+                if (not _param or _param is Ellipsis) and not self.main_args:
                     self.main_args = analyse_args(self, self.self_args, self.alconna.nargs)
                 elif isinstance(_param, list):
                     for opt in _param:
@@ -74,10 +79,9 @@ class DefaultCommandAnalyser(Analyser):
                     else:
                         raise exc  # noqa
                 elif isinstance(_param, Subcommand):
-                    sub_n, sub_v = analyse_subcommand(self, _param)
-                    self.subcommands[sub_n] = sub_v
+                    self.subcommands.setdefault(*analyse_subcommand(self, _param))
                 elif isinstance(_param, Sentence):
-                    self.sentences.append(self.next_data(self.separators)[0])
+                    self.sentences.append(self.next_data()[0])
             except FuzzyMatchSuccess as e:
                 output_send(self.alconna.name, lambda: str(e)).handle({}, is_raise_exception=self.is_raise_exception)
                 return self.export(fail=True)
@@ -95,11 +99,9 @@ class DefaultCommandAnalyser(Analyser):
         if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):
             return self.export()
 
-        data_len = self.rest_count(self.separators)
+        data_len = len(self.rest_data())
         if data_len > 0:
-            exc = ParamsUnmatched(
-                config.lang.analyser_param_unmatched.format(target=self.next_data(self.separators, pop=False)[0])
-            )
+            exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.next_data(pop=False)[0]))
         else:
             exc = ArgumentMissing(config.lang.analyser_param_missing)
         if self.is_raise_exception:

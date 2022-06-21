@@ -2,7 +2,7 @@ from typing import Union
 
 from arclet.alconna import Args
 from arclet.alconna.analysis.base import analyse_args
-from arclet.alconna.typing import BasePattern, PatternModel
+from arclet.alconna.typing import BasePattern, PatternModel, Bind
 
 
 def test_kwargs_create():

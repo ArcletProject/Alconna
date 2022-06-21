@@ -34,7 +34,7 @@ class DefaultTextFormatter(AbstractTextFormatter):
     def parameters(self, args: Args) -> str:
         param_texts = [self.param(k, param) for k, param in args.argument.items()]
         if len(args.separators) == 1:
-            separator = args.separators.copy().pop()
+            separator = tuple(args.separators)[0]
             return separator.join(param_texts)
         return " ".join(param_texts) + " splitBy:" + "/".join(args.separators)
 
@@ -50,7 +50,7 @@ class DefaultTextFormatter(AbstractTextFormatter):
             example = '\n使用示例:\n' + res[0]
         headers = f"[{''.join(map(str, headers))}]" if (headers := root.get('header', [''])) != [''] else ""
         cmd = f"{headers}{root.get('name', '')}"
-        command_string = cmd or (root['name'] + separators.copy().pop())
+        command_string = cmd or (root['name'] + tuple(separators)[0])
         return f"{command_string} %s{help_string}{usage}\n%s{example}"
 
     def part(self, node: Union[Subcommand, Option]) -> str:
@@ -60,7 +60,7 @@ class DefaultTextFormatter(AbstractTextFormatter):
             option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
             return (
                 f"# {node.help_text}\n"
-                f"  {name}{node.separators.copy().pop()}"
+                f"  {name}{tuple(node.separators)[0]}"
                 f"{self.parameters(node.args)}\n"
                 f"{option_help}{option_string}"
             )
@@ -68,7 +68,7 @@ class DefaultTextFormatter(AbstractTextFormatter):
             alias_text = " ".join(node.requires) + (' ' if node.requires else '') + ", ".join(node.aliases)
             return (
                 f"# {node.help_text}\n"
-                f"  {alias_text}{node.separators.copy().pop()}"
+                f"  {alias_text}{tuple(node.separators)[0]}"
                 f"{self.parameters(node.args)}\n"
             )
         else:
@@ -126,7 +126,7 @@ class ArgParserTextFormatter(AbstractTextFormatter):
     def parameters(self, args: Args) -> str:
         param_texts = [self.param(k, param) for k, param in args.argument.items()]
         if len(args.separators) == 1:
-            separator = args.separators.copy().pop()
+            separator = tuple(args.separators)[0]
             return separator.join(param_texts)
         return " ".join(param_texts) + ", USED SPLIT:" + "/".join(args.separators)
 
@@ -142,7 +142,7 @@ class ArgParserTextFormatter(AbstractTextFormatter):
             example = '\n样例:' + res[0] + '\n'
         header_text = f"/{''.join(map(str, headers))}/" if (headers := root.get('header', [''])) != [''] else ""
         cmd = f"{header_text}{root.get('name', '')}"
-        sep = separators.copy().pop()
+        sep = tuple(separators)[0]
         command_string = cmd or (root['name'] + sep)
         return f"\n命令: {command_string}{help_string}{usage}%s\n%s{example}"
 
@@ -155,7 +155,7 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         opt_description = []
         for opt in filter(lambda x: isinstance(x, Option) and x.name != "--shortcut", parts):
             alias_text = " ".join(opt.requires) + (' ' if opt.requires else '') + ", ".join(opt.aliases)
-            options.append(f"  {alias_text}{opt.separators.copy().pop()}{self.parameters(opt.args)}")
+            options.append(f"  {alias_text}{tuple(opt.separators)[0]}{self.parameters(opt.args)}")
             opt_description.append(opt.help_text)
         if options:
             max_len = max(map(lambda x: len(x), options))
@@ -167,7 +167,7 @@ class ArgParserTextFormatter(AbstractTextFormatter):
             name = " ".join(sub.requires) + (' ' if sub.requires else '') + sub.name
             sub_topic = " ".join(f"[{i.name}]" for i in sub.options)  # type: ignore
             args = self.parameters(sub.args)
-            subcommands.append(f"  {name} {sub.separators.copy().pop().join([args, sub_topic])}")
+            subcommands.append(f"  {name} {tuple(sub.separators)[0].join([args, sub_topic])}")
             sub_description.append(sub.help_text)
         if subcommands:
             max_len = max(map(lambda x: len(x), subcommands))

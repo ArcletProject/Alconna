@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Args, AnyOne, compile, command_manager
+from arclet.alconna import Alconna, Args, AnyOne, compile, command_manager, config
 import cProfile
 import pstats
 
@@ -20,28 +20,48 @@ class At:
         self.target = t
 
 
-ping = Alconna(
+alc = Alconna(
     headers=["."],
     command="test",
     main_args=Args["bar", AnyOne]
 )
-s_ping = compile(ping)
+compile_alc = compile(alc)
 
 msg = [Plain(".test"), At(124)]
 count = 10000
+
+config.enable_message_cache = False
 
 if __name__ == "__main__":
     st = time.time()
 
     for _ in range(count):
-        s_ping.analyse(msg)
+        compile_alc.process_message(msg)
+        compile_alc.analyse()
     ed = time.time()
     print(f"Alconna: {count / (ed - st):.2f}msg/s")
+
+    print("RUN 2:")
+    li = []
+
+    pst = time.time()
+    for _ in range(count):
+        st = time.thread_time_ns()
+        compile_alc.process_message(msg)
+        compile_alc.analyse()
+        ed = time.thread_time_ns()
+        li.append(ed - st)
+    led = time.time()
+
+    print(f"Alconna: {sum(li) / count} ns per loop with {count} loops")
+
     command_manager.records.clear()
+
     prof = cProfile.Profile()
     prof.enable()
     for _ in range(count):
-        s_ping.analyse(msg)
+        compile_alc.process_message(msg)
+        compile_alc.analyse()
     prof.create_stats()
 
     stats = pstats.Stats(prof)

@@ -93,7 +93,7 @@ def test_fire_like_func():
         print("Hello {}!".format(name))
 
     con4 = AlconnaFire(test_function)
-    assert con4.parse("con4 talk Friend").matched is True
+    assert con4.parse("con4 Friend").matched is True
 
 
 def test_delegate():

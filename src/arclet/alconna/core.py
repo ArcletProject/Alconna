@@ -309,13 +309,12 @@ class Alconna(CommandNode):
     def __repr__(self):
         return f"<{self.namespace}::{self.name} with {len(self.options)} options; args={self.args}>"
 
-    def add_option(
-            self,
-            name: str,
-            *alias: str,
-            args: Optional[Args] = None,
-            sep: str = " ",
-            help_text: Optional[str] = None,
+    def add(
+        self,
+        name: str, *alias: str,
+        args: Optional[Args] = None,
+        sep: str = " ",
+        help_text: Optional[str] = None,
     ):
         """链式注册一个 Option"""
         command_manager.delete(self)
@@ -326,42 +325,20 @@ class Alconna(CommandNode):
         command_manager.register(self)
         return self
 
-    def set_action(
-            self,
-            action: Union[Callable, str, ArgAction],  # type: ignore
-            custom_types: Optional[Dict[str, Type]] = None
-    ):
-        """设置针对main_args的action"""
-        if isinstance(action, str):
-            ns = {}
-            exec(action, getattr(self, "custom_types", custom_types), ns)
-            action: Callable = ns.popitem()[1]
-        self.action = ArgAction.__validator__(action, self.args)
-        return self
-
     @overload
     def parse(
-            self,
-            message: DataCollection[Union[str, Any]],
-            duplication: Type[T_Duplication],
-            static: bool = True,
-
+            self, message: DataCollection[Union[str, Any]], duplication: Type[T_Duplication], static: bool = True,
     ) -> T_Duplication:
         ...
 
     @overload
     def parse(
-            self,
-            message: DataCollection[Union[str, Any]],
-            duplication=None,
-            static: bool = True
+            self, message: DataCollection[Union[str, Any]], duplication=None, static: bool = True
     ) -> Arpamar:
         ...
 
     def parse(
-            self,
-            message: DataCollection[Union[str, Any]],
-            duplication: Optional[Type[T_Duplication]] = None,
+            self, message: DataCollection[Union[str, Any]], duplication: Optional[Type[T_Duplication]] = None,
             static: bool = True,
     ):
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
