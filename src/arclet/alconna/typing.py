@@ -1,5 +1,6 @@
 """Alconna 参数相关"""
 import re
+import sre_compile
 import inspect
 from copy import copy
 from collections.abc import Sequence as ABCSeq, Set as ABCSet, \
@@ -22,7 +23,7 @@ from .util import generic_isinstance
 
 DataUnit = TypeVar("DataUnit", covariant=True)
 GenericAlias = type(List[int])
-# AnnotatedAlias = type(Annotated[int, lambda x: x > 0])
+TPattern: Type[Pattern] = type(sre_compile.compile('', 0))
 
 
 @runtime_checkable
@@ -49,7 +50,6 @@ class PatternModel(IntEnum):
 
 class _All:
     """泛匹配"""
-
     def __repr__(self):
         return "AllParam"
 
@@ -64,7 +64,7 @@ class BasePattern(Generic[TOrigin]):
     对参数类型值的包装
     """
 
-    regex_pattern: Pattern
+    regex_pattern: TPattern
     pattern: str
     model: PatternModel
     converter: Callable[[Union[str, Any]], TOrigin]
@@ -398,12 +398,11 @@ AnyPathFile = BasePattern(
 
 _Digit = BasePattern(r"(\-?\d+)", PatternModel.REGEX_CONVERT, int, lambda x: int(x), "int")
 _Float = BasePattern(r"(\-?\d+\.?\d*)", PatternModel.REGEX_CONVERT, float, lambda x: float(x), "float")
-_Bool = BasePattern(r"(True|False|true|false)", PatternModel.REGEX_CONVERT, bool, lambda x: x.lower() == "true", "bool")
+_Bool = BasePattern(r"(?i:True|False)", PatternModel.REGEX_CONVERT, bool, lambda x: x.lower() == "true", "bool")
 _List = BasePattern(r"(\[.+?\])", PatternModel.REGEX_CONVERT, list, alias="list")
 _Tuple = BasePattern(r"(\(.+?\))", PatternModel.REGEX_CONVERT, tuple, alias="tuple")
 _Set = BasePattern(r"(\{.+?\})", PatternModel.REGEX_CONVERT, set, alias="set")
 _Dict = BasePattern(r"(\{.+?\})", PatternModel.REGEX_CONVERT, dict, alias="dict")
-
 set_converters([AnyPathFile, _String, _Digit, _Float, _Bool, _List, _Tuple, _Set, _Dict])
 
 
@@ -444,6 +443,9 @@ def args_type_parser(item: Any, extra: str = "allow"):
         return BasePattern("", 0, origin, alias=f"{repr(item).split('.')[-1]}", accepts=[origin])  # type: ignore
 
     if isinstance(item, str):
+        if "|" in item:
+            names = item.split("|")
+            return UnionArg(args_type_parser(i) for i in names if i)
         return BasePattern(item, alias=f"\'{item}\'")
     if isinstance(item, (list, tuple, set, ABCSeq, ABCMuSeq, ABCSet, ABCMuSet)):  # Args[foo, [123, int]]
         return UnionArg(map(args_type_parser, item))
@@ -487,5 +489,5 @@ def set_unit(target: Type, predicate: Callable[..., bool]):
 __all__ = [
     "DataCollection", "Empty", "AnyOne", "AllParam", "PatternModel", "BasePattern", "MultiArg", "UnionArg", "Bind",
     "pattern_map", "set_converter", "set_converters", "remove_converter", "args_type_parser", "set_unit",
-    "SequenceArg", "MappingArg"
+    "SequenceArg", "MappingArg", "TPattern"
 ]

@@ -3,15 +3,14 @@ import traceback
 from weakref import finalize
 from copy import copy
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Pattern, Generic, TypeVar, \
-    Set, Callable
+from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable
 
 from ..manager import command_manager
 from ..exceptions import NullMessage
 from ..base import Args, Option, Subcommand, Sentence, StrMounter
 from ..arpamar import Arpamar
 from ..util import split_once, split
-from ..typing import DataCollection, pattern_map, BasePattern, args_type_parser
+from ..typing import DataCollection, pattern_map, BasePattern, args_type_parser, TPattern
 from ..config import config
 
 if TYPE_CHECKING:
@@ -42,8 +41,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     param_ids: Set[str]
     # 命令头部
     command_header: Union[
-        Union[Pattern, BasePattern], List[Tuple[Any, Pattern]],
-        Tuple[Union[Tuple[List[Any], Pattern], List[Any]], Union[Pattern, BasePattern]],
+        Union[TPattern, BasePattern], List[Tuple[Any, TPattern]],
+        Tuple[Union[Tuple[List[Any], TPattern], List[Any]], Union[TPattern, BasePattern]],
     ]
     separators: Set[str]  # 分隔符
     is_raise_exception: bool  # 是否抛出异常
@@ -70,9 +69,9 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             raise TypeError(config.lang.analyser_filter_missing)
 
     @staticmethod
-    def generate_token(data: List[Union[Any, List[str]]], hs=hash) -> int:
-        # return hs(str(data))
-        return hs(tuple(i.__str__() for i in data))
+    def generate_token(data: List[Union[Any, List[str]]]) -> int:
+        # return hash(str(data))
+        return hash(tuple(i.__str__() for i in data))
 
     def __init__(self, alconna: "Alconna"):
         self.reset()
@@ -85,6 +84,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.need_main_args = False
         self.default_main_only = False
         self.default_separate = True
+        self.param_ids = set()
+        self.command_params = {}
         self.__handle_main_args__(alconna.args, alconna.nargs)
         self.__init_header__(alconna.command, alconna.headers)
         self.__init_actions__()
@@ -155,7 +156,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 else:
                     elements.append(h)
             if not elements:
-                if isinstance(_command_name, Pattern):
+                if isinstance(_command_name, TPattern):
                     self.command_header = re.compile(f"(?:{ch_text[:-1]}){_command_str}")   # noqa
                 else:
                     _command_name.pattern = f"(?:{ch_text[:-1]}){_command_name.pattern}"  # type: ignore
@@ -181,13 +182,11 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     @staticmethod
     def default_params_generator(analyser: "Analyser"):
-        analyser.param_ids = set()
-        analyser.command_params = {}
         analyser.part_len = range(len(analyser.alconna.options) + (1 if analyser.need_main_args else 0))
         for opts in analyser.alconna.options:
             if isinstance(opts, Option):
                 for al in opts.aliases:
-                    if analyser.command_params.get(al):
+                    if (li := analyser.command_params.get(al)) and isinstance(li, list):
                         analyser.command_params[al].append(opts)  # type: ignore
                     else:
                         analyser.command_params[al] = [opts]
@@ -198,18 +197,20 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0))
                 for sub_opts in opts.options:
                     for al in sub_opts.aliases:
-                        if opts.sub_params.get(al):
+                        if (li := opts.sub_params.get(al)) and isinstance(li, list):
                             opts.sub_params[al].append(sub_opts)  # type: ignore
                         else:
                             opts.sub_params[al] = [sub_opts]
                     if sub_opts.requires:
-                        opts.sub_params.update({k: Sentence(name=k) for k in sub_opts.requires})
+                        for k in sub_opts.requires:
+                            opts.sub_params.setdefault(k, Sentence(name=k))
                     analyser.param_ids.update(sub_opts.aliases)
             if not analyser.separators.issuperset(opts.separators):
                 analyser.default_separate &= False
             if opts.requires:
                 analyser.param_ids.update(opts.requires)
-                analyser.command_params.update({k: Sentence(name=k) for k in opts.requires})
+                for k in opts.requires:
+                    analyser.command_params.setdefault(k, Sentence(name=k))
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.alconna.path}>"

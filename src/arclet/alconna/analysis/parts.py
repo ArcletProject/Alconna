@@ -1,9 +1,9 @@
 import re
-from typing import Iterable, Union, List, Any, Dict, Pattern, Tuple, Set
+from typing import Iterable, Union, List, Any, Dict, Tuple, Set
 
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
-from ..typing import AllParam, Empty, MultiArg, BasePattern
+from ..typing import AllParam, Empty, MultiArg, BasePattern, TPattern
 from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult, Sentence
 from ..util import levenshtein_norm, split_once
 from ..config import config
@@ -304,7 +304,7 @@ def analyse_header(
     """
     command = analyser.command_header
     head_text, _str = analyser.next_data()
-    if isinstance(command, Pattern) and _str and (_head_find := command.fullmatch(head_text)):
+    if isinstance(command, TPattern) and _str and (_head_find := command.fullmatch(head_text)):
         analyser.head_matched = True
         return _head_find.groupdict() or True
     elif isinstance(command, BasePattern) and (_head_find := command.validate(head_text, Empty)[0]):
@@ -322,14 +322,14 @@ def analyse_header(
                 (isinstance(command[0], list) and head_text in command[0]) or
                 (isinstance(command[0], tuple) and head_text in command[0][0])
             ):
-                if isinstance(command[1], Pattern):
+                if isinstance(command[1], TPattern):
                     if _m_str and (_command_find := command[1].fullmatch(may_command)):
                         analyser.head_matched = True
                         return _command_find.groupdict() or True
                 elif _command_find := command[1].validate(may_command, Empty)[0]:
                     analyser.head_matched = True
                     return _command_find or True
-            elif _str and isinstance(command[0][1], Pattern):
+            elif _str and isinstance(command[0][1], TPattern):
                 if not _m_str:
                     if isinstance(command[1], BasePattern) and (_head_find := command[0][1].fullmatch(head_text)) and (
                         _command_find := command[1].validate(may_command, Empty)[0]
@@ -357,7 +357,7 @@ def analyse_header(
                         headers_text.extend((f"{i}", analyser.alconna.command))
             elif analyser.alconna.command:
                 headers_text.append(analyser.alconna.command)
-            if isinstance(command, (Pattern, BasePattern)):
+            if isinstance(command, (TPattern, BasePattern)):
                 source = head_text
             else:
                 source = head_text + analyser.separators.copy().pop() + str(may_command)  # type: ignore  # noqa

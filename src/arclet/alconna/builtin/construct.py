@@ -258,7 +258,7 @@ def _from_format(
                 _name, _requires = _string_stack[-1], _string_stack[:-1]
                 if isinstance(value, Option):
                     options.append(Subcommand(_name, [value], requires=_requires))
-                elif isinstance(value, List):
+                elif isinstance(value, list):
                     options.append(Subcommand(_name, value, requires=_requires))
                 elif isinstance(value, Args):
                     options.append(Option(_name, args=value, requires=_requires))
@@ -269,7 +269,7 @@ def _from_format(
                 if i == 0:
                     if isinstance(value, Args):
                         main_args.__merge__(value)
-                    elif not isinstance(value, Option) and not isinstance(value, List):
+                    elif not isinstance(value, Option) and not isinstance(value, list):
                         main_args.__merge__(Args(**{key: value}))
                 elif isinstance(value, Option):
                     options.append(value)
