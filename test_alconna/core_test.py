@@ -244,6 +244,32 @@ def test_shortcut():
     assert res.matched is True
     assert res.foo == 432
 
+
+def test_help():
+    alc17 = Alconna("core17") + Option("foo", Args["bar", str])
+    alc17.parse("core17 --help")
+    alc17.parse("core17 --help foo")
+    alc17_1 = Alconna(
+        "core17_1", options=[Option("foo bar abc baz", Args["qux", int]), Option("foo qux bar", Args["baz", str])]
+    )
+    alc17_1.parse("core17_1 --help")
+    alc17_1.parse("core17_1 --help aaa")
+
+
+def test_hide_annotation():
+    alc18 = Alconna("core18", Args["foo", int])
+    print(alc18.get_help())
+    alc18_1 = Alconna("core18_1", Args["foo;H", int])
+    print(alc18_1.get_help())
+
+
+def test_args_notice():
+    alc19 = Alconna("core19", Args["foo#A TEST;O", int]) + Option("bar", Args["baz#ANOTHER TEST;K", str])
+    print('')
+    print(alc19.get_help())
+
+
 if __name__ == '__main__':
     import pytest
+
     pytest.main([__file__, "-vs"])

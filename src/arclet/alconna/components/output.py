@@ -72,6 +72,37 @@ if TYPE_CHECKING:
     from ..core import Alconna, AlconnaGroup
 
 
+def resolve_requires(options: List[Union[Option, Subcommand]]):
+    reqs: Dict[str, Union[dict, Union[Option, Subcommand]]] = {}
+
+    def _u(target, source):
+        for k in source:
+            if k not in target or isinstance(target[k], (Option, Subcommand)):
+                target.update(source)
+                break
+            _u(target[k], source[k])
+
+    for opt in options:
+        if not opt.requires:
+            reqs.setdefault(opt.name, opt)
+            [reqs.setdefault(i, opt) for i in opt.aliases] if isinstance(opt, Option) else None
+        else:
+            _reqs = _cache = {}
+            for req in opt.requires:
+                if not _reqs:
+                    _reqs[req] = {}
+                    _cache = _reqs[req]
+                else:
+                    _cache[req] = {}
+                    _cache = _cache[req]
+            _cache[opt.name] = opt  # type: ignore
+            [_cache.setdefault(i, opt) for i in opt.aliases] if isinstance(opt, Option) else None  # type: ignore
+
+            _u(reqs, _reqs)
+
+    return reqs
+
+
 @dataclass
 class Trace:
     head: Dict[str, Any]
@@ -90,12 +121,16 @@ class AbstractTextFormatter(metaclass=ABCMeta):
 
     该格式化器负责将传入的命令节点字典解析并生成帮助文档字符串
     """
+
     def __init__(self, base: Union['Alconna', 'AlconnaGroup']):
         self.data = []
 
         def _handle(command: 'Alconna'):
+            hds = command.headers.copy()
+            if command.name in hds:
+                hds.remove(command.name)
             return Trace(
-                {'name': command.name, 'header': command.headers, 'description': command.help_text},
+                {'name': command.name, 'header': hds or [''], 'description': command.help_text},
                 command.args, command.separators, command.options
             )
 
@@ -105,57 +140,67 @@ class AbstractTextFormatter(metaclass=ABCMeta):
             else:
                 self.data.append(_handle(cmd))  # type: ignore
 
-    def format_node(self, end: Optional[List[str]] = None):
+    def format_node(self, end: Optional[list] = None):
         """
         格式化命令节点
         """
-        end = end  # TODO: 依据end确定起始位置
-        res = ''
-        for trace in self.data:
-            res += self.format(trace) + '\n'
-        return res
+
+        def _handle(trace: Trace):
+            if not end or end == ['']:
+                return self.format(trace)
+            _cache = resolve_requires(trace.body)
+            _parts = []
+            for text in end:
+                if text in _cache:
+                    _cache = _cache[text]
+                    _parts.append(text)
+                if not isinstance(_cache, dict):
+                    break
+            else:
+                return self.format(trace)
+            if isinstance(_cache, dict):
+                return self.format(Trace(
+                    {"name": _parts[-1], 'header': [''], 'description': _parts[-1]}, Args(), trace.separators,
+                    [Option(k, requires=_parts) if isinstance(i, dict) else i for k, i in _cache.items()]
+                ))
+            if isinstance(_cache, Option):
+                _hdr = [i for i in _cache.aliases if i != _cache.name]
+                return self.format(Trace(
+                    {"name": _cache.name, "header": _hdr or [""], "description": _cache.help_text}, _cache.args,
+                    _cache.separators, []
+                ))
+            if isinstance(_cache, Subcommand):
+                return self.format(Trace(
+                    {"name": _cache.name, "header": [""], "description": _cache.help_text}, _cache.args,
+                    _cache.separators, _cache.options
+                ))
+            return self.format(trace)
+
+        return "\n".join(map(_handle, self.data))
 
     @abstractmethod
     def format(self, trace: Trace) -> str:
-        """
-        help text的生成入口
-        """
-        pass
+        """help text的生成入口"""
 
     @abstractmethod
-    def param(self, name: str,  parameter: ArgUnit) -> str:
-        """
-        对单个参数的描述
-        """
-        pass
+    def param(self, name: str, parameter: ArgUnit) -> str:
+        """对单个参数的描述"""
 
     @abstractmethod
     def parameters(self, args: Args) -> str:
-        """
-        参数列表的描述
-        """
-        pass
+        """参数列表的描述"""
 
     @abstractmethod
     def header(self, root: Dict[str, Any], separators: Set[str]) -> str:
-        """
-        头部节点的描述
-        """
-        pass
+        """头部节点的描述"""
 
     @abstractmethod
     def part(self, node: Union[Subcommand, Option]) -> str:
-        """
-        每个子节点的描述
-        """
-        pass
+        """每个子节点的描述"""
 
     @abstractmethod
     def body(self, parts: List[Union[Option, Subcommand]]) -> str:
-        """
-        子节点列表的描述
-        """
-        pass
+        """子节点列表的描述"""
 
 
 __all__ = ["AbstractTextFormatter", "output_send", "output_manager", "Trace"]

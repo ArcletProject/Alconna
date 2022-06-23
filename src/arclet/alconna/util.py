@@ -98,6 +98,7 @@ def levenshtein_norm(source: str, target: str) -> float:
 
 _K = TypeVar("_K", bound=Hashable)
 _V = TypeVar("_V")
+_T = TypeVar("_T")
 
 
 class LruCache(Generic[_K, _V]):
@@ -114,17 +115,16 @@ class LruCache(Generic[_K, _V]):
         self.record = {}
         self.__size = 0
 
-    def __getitem__(self, key: _K) -> _V:
+    def get(self, key: _K, default: Optional[_T] = None) -> Union[_V, _T]:
         if key in self.cache:
             self.cache.move_to_end(key)
             return self.cache[key]
-        raise KeyError(key)
+        return default
 
-    def get(self, key: _K, default: Any = None) -> _V:
-        try:
-            return self[key]
-        except KeyError:
-            return default
+    def __getitem__(self, item):
+        if res := self.get(item):
+            return res
+        raise ValueError
 
     def query_time(self, key: _K) -> datetime:
         if key in self.cache:
@@ -197,27 +197,6 @@ class LruCache(Generic[_K, _V]):
         return iter(self.cache.items())
 
 
-def generic_issubclass(cls: type, par: Union[type, Any, Tuple[type, ...]]) -> bool:
-    """
-    检查 cls 是否是 par 中的一个子类, 支持泛型, Any, Union, GenericAlias
-    """
-    if par is Any:
-        return True
-    with contextlib.suppress(TypeError):
-        if isinstance(par, (type, tuple)):
-            return issubclass(cls, par)
-        if issubclass(cls, get_origin(par)):  # type: ignore
-            return True
-        if get_origin(par) is Union:
-            return any(generic_issubclass(cls, p) for p in get_args(par))
-        if isinstance(par, TypeVar):
-            if par.__constraints__:
-                return any(generic_issubclass(cls, p) for p in par.__constraints__)
-            if par.__bound__:
-                return generic_issubclass(cls, par.__bound__)
-    return False
-
-
 def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> bool:
     """
     检查 obj 是否是 par 中的一个类型, 支持泛型, Any, Union, GenericAlias
@@ -227,13 +206,8 @@ def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> boo
     with contextlib.suppress(TypeError):
         if isinstance(par, (type, tuple)):
             return isinstance(obj, par)
-        if isinstance(obj, get_origin(par)):  # type: ignore
+        if isinstance(obj, get_origin(par)):
             return True
         if get_origin(par) is Union:
             return any(generic_isinstance(obj, p) for p in get_args(par))
-        if isinstance(par, TypeVar):
-            if par.__constraints__:
-                return any(generic_isinstance(obj, p) for p in par.__constraints__)
-            if par.__bound__:
-                return generic_isinstance(obj, par.__bound__)
     return False

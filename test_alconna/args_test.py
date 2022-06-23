@@ -89,6 +89,8 @@ def test_union():
     assert analyse_args(arg11_1, "1.2") == analyse_args(arg11, "1.2")
     assert analyse_args(arg11_1, "abc") == {"bar": "abc"}
     assert analyse_args(arg11_1, "cba", raise_exception=False) != {"bar": "cba"}
+    arg11_2 = Args.bar["int|float"]
+    assert analyse_args(arg11_2, "1.2") == analyse_args(arg11_1, "1.2")
 
 
 def test_force():
@@ -107,6 +109,8 @@ def test_kwonly():
     arg14 = Args.foo[str].add_argument("bar", value=int, flags="K")
     assert analyse_args(arg14, 'abc bar=123') == {'foo': 'abc', 'bar': 123}
     assert analyse_args(arg14, 'abc 123', raise_exception=False) != {'foo': 'abc', 'bar': 123}
+    arg14_1 = Args["--width;OK", int, 1280]["--height;OK", int, 960]
+    assert analyse_args(arg14_1, "--width=960 --height=960") == {"--width": 960, "--height": 960}
 
 
 def test_pattern():

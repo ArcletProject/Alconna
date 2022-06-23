@@ -28,18 +28,20 @@ alc = Alconna(
 compile_alc = compile(alc)
 
 msg = [Plain(".test"), At(124)]
-count = 10000
+count = 20000
 
-config.enable_message_cache = False
+config.enable_message_cache = True
 
 if __name__ == "__main__":
-    st = time.time()
 
+    sec = 0.0
     for _ in range(count):
+        st = time.time()
         compile_alc.process_message(msg)
         compile_alc.analyse()
-    ed = time.time()
-    print(f"Alconna: {count / (ed - st):.2f}msg/s")
+        ed = time.time()
+        sec += ed - st
+    print(f"Alconna: {count / sec:.2f}msg/s")
 
     print("RUN 2:")
     li = []

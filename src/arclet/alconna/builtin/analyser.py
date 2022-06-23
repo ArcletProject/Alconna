@@ -86,6 +86,8 @@ class DefaultCommandAnalyser(Analyser):
                 output_send(self.alconna.name, lambda: str(e)).handle({}, is_raise_exception=self.is_raise_exception)
                 return self.export(fail=True)
             except (ParamsUnmatched, ArgumentMissing):
+                if self.rest_data()[-1] in ("--help", "-h"):
+                    return handle_help(self)
                 if self.is_raise_exception:
                     raise
                 return self.export(fail=True)

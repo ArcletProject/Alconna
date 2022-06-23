@@ -2,7 +2,7 @@
 
 import re
 import inspect
-from copy import copy
+from copy import deepcopy
 from enum import Enum
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -32,13 +32,13 @@ class ArgFlag(str, Enum):
 
 
 class ArgUnit(TypedDict):
-    """
-    参数单元
-    """
+    """参数单元 """
     value: TAValue
     """参数值"""
     default: TADefault
     """默认值"""
+    notice: Optional[str]
+    """参数提示"""
     optional: bool
     """是否可选"""
     kwonly: bool
@@ -110,8 +110,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
             default = arg[2].strip(" ") if _le > 2 else None
             value = AllParam if arg[0].startswith("...") else (
-                AnyOne if arg[0].startswith("..") else (
-                    arg[1].strip(" ") if _le > 1 else arg[0].lstrip(".-"))
+                AnyOne if arg[0].startswith("..") else (arg[1].strip(" ") if _le > 1 else arg[0].lstrip(".-"))
             )
             name = arg[0].replace("...", "").replace("..", "")
 
@@ -190,7 +189,8 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.optional_count = 0
         self.separators = {separators} if isinstance(separators, str) else set(separators)
         self.argument = {  # type: ignore
-            k: {"value": args_type_parser(v), "default": None, 'optional': False, 'hidden': False, 'kwonly': False}
+            k: {"value": args_type_parser(v), "default": None, 'notice': None,
+                'optional': False, 'hidden': False, 'kwonly': False}
             for k, v in kwargs.items()
         }
         for arg in (args or []):
@@ -205,7 +205,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         if name in self.argument:
             return self
         if flags:
-            name += ";" + "|".join(flags)
+            name += ";" + "".join(flags)
         self.__check_var__([name, value, default])
         return self
 
@@ -236,19 +236,15 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             default = Empty
         if _value is Empty:
             raise InvalidParam(config.lang.args_value_error.format(target=name))
-        name, arg = self.__handle_flags__(name, value, _value, default)
-        self.argument[name] = arg
-
-    @staticmethod
-    def __handle_force__(slot: ArgUnit, value):
-        slot['value'] = (
-            BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value)
-        )
-
-    def __handle_flags__(self, name, value, _value, default):
-        slot: ArgUnit = {'value': _value, 'default': default, 'optional': False, 'hidden': False, 'kwonly': False}
-        if res := re.match(r"^.+?;(?P<flag>[^;]+?)$", name):
-            flags = res.group("flag").split("|")
+        slot: ArgUnit = {
+            'value': _value, 'default': default, 'notice': None,
+            'optional': False, 'hidden': False, 'kwonly': False
+        }
+        if res := re.match(r"^.+?#(?P<notice>[^;#]+)", name):
+            slot['notice'] = res.group("notice")
+            name = name.replace(f"#{res.group('notice')}", "")
+        if res := re.match(r"^.+?;(?P<flag>[^;#]+)", name):
+            flags = res.group("flag")
             name = name.replace(f";{res.group('flag')}", "")
             _limit = False
             for flag in flags:
@@ -256,10 +252,8 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                     self.__handle_force__(slot, value)
                     _limit = True
                 if flag == ArgFlag.ANTI and not _limit:
-                    if isinstance(slot['value'], UnionArg):
-                        slot['value'].reverse()
-                    elif slot['value'] not in (AnyOne, AllParam):
-                        slot['value'] = copy(_value).reverse()
+                    if slot['value'] not in (AnyOne, AllParam):
+                        slot['value'] = deepcopy(_value).reverse()
                     _limit = True
                 if flag == ArgFlag.VAR_KEYWORD and not _limit:
                     if self.var_keyword:
@@ -291,7 +285,13 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                     if self.var_keyword or self.var_positional:
                         raise InvalidParam(config.lang.args_exclude_mutable_args)
                     slot['kwonly'] = True
-        return name, slot
+        self.argument[name] = slot
+
+    @staticmethod
+    def __handle_force__(slot: ArgUnit, value):
+        slot['value'] = (
+            BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value)
+        )
 
     def __len__(self):
         return len(self.argument)

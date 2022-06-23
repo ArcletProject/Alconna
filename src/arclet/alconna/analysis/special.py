@@ -6,7 +6,7 @@ from .analyser import Analyser
 
 def handle_help(analyser: Analyser):
     analyser.current_index, analyser.content_index = analyser.head_pos
-    _help_param = analyser.rest_data()
+    _help_param = [str(i) for i in analyser.rest_data() if i not in {"-h", "--help"}]
 
     def _get_help():
         formatter = analyser.alconna.formatter_type(analyser.alconna)
