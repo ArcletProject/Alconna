@@ -12,9 +12,11 @@
 7. 加入一个类似`beartype`的[`checker`](src/arclet/alconna/builtin/checker.py)
 8. 命令头部允许使用非str类型, 即可以`Alconna(int)`
 9. 解析器增加预处理器选项, 允许在分划数据单元前进行转化处理
-10. 性能提升, 理想情况最快约为 25w msg/s
+10. 性能提升, 理想情况最快约为 20w msg/s
 11. 删除`Alconna.set_action`
-12. 修复bugs
+12. 重构 `ObjectPattern`
+13. 增加 `datetime`的 BasePattern, 支持传入时间戳或日期文字
+14. 修复bugs
 
 # Alconna 0.9.x:
 

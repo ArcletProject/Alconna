@@ -1,4 +1,5 @@
 from arclet.alconna.typing import DataCollection, BasePattern, PatternModel, args_type_parser
+from arclet.alconna.builtin.pattern import ObjectPattern
 
 
 def test_collection():
@@ -67,6 +68,7 @@ def test_pattern_accepts():
 
 def test_pattern_previous():
     """测试 BasePattern 的前置表达式, 在传入的对象类型不正确时会尝试用前置表达式进行预处理"""
+
     class A:
         def __repr__(self):
             return '123'
@@ -100,6 +102,18 @@ def test_args_parser():
     assert pat10_1 == BasePattern.on(123)
 
 
+def test_object_pattern():
+    class A:
+        def __init__(self, username: str, userid: int):
+            self.name = username
+            self.id = userid
+
+    pat11 = ObjectPattern(A, flag='urlget')
+
+    assert pat11.validate("username=abcd&userid=123")[1] == 'V'
+
+
 if __name__ == '__main__':
     import pytest
+
     pytest.main([__file__, "-vs"])

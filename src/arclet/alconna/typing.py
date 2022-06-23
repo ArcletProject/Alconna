@@ -2,6 +2,7 @@
 import re
 import sre_compile
 import inspect
+from datetime import datetime
 from copy import copy
 from collections.abc import Sequence as ABCSeq, Set as ABCSet, \
     MutableSet as ABCMuSet, MutableSequence as ABCMuSeq, MutableMapping as ABCMuMap, Mapping as ABCMap
@@ -199,6 +200,10 @@ _IP = BasePattern(
 _Url = BasePattern(r"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", alias="url")
 _HexLike = BasePattern(r"((?:0x)?[0-9a-fA-F]+)", PatternModel.REGEX_CONVERT, int, lambda x: int(x, 16), "hex")
 _HexColor = BasePattern(r"(#[0-9a-fA-F]{6})", PatternModel.REGEX_CONVERT, str, lambda x: x[1:], "color")
+_Datetime = BasePattern(
+    model=PatternModel.TYPE_CONVERT, origin=datetime, alias='datetime', accepts=[str, int],
+    converter=lambda x: datetime.fromtimestamp(x) if isinstance(x, int) else datetime.fromisoformat(x)
+)
 
 
 class MultiArg(BasePattern):
@@ -332,7 +337,7 @@ class MappingArg(BasePattern):
 
 pattern_map = {
     Any: AnyOne, Ellipsis: AnyOne, object: AnyOne, "email": _Email, "color": _HexColor,
-    "hex": _HexLike, "ip": _IP, "url": _Url, "...": AnyOne, "*": AllParam, "": Empty
+    "hex": _HexLike, "ip": _IP, "url": _Url, "...": AnyOne, "*": AllParam, "": Empty, "datetime": _Datetime
 }
 
 
