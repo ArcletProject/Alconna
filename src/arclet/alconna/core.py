@@ -88,8 +88,8 @@ class AlconnaGroup(CommandNode):
     def __getitem__(self, item: str):
         try:
             return next(filter(lambda x: x.name == item, self.commands))
-        except StopIteration:
-            raise KeyError(item)
+        except StopIteration as e:
+            raise KeyError(item) from e
 
     def __add__(self, other):
         return self.__union__(other)
@@ -99,8 +99,7 @@ class AlconnaGroup(CommandNode):
         for command in self.commands:
             if (res := command.parse(message)).matched:
                 return res
-        else:
-            return res
+        return res
 
 
 class Alconna(CommandNode):

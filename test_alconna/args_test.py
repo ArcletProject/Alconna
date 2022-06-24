@@ -130,6 +130,25 @@ def test_callable():
     assert analyse_args(arg16, "abc 123 True") == {"foo": "abc", "bar": 123, "baz": True}
 
 
+def test_func_anno():
+    from datetime import datetime
+
+    def test(time: Union[int, str]) -> datetime:
+        return datetime.fromtimestamp(time) if isinstance(time, int) else datetime.fromisoformat(time)
+
+    arg17 = Args["time", test]
+    assert analyse_args(arg17, "1145-05-14") == {"time": datetime.fromisoformat("1145-05-14")}
+
+
+def test_annotated():
+    from typing_extensions import Annotated
+
+    arg18 = Args["foo", Annotated[int, lambda x: x > 0]]["bar", Bind[int, lambda x: x < 0]]
+    assert analyse_args(arg18, "123 -123") == {"foo": 123, "bar": -123}
+    assert analyse_args(arg18, "0 0", raise_exception=False) != {"foo": 0, "bar": 0}
+
+
 if __name__ == '__main__':
     import pytest
+
     pytest.main([__file__, "-vs"])

@@ -137,7 +137,7 @@ def analyse_args(
             if value.__class__ is MultiArg:
                 multi_arg_handler(analyser, may_arg, key, value, default, nargs, seps, option_dict)  # type: ignore
             else:
-                res, state = value.validate(may_arg, default) if not value.anti else value.invalidate(may_arg, default)
+                res, state = value.invalidate(may_arg, default) if value.anti else value.validate(may_arg, default)
                 if state != "V":
                     analyser.reduce_data(may_arg)
                 if state == "E":
@@ -330,13 +330,7 @@ def analyse_header(
                     analyser.head_matched = True
                     return _command_find or True
             elif _str and isinstance(command[0][1], TPattern):
-                if not _m_str:
-                    if isinstance(command[1], BasePattern) and (_head_find := command[0][1].fullmatch(head_text)) and (
-                        _command_find := command[1].validate(may_command, Empty)[0]
-                    ):
-                        analyser.head_matched = True
-                        return _command_find or True
-                else:
+                if _m_str:
                     pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
                     if _head_find := pat.fullmatch(head_text):
                         analyser.reduce_data(may_command)
@@ -345,6 +339,11 @@ def analyse_header(
                     elif _command_find := pat.fullmatch(head_text + may_command):
                         analyser.head_matched = True
                         return _command_find.groupdict() or True
+                elif isinstance(command[1], BasePattern) and (_head_find := command[0][1].fullmatch(head_text)) and (
+                    _command_find := command[1].validate(may_command, Empty)[0]
+                ):
+                    analyser.head_matched = True
+                    return _command_find or True
 
     if not analyser.head_matched:
         if _str and analyser.alconna.is_fuzzy_match:

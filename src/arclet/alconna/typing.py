@@ -3,13 +3,14 @@ import re
 import sre_compile
 import inspect
 from datetime import datetime
-from copy import copy
+from copy import deepcopy
 from collections.abc import Sequence as ABCSeq, Set as ABCSet, \
     MutableSet as ABCMuSet, MutableSequence as ABCMuSeq, MutableMapping as ABCMuMap, Mapping as ABCMap
 from contextlib import suppress
 from functools import lru_cache
 from pathlib import Path
 from enum import IntEnum
+from types import FunctionType, LambdaType, MethodType
 from typing import TypeVar, Type, Callable, Optional, Protocol, Any, Pattern, Union, List, Dict, \
     Literal, Tuple, Iterable, Generic, Iterator, runtime_checkable
 
@@ -257,8 +258,7 @@ class UnionArg(BasePattern):
                 res, v = pat.validate(text)
                 if v == 'V':
                     return res
-            else:
-                raise ParamsUnmatched(config.lang.args_error.format(target=text))
+            raise ParamsUnmatched(config.lang.args_error.format(target=text))
         return text
 
     def __repr__(self):
@@ -341,12 +341,7 @@ pattern_map = {
 }
 
 
-def set_converter(
-        target: BasePattern,
-        alias: Optional[str] = None,
-        cover: bool = False,
-        data: Optional[dict] = None
-):
+def set_converter(target: BasePattern, alias: Optional[str] = None, cover: bool = False, data: Optional[dict] = None):
     """
     增加 Alconna 内使用的类型转换器
 
@@ -371,8 +366,7 @@ def set_converter(
 
 def set_converters(
         patterns: Union[Iterable[BasePattern], Dict[str, BasePattern]],
-        cover: bool = False,
-        data: Optional[dict] = None
+        cover: bool = False, data: Optional[dict] = None
 ):
     for arg_pattern in patterns:
         if isinstance(patterns, Dict):
@@ -424,7 +418,7 @@ def args_type_parser(item: Any, extra: str = "allow"):
             org, meta = get_args(item)
             if not isinstance(_o := args_type_parser(org, extra), BasePattern):  # type: ignore
                 return _o
-            _arg = copy(_o)
+            _arg = deepcopy(_o)
             _arg.validators.extend(meta if isinstance(meta, tuple) else [meta])  # type: ignore
             return _arg
         if origin in (Union, Literal):
@@ -446,7 +440,14 @@ def args_type_parser(item: Any, extra: str = "allow"):
         if origin in (ABCMuSet, ABCSet, set):
             return SequenceArg(args, form="set")
         return BasePattern("", 0, origin, alias=f"{repr(item).split('.')[-1]}", accepts=[origin])  # type: ignore
-
+    if isinstance(item, (FunctionType, MethodType, LambdaType)):
+        if len((sig := inspect.signature(item)).parameters) != 1:
+            raise TypeError(f"{item} can only accept 1 argument")
+        anno = list(sig.parameters.values())[0].annotation
+        return BasePattern(
+            accepts=[] if anno == Empty else list(_) if (_ := get_args(anno)) else [anno], converter=item,
+            origin=Any if sig.return_annotation == Empty else sig.return_annotation, model=PatternModel.TYPE_CONVERT
+        )
     if isinstance(item, str):
         if "|" in item:
             names = item.split("|")
@@ -482,12 +483,12 @@ class Bind:
             raise ValueError("Bind[...] first argument should be a BasePattern.")
         if not all(callable(i) for i in params[1:]):
             raise TypeError("Bind[...] second argument should be a callable.")
-        pattern = copy(pattern)
+        pattern = deepcopy(pattern)
         pattern.validators.extend(params[1:])
         return pattern
 
 
-def set_unit(target: Type, predicate: Callable[..., bool]):
+def set_unit(target: Type[TOrigin], predicate: Callable[..., bool]) -> Annotated[TOrigin, ...]:
     return Annotated[target, predicate]
 
 

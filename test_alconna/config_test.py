@@ -1,5 +1,5 @@
 from arclet.alconna.config import config
-from arclet.alconna import Alconna, Args, Option
+from arclet.alconna import Alconna, Option
 
 
 def test_config():

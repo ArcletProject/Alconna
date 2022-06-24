@@ -98,7 +98,7 @@ class DefaultCommandAnalyser(Analyser):
         if self.default_main_only and not self.main_args:
             self.main_args = analyse_args(self, self.self_args, self.alconna.nargs)
 
-        if self.current_index == self.ndata and (not self.need_main_args or (self.need_main_args and self.main_args)):
+        if self.current_index == self.ndata and (not self.need_main_args or self.main_args):
             return self.export()
 
         data_len = len(self.rest_data())

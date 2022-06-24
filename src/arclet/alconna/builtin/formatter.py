@@ -21,9 +21,7 @@ class DefaultTextFormatter(AbstractTextFormatter):
         if not parameter['hidden']:
             if parameter['value'] is AllParam:
                 return f"<...{name}>"
-            if isinstance(parameter['value'], BasePattern) and parameter['value'].pattern == name:
-                pass
-            else:
+            if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
                 arg += f"{'@' if parameter['kwonly'] else ':'}{parameter['value']}"
             if parameter['default'] is Empty:
                 arg += " = None"
@@ -118,9 +116,7 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         if not parameter['hidden']:
             if parameter['value'] is AllParam:
                 return f"{name.upper()}..."
-            if isinstance(parameter['value'], BasePattern) and parameter['value'].pattern == name:
-                pass
-            else:
+            if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
                 arg += f"=[{parameter['value']}]" if parameter['kwonly'] else f"[{parameter['value']}]"
             if parameter['default'] is Empty:
                 arg += "=None"

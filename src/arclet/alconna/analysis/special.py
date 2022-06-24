@@ -21,7 +21,7 @@ def handle_shortcut(analyser: Analyser):
     try:
         msg = analyser.alconna.shortcut(
             opt_v['name'], None if opt_v['command'] == "_" else analyser.converter(opt_v['command']),
-            True if opt_v.get('delete') else False, opt_v['expiration']
+            bool(opt_v.get('delete')), opt_v['expiration']
         )
         output_send(analyser.alconna.name, lambda: msg).handle({}, is_raise_exception=analyser.is_raise_exception)
     except Exception as e:

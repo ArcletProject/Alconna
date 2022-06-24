@@ -104,9 +104,9 @@ class CommandManager(metaclass=Singleton):
         """获取命令解析器"""
         try:
             return self.__analysers[command]
-        except KeyError:
+        except KeyError as e:
             namespace, name = self._command_part(command.path)
-            raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}"))
+            raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
 
     def delete(self, command: Union["Alconna", 'AlconnaGroup', str]) -> None:
         """删除命令"""
@@ -153,8 +153,8 @@ class CommandManager(metaclass=Singleton):
         namespace, name = self._command_part(target if isinstance(target, str) else target.path)
         try:
             _ = self.__commands[namespace][name]
-        except KeyError:
-            raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}"))
+        except KeyError as e:
+            raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
         if isinstance(source, Arpamar) and source.matched or not isinstance(source, Arpamar):
             self.__shortcuts.set(f"{namespace}.{name}::{shortcut}", source, expiration)
         else:
@@ -166,14 +166,14 @@ class CommandManager(metaclass=Singleton):
             namespace, name = self._command_part(target if isinstance(target, str) else target.path)
             try:
                 _ = self.__commands[namespace][name]
-            except KeyError:
-                raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}"))
+            except KeyError as e:
+                raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
             try:
                 return self.__shortcuts[f"{namespace}.{name}::{shortcut}"]
-            except KeyError:
+            except KeyError as e:
                 raise ValueError(
                     config.lang.manager_target_command_error.format(target=f"{namespace}.{name}", shortcut=shortcut)
-                )
+                ) from e
         else:
             for key in self.__shortcuts:
                 if key.split("::")[1] == shortcut:
@@ -220,7 +220,7 @@ class CommandManager(metaclass=Singleton):
             return [ana for namespace in self.__commands for ana in self.__commands[namespace].values()]
         if namespace not in self.__commands:
             return []
-        return [ana for ana in self.__commands[namespace].values()]
+        return list(self.__commands[namespace].values())
 
     def broadcast(
             self, message: DataCollection[Union[str, Any]],
@@ -260,12 +260,12 @@ class CommandManager(metaclass=Singleton):
 
         if max_length < 1:
             command_string = "\n".join(
-                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
-                for cmd in cmds
-            ) if not show_index else "\n".join(
                 f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : " +
                 slot.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]
                 for index, slot in enumerate(cmds)
+            ) if show_index else "\n".join(
+                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
+                for cmd in cmds
             )
         else:
             max_page = len(cmds) // max_length + 1
@@ -273,14 +273,14 @@ class CommandManager(metaclass=Singleton):
                 page = 1
             header += "\t" + pages.format(current=page, total=max_page)
             command_string = "\n".join(
-                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
-                for cmd in cmds[(page - 1) * max_length: page * max_length]
-            ) if not show_index else "\n".join(
                 f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : "
                 f"{cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
                 for index, cmd in enumerate(
                     cmds[(page - 1) * max_length: page * max_length], start=(page - 1) * max_length
                 )
+            ) if show_index else "\n".join(
+                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
+                for cmd in cmds[(page - 1) * max_length: page * max_length]
             )
         return f"{header}\n{command_string}\n{footer}"
 

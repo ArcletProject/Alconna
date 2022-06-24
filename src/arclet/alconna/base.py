@@ -397,12 +397,11 @@ class CommandNode:
             raise InvalidParam(config.lang.node_name_error)
         _parts = name.split(" ")
         self.name = _parts[-1]
-        self.requires = _parts[:-1] if not requires else (
-            requires if isinstance(requires, (list, tuple, set)) else (requires,)
-        )
-        self.args = Args() if not args else args if isinstance(args, Args) else Args.from_string_list(
+        self.requires = (requires if isinstance(requires, (list, tuple, set)) else (requires,)) \
+            if requires else _parts[:-1]
+        self.args = (args if isinstance(args, Args) else Args.from_string_list(
             [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
-        )
+        )) if args else Args()
         self.action = ArgAction.__validator__(action, self.args)
         self.separators = {' '} if separators is None else (
             {separators} if isinstance(separators, str) else set(separators)

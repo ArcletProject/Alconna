@@ -116,7 +116,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 if not part:
                     continue
                 if res := re.match(r"\{(.*?)}", part):
-                    _res = res.group(1)
+                    _res = res[1]
                     if not _res:
                         parts[i] = ".+?"
                         continue
@@ -125,9 +125,9 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                         parts[i] = f"(?P<{_parts[0]}>.+?)"
                     elif not _parts[0] and not _parts[1]:
                         parts[i] = ".+?"
-                    elif not _parts[0] and _parts[1]:
+                    elif not _parts[0]:
                         parts[i] = f"{pattern_map.get(_parts[1], _parts[1])}".replace("(", "").replace(")", "")
-                    elif not _parts[1] and _parts[0]:
+                    elif not _parts[1]:
                         parts[i] = f"(?P<{_parts[0]}>.+?)"
                     else:
                         parts[i] = (

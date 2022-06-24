@@ -77,7 +77,7 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None):
                     result += char
         elif char in {"\n", "\r"} or (not quotation and char in separates):
             result += "\0"
-        elif char != "\\" and (char not in separates or quotation):
+        elif char != "\\":
             result += char
     return result.split('\0')
 

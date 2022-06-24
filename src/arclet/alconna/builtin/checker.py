@@ -28,7 +28,7 @@ def simple_type(raise_exception: bool = False):
             if '__varargs__' in result:
                 varargs, var_key = result.pop('__varargs__')
                 result.pop(var_key)
-            res_args.extend(v for v in result.values())
+            res_args.extend(iter(result.values()))
             res_args.extend(varargs)
             return func(*res_args, **res_kwargs)  # type: ignore
 

@@ -46,12 +46,12 @@ cmd = Alconna(
 )
 
 result = cmd.parse("/pip install cesloi --upgrade") # This method returns an 'Arpamar' class instance.
-print(result.get('install'))  # Or result.install
+print(result.query('install'))  # Or result.install
 ```
 
 Output as follows:
 ```
-{'pak_name': 'cesloi', 'upgrade': Ellipsis}
+{'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
 ```
 
 
