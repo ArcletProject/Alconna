@@ -2,26 +2,26 @@
 
 import re
 import inspect
-from copy import copy
+from copy import deepcopy
 from enum import Enum
+from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
+from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, \
+    Set, FrozenSet
 
-from .exceptions import InvalidParam, NullTextMessage
-from .typing import BasePattern, Empty, DataUnit, AllParam, AnyOne, MultiArg, UnionArg, argument_type_validator
-from .lang import lang_config
+from .exceptions import InvalidParam, NullMessage
+from .typing import BasePattern, Empty, AllParam, AnyOne, MultiArg, UnionArg, args_type_parser, pattern_map
+from .config import config
 from .components.action import ArgAction
 
-
 TAValue = Union[BasePattern, AllParam.__class__, type]
-TADefault = Union[Any, DataUnit, Empty]
+TADefault = Union[Any, object, Empty]
 
 
 class ArgFlag(str, Enum):
     """
     参数标记
     """
-
     VAR_POSITIONAL = "S"
     VAR_KEYWORD = "W"
     OPTIONAL = 'O'
@@ -32,22 +32,17 @@ class ArgFlag(str, Enum):
 
 
 class ArgUnit(TypedDict):
-    """
-    参数单元
-    """
-
+    """参数单元 """
     value: TAValue
     """参数值"""
-
     default: TADefault
     """默认值"""
-
+    notice: Optional[str]
+    """参数提示"""
     optional: bool
     """是否可选"""
-
     kwonly: bool
     """是否键值对参数"""
-
     hidden: bool
     """是否隐藏类型参数"""
 
@@ -61,14 +56,14 @@ class ArgsMeta(type):
         cls.selecting = False
 
     def __getattr__(cls, name):
-        if name == 'shape':
+        if name in ('shape', '__test__', '_pytestfixturefunction'):
             return super().__getattribute__(name)
         cls.last_key = name
         cls.selecting = True
         return cls
 
     def __getitem__(self, item):
-        if isinstance(item, slice):
+        if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
             raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
         if not isinstance(item, tuple):
             if self.selecting:
@@ -110,26 +105,27 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         """
         _args = cls()
         for arg in args:
-            _le = len(arg)
-            if _le == 0:
-                raise NullTextMessage
+            if (_le := len(arg)) == 0:
+                raise NullMessage
 
             default = arg[2].strip(" ") if _le > 2 else None
             value = AllParam if arg[0].startswith("...") else (
-                AnyOne if arg[0].startswith("..") else (
-                    arg[1].strip(" ") if _le > 1 else arg[0].lstrip(".-"))
+                AnyOne if arg[0].startswith("..") else (arg[1].strip(" ") if _le > 1 else arg[0].lstrip(".-"))
             )
             name = arg[0].replace("...", "").replace("..", "")
 
             if value not in (AllParam, AnyOne):
                 if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
-                    raise InvalidParam(lang_config.common_custom_type_error.format(target=custom_types[value]))
-                try:
-                    value = eval(value, custom_types)  # type: ignore
-                    if default:
-                        default = value(default)
-                except (NameError, ValueError, TypeError):
-                    pass
+                    raise InvalidParam(config.lang.common_custom_type_error.format(target=custom_types[value]))
+                with suppress(NameError, ValueError, TypeError):
+                    if pattern_map.get(value, None):
+                        value = pattern_map[value]
+                        if default:
+                            default = value.origin(default)
+                    else:
+                        value = eval(value, custom_types)  # type: ignore
+                        if default:
+                            default = value(default)
             _args.add_argument(name, value=value, default=default)
         return _args
 
@@ -191,15 +187,11 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.var_positional = None
         self.var_keyword = None
         self.optional_count = 0
-        if isinstance(separators, str):
-            self.separators = {separators}
-        else:
-            self.separators = set(separators)
+        self.separators = {separators} if isinstance(separators, str) else set(separators)
         self.argument = {  # type: ignore
-            k: {
-                "value": argument_type_validator(v),
-                "default": None, 'optional': False, 'hidden': False, 'kwonly': False
-            } for k, v in kwargs.items()
+            k: {"value": args_type_parser(v), "default": None, 'notice': None,
+                'optional': False, 'hidden': False, 'kwonly': False}
+            for k, v in kwargs.items()
         }
         for arg in (args or []):
             self.__check_var__(arg)
@@ -213,7 +205,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         if name in self.argument:
             return self
         if flags:
-            name += ";" + "|".join(flags)
+            name += ";" + "".join(flags)
         self.__check_var__([name, value, default])
         return self
 
@@ -231,71 +223,75 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     def __check_var__(self, val: Sequence):
         if not val:
-            raise InvalidParam(lang_config.args_name_empty)
+            raise InvalidParam(config.lang.args_name_empty)
         name, value, default = val[0], val[1] if len(val) > 1 else val[0], val[2] if len(val) > 2 else None
         if not isinstance(name, str):
-            raise InvalidParam(lang_config.args_name_error)
+            raise InvalidParam(config.lang.args_name_error)
         if not name.strip():
-            raise InvalidParam(lang_config.args_name_empty)
-        _value = argument_type_validator(value, self.extra)
+            raise InvalidParam(config.lang.args_name_empty)
+        _value = args_type_parser(value, self.extra)
         if isinstance(_value, UnionArg) and _value.optional:
             default = Empty if default is None else default
         if default in ("...", Ellipsis):
             default = Empty
         if _value is Empty:
-            raise InvalidParam(lang_config.args_value_error.format(target=name))
-        name, arg = self.__handle_flags__(name, value, _value, default)
-        self.argument[name] = arg
-
-    def __handle_flags__(self, name, value, _value, default):
-        slot = {'value': _value, 'default': default, 'optional': False, 'hidden': False, 'kwonly': False}
-        if res := re.match(r"^.+?;(?P<flag>[^;]+?)$", name):
-            flags = res.group("flag").split("|")
+            raise InvalidParam(config.lang.args_value_error.format(target=name))
+        slot: ArgUnit = {
+            'value': _value, 'default': default, 'notice': None,
+            'optional': False, 'hidden': False, 'kwonly': False
+        }
+        if res := re.match(r"^.+?#(?P<notice>[^;#]+)", name):
+            slot['notice'] = res.group("notice")
+            name = name.replace(f"#{res.group('notice')}", "")
+        if res := re.match(r"^.+?;(?P<flag>[^;#]+)", name):
+            flags = res.group("flag")
             name = name.replace(f";{res.group('flag')}", "")
             _limit = False
             for flag in flags:
                 if flag == ArgFlag.FORCE and not _limit:
-                    slot['value'] = (
-                        BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value)
-                    )
+                    self.__handle_force__(slot, value)
                     _limit = True
                 if flag == ArgFlag.ANTI and not _limit:
-                    if isinstance(_value, UnionArg):
-                        slot['value'].reverse()
-                    elif _value not in (AnyOne, AllParam):
-                        slot['value'] = copy(_value).reverse()
+                    if slot['value'] not in (AnyOne, AllParam):
+                        slot['value'] = deepcopy(_value).reverse()  # type: ignore
                     _limit = True
                 if flag == ArgFlag.VAR_KEYWORD and not _limit:
                     if self.var_keyword:
-                        raise InvalidParam(lang_config.args_duplicate_kwargs)
-                    if _value not in (AnyOne, AllParam):
-                        slot['value'] = MultiArg(_value, flag='kwargs')
+                        raise InvalidParam(config.lang.args_duplicate_kwargs)
+                    if _value is not AllParam:
+                        slot['value'] = MultiArg(_value, flag='kwargs')  # type: ignore
                         self.var_keyword = name
                     _limit = True
                 if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                     if self.var_positional:
-                        raise InvalidParam(lang_config.args_duplicate_varargs)
-                    if _value not in (AnyOne, AllParam):
-                        slot['value'] = MultiArg(_value)
+                        raise InvalidParam(config.lang.args_duplicate_varargs)
+                    if _value is not AllParam:
+                        slot['value'] = MultiArg(_value)  # type: ignore
                         self.var_positional = name
                 if flag.isdigit() and not _limit:
                     if self.var_positional:
-                        raise InvalidParam(lang_config.args_duplicate_varargs)
-                    if _value not in (AnyOne, AllParam):
-                        slot['value'] = MultiArg(_value, array_length=int(flag))
+                        raise InvalidParam(config.lang.args_duplicate_varargs)
+                    if _value is not AllParam:
+                        slot['value'] = MultiArg(_value, length=int(flag))  # type: ignore
                         self.var_positional = name
                 if flag == ArgFlag.OPTIONAL:
                     if self.var_keyword or self.var_positional:
-                        raise InvalidParam(lang_config.args_exclude_mutable_args)
+                        raise InvalidParam(config.lang.args_exclude_mutable_args)
                     slot['optional'] = True
                     self.optional_count += 1
                 if flag == ArgFlag.HIDDEN:
                     slot['hidden'] = True
                 if flag == ArgFlag.KWONLY:
                     if self.var_keyword or self.var_positional:
-                        raise InvalidParam(lang_config.args_exclude_mutable_args)
+                        raise InvalidParam(config.lang.args_exclude_mutable_args)
                     slot['kwonly'] = True
-        return name, slot
+        self.argument[name] = slot
+
+    @staticmethod
+    def __handle_force__(slot: ArgUnit, value):
+        slot['value'] = (
+            BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value)
+        )
 
     def __len__(self):
         return len(self.argument)
@@ -314,12 +310,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         return self
 
     def __getitem__(self, item) -> Union["Args", Tuple[TAValue, TADefault]]:
-        if isinstance(item, str):
-            if self.argument.get(item):
-                return self.argument[item]['value'], self.argument[item]['default']
-            else:
-                raise KeyError(lang_config.args_key_not_found)
-        if isinstance(item, slice):
+        if isinstance(item, str) and self.argument.get(item):
+            return self.argument[item]['value'], self.argument[item]['default']
+        if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
             raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
         if not isinstance(item, tuple):
             self.__check_var__([str(item), item])
@@ -399,17 +392,16 @@ class CommandNode:
             help_text(str): 命令帮助信息
         """
         if not name:
-            raise InvalidParam(lang_config.node_name_empty)
+            raise InvalidParam(config.lang.node_name_empty)
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
-            raise InvalidParam(lang_config.node_name_error)
+            raise InvalidParam(config.lang.node_name_error)
         _parts = name.split(" ")
         self.name = _parts[-1]
-        self.requires = _parts[:-1] if not requires else (
-            requires if isinstance(requires, (list, tuple, set)) else (requires,)
-        )
-        self.args = Args() if not args else args if isinstance(args, Args) else Args.from_string_list(
+        self.requires = (requires if isinstance(requires, (list, tuple, set)) else (requires,)) \
+            if requires else _parts[:-1]
+        self.args = (args if isinstance(args, Args) else Args.from_string_list(
             [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
-        )
+        )) if args else Args()
         self.action = ArgAction.__validator__(action, self.args)
         self.separators = {' '} if separators is None else (
             {separators} if isinstance(separators, str) else set(separators)
@@ -438,7 +430,8 @@ class CommandNode:
 
 class Option(CommandNode):
     """命令选项, 可以使用别名"""
-    aliases: List[str]
+    aliases: FrozenSet[str]
+    priority: int
 
     def __init__(
             self,
@@ -450,17 +443,19 @@ class Option(CommandNode):
             separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
             help_text: Optional[str] = None,
             requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
-
+            priority: int = 0
     ):
-        self.aliases = alias or []
+        aliases = alias or []
         parts = name.split(" ")
         name, rest = parts[-1], parts[:-1]
         if "|" in name:
             aliases = name.split('|')
             aliases.sort(key=len, reverse=True)
             name = aliases[0]
-            self.aliases.extend(aliases[1:])
-        self.aliases.insert(0, name)
+            aliases.extend(aliases[1:])
+        aliases.insert(0, name)
+        self.aliases = frozenset(aliases)
+        self.priority = priority
         super().__init__(
             " ".join(rest) + (" " if rest else "") + name, args, dest, action, separators, help_text, requires
         )
@@ -506,9 +501,12 @@ class SubcommandResult(TypedDict):
     options: Dict[str, OptionResult]
 
 
+class StrMounter(List[str]):
+    pass
+
+
 HelpOption = Option("--help|-h", help_text="显示帮助信息")
 ShortcutOption = Option(
-    '--shortcut|-SCT',
-    Args["delete;O", "delete"]["name", str]["command", str, "_"]["expiration;K", int, 0],
+    '--shortcut|-SCT', Args["delete;O", "delete"]["name", str]["command", str, "_"]["expiration;K", int, 0],
     help_text='设置快捷命令'
 )

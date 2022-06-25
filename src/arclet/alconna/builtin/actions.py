@@ -5,7 +5,7 @@ from typing import Any, Optional, TYPE_CHECKING, Literal
 from arclet.alconna.components.action import ArgAction
 from arclet.alconna.components.behavior import ArpamarBehavior
 from arclet.alconna.exceptions import BehaveCancelled, OutBoundsBehavior
-from arclet.alconna.lang import lang_config
+from arclet.alconna.config import config
 
 
 class _StoreValue(ArgAction):
@@ -51,13 +51,13 @@ def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[s
                 raise BehaveCancelled
             if option and subcommand is None:
                 options = interface.query("options", {})
-                options[option] = {"value": value, "args": {}}
+                options.setdefault(option, {"value": value, "args": {}})
             if subcommand and option is None:
                 subcommands = interface.query("subcommands", {})
-                subcommands[subcommand] = {"value": value, "args": {}, "options": {}}
+                subcommands.setdefault(subcommand, {"value": value, "args": {}, "options": {}})
             if option and subcommand:
                 sub_options = interface.query(f"{subcommand}.options", {})
-                sub_options[option] = {"value": value, "args": {}}
+                sub_options.setdefault(option, {"value": value, "args": {}})
 
     return _SetDefault()
 
@@ -74,12 +74,13 @@ def exclusion(target_path: str, other_path: str):
     class _EXCLUSION(ArpamarBehavior):
         def operate(self, interface: "Arpamar"):
             if interface.query(target_path) and interface.query(other_path):
+                interface.matched = False
                 if interface.source.is_raise_exception:
                     raise OutBoundsBehavior(
-                        lang_config.behavior_exclude_matched.format(target=target_path, other=other_path)
+                        config.lang.behavior_exclude_matched.format(target=target_path, other=other_path)
                     )
                 interface.error_info = OutBoundsBehavior(
-                    lang_config.behavior_exclude_matched.format(target=target_path, other=other_path)
+                    config.lang.behavior_exclude_matched.format(target=target_path, other=other_path)
                 )
 
     return _EXCLUSION()
@@ -101,9 +102,9 @@ def cool_down(seconds: float):
             current_time = datetime.now()
             if (current_time - self.last_time).total_seconds() < seconds:
                 if interface.source.is_raise_exception:
-                    raise OutBoundsBehavior(lang_config.behavior_cooldown_matched)
+                    raise OutBoundsBehavior(config.lang.behavior_cooldown_matched)
                 interface.matched = False
-                interface.error_info = OutBoundsBehavior(lang_config.behavior_cooldown_matched)
+                interface.error_info = OutBoundsBehavior(config.lang.behavior_cooldown_matched)
             else:
                 self.last_time = current_time
 
@@ -125,14 +126,11 @@ def inclusion(*targets: str, flag: Literal["any", "all"] = "any"):
                 for target in targets:
                     if not interface.query(target):
                         interface.matched = False
-                        interface.error_info = OutBoundsBehavior(lang_config.behavior_inclusion_matched)
+                        interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)
                         break
             else:
-                all_count = len(targets) - sum(
-                    1 for target in targets if interface.require(target)
-                )
-
+                all_count = len(targets) - sum(1 for target in targets if interface.require(target))
                 if all_count > 0:
                     interface.matched = False
-                    interface.error_info = OutBoundsBehavior(lang_config.behavior_inclusion_matched)
+                    interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)
     return _Inclusion()

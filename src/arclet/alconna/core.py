@@ -1,17 +1,17 @@
 """Alconna 主体"""
 import sys
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, TYPE_CHECKING, TypedDict, \
-    Iterable
+    Iterable, Any
 
-from .lang import lang_config
+from .config import config
 from .analysis.base import compile
 from .base import CommandNode, Args, ArgAction, Option, Subcommand, HelpOption, ShortcutOption
-from .typing import DataCollection
+from .typing import DataCollection, BasePattern
 from .manager import command_manager
 from .arpamar import Arpamar
 from .components.action import ActionHandler
 from .components.output import AbstractTextFormatter
-from .components.behavior import ArpamarBehavior, T_ABehavior
+from .components.behavior import T_ABehavior
 from .components.duplication import AlconnaDuplication
 from .builtin.formatter import DefaultTextFormatter
 from .builtin.analyser import DefaultCommandAnalyser
@@ -30,16 +30,16 @@ class _Actions(TypedDict):
 
 class AlconnaGroup(CommandNode):
     _group = True
+    commands: List['Alconna']
 
     def __init__(
             self,
             name: str,
             *commands: "Alconna",
             namespace: Optional[str] = None,
-
     ):
         self.commands = list(commands)
-        self.namespace = namespace
+        self.namespace = namespace or config.namespace
         name = command_manager.sign + name
         super().__init__(name, )
         self.name.replace(command_manager.sign, '')
@@ -75,22 +75,31 @@ class AlconnaGroup(CommandNode):
             self.commands.append(other)
         return self
 
+    def reset_namespace(self, namespace: str):
+        """重新设置命名空间"""
+        command_manager.delete(self)
+        self.namespace = namespace
+        command_manager.register(self)
+        return self
+
     def __iter__(self):
         yield from self.commands
 
     def __getitem__(self, item: str):
         try:
             return next(filter(lambda x: x.name == item, self.commands))
-        except StopIteration:
-            raise KeyError(item)
+        except StopIteration as e:
+            raise KeyError(item) from e
 
-    def parse(self, message: Union[str, DataCollection]):
+    def __add__(self, other):
+        return self.__union__(other)
+
+    def parse(self, message: DataCollection[Union[str, Any]]):
         res = None
         for command in self.commands:
             if (res := command.parse(message)).matched:
                 return res
-        else:
-            return res
+        return res
 
 
 class Alconna(CommandNode):
@@ -130,35 +139,30 @@ class Alconna(CommandNode):
     """
     _group = False
     headers: Union[List[Union[str, object]], List[Tuple[object, str]]]
-    command: str
+    command: Union[str, type, BasePattern]
     options: List[Union[Option, Subcommand]]
     analyser_type: Type["Analyser"]
     formatter_type: Type[AbstractTextFormatter]
     namespace: str
-    behaviors: List[Union[ArpamarBehavior, Type[ArpamarBehavior]]]
+    behaviors: List[T_ABehavior]
     action_list: _Actions
     local_args = {}
     custom_types = {}
 
     global_headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = [""]
-    global_behaviors: List[Union[ArpamarBehavior, Type[ArpamarBehavior]]] = []
+    global_behaviors: List[T_ABehavior] = []
     global_analyser_type: Type["Analyser"] = DefaultCommandAnalyser  # type: ignore
     global_formatter_type: Type[AbstractTextFormatter] = DefaultTextFormatter  # type: ignore
-    global_separators = {" "}
-    global_fuzzy_match: bool = False
-    global_raise_exception: bool = False
 
     @classmethod
     def config(
         cls,
         *,
         headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
-        behaviors: Optional[List[Union[ArpamarBehavior, Type[ArpamarBehavior]]]] = None,
+        behaviors: Optional[List[T_ABehavior]] = None,
         analyser_type: Optional[Type["Analyser"]] = None,
         formatter_type: Optional[Type[AbstractTextFormatter]] = None,
-        separator: Optional[str] = None,
-        fuzzy_match: bool = False,
-        raise_exception: bool = False,
+        separator: Optional[str] = None
     ):
         """
         配置 Alconna 的默认属性
@@ -172,14 +176,12 @@ class Alconna(CommandNode):
         if formatter_type is not None:
             cls.global_formatter_type = formatter_type
         if separator is not None:
-            cls.global_separators = {separator}
-        cls.global_fuzzy_match = fuzzy_match
-        cls.global_raise_exception = raise_exception
+            config.separators = {separator}
         return cls
 
     def __init__(
             self,
-            command: Optional[str] = None,
+            command: Optional[Union[str, type, BasePattern]] = None,
             main_args: Union[Args, str, None] = None,
             headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
             options: Optional[List[Union[Option, Subcommand]]] = None,
@@ -220,20 +222,20 @@ class Alconna(CommandNode):
             f"{command_manager.sign}{command or self.headers[0]}",
             main_args,
             action=action,
-            separators=separators or self.__class__.global_separators.copy(),  # type: ignore
+            separators=separators or config.separators.copy(),  # type: ignore
             help_text=help_text or "Unknown Information"
         )
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
-        self.namespace = namespace or command_manager.default_namespace
+        self.namespace = namespace or config.namespace
         self.options.extend([HelpOption, ShortcutOption])
         self.analyser_type = analyser_type or self.__class__.global_analyser_type
         self.behaviors = behaviors or self.__class__.global_behaviors.copy()
         self.behaviors.insert(0, ActionHandler())
         self.formatter_type = formatter_type or self.__class__.global_formatter_type
-        self.is_fuzzy_match = is_fuzzy_match or self.__class__.global_fuzzy_match
-        self.is_raise_exception = is_raise_exception or self.__class__.global_raise_exception
+        self.is_fuzzy_match = is_fuzzy_match or config.fuzzy_match
+        self.is_raise_exception = is_raise_exception or config.raise_exception
 
-        command_manager.register(compile(self))
+        command_manager.register(self)
         self.name = self.name.replace(command_manager.sign, "")
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
@@ -254,7 +256,7 @@ class Alconna(CommandNode):
         """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
-        command_manager.register(compile(self))
+        command_manager.register(self)
         return self
 
     def reset_behaviors(self, behaviors: List[T_ABehavior]):
@@ -283,24 +285,21 @@ class Alconna(CommandNode):
         try:
             if delete:
                 command_manager.delete_shortcut(short_key, self)
-                return lang_config.shortcut_delete_success.format(
-                    shortcut=short_key, target=self.path.split(".")[-1])
+                return config.lang.shortcut_delete_success.format(shortcut=short_key, target=self.path.split(".")[-1])
             if command:
                 command_manager.add_shortcut(self, short_key, command, expiration)
-                return lang_config.shortcut_add_success.format(
-                    shortcut=short_key, target=self.path.split(".")[-1])
+                return config.lang.shortcut_add_success.format(shortcut=short_key, target=self.path.split(".")[-1])
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
                     command_manager.add_shortcut(self, short_key, cmd, expiration)
-                    return lang_config.shortcut_add_success.format(
-                        shortcut=short_key, target=self.path.split(".")[-1])
+                    return config.lang.shortcut_add_success.format(shortcut=short_key, target=self.path.split(".")[-1])
                 raise ValueError(
-                    lang_config.shortcut_recent_command_error.format(
+                    config.lang.shortcut_recent_command_error.format(
                         target=self.path, source=getattr(alc, "path", "Unknown Source"))
                 )
             else:
-                raise ValueError(lang_config.shortcut_no_recent_command)
+                raise ValueError(config.lang.shortcut_no_recent_command)
         except Exception as e:
             if self.is_raise_exception:
                 raise e
@@ -309,13 +308,12 @@ class Alconna(CommandNode):
     def __repr__(self):
         return f"<{self.namespace}::{self.name} with {len(self.options)} options; args={self.args}>"
 
-    def add_option(
-            self,
-            name: str,
-            *alias: str,
-            args: Optional[Args] = None,
-            sep: str = " ",
-            help_text: Optional[str] = None,
+    def add(
+        self,
+        name: str, *alias: str,
+        args: Optional[Args] = None,
+        sep: str = " ",
+        help_text: Optional[str] = None,
     ):
         """链式注册一个 Option"""
         command_manager.delete(self)
@@ -323,46 +321,28 @@ class Alconna(CommandNode):
         name, requires = names[-1], names[:-1]
         opt = Option(name, args, list(alias), separators=sep, help_text=help_text, requires=requires)
         self.options.append(opt)
-        command_manager.register(compile(self))
-        return self
-
-    def set_action(self, action: Union[Callable, str, ArgAction], custom_types: Optional[Dict[str, Type]] = None):  # type: ignore
-        """设置针对main_args的action"""
-        if isinstance(action, str):
-            ns = {}
-            exec(action, getattr(self, "custom_types", custom_types), ns)
-            action: Callable = ns.popitem()[1]
-        self.action = ArgAction.__validator__(action, self.args)
+        command_manager.register(self)
         return self
 
     @overload
     def parse(
-            self,
-            message: Union[str, DataCollection],
-            duplication: Type[T_Duplication],
-            static: bool = True,
-
+            self, message: DataCollection[Union[str, Any]], duplication: Type[T_Duplication], static: bool = True,
     ) -> T_Duplication:
         ...
 
     @overload
     def parse(
-            self,
-            message: Union[str, DataCollection],
-            duplication=None,
-            static: bool = True
+            self, message: DataCollection[Union[str, Any]], duplication=None, static: bool = True
     ) -> Arpamar:
         ...
 
     def parse(
-            self,
-            message: Union[str, DataCollection],
-            duplication: Optional[Type[T_Duplication]] = None,
+            self, message: DataCollection[Union[str, Any]], duplication: Optional[Type[T_Duplication]] = None,
             static: bool = True,
     ):
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         analyser = command_manager.require(self) if static else compile(self)
-        analyser.process_message(message)
+        analyser.process(message)
         arp = analyser.analyse()
         if arp.matched:
             arp.execute()
@@ -379,15 +359,17 @@ class Alconna(CommandNode):
         return self
 
     def __rshift__(self, other):
+        if isinstance(other, Alconna):
+            return self.__union__(other)
         if isinstance(other, Option):
             command_manager.delete(self)
             self.options.append(other)
-            command_manager.register(compile(self))
+            command_manager.register(self)
         elif isinstance(other, str):
             command_manager.delete(self)
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
-            command_manager.register(compile(self))
+            command_manager.register(self)
         return self
 
     def __add__(self, other):

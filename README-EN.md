@@ -46,12 +46,12 @@ cmd = Alconna(
 )
 
 result = cmd.parse("/pip install cesloi --upgrade") # This method returns an 'Arpamar' class instance.
-print(result.get('install'))  # Or result.install
+print(result.query('install'))  # Or result.install
 ```
 
 Output as follows:
 ```
-{'pak_name': 'cesloi', 'upgrade': Ellipsis}
+{'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
 ```
 
 
@@ -83,7 +83,7 @@ QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## Features
 
-* High Performance. On i5-10210U, performance is about `41000~101000 msg/s`; test script: [benchmark](dev_tools/benchmark.py)
+* High Performance. On i5-10210U, performance is about `41000~101000 msg/s`; test script: [benchmark](benchmark.py) 
 * Simple and Flexible Constructor 
 * Powerful Automatic Type Parse and Conversion
 * Support Synchronous and Asynchronous Actions

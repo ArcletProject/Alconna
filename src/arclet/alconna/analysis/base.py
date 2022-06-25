@@ -11,19 +11,17 @@ if TYPE_CHECKING:
     from ..core import Alconna
 
 
-def compile(alconna: "Alconna", params_generator: Optional[Callable[[Analyser], None]] = None):
+def compile(alconna: "Alconna", params_compiler: Optional[Callable[[Analyser], None]] = None):
     _analyser = alconna.analyser_type(alconna)
-    if params_generator:
-        params_generator(_analyser)
+    if params_compiler:
+        params_compiler(_analyser)
     else:
-        Analyser.default_params_generator(_analyser)
+        Analyser.default_params_compiler(_analyser)
     return _analyser
 
 
-def analyse(alconna: "Alconna", command: Union[str, DataCollection]) -> "Arpamar":
-    ana = compile(alconna)
-    ana.process_message(command)
-    return ana.analyse().execute()
+def analyse(alconna: "Alconna", command: DataCollection[Union[str, Any]]) -> "Arpamar":
+    return compile(alconna).process(command).analyse().execute()
 
 
 class AnalyseError(Exception):
@@ -35,28 +33,27 @@ class _DummyAnalyser(Analyser):
 
     class _DummyALC:
         is_fuzzy_match = False
+        options = []
 
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore
         cls.command_params = {}
         cls.param_ids = set()
+        cls.default_separate = True
         return super().__new__(cls)
 
-    def analyse(self, message: Union[str, DataCollection, None] = None):
+    def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None):
         pass
 
 
-def analyse_args(
-        args: Args,
-        command: Union[str, DataCollection],
-        raise_exception: bool = True
-):
+def analyse_args(args: Args, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {' '}
+    _analyser.need_main_args = True
     _analyser.is_raise_exception = True
     try:
-        _analyser.process_message(command)
+        _analyser.process(command)
         return ala(_analyser, args, len(args))
     except Exception as e:
         if raise_exception:
@@ -67,17 +64,18 @@ def analyse_args(
 def analyse_header(
         headers: Union[List[Union[str, Any]], List[Tuple[Any, str]]],
         command_name: str,
-        command: Union[str, DataCollection],
+        command: DataCollection[Union[str, Any]],
         sep: str = " ",
         raise_exception: bool = True
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {sep}
+    _analyser.need_main_args = False
     _analyser.is_raise_exception = True
     _analyser.__init_header__(command_name, headers)
     try:
-        _analyser.process_message(command)
+        _analyser.process(command)
         return alh(_analyser)
     except Exception as e:
         if raise_exception:
@@ -85,17 +83,17 @@ def analyse_header(
         return
 
 
-def analyse_option(
-        option: Option,
-        command: Union[str, DataCollection],
-        raise_exception: bool = True
-):
+def analyse_option(option: Option, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {" "}
+    _analyser.need_main_args = False
     _analyser.is_raise_exception = True
+    _analyser.alconna.options.append(option)
+    _analyser.default_params_compiler(_analyser)
+    _analyser.alconna.options.clear()
     try:
-        _analyser.process_message(command)
+        _analyser.process(command)
         return alo(_analyser, option)
     except Exception as e:
         if raise_exception:
@@ -103,17 +101,17 @@ def analyse_option(
         return
 
 
-def analyse_subcommand(
-        subcommand: Subcommand,
-        command: Union[str, DataCollection],
-        raise_exception: bool = True
-):
+def analyse_subcommand(subcommand: Subcommand, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = {" "}
+    _analyser.need_main_args = False
     _analyser.is_raise_exception = True
+    _analyser.alconna.options.append(subcommand)
+    _analyser.default_params_compiler(_analyser)
+    _analyser.alconna.options.clear()
     try:
-        _analyser.process_message(command)
+        _analyser.process(command)
         return als(_analyser, subcommand)
     except Exception as e:
         if raise_exception:

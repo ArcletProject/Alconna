@@ -5,8 +5,8 @@ build-backend = "setuptools.build_meta"
 # Project metadata
 [project]
 name = "arclet-alconna"
-version = "0.9.4"
-description = "A Fast Command Analyser based on Dict"
+version = "1.0.0"
+description = "A High-performance, Generality, Humane Command Line Arguments Parser Library."
 readme = "README.md"
 requires_python = ">=3.8"
 license = "MIT"

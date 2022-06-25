@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 
 from ..typing import BasePattern, AllParam
 from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
-from ..lang import lang_config
+from ..config import config
 
 T = TypeVar('T')
 T_Origin = TypeVar('T_Origin')
@@ -48,7 +48,7 @@ class ArgsStub(BaseStub[Args]):
             if value['value'] is AllParam:
                 self.__annotations__[key] = Any
             elif isinstance(value['value'], BasePattern):
-                self.__annotations__[key] = value['value'].origin_type
+                self.__annotations__[key] = value['value'].origin
             else:
                 self.__annotations__[key] = value['value']
             setattr(self, key, value['default'])
@@ -96,7 +96,7 @@ class ArgsStub(BaseStub[Args]):
         elif isinstance(item, int):
             return list(self.value.values())[item]
         else:
-            raise TypeError(lang_config.stub_key_error.format(target=item))
+            raise TypeError(config.lang.stub_key_error.format(target=item))
 
 
 class OptionStub(BaseStub[Option]):

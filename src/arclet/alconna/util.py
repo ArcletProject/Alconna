@@ -1,12 +1,18 @@
 """杂物堆"""
 import contextlib
-import random
-
+import inspect
+from functools import lru_cache
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import TypeVar, Optional, Dict, Any, Iterator, Generic, Hashable, Tuple, Set, Union, get_origin, get_args
+from typing import TypeVar, Optional, Dict, Any, Iterator, Hashable, Tuple, Union, Mapping
+from typing_extensions import get_origin, get_args
 
 R = TypeVar('R')
+
+
+@lru_cache(4096)
+def is_async(o: Any):
+    return inspect.iscoroutinefunction(o) or inspect.isawaitable(o)
 
 
 class Singleton(type):
@@ -23,12 +29,13 @@ class Singleton(type):
         mcs._instances.pop(cls, None)
 
 
-def split_once(text: str, separates: Union[str, Set[str]]):  # 相当于另类的pop, 不会改变本来的字符串
+@lru_cache(4096)
+def split_once(text: str, separates: Union[str, Tuple[str, ...]]):  # 相当于另类的pop, 不会改变本来的字符串
     """单次分隔字符串"""
     out_text = ""
     quotation = ""
     is_split = True
-    separates = separates if isinstance(separates, set) else {separates}
+    separates = tuple(separates)
     for char in text:
         if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
@@ -40,11 +47,11 @@ def split_once(text: str, separates: Union[str, Set[str]]):  # 相当于另类�
         if char in separates and is_split:
             break
         out_text += char
-    result = "".join(out_text)
-    return result, text[len(result) + 1:]
+    return out_text, text[len(out_text) + 1:]
 
 
-def split(text: str, separates: Optional[Set[str]] = None):
+@lru_cache(4096)
+def split(text: str, separates: Optional[Tuple[str, ...]] = None):
     """尊重引号与转义的字符串切分
 
     Args:
@@ -54,59 +61,48 @@ def split(text: str, separates: Optional[Set[str]] = None):
     Returns:
         List[str]: 切割后的字符串, 可能含有空格
     """
-    separates = separates or {" "}
-    result = []
+    separates = separates or (" ",)
+    result = ""
     quotation = ""
-    cache = ""
     for index, char in enumerate(text):
         if char in {"'", '"'}:
             if not quotation:
                 quotation = char
                 if index and text[index - 1] == "\\":
-                    cache += char
+                    result += char
             elif char == quotation:
                 quotation = ""
                 if index and text[index - 1] == "\\":
-                    cache += char
-        elif char in {"\n", "\r"} or (not quotation and char in separates and cache):
-            result.append(cache)
-            cache = ""
-        elif char != "\\" and (char not in separates or quotation):
-            cache += char
-    if cache:
-        result.append(cache)
-    return result
+                    result += char
+        elif char in {"\n", "\r"} or (not quotation and char in separates):
+            result += "\0"
+        elif char != "\\":
+            result += char
+    return result.split('\0')
 
 
 def levenshtein_norm(source: str, target: str) -> float:
     """编辑距离算法, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似"""
-    return 1 - float(levenshtein(source, target)) / max(len(source), len(target))
-
-
-def levenshtein(source: str, target: str) -> int:
-    """编辑距离算法的具体内容"""
-    s_range = range(len(source) + 1)
-    t_range = range(len(target) + 1)
+    l_s, l_t = len(source), len(target)
+    s_range, t_range = range(l_s + 1), range(l_t + 1)
     matrix = [[(i if j == 0 else j) for j in t_range] for i in s_range]
 
     for i in s_range[1:]:
         for j in t_range[1:]:
-            del_distance = matrix[i - 1][j] + 1
-            ins_distance = matrix[i][j - 1] + 1
-            sub_trans_cost = 0 if source[i - 1] == target[j - 1] else 1
-            sub_distance = matrix[i - 1][j - 1] + sub_trans_cost
-            matrix[i][j] = min(del_distance, ins_distance, sub_distance)
-    return matrix[len(source)][len(target)]
+            sub_distance = matrix[i - 1][j - 1] + (0 if source[i - 1] == target[j - 1] else 1)
+            matrix[i][j] = min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, sub_distance)
+
+    return 1 - float(matrix[l_s][l_t]) / max(l_s, l_t)
 
 
 _K = TypeVar("_K", bound=Hashable)
 _V = TypeVar("_V")
+_T = TypeVar("_T")
 
 
-class LruCache(Generic[_K, _V]):
+class LruCache(Mapping[_K, _V]):
     max_size: int
     cache: OrderedDict
-    __size: int
     record: Dict[_K, Tuple[datetime, timedelta]]
 
     __slots__ = ("max_size", "cache", "record", "__size")
@@ -117,17 +113,16 @@ class LruCache(Generic[_K, _V]):
         self.record = {}
         self.__size = 0
 
-    def __getitem__(self, key: _K) -> _V:
+    def get(self, key: _K, default: Optional[_T] = None) -> Union[_V, _T]:
         if key in self.cache:
             self.cache.move_to_end(key)
             return self.cache[key]
-        raise KeyError(key)
+        return default
 
-    def get(self, key: _K, default: Any = None) -> _V:
-        try:
-            return self[key]
-        except KeyError:
-            return default
+    def __getitem__(self, item):
+        if res := self.get(item):
+            return res
+        raise ValueError
 
     def query_time(self, key: _K) -> datetime:
         if key in self.cache:
@@ -146,8 +141,6 @@ class LruCache(Generic[_K, _V]):
         self.record[key] = (datetime.now(), timedelta(seconds=expiration))
 
     def delete(self, key: _K) -> None:
-        if key not in self.cache:
-            raise KeyError(key)
         self.cache.pop(key)
         self.record.pop(key)
 
@@ -173,13 +166,6 @@ class LruCache(Generic[_K, _V]):
     def __repr__(self) -> str:
         return repr(self.cache)
 
-    def update(self) -> None:
-        now = datetime.now()
-        key = random.choice(list(self.cache.keys()))
-        expire = self.record[key][1]
-        if expire.total_seconds() > 0 and now > self.record[key][0] + expire:
-            self.delete(key)
-
     def update_all(self) -> None:
         now = datetime.now()
         for key in self.cache.keys():
@@ -189,41 +175,21 @@ class LruCache(Generic[_K, _V]):
 
     @property
     def recent(self) -> Optional[_V]:
-        if self.cache:
-            try:
-                return self.cache[list(self.cache.keys())[-1]]
-            except KeyError:
-                return None
+        with contextlib.suppress(KeyError):
+            return self.cache[list(self.cache.keys())[-1]]
         return None
 
+    def keys(self):
+        return self.cache.keys()
+
+    def values(self):
+        return self.values()
+
     def items(self, size: int = -1) -> Iterator[Tuple[_K, _V]]:
-        if size == -1:
-            return iter(self.cache.items())
-        try:
-            return iter(list(self.cache.items())[:-size:-1])
-        except IndexError:
-            return iter(self.cache.items())
-
-
-def generic_issubclass(cls: type, par: Union[type, Any, Tuple[type, ...]]) -> bool:
-    """
-    检查 cls 是否是 par 中的一个子类, 支持泛型, Any, Union, GenericAlias
-    """
-    if par is Any:
-        return True
-    with contextlib.suppress(TypeError):
-        if isinstance(par, (type, tuple)):
-            return issubclass(cls, par)
-        if issubclass(cls, get_origin(par)):  # type: ignore
-            return True
-        if get_origin(par) is Union:
-            return any(generic_issubclass(cls, p) for p in get_args(par))
-        if isinstance(par, TypeVar):
-            if par.__constraints__:
-                return any(generic_issubclass(cls, p) for p in par.__constraints__)
-            if par.__bound__:
-                return generic_issubclass(cls, par.__bound__)
-    return False
+        if size > 0:
+            with contextlib.suppress(IndexError):
+                return iter(list(self.cache.items())[:-size:-1])
+        return iter(self.cache.items())
 
 
 def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> bool:
@@ -235,13 +201,8 @@ def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> boo
     with contextlib.suppress(TypeError):
         if isinstance(par, (type, tuple)):
             return isinstance(obj, par)
-        if isinstance(obj, get_origin(par)):   # type: ignore
+        if isinstance(obj, get_origin(par)):  # type: ignore
             return True
         if get_origin(par) is Union:
             return any(generic_isinstance(obj, p) for p in get_args(par))
-        if isinstance(par, TypeVar):
-            if par.__constraints__:
-                return any(generic_isinstance(obj, p) for p in par.__constraints__)
-            if par.__bound__:
-                return generic_isinstance(obj, par.__bound__)
     return False

@@ -1,3 +1,27 @@
+# Alconna 1.0.x:
+
+\^o^/
+
+## Alconna 1.0.0:
+1. 将`lang`迁移到新增的`config`中，并为`config`加入了如全局分隔、开启缓存等选项
+2. 压缩代码量并规范化
+3. `--help` 选项允许在命令任何部位生效, 并且会根据当前命令选择是否展示选项的帮助信息
+4. `Args` name 的flag附加现在不需要以`|`分隔
+5. `Args` name 允许用`#...`为单个Arg提供注释, 其会展示在帮助信息内
+6. `Args` 允许传入 `Callable[[A], B]` 作为表达, 会自动解析输入类型与输出类型
+7. 完善了测试代码, 位于[测试文件夹](test_alconna)内, 通过[入口文件](test_alconna/entry_test.py)可执行全部测试
+8. 加入一个类似`beartype`的[`checker`](src/arclet/alconna/builtin/checker.py)
+9. 命令头部允许使用非str类型, 即可以`Alconna(int)`
+10. 解析器增加预处理器选项, 允许在分划数据单元前进行转化处理
+11. 性能提升, 理想情况最快约为 20w msg/s
+12. 删除`Alconna.set_action`
+13. 重构 `ObjectPattern`
+14. 增加 `datetime`的 BasePattern, 支持传入时间戳或日期文字
+15. `Analyser` 的字段修改, `next_data` -> `popitem`, `reduce_data` -> `pushback`
+16. `output_send` 合并到 `output_manager`
+17. `Option` 添加参数`priority`, 仅在需要选项重载时安排优先级
+18. 修复bugs
+
 # Alconna 0.9.x:
 
 ## Alconna 0.9.0 - 0.9.0.3:

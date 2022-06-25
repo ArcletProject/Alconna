@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, cast, Optional
 from inspect import isclass
 
-from ..lang import lang_config
+from ..config import config
 from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Option
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ class AlconnaDuplication:
                             setattr(self, key, OptionStub(option))  # type: ignore
                             self.__stubs__["options"].append(key)
                 else:
-                    raise TypeError(lang_config.duplication_stub_type_error.format(target=value))
+                    raise TypeError(config.lang.duplication_stub_type_error.format(target=value))
 
     def __repr__(self):
         return f'<{self.__class__.__name__} with {self.__stubs__}>'
@@ -72,15 +72,11 @@ def generate_duplication(command: "Alconna") -> AlconnaDuplication:
     options = filter(lambda x: isinstance(x, Option), command.options)
     subcommands = filter(lambda x: isinstance(x, Subcommand), command.options)
     return cast(AlconnaDuplication, type(
-        command.name.replace("ALCONNA::", "") + 'Interface',
-        (AlconnaDuplication,),
-        {
+        command.name.strip("/\\.-:") + 'Interface',
+        (AlconnaDuplication,), {
             "__annotations__": {
                 **{"args": ArgsStub},
-                **{
-                    opt.dest: OptionStub for opt in options
-                    if opt.name.lstrip('-') not in ("help", "shortcut")
-                },
+                **{opt.dest: OptionStub for opt in options if opt.name.lstrip('-') not in ("help", "shortcut")},
                 **{sub.dest: SubcommandStub for sub in subcommands},
             }
         }

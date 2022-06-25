@@ -5,10 +5,10 @@ with open("README.rst", "r", encoding='utf-8') as fh:
 
 setuptools.setup(
     name="arclet-alconna",
-    version="0.9.4",
+    version="1.0.0",
     author="ArcletProject",
     author_email="rf_tar_railt@qq.com",
-    description="A Fast Command Analyser based on Dict",
+    description="A High-performance, Generality, Humane Command Line Arguments Parser Library.",
     license='MIT',
     long_description=long_description,
     long_description_content_type="text/rst",
@@ -23,13 +23,17 @@ setuptools.setup(
         'cli': [
             'arclet-alconna-cli'
         ],
+        'full': [
+            'arclet-alconna-cli', 'arclet-alconna-graia'
+        ]
     },
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Operating System :: OS Independent",
     ],
     include_package_data=True,

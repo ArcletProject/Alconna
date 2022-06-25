@@ -1,20 +1,20 @@
 """Alconna 负责记录命令的部分"""
 
-import asyncio
 import weakref
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple
+from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple, Any
 import shelve
+import contextlib
 
 from .exceptions import ExceedMaxCount
 from .util import Singleton, LruCache
 from .typing import DataCollection
-from .lang import lang_config
+from .config import config
 
 if TYPE_CHECKING:
+    from .analysis.analyser import Analyser
     from .core import Alconna, AlconnaGroup
     from .arpamar import Arpamar
-    from .analysis.analyser import Analyser
 
 
 class CommandManager(metaclass=Singleton):
@@ -25,7 +25,6 @@ class CommandManager(metaclass=Singleton):
     """
 
     sign: str
-    default_namespace: str
     current_count: int
     max_count: int
 
@@ -33,44 +32,34 @@ class CommandManager(metaclass=Singleton):
     __analysers: Dict['Alconna', 'Analyser']
     __abandons: List["Alconna"]
     __record: LruCache[int, "Arpamar"]
-    __shortcuts: LruCache[str, Union['Arpamar', Union[str, DataCollection]]]
+    __shortcuts: LruCache[str, Union['Arpamar', DataCollection[Union[str, Any]]]]
 
     def __init__(self):
-        self.loop = asyncio.new_event_loop()
         self.cache_path = f"{__file__.replace('manager.py', '')}manager_cache.db"
-        self.default_namespace = "Alconna"
         self.sign = "ALCONNA::"
-        self.max_count = 200
+        self.max_count = config.command_max_count
         self.current_count = 0
 
         self.__commands = {}
         self.__analysers = {}
         self.__abandons = []
         self.__shortcuts = LruCache()
-        self.__record = LruCache(100)
+        self.__record = LruCache(config.message_max_cache)
         weakref.finalize(self, self.__del__)
 
-    def __del__(self):  # td: save to file
-        try:
+    def __del__(self):
+        with contextlib.suppress(AttributeError):
             self.__commands.clear()
             self.__abandons.clear()
             self.__record.clear()
             self.__shortcuts.clear()
             Singleton.remove(self.__class__)
-        except AttributeError:
-            pass
-
-    def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
-        """设置事件循环"""
-        self.loop = loop
 
     def load_cache(self) -> None:
         """加载缓存"""
-        try:
+        with contextlib.suppress(FileNotFoundError, KeyError):
             with shelve.open(self.cache_path) as db:
-                self.__shortcuts.update(db["shortcuts"])  # type: ignore
-        except (FileNotFoundError, KeyError):
-            pass
+                self.__shortcuts = db["shortcuts"]  # type: ignore
 
     def dump_cache(self) -> None:
         """保存缓存"""
@@ -82,41 +71,53 @@ class CommandManager(metaclass=Singleton):
         """获取所有命名空间"""
         return list(self.__commands.keys())
 
-    def _command_part(self, command: str) -> Tuple[str, str]:
+    @staticmethod
+    def _command_part(command: str) -> Tuple[str, str]:
         """获取命令的组成部分"""
-        command_parts = command.split(".")[-2:]
+        command_parts = command.split(".", maxsplit=1)[-2:]
         if len(command_parts) != 2:
-            command_parts.insert(0, self.default_namespace)
+            command_parts.insert(0, config.namespace)
         return command_parts[0], command_parts[1]
 
-    def register(self, delegate: "Analyser") -> None:
+    def register(self, command: Union["Alconna", "AlconnaGroup"]) -> None:
         """注册命令解析器, 会同时记录解析器对应的命令"""
+        from .analysis.base import compile
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
-        self.__analysers[delegate.alconna] = delegate
-        if delegate.alconna.namespace not in self.__commands:
-            self.__commands[delegate.alconna.namespace] = {}
-        cid = delegate.alconna.name.replace(self.sign, "")
-        if _cmd := self.__commands[delegate.alconna.namespace].get(cid):
-            if _cmd == delegate.alconna:
-                return
-            _cmd.__union__(delegate.alconna)
+        if not command._group:   # noqa
+            self.__analysers[command] = compile(command)  # type: ignore
         else:
-            self.__commands[delegate.alconna.namespace][cid] = delegate.alconna
+            for cmd in command.commands:  # type: ignore
+                self.__analysers[cmd] = compile(cmd)
+        if command.namespace not in self.__commands:
+            self.__commands[command.namespace] = {}
+        cid = command.name.replace(self.sign, "")
+        if _cmd := self.__commands[command.namespace].get(cid):
+            if _cmd == command:
+                return
+            _cmd.__union__(command)
+        else:
+            self.__commands[command.namespace][cid] = command
             self.current_count += 1
 
     def require(self, command: "Alconna") -> "Analyser":
         """获取命令解析器"""
         try:
             return self.__analysers[command]
-        except KeyError:
+        except KeyError as e:
             namespace, name = self._command_part(command.path)
-            raise ValueError(lang_config.manager_undefined_command.format(target=f"{namespace}.{name}"))
+            raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
 
     def delete(self, command: Union["Alconna", 'AlconnaGroup', str]) -> None:
         """删除命令"""
         namespace, name = self._command_part(command if isinstance(command, str) else command.path)
         try:
+            base = self.__commands[namespace][name]
+            if base._group:  # noqa
+                for cmd in base.commands:  # type: ignore
+                    del self.__analysers[cmd]
+            else:
+                del self.__analysers[base]  # type: ignore
             del self.__commands[namespace][name]
             self.current_count -= 1
         finally:
@@ -133,7 +134,7 @@ class CommandManager(metaclass=Singleton):
         if isinstance(command, str):
             namespace, name = self._command_part(command)
             if namespace not in self.__commands or name not in self.__commands[namespace]:
-                raise ValueError(lang_config.manager_undefined_command.format(target=command))
+                raise ValueError(config.lang.manager_undefined_command.format(target=command))
             temp = [cmd for cmd in self.__abandons if cmd.path == f"{namespace}.{name}"]
             for cmd in temp:
                 self.__abandons.remove(cmd)
@@ -144,7 +145,7 @@ class CommandManager(metaclass=Singleton):
             self,
             target: Union["Alconna", str],
             shortcut: str,
-            source: Union["Arpamar", Union[str, DataCollection]],
+            source: Union["Arpamar", DataCollection[Union[str, Any]]],
             expiration: int = 0,
     ) -> None:
         """添加快捷命令"""
@@ -152,12 +153,12 @@ class CommandManager(metaclass=Singleton):
         namespace, name = self._command_part(target if isinstance(target, str) else target.path)
         try:
             _ = self.__commands[namespace][name]
-        except KeyError:
-            raise ValueError(lang_config.manager_undefined_command.format(target=f"{namespace}.{name}"))
+        except KeyError as e:
+            raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
         if isinstance(source, Arpamar) and source.matched or not isinstance(source, Arpamar):
             self.__shortcuts.set(f"{namespace}.{name}::{shortcut}", source, expiration)
         else:
-            raise ValueError(lang_config.manager_incorrect_shortcut.format(target=f"{shortcut}"))
+            raise ValueError(config.lang.manager_incorrect_shortcut.format(target=f"{shortcut}"))
 
     def find_shortcut(self, shortcut: str, target: Optional[Union["Alconna", str]] = None):
         """查找快捷命令"""
@@ -165,22 +166,22 @@ class CommandManager(metaclass=Singleton):
             namespace, name = self._command_part(target if isinstance(target, str) else target.path)
             try:
                 _ = self.__commands[namespace][name]
-            except KeyError:
-                raise ValueError(lang_config.manager_undefined_command.format(target=f"{namespace}.{name}"))
+            except KeyError as e:
+                raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
             try:
                 return self.__shortcuts[f"{namespace}.{name}::{shortcut}"]
-            except KeyError:
+            except KeyError as e:
                 raise ValueError(
-                    lang_config.manager_target_command_error.format(target=f"{namespace}.{name}", shortcut=shortcut)
-                )
+                    config.lang.manager_target_command_error.format(target=f"{namespace}.{name}", shortcut=shortcut)
+                ) from e
         else:
             for key in self.__shortcuts:
                 if key.split("::")[1] == shortcut:
                     return self.__shortcuts.get(key)
-            raise ValueError(lang_config.manager_undefined_shortcut.format(target=f"{shortcut}"))
+            raise ValueError(config.lang.manager_undefined_shortcut.format(target=f"{shortcut}"))
 
-    def update_shortcut(self, random: bool = False):
-        return self.__shortcuts.update() if random else self.__shortcuts.update_all()
+    def update_shortcut(self):
+        return self.__shortcuts.update_all()
 
     def delete_shortcut(self, shortcut: str, target: Optional[Union["Alconna", str]] = None):
         """删除快捷命令"""
@@ -198,10 +199,10 @@ class CommandManager(metaclass=Singleton):
         if isinstance(command, str):
             namespace, name = self._command_part(command)
             if namespace not in self.__commands or name not in self.__commands[namespace]:
-                raise ValueError(lang_config.manager_undefined_command.format(target=f"{namespace}.{name}"))
+                raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}"))
             cmd = self.__commands[namespace][name]
             return (
-                self.__abandons.extend(cmd.commands) # type: ignore
+                self.__abandons.extend(cmd.commands)  # type: ignore
                 if hasattr(cmd, 'commands') else self.__abandons.append(cmd)  # type: ignore
             )
         self.__abandons.append(command)
@@ -213,15 +214,15 @@ class CommandManager(metaclass=Singleton):
             return None
         return self.__commands[namespace][name]
 
-    def get_commands(self, namespace: Optional[str] = None) -> List[Union["Alconna", "AlconnaGroup"]]:
+    def get_commands(self, namespace: str = '') -> List[Union["Alconna", "AlconnaGroup"]]:
         """获取命令列表"""
-        if namespace is None:
+        if not namespace:
             return [ana for namespace in self.__commands for ana in self.__commands[namespace].values()]
         if namespace not in self.__commands:
             return []
-        return [ana for ana in self.__commands[namespace].values()]
+        return list(self.__commands[namespace].values())
 
-    def broadcast(self, message: Union[str, DataCollection], namespace: Optional[str] = None) -> Optional['Arpamar']:
+    def broadcast(self, message: DataCollection[Union[str, Any]], namespace: str = '') -> Optional['Arpamar']:
         """将一段命令广播给当前空间内的所有命令"""
         for cmd in self.get_commands(namespace):
             if (res := cmd.parse(message)) and res.matched:
@@ -249,19 +250,19 @@ class CommandManager(metaclass=Singleton):
             max_length: 单个页面展示的最大长度
             page: 当前页码
         """
-        header = header or lang_config.manager_help_header
-        pages = pages or lang_config.manager_help_pages
-        footer = footer or lang_config.manager_help_footer
+        header = header or config.lang.manager_help_header
+        pages = pages or config.lang.manager_help_pages
+        footer = footer or config.lang.manager_help_footer
         cmds = self.get_commands(namespace)
 
         if max_length < 1:
             command_string = "\n".join(
-                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
-                for cmd in cmds
-            ) if not show_index else "\n".join(
                 f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : " +
                 slot.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]
                 for index, slot in enumerate(cmds)
+            ) if show_index else "\n".join(
+                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
+                for cmd in cmds
             )
         else:
             max_page = len(cmds) // max_length + 1
@@ -269,14 +270,14 @@ class CommandManager(metaclass=Singleton):
                 page = 1
             header += "\t" + pages.format(current=page, total=max_page)
             command_string = "\n".join(
-                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
-                for cmd in cmds[(page - 1) * max_length: page * max_length]
-            ) if not show_index else "\n".join(
                 f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : "
                 f"{cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
                 for index, cmd in enumerate(
                     cmds[(page - 1) * max_length: page * max_length], start=(page - 1) * max_length
                 )
+            ) if show_index else "\n".join(
+                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
+                for cmd in cmds[(page - 1) * max_length: page * max_length]
             )
         return f"{header}\n{command_string}\n{footer}"
 
@@ -286,12 +287,7 @@ class CommandManager(metaclass=Singleton):
         if cmd := self.get_command(f"{command_parts[0]}.{command_parts[1]}"):
             return cmd.get_help()
 
-    def record(
-        self,
-        token: int,
-        message: Union[str, DataCollection],
-        result: "Arpamar"
-    ):
+    def record(self, token: int, message: DataCollection[Union[str, Any]], result: "Arpamar"):
         result.origin = message
         self.__record.set(token, result)
 
@@ -301,7 +297,7 @@ class CommandManager(metaclass=Singleton):
         return self.__record.get(token)
 
     @property
-    def recent_message(self) -> Optional[Union[str, DataCollection]]:
+    def recent_message(self) -> Optional[DataCollection[Union[str, Any]]]:
         if rct := self.__record.recent:
             return rct.origin
 

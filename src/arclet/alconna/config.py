@@ -1,6 +1,7 @@
+import asyncio
 import json
 from pathlib import Path
-from typing import Union, Dict, Final, Optional
+from typing import Union, Dict, Final, Optional, Set
 
 
 class _LangConfig:
@@ -51,7 +52,25 @@ class _LangConfig:
         return self.__config[item]
 
 
-lang_config = _LangConfig()
-load_lang_file = lang_config.reload
+class _AlconnaConfig:
+    lang: _LangConfig = _LangConfig()
+    loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
+    namespace: str = "Alconna"
+    fuzzy_threshold: float = 0.6
+    separators: Set[str] = {" "}
+    fuzzy_match: bool = False
+    raise_exception: bool = False
+    command_max_count: int = 200
+    message_max_cache: int = 100
+    enable_message_cache: bool = True
 
-__all__ = ['lang_config', 'load_lang_file']
+    @classmethod
+    def set_loop(cls, loop: asyncio.AbstractEventLoop) -> None:
+        """设置事件循环"""
+        cls.loop = loop
+
+
+config = _AlconnaConfig()
+load_lang_file = config.lang.reload
+
+__all__ = ['config', 'load_lang_file']

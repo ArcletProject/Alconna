@@ -13,8 +13,8 @@ class InvalidParam(Exception):
     """构造 alconna 时某个传入的参数不正确"""
 
 
-class NullTextMessage(Exception):
-    """传入了不含有 text 的消息"""
+class NullMessage(Exception):
+    """传入了无法解析的消息"""
 
 
 class UnexpectedElement(Exception):

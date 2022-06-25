@@ -17,15 +17,20 @@
 
 ## 关于
 
-`Alconna` 隶属于 `ArcletProject`, 是 `CommandAnalysis` 的重构版，是一个简单、灵活、高效的命令参数解析器, 并不局限于解析字符串。
+`Alconna` 隶属于 `ArcletProject`, 是一个简单、灵活、高效的命令参数解析器, 并且不局限于解析命令式字符串。
 
 `Alconna` 拥有复杂的解析功能与命令组件，但 一般情况下请当作~~奇妙~~简易的消息链解析器/命令解析器(雾)
 
 ## 安装
 
 pip
-```
+```bash
 pip install --upgrade arclet-alconna
+```
+
+完整安装
+```bash
+pip install --upgrade arclet-alconna[full]
 ```
 
 ## 文档
@@ -48,11 +53,11 @@ cmd = Alconna(
 )
 
 result = cmd.parse("/pip install cesloi --upgrade") # 该方法返回一个Arpamar类的实例
-print(result.get('install'))  # 或者 result.install
+print(result.query('install'))  # 或者 result.install
 ```
 其结果为
 ```
-{'pak_name': 'cesloi', 'upgrade': Ellipsis}
+{'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
 ```
 
 ### 搭配响应函数
@@ -82,7 +87,7 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## 特点
 
-* 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`; 测试脚本: [benchmark](dev_tools/benchmark.py) 
+* 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`; 测试脚本: [benchmark](benchmark.py) 
 * 精简、多样的构造方法
 * 强大的类型解析与转换功能
 * 可传入同步与异步的 action 函数

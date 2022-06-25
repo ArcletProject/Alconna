@@ -1,6 +1,6 @@
 from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload
 from .typing import DataCollection
-from .lang import lang_config
+from .config import config
 from .base import SubcommandResult, OptionResult
 from .exceptions import BehaveCancelled
 from .components.behavior import T_ABehavior, requirement_handler
@@ -17,23 +17,16 @@ class Arpamar:
     """
     亚帕玛尔(Arpamar), Alconna的珍藏宝书
 
-    Example:
-
     - `Arpamar.main_args`: 当 Alconna 写入了 main_argument 时,该参数返回对应的解析出来的值
-
     - `Arpamar.header`: 当 Alconna 的 command 内写有正则表达式时,该参数返回对应的匹配值
-
     - `Arpamar.find`: 判断 Arpamar 内是否有对应的属性
-
     - `Arpamar.query`: 返回 Arpamar 中指定的属性
-
     - `Arpamar.matched`: 返回命令是否匹配成功
-
     """
 
     def __init__(self, alc: "Alconna"):
         self.source: "Alconna" = alc
-        self.origin: Union[str, DataCollection] = ''
+        self.origin: DataCollection[Union[str, Any]] = ''
         self.matched: bool = False
         self.head_matched: bool = False
         self.error_data: List[Union[str, Any]] = []
@@ -118,10 +111,7 @@ class Arpamar:
                     self.other_args = {**self.other_args, **vv['args']}
 
     def execute(self, behaviors: Optional[List[T_ABehavior]] = None):
-        behaviors = [
-            *self.source.behaviors,
-            *(behaviors or [])
-        ]
+        behaviors = [*self.source.behaviors, *(behaviors or [])]
         for behavior in behaviors:
             for b in requirement_handler(behavior):
                 try:
@@ -130,10 +120,7 @@ class Arpamar:
                     continue
         return self
 
-    def __require__(
-            self,
-            parts: List[str]
-    ) -> Tuple[Optional[Union[Dict[str, Any], OptionResult, SubcommandResult]], str]:
+    def __require__(self, parts: List[str]) -> Tuple[Union[Dict[str, Any], OptionResult, SubcommandResult, None], str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
         if len(parts) == 1:
             part = parts[0]
@@ -152,7 +139,7 @@ class Arpamar:
             return None, part
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
-            raise RuntimeError(lang_config.arpamar_ambiguous_name.format(target=prefix))
+            raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=prefix))
 
         def _r_opt(_p: str, _s: List[str], _opts: Dict[str, OptionResult]):
             if _p == "options":
@@ -186,12 +173,12 @@ class Arpamar:
             if end in _cache['args']:
                 return _cache['args'], end
             if end == "options" and end in _cache['options']:
-                raise RuntimeError(lang_config.arpamar_ambiguous_name.format(target=f"{prefix}.{end}"))
+                raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{prefix}.{end}"))
             if end == "options" or end in _cache['options']:
                 return _r_opt(end, parts, _cache['options'])
         return None, prefix
 
-    def query(self, path: str, default: Any = None) -> Union[Dict[str, Any], Any, None]:
+    def query(self, path: str, default: T = None) -> Union[Dict[str, Any], T, None]:
         """根据path查询值"""
         parts = path.split('.')
         cache, endpoint = self.__require__(parts)
@@ -212,11 +199,14 @@ class Arpamar:
         else:
             cache[endpoint] = value
 
-    def query_with(self, arg_type: Type[T], name: Optional[str] = None) -> Optional[Union[Dict[str, T], T]]:
+    def query_with(
+            self, arg_type: Type[T],
+            name: Optional[str] = None,
+            default: Any = None
+    ) -> Optional[Union[Dict[str, T], T]]:
         """根据类型查询参数"""
         if name:
-            res = self.query(name)
-            return res if isinstance(res, arg_type) else None
+            return res if isinstance(res := self.query(name, default), arg_type) else None
         return {k: v for k, v in self.all_matched_args.items() if isinstance(v, arg_type)}
 
     def find(self, name: str) -> bool:
