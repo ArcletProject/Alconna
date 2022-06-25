@@ -17,7 +17,7 @@ from .builtin.construct import AlconnaDecorate, AlconnaFormat, AlconnaString, Al
 from .builtin.formatter import ArgParserTextFormatter, DefaultTextFormatter
 from .builtin.pattern import ObjectPattern
 from .components.behavior import ArpamarBehavior
-from .components.output import output_send, output_manager, AbstractTextFormatter
+from .components.output import output_manager, AbstractTextFormatter
 from .components.duplication import AlconnaDuplication
 from .components.stub import ArgsStub, OptionStub, SubcommandStub
 

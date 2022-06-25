@@ -17,7 +17,10 @@
 12. 删除`Alconna.set_action`
 13. 重构 `ObjectPattern`
 14. 增加 `datetime`的 BasePattern, 支持传入时间戳或日期文字
-15. 修复bugs
+15. `Analyser` 的字段修改, `next_data` -> `popitem`, `reduce_data` -> `pushback`
+16. `output_send` 合并到 `output_manager`
+17. `Option` 添加参数`priority`, 仅在需要选项重载时安排优先级
+18. 修复bugs
 
 # Alconna 0.9.x:
 

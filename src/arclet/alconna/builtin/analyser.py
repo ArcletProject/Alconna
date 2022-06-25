@@ -10,7 +10,7 @@ from arclet.alconna.analysis.parts import analyse_args, analyse_option, analyse_
     analyse_unmatch_params
 from arclet.alconna.exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from arclet.alconna.config import config
-from arclet.alconna.components.output import output_send
+from arclet.alconna.components.output import output_manager
 
 
 class DefaultCommandAnalyser(Analyser):
@@ -27,7 +27,7 @@ class DefaultCommandAnalyser(Analyser):
         if self.ndata == 0 and not self.temporary_data.get('fail'):
             if not message:
                 raise ValueError(config.lang.analyser_handle_null_message.format(target=message))
-            self.process_message(message)
+            self.process(message)
         if self.temporary_data.get('fail'):
             return self.export(fail=True, exception=self.temporary_data.get('exception'))
         if (res := command_manager.get_record(self.temp_token)) and self.temp_token in self.used_tokens:
@@ -40,20 +40,20 @@ class DefaultCommandAnalyser(Analyser):
             self.current_index = 0
             self.content_index = 0
             try:
-                _res = command_manager.find_shortcut(self.next_data(pop=False)[0], self.alconna)
+                _res = command_manager.find_shortcut(self.popitem(move=False)[0], self.alconna)
                 self.reset()
                 if isinstance(_res, Arpamar):
                     return _res
-                return self.process_message(_res).analyse()
+                return self.process(_res).analyse()
             except ValueError:
                 return self.export(fail=True, exception=e)
         except FuzzyMatchSuccess as Fuzzy:
-            output_send(self.alconna.name, lambda: str(Fuzzy)).handle({}, is_raise_exception=self.is_raise_exception)
+            output_manager.get(self.alconna.name, lambda: str(Fuzzy)).handle(is_raise_exception=self.is_raise_exception)
             return self.export(fail=True)
 
         for _ in self.part_len:
             try:
-                _text, _str = self.next_data(pop=False)
+                _text, _str = self.popitem(move=False)
                 _param = _param if (_param := (self.command_params.get(_text) if _str and _text else Ellipsis)) else (
                     None if self.default_separate else analyse_unmatch_params(
                         self.command_params.values(), _text, self.alconna.is_fuzzy_match
@@ -81,12 +81,12 @@ class DefaultCommandAnalyser(Analyser):
                 elif isinstance(_param, Subcommand):
                     self.subcommands.setdefault(*analyse_subcommand(self, _param))
                 elif isinstance(_param, Sentence):
-                    self.sentences.append(self.next_data()[0])
+                    self.sentences.append(self.popitem()[0])
             except FuzzyMatchSuccess as e:
-                output_send(self.alconna.name, lambda: str(e)).handle({}, is_raise_exception=self.is_raise_exception)
+                output_manager.get(self.alconna.name, lambda: str(e)).handle(is_raise_exception=self.is_raise_exception)
                 return self.export(fail=True)
             except (ParamsUnmatched, ArgumentMissing):
-                if self.rest_data()[-1] in ("--help", "-h"):
+                if self.release()[-1] in ("--help", "-h"):
                     return handle_help(self)
                 if self.is_raise_exception:
                     raise
@@ -101,9 +101,9 @@ class DefaultCommandAnalyser(Analyser):
         if self.current_index == self.ndata and (not self.need_main_args or self.main_args):
             return self.export()
 
-        data_len = len(self.rest_data())
+        data_len = len(self.release())
         if data_len > 0:
-            exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.next_data(pop=False)[0]))
+            exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.popitem(move=False)[0]))
         else:
             exc = ArgumentMissing(config.lang.analyser_param_missing)
         if self.is_raise_exception:

@@ -8,10 +8,22 @@ from ..util import Singleton
 from ..base import Option, Subcommand, Args, ArgUnit
 
 
+class OutputAction(ArgAction):
+    output_text_call: Callable[[], str]
+
+    def __init__(self, send_action, out_call, command=None):
+        super().__init__(send_action)
+        self.output_text_call = out_call
+        self.command = command
+
+    def handle(self, option_dict=None, varargs=None, kwargs=None, is_raise_exception=False):
+        return super().handle({"help": self.output_text_call()}, varargs, kwargs, is_raise_exception)
+
+
 class OutputActionManager(metaclass=Singleton):
     """帮助信息"""
     cache: Dict[str, Callable]
-    outputs: Dict[str, "OutputAction"]
+    outputs: Dict[str, OutputAction]
     send_action: Callable[[str], Union[Any, Coroutine]]
 
     def __init__(self):
@@ -26,11 +38,19 @@ class OutputActionManager(metaclass=Singleton):
 
         finalize(self, _clr, self)
 
-    def set_send_action(
-            self,
-            action: Callable[[str], Any],
-            command: Optional[str] = None
-    ):
+    def get(self, command: str, output_call: Callable[[], str]) -> OutputAction:
+        """获取发送帮助信息的 action"""
+        if command not in self.outputs:
+            self.outputs[command] = OutputAction(self.send_action, output_call, command)
+        else:
+            self.outputs[command].output_text_call = output_call
+
+        if command in self.cache:
+            self.outputs[command].action = self.cache[command]
+            del self.cache[command]
+        return self.outputs[command]
+
+    def set_action(self, action: Callable[[str], Any], command: Optional[str] = None):
         """修改help_send_action"""
         if command is None:
             self.send_action = action
@@ -41,31 +61,6 @@ class OutputActionManager(metaclass=Singleton):
 
 
 output_manager = OutputActionManager()
-
-
-class OutputAction(ArgAction):
-    output_text_call: Callable[[], str]
-
-    def __init__(self, out_call, command=None):
-        super().__init__(output_manager.send_action)
-        self.output_text_call = out_call
-        self.command = command
-
-    def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
-        return super().handle({"help": self.output_text_call()}, varargs, kwargs, is_raise_exception)
-
-
-def output_send(command: str, output_call: Callable[[], str]) -> OutputAction:
-    """帮助信息的发送 action"""
-    if command not in output_manager.outputs:
-        output_manager.outputs[command] = OutputAction(output_call, command)
-    else:
-        output_manager.outputs[command].output_text_call = output_call
-
-    if command in output_manager.cache:
-        output_manager.outputs[command].action = output_manager.cache[command]
-        del output_manager.cache[command]
-    return output_manager.outputs[command]
 
 
 if TYPE_CHECKING:
@@ -128,7 +123,7 @@ class AbstractTextFormatter(metaclass=ABCMeta):
         def _handle(command: 'Alconna'):
             hds = command.headers.copy()
             if command.name in hds:
-                hds.remove(command.name)
+                hds.remove(command.name)  # type: ignore
             return Trace(
                 {'name': command.name, 'header': hds or [''], 'description': command.help_text},
                 command.args, command.separators, command.options
@@ -172,7 +167,7 @@ class AbstractTextFormatter(metaclass=ABCMeta):
             if isinstance(_cache, Subcommand):
                 return self.format(Trace(
                     {"name": _cache.name, "header": [""], "description": _cache.help_text}, _cache.args,
-                    _cache.separators, _cache.options
+                    _cache.separators, _cache.options  # type: ignore
                 ))
             return self.format(trace)
 
@@ -203,4 +198,4 @@ class AbstractTextFormatter(metaclass=ABCMeta):
         """子节点列表的描述"""
 
 
-__all__ = ["AbstractTextFormatter", "output_send", "output_manager", "Trace"]
+__all__ = ["AbstractTextFormatter", "output_manager", "Trace"]

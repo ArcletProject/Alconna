@@ -11,17 +11,17 @@ if TYPE_CHECKING:
     from ..core import Alconna
 
 
-def compile(alconna: "Alconna", params_generator: Optional[Callable[[Analyser], None]] = None):
+def compile(alconna: "Alconna", params_compiler: Optional[Callable[[Analyser], None]] = None):
     _analyser = alconna.analyser_type(alconna)
-    if params_generator:
-        params_generator(_analyser)
+    if params_compiler:
+        params_compiler(_analyser)
     else:
-        Analyser.default_params_generator(_analyser)
+        Analyser.default_params_compiler(_analyser)
     return _analyser
 
 
 def analyse(alconna: "Alconna", command: DataCollection[Union[str, Any]]) -> "Arpamar":
-    return compile(alconna).process_message(command).analyse().execute()
+    return compile(alconna).process(command).analyse().execute()
 
 
 class AnalyseError(Exception):
@@ -53,7 +53,7 @@ def analyse_args(args: Args, command: DataCollection[Union[str, Any]], raise_exc
     _analyser.need_main_args = True
     _analyser.is_raise_exception = True
     try:
-        _analyser.process_message(command)
+        _analyser.process(command)
         return ala(_analyser, args, len(args))
     except Exception as e:
         if raise_exception:
@@ -75,7 +75,7 @@ def analyse_header(
     _analyser.is_raise_exception = True
     _analyser.__init_header__(command_name, headers)
     try:
-        _analyser.process_message(command)
+        _analyser.process(command)
         return alh(_analyser)
     except Exception as e:
         if raise_exception:
@@ -90,10 +90,10 @@ def analyse_option(option: Option, command: DataCollection[Union[str, Any]], rai
     _analyser.need_main_args = False
     _analyser.is_raise_exception = True
     _analyser.alconna.options.append(option)
-    _analyser.default_params_generator(_analyser)
+    _analyser.default_params_compiler(_analyser)
     _analyser.alconna.options.clear()
     try:
-        _analyser.process_message(command)
+        _analyser.process(command)
         return alo(_analyser, option)
     except Exception as e:
         if raise_exception:
@@ -108,10 +108,10 @@ def analyse_subcommand(subcommand: Subcommand, command: DataCollection[Union[str
     _analyser.need_main_args = False
     _analyser.is_raise_exception = True
     _analyser.alconna.options.append(subcommand)
-    _analyser.default_params_generator(_analyser)
+    _analyser.default_params_compiler(_analyser)
     _analyser.alconna.options.clear()
     try:
-        _analyser.process_message(command)
+        _analyser.process(command)
         return als(_analyser, subcommand)
     except Exception as e:
         if raise_exception:

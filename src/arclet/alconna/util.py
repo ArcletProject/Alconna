@@ -1,11 +1,10 @@
 """杂物堆"""
 import contextlib
-import random
 import inspect
 from functools import lru_cache
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import TypeVar, Optional, Dict, Any, Iterator, Generic, Hashable, Tuple, Union
+from typing import TypeVar, Optional, Dict, Any, Iterator, Hashable, Tuple, Union, Mapping
 from typing_extensions import get_origin, get_args
 
 R = TypeVar('R')
@@ -62,7 +61,7 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None):
     Returns:
         List[str]: 切割后的字符串, 可能含有空格
     """
-    separates = separates or {" "}
+    separates = separates or (" ",)
     result = ""
     quotation = ""
     for index, char in enumerate(text):
@@ -101,10 +100,9 @@ _V = TypeVar("_V")
 _T = TypeVar("_T")
 
 
-class LruCache(Generic[_K, _V]):
+class LruCache(Mapping[_K, _V]):
     max_size: int
     cache: OrderedDict
-    __size: int
     record: Dict[_K, Tuple[datetime, timedelta]]
 
     __slots__ = ("max_size", "cache", "record", "__size")
@@ -143,8 +141,6 @@ class LruCache(Generic[_K, _V]):
         self.record[key] = (datetime.now(), timedelta(seconds=expiration))
 
     def delete(self, key: _K) -> None:
-        if key not in self.cache:
-            raise KeyError(key)
         self.cache.pop(key)
         self.record.pop(key)
 
@@ -170,13 +166,6 @@ class LruCache(Generic[_K, _V]):
     def __repr__(self) -> str:
         return repr(self.cache)
 
-    def update(self) -> None:
-        now = datetime.now()
-        key = random.choice(list(self.cache.keys()))
-        expire = self.record[key][1]
-        if expire.total_seconds() > 0 and now > self.record[key][0] + expire:
-            self.delete(key)
-
     def update_all(self) -> None:
         now = datetime.now()
         for key in self.cache.keys():
@@ -189,6 +178,12 @@ class LruCache(Generic[_K, _V]):
         with contextlib.suppress(KeyError):
             return self.cache[list(self.cache.keys())[-1]]
         return None
+
+    def keys(self):
+        return self.cache.keys()
+
+    def values(self):
+        return self.values()
 
     def items(self, size: int = -1) -> Iterator[Tuple[_K, _V]]:
         if size > 0:
@@ -206,7 +201,7 @@ def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> boo
     with contextlib.suppress(TypeError):
         if isinstance(par, (type, tuple)):
             return isinstance(obj, par)
-        if isinstance(obj, get_origin(par)):
+        if isinstance(obj, get_origin(par)):  # type: ignore
             return True
         if get_origin(par) is Union:
             return any(generic_isinstance(obj, p) for p in get_args(par))

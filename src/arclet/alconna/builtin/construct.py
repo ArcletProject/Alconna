@@ -320,7 +320,7 @@ def _from_string(command: str, *option: str, sep: str = " ") -> "Alconna":
         res = re.split("[:=]", p)
         res[0] = f"{res[0]};O"
         args.append(res)
-    if not (help_string := re.findall(r"#(.+)", others)):
+    if not (help_string := re.findall(r"(?: )#(.+)$", others)):  # noqa
         help_string = headers
     custom_types = Alconna.custom_types.copy()
     custom_types.update(getattr(inspect.getmodule(inspect.stack()[1][0]), "__dict__", {}))
@@ -334,8 +334,8 @@ def _from_string(command: str, *option: str, sep: str = " ") -> "Alconna":
             opt_args.append(res)
         _typs = custom_types.copy()
         _opt_args = Args.from_string_list(opt_args, _typs)
-        opt_action_value = re.findall(r"&(.+?)(?:#.+?)?$", opt_others)
-        if not (opt_help_string := re.findall(r"#(.+)$", opt_others)):
+        opt_action_value = re.findall(r"&(.+?)(?: #.+?)?$", opt_others)
+        if not (opt_help_string := re.findall(r"(?: )#(.+)$", opt_others)):  # noqa
             opt_help_string = [opt_head]
         _options.append(Option(opt_head, args=_opt_args))
         if opt_action_value:

@@ -59,7 +59,7 @@ class CommandManager(metaclass=Singleton):
         """加载缓存"""
         with contextlib.suppress(FileNotFoundError, KeyError):
             with shelve.open(self.cache_path) as db:
-                self.__shortcuts.update(db["shortcuts"])  # type: ignore
+                self.__shortcuts = db["shortcuts"]  # type: ignore
 
     def dump_cache(self) -> None:
         """保存缓存"""
@@ -180,8 +180,8 @@ class CommandManager(metaclass=Singleton):
                     return self.__shortcuts.get(key)
             raise ValueError(config.lang.manager_undefined_shortcut.format(target=f"{shortcut}"))
 
-    def update_shortcut(self, random: bool = False):
-        return self.__shortcuts.update() if random else self.__shortcuts.update_all()
+    def update_shortcut(self):
+        return self.__shortcuts.update_all()
 
     def delete_shortcut(self, shortcut: str, target: Optional[Union["Alconna", str]] = None):
         """删除快捷命令"""
@@ -214,18 +214,15 @@ class CommandManager(metaclass=Singleton):
             return None
         return self.__commands[namespace][name]
 
-    def get_commands(self, namespace: Optional[str] = None) -> List[Union["Alconna", "AlconnaGroup"]]:
+    def get_commands(self, namespace: str = '') -> List[Union["Alconna", "AlconnaGroup"]]:
         """获取命令列表"""
-        if namespace is None:
+        if not namespace:
             return [ana for namespace in self.__commands for ana in self.__commands[namespace].values()]
         if namespace not in self.__commands:
             return []
         return list(self.__commands[namespace].values())
 
-    def broadcast(
-            self, message: DataCollection[Union[str, Any]],
-            namespace: Optional[str] = None
-    ) -> Optional['Arpamar']:
+    def broadcast(self, message: DataCollection[Union[str, Any]], namespace: str = '') -> Optional['Arpamar']:
         """将一段命令广播给当前空间内的所有命令"""
         for cmd in self.get_commands(namespace):
             if (res := cmd.parse(message)) and res.matched:
@@ -290,12 +287,7 @@ class CommandManager(metaclass=Singleton):
         if cmd := self.get_command(f"{command_parts[0]}.{command_parts[1]}"):
             return cmd.get_help()
 
-    def record(
-        self,
-        token: int,
-        message: DataCollection[Union[str, Any]],
-        result: "Arpamar"
-    ):
+    def record(self, token: int, message: DataCollection[Union[str, Any]], result: "Arpamar"):
         result.origin = message
         self.__record.set(token, result)
 

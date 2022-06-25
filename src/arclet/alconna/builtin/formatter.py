@@ -39,7 +39,7 @@ class DefaultTextFormatter(AbstractTextFormatter):
         notice = [(k, param['notice']) for k, param in args.argument.items() if param['notice']]
         if not notice:
             return res
-        return res + "\n## 注释\n  " + "\n".join(f"{v[0]}: {v[1]}" for v in notice)
+        return res + "\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice)
 
     def header(self, root: Dict[str, Any], separators: Set[str]) -> str:
         help_string = ("\n" + root['description']) if root.get('description') else ""
@@ -128,8 +128,13 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         param_texts = [self.param(k, param) for k, param in args.argument.items()]
         if len(args.separators) == 1:
             separator = tuple(args.separators)[0]
-            return separator.join(param_texts)
-        return " ".join(param_texts) + ", USED SPLIT:" + "/".join(args.separators)
+            res = separator.join(param_texts)
+        else:
+            res = " ".join(param_texts) + ", USED SPLIT:" + "/".join(args.separators)
+        notice = [(k, param['notice']) for k, param in args.argument.items() if param['notice']]
+        if not notice:
+            return res
+        return res + "\n  内容:\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice)
 
     def header(self, root: Dict[str, Any], separators: Set[str]) -> str:
         help_string = ("\n描述: " + root['description'] + "\n") if root.get('description') else ""

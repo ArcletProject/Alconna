@@ -20,14 +20,7 @@ T_Origin = TypeVar('T_Origin')
 
 
 class Analyser(Generic[T_Origin], metaclass=ABCMeta):
-    """
-    Alconna使用的分析器基类, 实现了一些通用的方法
-
-    Attributes:
-        current_index(int): 记录解析时当前数据的index
-        content_index(int): 记录内部index
-        head_matched: 是否匹配了命令头部
-    """
+    """ Alconna使用的分析器基类, 实现了一些通用的方法 """
     preprocessors: Dict[str, Callable[..., Any]] = {}
     text_sign: str = 'text'
 
@@ -71,7 +64,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
         # return hash(str(data))
-        return hash(tuple(i.__str__() for i in data))
+        return hash(''.join(i.__str__() for i in data))
 
     def __init__(self, alconna: "Alconna"):
         self.reset()
@@ -181,13 +174,14 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                         actions['subcommands'][f"{opt.dest}.{option.dest}"] = option.action
 
     @staticmethod
-    def default_params_generator(analyser: "Analyser"):
+    def default_params_compiler(analyser: "Analyser"):
         analyser.part_len = range(len(analyser.alconna.options) + (1 if analyser.need_main_args else 0))
         for opts in analyser.alconna.options:
             if isinstance(opts, Option):
                 for al in opts.aliases:
                     if (li := analyser.command_params.get(al)) and isinstance(li, list):
-                        analyser.command_params[al].append(opts)  # type: ignore
+                        li.append(opts)  # type: ignore
+                        li.sort(key=lambda x: x.priority, reverse=True)
                     else:
                         analyser.command_params[al] = [opts]
                 analyser.param_ids.update(opts.aliases)
@@ -198,7 +192,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 for sub_opts in opts.options:
                     for al in sub_opts.aliases:
                         if (li := opts.sub_params.get(al)) and isinstance(li, list):
-                            opts.sub_params[al].append(sub_opts)  # type: ignore
+                            li.append(sub_opts)  # type: ignore
+                            li.sort(key=lambda x: x.priority, reverse=True)
                         else:
                             opts.sub_params[al] = [sub_opts]
                     if sub_opts.requires:
@@ -224,7 +219,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         self.origin_data, self.header = None, None
         self.head_pos = (0, 0)
 
-    def next_data(self, separate: Optional[Set[str]] = None, pop: bool = True) -> Tuple[Union[str, Any], bool]:
+    def popitem(self, separate: Optional[Set[str]] = None, move: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
         self.temporary_data["separators"] = None
         if self.current_index == self.ndata:
@@ -235,7 +230,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             _text = _current_data[self.content_index]
             if separate and not self.separators.issuperset(separate):
                 _text, _rest_text = split_once(_text, tuple(separate))
-            if pop:
+            if move:
                 if _rest_text:  # 这里实际上还是pop了
                     self.temporary_data["separators"] = separate
                     _current_data[self.content_index] = _rest_text
@@ -245,11 +240,11 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 self.current_index += 1
                 self.content_index = 0
             return _text, True
-        if pop:
+        if move:
             self.current_index += 1
         return _current_data, False
 
-    def reduce_data(self, data: Union[str, Any], replace=False):
+    def pushback(self, data: Union[str, Any], replace=False):
         """把 pop的数据放回 (实际只是‘指针’移动)"""
         if not data:
             return
@@ -276,21 +271,20 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 if replace:
                     self.raw_data[self.current_index] = data
 
-    def rest_data(self, separate: Optional[Set[str]] = None) -> List[Union[str, Any]]:
+    def release(self, separate: Optional[Set[str]] = None) -> List[Union[str, Any]]:
         _result = []
         is_cur = False
         for _data in self.raw_data[self.current_index:]:
             if isinstance(_data, StrMounter):
                 for s in _data[0 if is_cur else self.content_index:]:
                     _result.extend(
-                        split(s, tuple(separate)) if separate and not self.separators.issuperset(separate) else [s]
-                    )
+                        split(s, tuple(separate)) if separate and not self.separators.issuperset(separate) else [s])
                     is_cur = True
             else:
                 _result.append(_data)
         return _result
 
-    def process_message(self, data: DataCollection[Union[str, Any]]) -> 'Analyser':
+    def process(self, data: DataCollection[Union[str, Any]]) -> 'Analyser':
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
         self.origin_data = data
         if isinstance(data, str):
@@ -304,7 +298,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
             if (proc := self.preprocessors.get(uname)) and (res := proc(unit)):
                 unit = res
             if text := getattr(unit, self.text_sign, unit if isinstance(unit, str) else None):
-                if not (res := split(text.lstrip(), tuple(self.separators))):
+                if not (res := split(text.strip(), tuple(self.separators))):
                     continue
                 raw_data.append(StrMounter(res))
             else:
@@ -336,7 +330,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         result.matched = not fail
         if fail:
             result.error_info = repr(exception or traceback.format_exc(limit=1))
-            result.error_data = self.rest_data()
+            result.error_data = self.release()
         else:
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
             if config.enable_message_cache:

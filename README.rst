@@ -7,8 +7,7 @@
 
 **English**: `README <README-EN.md>`__
 
-``Alconna`` 隶属于 ``ArcletProject``, 是 ``CommandAnalysis``
-的高级版， 支持解析消息链或者其他原始消息数据
+``Alconna`` 隶属于 ``ArcletProject``, 是一个简单、灵活、高效的命令参数解析器, 并且不局限于解析命令式字符串。
 
 ``Alconna`` 拥有复杂的解析功能与命令组件，但
 一般情况下请当作\ [STRIKEOUT:奇妙]\ 简易的消息链解析器/命令解析器(雾)
@@ -46,13 +45,13 @@ pip
    )
 
    result = cmd.parse("/pip install cesloi --upgrade") # 该方法返回一个Arpamar类的实例
-   print(result.get('install'))  # 或者 result.install
+   print(result.query('install'))  # 或者 result.install
 
 其结果为
 
 ::
 
-   {'pak_name': 'cesloi', 'upgrade': Ellipsis}
+   {'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
 
 讨论
 ----

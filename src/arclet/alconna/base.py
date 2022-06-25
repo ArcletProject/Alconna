@@ -253,26 +253,26 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                     _limit = True
                 if flag == ArgFlag.ANTI and not _limit:
                     if slot['value'] not in (AnyOne, AllParam):
-                        slot['value'] = deepcopy(_value).reverse()
+                        slot['value'] = deepcopy(_value).reverse()  # type: ignore
                     _limit = True
                 if flag == ArgFlag.VAR_KEYWORD and not _limit:
                     if self.var_keyword:
                         raise InvalidParam(config.lang.args_duplicate_kwargs)
                     if _value is not AllParam:
-                        slot['value'] = MultiArg(_value, flag='kwargs')
+                        slot['value'] = MultiArg(_value, flag='kwargs')  # type: ignore
                         self.var_keyword = name
                     _limit = True
                 if flag == ArgFlag.VAR_POSITIONAL and not _limit:
                     if self.var_positional:
                         raise InvalidParam(config.lang.args_duplicate_varargs)
                     if _value is not AllParam:
-                        slot['value'] = MultiArg(_value)
+                        slot['value'] = MultiArg(_value)  # type: ignore
                         self.var_positional = name
                 if flag.isdigit() and not _limit:
                     if self.var_positional:
                         raise InvalidParam(config.lang.args_duplicate_varargs)
                     if _value is not AllParam:
-                        slot['value'] = MultiArg(_value, length=int(flag))
+                        slot['value'] = MultiArg(_value, length=int(flag))  # type: ignore
                         self.var_positional = name
                 if flag == ArgFlag.OPTIONAL:
                     if self.var_keyword or self.var_positional:
@@ -431,6 +431,7 @@ class CommandNode:
 class Option(CommandNode):
     """命令选项, 可以使用别名"""
     aliases: FrozenSet[str]
+    priority: int
 
     def __init__(
             self,
@@ -442,7 +443,7 @@ class Option(CommandNode):
             separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
             help_text: Optional[str] = None,
             requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
-
+            priority: int = 0
     ):
         aliases = alias or []
         parts = name.split(" ")
@@ -454,6 +455,7 @@ class Option(CommandNode):
             aliases.extend(aliases[1:])
         aliases.insert(0, name)
         self.aliases = frozenset(aliases)
+        self.priority = priority
         super().__init__(
             " ".join(rest) + (" " if rest else "") + name, args, dest, action, separators, help_text, requires
         )

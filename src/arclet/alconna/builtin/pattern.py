@@ -62,7 +62,7 @@ class ObjectPattern(BasePattern):
 
     def match(self, input_: Union[str, Any]) -> TOrigin:
         if isinstance(input_, self.origin):
-            return input_
+            return input_  # type: ignore
         elif not isinstance(input_, str):
             raise ParamsUnmatched(config.lang.args_type_error.format(target=input_.__class__))
         if not (mat := self._re_pattern.fullmatch(input_)):

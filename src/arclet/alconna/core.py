@@ -342,7 +342,7 @@ class Alconna(CommandNode):
     ):
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         analyser = command_manager.require(self) if static else compile(self)
-        analyser.process_message(message)
+        analyser.process(message)
         arp = analyser.analyse()
         if arp.matched:
             arp.execute()

@@ -62,11 +62,8 @@ TOrigin = TypeVar("TOrigin")
 
 
 class BasePattern(Generic[TOrigin]):
-    """
-    对参数类型值的包装
-    """
-
-    regex_pattern: TPattern
+    """对参数类型值的包装"""
+    regex_pattern: TPattern  # type: ignore
     pattern: str
     model: PatternModel
     converter: Callable[[Union[str, Any]], TOrigin]
