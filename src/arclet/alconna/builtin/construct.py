@@ -420,7 +420,7 @@ class FuncMounter(AlconnaMounter):
             command=config.get("command", func_name),
             main_args=_args,
             help_text=config.get("description", func.__doc__ or func_name),
-            action=func,
+            action=ArgAction(func),
             is_raise_exception=config.get("raise_exception", True),
             namespace=config.get("namespace", None),
         )

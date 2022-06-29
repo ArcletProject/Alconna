@@ -65,6 +65,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
         # return hash(str(data))
         return hash(''.join(i.__str__() for i in data))
+        # return hash(tuple(i.__str__() for i in data))
 
     def __init__(self, alconna: "Alconna"):
         self.reset()

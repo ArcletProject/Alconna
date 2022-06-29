@@ -2,6 +2,11 @@
 
 \^o^/
 
+## Alconna 1.0.1:
+1. `Args.from_callable` 允许 keyword 参数
+2. 更改ArgAction参数
+3. 修复bugs
+
 ## Alconna 1.0.0:
 1. 将`lang`迁移到新增的`config`中，并为`config`加入了如全局分隔、开启缓存等选项
 2. 压缩代码量并规范化

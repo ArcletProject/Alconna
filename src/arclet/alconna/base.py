@@ -160,6 +160,11 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 de = None
             elif de is None:
                 de = inspect.Signature.empty
+            if param.kind == param.KEYWORD_ONLY:
+                if anno == bool:
+                    anno = BasePattern(f"(?:-*no)?-*{name}", 3, bool, lambda x: not x.lstrip("-").startswith('no'))
+                else:
+                    _args.add_argument(f"${name}_key", value=f"-*{name}")
             if param.kind == param.VAR_POSITIONAL:
                 name += ";S"
             if param.kind == param.VAR_KEYWORD:

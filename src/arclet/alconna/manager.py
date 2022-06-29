@@ -253,7 +253,7 @@ class CommandManager(metaclass=Singleton):
         header = header or config.lang.manager_help_header
         pages = pages or config.lang.manager_help_pages
         footer = footer or config.lang.manager_help_footer
-        cmds = self.get_commands(namespace)
+        cmds = self.get_commands(namespace or '')
 
         if max_length < 1:
             command_string = "\n".join(

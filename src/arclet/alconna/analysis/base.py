@@ -54,7 +54,7 @@ def analyse_args(args: Args, command: DataCollection[Union[str, Any]], raise_exc
     _analyser.is_raise_exception = True
     try:
         _analyser.process(command)
-        return ala(_analyser, args, len(args))
+        return ala(_analyser, args)
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

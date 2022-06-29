@@ -1,5 +1,5 @@
 import re
-from typing import Iterable, Union, List, Any, Dict, Tuple, Set
+from typing import Iterable, Union, List, Any, Dict, Tuple
 
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
@@ -11,16 +11,21 @@ from ..config import config
 
 def multi_arg_handler(
     analyser: Analyser,
+    args: Args,
     may_arg: Union[str, Any],
     key: str,
     value: MultiArg,
     default: Any,
-    nargs: int,
-    seps: Set[str],
     result_dict: Dict[str, Any]
 ):
     # 当前args 已经解析 m 个参数， 总共需要 n 个参数，总共剩余p个参数，
     # q = n - m 为剩余需要参数（包括自己）， p - q + 1 为自己可能需要的参数个数
+    nargs = len(args.argument)
+    seps = args.separators
+    if value.flag == 'args' and args.var_keyword:
+        nargs -= 1
+    elif value.flag == 'kwargs' and args.var_positional:
+        nargs -= 1
     _m_rest_arg = nargs - len(result_dict) - 1
     _m_all_args_count = len(analyser.release(seps)) - _m_rest_arg + 1
     if value.array_length:
@@ -30,7 +35,9 @@ def multi_arg_handler(
         result = []
         for i in range(_m_all_args_count):
             _m_arg, _m_str = analyser.popitem(seps)
-            if _m_str and _m_arg in analyser.param_ids:
+            if not _m_arg:
+                continue
+            if _m_str and (_m_arg in analyser.param_ids or re.match(r'^([^=]+)=\s?$', _m_arg)):
                 analyser.pushback(_m_arg)
                 for ii in range(min(len(result), _m_rest_arg)):
                     analyser.pushback(result.pop(-1))
@@ -54,6 +61,8 @@ def multi_arg_handler(
 
         for i in range(_m_all_args_count):
             _m_arg, _m_str = analyser.popitem(seps)
+            if not _m_arg:
+                continue
             if not _m_str:
                 analyser.pushback(_m_arg)
                 break
@@ -84,8 +93,7 @@ def multi_arg_handler(
 
 def analyse_args(
         analyser: Analyser,
-        opt_args: Args,
-        nargs: int
+        opt_args: Args
 ) -> Dict[str, Any]:
     """
     分析 Args 部分
@@ -93,7 +101,6 @@ def analyse_args(
     Args:
         analyser: 使用的分析器
         opt_args: 目标Args
-        nargs: Args参数个数
 
     Returns:
         Dict: 解析结果
@@ -135,7 +142,7 @@ def analyse_args(
                     continue
         if isinstance(value, BasePattern):
             if value.__class__ is MultiArg:
-                multi_arg_handler(analyser, may_arg, key, value, default, nargs, seps, option_dict)  # type: ignore
+                multi_arg_handler(analyser, opt_args, may_arg, key, value, default, option_dict)  # type: ignore
             else:
                 res, state = value.invalidate(may_arg, default) if value.anti else value.validate(may_arg, default)
                 if state != "V":
@@ -144,7 +151,8 @@ def analyse_args(
                     if optional:
                         continue
                     raise res
-                option_dict[key] = res
+                if not key[0] == '$':
+                    option_dict[key] = res
         elif value is AllParam:
             analyser.pushback(may_arg)
             option_dict[key] = analyser.release()
@@ -229,7 +237,7 @@ def analyse_option(
     if param.nargs == 0:
         res['value'] = Ellipsis
     else:
-        res['args'] = analyse_args(analyser, param.args, param.nargs)
+        res['args'] = analyse_args(analyser, param.args)
     return name, res
 
 
@@ -269,7 +277,7 @@ def analyse_subcommand(
             analyse_unmatch_params(param.sub_params.values(), _text, analyser.alconna.is_fuzzy_match)
         )
         if (not _param or _param is Ellipsis) and not args:
-            res['args'] = analyse_args(analyser, param.args, param.nargs)
+            res['args'] = analyse_args(analyser, param.args)
             args = True
         elif isinstance(_param, List):
             for p in _param:

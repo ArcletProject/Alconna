@@ -60,7 +60,7 @@ class DefaultCommandAnalyser(Analyser):
                     )
                 )
                 if (not _param or _param is Ellipsis) and not self.main_args:
-                    self.main_args = analyse_args(self, self.self_args, self.alconna.nargs)
+                    self.main_args = analyse_args(self, self.self_args)
                 elif isinstance(_param, list):
                     for opt in _param:
                         if opt.name == "--help":
@@ -77,7 +77,7 @@ class DefaultCommandAnalyser(Analyser):
                             self.current_index, self.content_index = _current_index, _content_index
                             continue
                     else:
-                        raise exc  # noqa
+                        raise exc  # type: ignore  # noqa
                 elif isinstance(_param, Subcommand):
                     self.subcommands.setdefault(*analyse_subcommand(self, _param))
                 elif isinstance(_param, Sentence):
@@ -96,7 +96,7 @@ class DefaultCommandAnalyser(Analyser):
 
         # 防止主参数的默认值被忽略
         if self.default_main_only and not self.main_args:
-            self.main_args = analyse_args(self, self.self_args, self.alconna.nargs)
+            self.main_args = analyse_args(self, self.self_args)
 
         if self.current_index == self.ndata and (not self.need_main_args or self.main_args):
             return self.export()
