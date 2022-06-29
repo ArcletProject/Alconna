@@ -64,6 +64,8 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None):
     separates = separates or (" ",)
     result = ""
     quotation = ""
+    if not text:
+        return []
     for index, char in enumerate(text):
         if char in {"'", '"'}:
             if not quotation:
@@ -183,7 +185,7 @@ class LruCache(Mapping[_K, _V]):
         return self.cache.keys()
 
     def values(self):
-        return self.values()
+        return self.cache.values()
 
     def items(self, size: int = -1) -> Iterator[Tuple[_K, _V]]:
         if size > 0:

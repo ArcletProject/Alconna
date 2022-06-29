@@ -129,7 +129,7 @@ def inclusion(*targets: str, flag: Literal["any", "all"] = "any"):
                         interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)
                         break
             else:
-                all_count = len(targets) - sum(1 for target in targets if interface.require(target))
+                all_count = len(targets) - sum(1 for target in targets if interface.query(target))
                 if all_count > 0:
                     interface.matched = False
                     interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)

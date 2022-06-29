@@ -44,16 +44,17 @@ class ArgAction:
         """
         varargs = varargs or []
         kwargs = kwargs or {}
+        kwargs.update(option_dict)
         try:
             if is_async(self.action):
                 loop = config.loop
                 if loop.is_running():
-                    loop.create_task(self.action(*option_dict.values(), *varargs, **kwargs))
+                    loop.create_task(self.action(*varargs, **kwargs))
                     return option_dict
                 else:
-                    additional_values = loop.run_until_complete(self.action(*option_dict.values(), *varargs, **kwargs))
+                    additional_values = loop.run_until_complete(self.action(*varargs, **kwargs))
             else:
-                additional_values = self.action(*option_dict.values(), *varargs, **kwargs)
+                additional_values = self.action(*varargs, **kwargs)
             if not additional_values:
                 return option_dict
             if not isinstance(additional_values, Sequence):

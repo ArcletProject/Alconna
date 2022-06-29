@@ -82,7 +82,7 @@ class BasePattern(Generic[TOrigin]):
     def __init__(
             self,
             pattern: str = "(.+?)",
-            model: PatternModel = PatternModel.REGEX_MATCH,
+            model: Union[int, PatternModel] = PatternModel.REGEX_MATCH,
             origin: Type[TOrigin] = str,
             converter: Optional[Callable[[Union[str, Any]], TOrigin]] = None,
             alias: Optional[str] = None,
@@ -96,7 +96,7 @@ class BasePattern(Generic[TOrigin]):
         """
         self.pattern = pattern
         self.regex_pattern = re.compile(f"^{pattern}$")
-        self.model = model
+        self.model = PatternModel(model)
         self.origin = origin
         self.alias = alias
         self.previous = previous
@@ -108,7 +108,7 @@ class BasePattern(Generic[TOrigin]):
     def __repr__(self):
         if self.model == PatternModel.KEEP:
             return self.alias or (('|'.join(x.__name__ for x in self.accepts)) if self.accepts else 'Any')
-        name = self.alias or self.origin.__name__
+        name = self.alias or getattr(self.origin, '__name__', str(self.origin))
         if self.model == PatternModel.REGEX_MATCH:
             text = self.alias or self.pattern
         elif self.model == PatternModel.REGEX_CONVERT:
