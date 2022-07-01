@@ -44,6 +44,7 @@ class Arpamar:
             args = args.copy()
             args.pop('__varargs__', None)
             args.pop('__kwargs__', None)
+            args.pop('__kwonly__', None)
             return args
         return opt['value']
 
@@ -55,6 +56,7 @@ class Arpamar:
             val = val.copy()
             val.pop('__varargs__', None)
             val.pop('__kwargs__', None)
+            val.pop('__kwonly__', None)
             return val
         return sub['value']
 
@@ -239,10 +241,12 @@ class Arpamar:
             margs = self.main_args.copy()
             margs.pop('__varargs__', None)
             margs.pop('__kwargs__', None)
+            margs.pop('__kwonly__', None)
             attrs.append(("main_args", margs))
             other_args = self.other_args.copy()
             other_args.pop('__varargs__', None)
             other_args.pop('__kwargs__', None)
+            other_args.pop('__kwonly__', None)
             attrs.append(("other_args", other_args))
 
             return ", ".join(f"{a}={v}" for a, v in attrs if v)

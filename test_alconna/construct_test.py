@@ -73,6 +73,9 @@ def test_fire_like_object():
             print(nums, kwargs)
             print(self.action(nums))
 
+        def test(self, a: str, b: int, *, c: bool, d: str):
+            print(a, b, c, d)
+
         class Config:
             command = "con3"
 
@@ -80,6 +83,7 @@ def test_fire_like_object():
     print('')
     print(con3.get_help())
     assert con3.parse("con3 calculator 1 2 3 4 5 d=6 f=7")
+    assert con3.parse("con3 test abc 123 -c -d foo")
 
 
 def test_fire_like_func():

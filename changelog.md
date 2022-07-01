@@ -1,6 +1,8 @@
 # Alconna 1.0.x:
 
 \^o^/
+## Alconna 1.0.2:
+1. 紧急修复 BUG
 
 ## Alconna 1.0.1:
 1. `Args.from_callable` 允许 keyword 参数

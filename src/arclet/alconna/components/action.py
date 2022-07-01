@@ -42,19 +42,19 @@ class ArgAction:
             kwargs: 关键字参数
             is_raise_exception: 是否抛出异常
         """
-        varargs = varargs or []
+        _varargs = list(option_dict.values())
+        _varargs.extend(varargs or [])
         kwargs = kwargs or {}
-        kwargs.update(option_dict)
         try:
             if is_async(self.action):
                 loop = config.loop
                 if loop.is_running():
-                    loop.create_task(self.action(*varargs, **kwargs))
+                    loop.create_task(self.action(*_varargs, **kwargs))
                     return option_dict
                 else:
-                    additional_values = loop.run_until_complete(self.action(*varargs, **kwargs))
+                    additional_values = loop.run_until_complete(self.action(*_varargs, **kwargs))
             else:
-                additional_values = self.action(*varargs, **kwargs)
+                additional_values = self.action(*_varargs, **kwargs)
             if not additional_values:
                 return option_dict
             if not isinstance(additional_values, Sequence):
@@ -106,6 +106,7 @@ class ActionHandler(ArpamarBehavior):
         def _exec_args(args: Dict[str, Any], func: ArgAction):
             result_dict = args.copy()
             kwargs = {}
+            kwonly = {}
             varargs = []
             kw_key = None
             var_key = None
@@ -115,11 +116,16 @@ class ActionHandler(ArpamarBehavior):
             if '__varargs__' in result_dict:
                 varargs, var_key = result_dict.pop('__varargs__')
                 result_dict.pop(var_key)
+            if '__kwonly__' in result_dict:
+                kwonly = result_dict.pop('__kwonly__')
+                for k in kwonly:
+                    result_dict.pop(k)
             if kwargs:
                 addition_kwargs = interface.source.local_args.copy()
                 addition_kwargs.update(kwargs)
+                addition_kwargs.update(kwonly)
             else:
-                addition_kwargs = kwargs
+                addition_kwargs = {**kwonly, **kwargs}
                 result_dict.update(interface.source.local_args)
             res = func.handle(result_dict, varargs, addition_kwargs, interface.source.is_raise_exception)
             if kw_key:
