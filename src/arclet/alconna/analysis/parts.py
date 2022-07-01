@@ -179,6 +179,8 @@ def analyse_args(
         elif not isinstance(varargs, list):
             varargs = list(varargs)
         option_dict['__varargs__'] = (varargs, opt_args.var_positional)
+    if opt_args.keyword_only:
+        option_dict['__kwonly__'] = {k: v for k, v in option_dict.items() if k in opt_args.keyword_only}
     return option_dict
 
 

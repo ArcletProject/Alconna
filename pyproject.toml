@@ -4,12 +4,18 @@ build-backend = "setuptools.build_meta"
 
 # Project metadata
 [project]
+author = [
+    {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},
+]
 name = "arclet-alconna"
-version = "1.0.1"
+version = "1.0.2"
 description = "A High-performance, Generality, Humane Command Line Arguments Parser Library."
 readme = "README.md"
 requires_python = ">=3.8"
-license = "MIT"
+license = {text = "MIT"}
+dependencies = [
+    "typing-extensions>=4.2.0;"
+]
 keywords = [
     "command",
     "argparse",

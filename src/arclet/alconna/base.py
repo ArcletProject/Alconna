@@ -88,6 +88,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     argument: Dict[str, ArgUnit]
     var_positional: Optional[str]
     var_keyword: Optional[str]
+    keyword_only: List[str]
     optional_count: int
     separators: Set[str]
 
@@ -165,6 +166,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                     anno = BasePattern(f"(?:-*no)?-*{name}", 3, bool, lambda x: not x.lstrip("-").startswith('no'))
                 else:
                     _args.add_argument(f"${name}_key", value=f"-*{name}")
+                _args.keyword_only.append(name)
             if param.kind == param.VAR_POSITIONAL:
                 name += ";S"
             if param.kind == param.VAR_KEYWORD:
@@ -191,6 +193,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.extra = extra
         self.var_positional = None
         self.var_keyword = None
+        self.keyword_only = []
         self.optional_count = 0
         self.separators = {separators} if isinstance(separators, str) else set(separators)
         self.argument = {  # type: ignore
@@ -201,7 +204,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         for arg in (args or []):
             self.__check_var__(arg)
 
-    __ignore__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separators"
+    __slots__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separators", "keyword_only"
 
     def add_argument(self, name: str, *, value: Any, default: Any = None, flags: Optional[Iterable[ArgFlag]] = None):
         """
@@ -305,7 +308,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         return self.__setattr__(key, value)
 
     def __setattr__(self, key, value):
-        if key in self.__ignore__:
+        if key in self.__slots__:
             super().__setattr__(key, value)
         elif isinstance(value, Sequence):
             values = list(value)
