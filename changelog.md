@@ -1,8 +1,7 @@
 # Alconna 1.0.x:
-
-\^o^/
-## Alconna 1.0.2:
-1. 紧急修复 BUG
+ 
+## Alconna 1.0.2 - 1.0.3:
+1. 修复 BUG
 
 ## Alconna 1.0.1:
 1. `Args.from_callable` 允许 keyword 参数
@@ -31,45 +30,6 @@
 
 # Alconna 0.9.x:
 
-## Alconna 0.9.0 - 0.9.0.3:
-1. 将 HelpAction 与 HelpTextFormatter 作为 help 模块
-2. 语言配置组件的增强. 现在以语言种类标识符作为父级, 以支持多语言.
-3. 为 manager 新增一个记录命令输入的 LruCache. 解析器可以使用这个缓存来避免重复解析. 目前缓存上限为 100.
-4. 新增 `--shortcut` 内置选项, 为命令提供临时快捷命令的创建与删除.
-5. 修改 manager 中的 `shortcut`, 并支持持久化
-6. 部分性能优化, 以大致抵消因缓存计算而带来的性能损耗.
-7. 部分 api 名称变更:
- - `pattern` -> `pattern_gen`
- - `handle_message` -> `process_message`
-8. Args 新增 `add_argument` 方法, 以添加参数.
-
-## Alconna 0.9.1:
-1. 增添 `dest`, 其作为选项在 Arpamar 中的实际名称. 
-2. 增加内建 `Argument` 方法, 类似于 `add_argument`, 以便捷创建 Option + Args 的组合. 
-3. 修复 bug
-
-## Alconna 0.9.2:
-1. 增强 `Arpamar` 的功能, 使其更类似于一种接口. 其中的修改有:
-- 从 `get()` 变为 `query()`
-- 从 `has()` 变为 `find()`
-- 从 `set()` 变为 `update()`
-- 从 `update()` 变为 `execute()`
-- 增加 `get_duplication()`
-- 增加 `source`, `origin` 属性
-2. 项目结构调整
-3. ArgAction 的执行现在交给 `ActionHandler` 来处理.
-4. `split` 以及 `separator` 现在需要传入 `Set[str]` 类型.
-5. 修复 bug.
-
-## Alconna 0.9.3 - 0.9.3.3:
-1. 合并 `ArgPattern` 与 `TypePattern` 为 `BasePattern`, 并将诸多分散特性(如 `anti`, `any`) 移动到 `BasePattern` 中.
-2. 取消 `Analyser` 中有关 `arg_handler` 的部分
-3. `AnyStr`、`AnyDigit`、`AnyFloat` 等现在不被公开.
-4. `AnyParam` 重写为由 `BasePattern` 实现, 并改名为 `AnyOne`.
-5. `alconna.types` 变为 `alconna.typing`.
-6. 为 `all_command_help` 增加索引选项
-7. 修复 bug.
-
 ## Alconna 0.9.4:
 1. 修改 `Args` 的构造方法, 取消使用 slice 传入参数. 请从 `Args[foo:int, bar:str:default]` 修改为 `Args[foo, int][bar, str, default]`.
 2. Option 与 Subcommand 现支持 requires 参数, 该参数允许解析该节点时判断 require 的字段是否存在.
@@ -86,18 +46,54 @@
 13. `ObjectPattern` 移动到 `arclet.alconna.builtin.pattern` 模块.
 14. 修复 bug.
 
+## Alconna 0.9.3 - 0.9.3.3:
+1. 合并 `ArgPattern` 与 `TypePattern` 为 `BasePattern`, 并将诸多分散特性(如 `anti`, `any`) 移动到 `BasePattern` 中.
+2. 取消 `Analyser` 中有关 `arg_handler` 的部分
+3. `AnyStr`、`AnyDigit`、`AnyFloat` 等现在不被公开.
+4. `AnyParam` 重写为由 `BasePattern` 实现, 并改名为 `AnyOne`.
+5. `alconna.types` 变为 `alconna.typing`.
+6. 为 `all_command_help` 增加索引选项
+7. 修复 bug.
+
+## Alconna 0.9.2:
+1. 增强 `Arpamar` 的功能, 使其更类似于一种接口. 其中的修改有:
+- 从 `get()` 变为 `query()`
+- 从 `has()` 变为 `find()`
+- 从 `set()` 变为 `update()`
+- 从 `update()` 变为 `execute()`
+- 增加 `get_duplication()`
+- 增加 `source`, `origin` 属性
+2. 项目结构调整
+3. ArgAction 的执行现在交给 `ActionHandler` 来处理.
+4. `split` 以及 `separator` 现在需要传入 `Set[str]` 类型.
+5. 修复 bug.
+
+## Alconna 0.9.1:
+1. 增添 `dest`, 其作为选项在 Arpamar 中的实际名称. 
+2. 增加内建 `Argument` 方法, 类似于 `add_argument`, 以便捷创建 Option + Args 的组合. 
+3. 修复 bug
+
+## Alconna 0.9.0 - 0.9.0.3:
+1. 将 HelpAction 与 HelpTextFormatter 作为 help 模块
+2. 语言配置组件的增强. 现在以语言种类标识符作为父级, 以支持多语言.
+3. 为 manager 新增一个记录命令输入的 LruCache. 解析器可以使用这个缓存来避免重复解析. 目前缓存上限为 100.
+4. 新增 `--shortcut` 内置选项, 为命令提供临时快捷命令的创建与删除.
+5. 修改 manager 中的 `shortcut`, 并支持持久化
+6. 部分性能优化, 以大致抵消因缓存计算而带来的性能损耗.
+7. 部分 api 名称变更:
+ - `pattern` -> `pattern_gen`
+ - `handle_message` -> `process_message`
+8. Args 新增 `add_argument` 方法, 以添加参数.
+
 # Alconna 0.8.x:
 
-## Alconna 0.8.0:
-1. `Option`的`alias`现在需要传入List[str]，而不是str。
-2. `help_text`内置两个预选板块`Usage`和`Example`, 编写规则为`"xxx Usage:xxx; Example:xxx;"`。
-3. 加入`TypePattern`, 作用为简单的类型转换器, 其可以设置前置转换器, 即可以`str -> Path -> bytes`。
-4. 加入命令的模糊匹配, 在`Alconna`中传入`is_fuzzy_match`参数, 可以设置是否模糊匹配。
-5. `AlconnaString`参数规则修改, 现在`<xx>`表示必选, `[xx]`表示可选, `&xx`表示action的值。
-6. `ArgparseHelpTextFormatter`相关格式修改
-
-## Alconna 0.8.1:
-修复了一些严重的bug。
+## Alconna 0.8.3:
+1. 命令头的正则支持格式修改, 由原来的`f"{表达式}"`改为`"{名称:类型或表达式}"`
+2. 加入语言文件配置, 可以通过`Alconna.load_config_file`加载自定义的语言文件, 格式为`json`
+3. 为选项与子命令的匹配也加入了模糊匹配
+4. 选项与子命令的`separator`可以传入空字符串, `Alconna`会据此自动分割
+5. 部分API修改, 暂时去除`from_dict`方法
+6. 修复了一些bug
 
 ## Alconna 0.8.2:
 1. 修改了一些docstring
@@ -115,13 +111,16 @@
 6. 加入`pattern`装饰器函数, 用以便捷的创建`ArgPattern`对象
 7. 加入`delegate`装饰器函数, 用以便捷的创建`Alconna`对象
 
-## Alconna 0.8.3:
-1. 命令头的正则支持格式修改, 由原来的`f"{表达式}"`改为`"{名称:类型或表达式}"`
-2. 加入语言文件配置, 可以通过`Alconna.load_config_file`加载自定义的语言文件, 格式为`json`
-3. 为选项与子命令的匹配也加入了模糊匹配
-4. 选项与子命令的`separator`可以传入空字符串, `Alconna`会据此自动分割
-5. 部分API修改, 暂时去除`from_dict`方法
-6. 修复了一些bug
+## Alconna 0.8.1:
+修复了一些严重的bug。
+
+## Alconna 0.8.0:
+1. `Option`的`alias`现在需要传入List[str]，而不是str。
+2. `help_text`内置两个预选板块`Usage`和`Example`, 编写规则为`"xxx Usage:xxx; Example:xxx;"`。
+3. 加入`TypePattern`, 作用为简单的类型转换器, 其可以设置前置转换器, 即可以`str -> Path -> bytes`。
+4. 加入命令的模糊匹配, 在`Alconna`中传入`is_fuzzy_match`参数, 可以设置是否模糊匹配。
+5. `AlconnaString`参数规则修改, 现在`<xx>`表示必选, `[xx]`表示可选, `&xx`表示action的值。
+6. `ArgparseHelpTextFormatter`相关格式修改
 
 # Alconna 0.7.x:
 

@@ -86,7 +86,7 @@ class DefaultCommandAnalyser(Analyser):
                 output_manager.get(self.alconna.name, lambda: str(e)).handle(is_raise_exception=self.is_raise_exception)
                 return self.export(fail=True)
             except (ParamsUnmatched, ArgumentMissing):
-                if self.release()[-1] in ("--help", "-h"):
+                if (rest := self.release()) and rest[-1] in ("--help", "-h"):
                     return handle_help(self)
                 if self.is_raise_exception:
                     raise
