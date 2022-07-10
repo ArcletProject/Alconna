@@ -37,7 +37,7 @@ if __name__ == "__main__":
     sec = 0.0
     for _ in range(count):
         st = time.time()
-        compile_alc.process_message(msg)
+        compile_alc.process(msg)
         compile_alc.analyse()
         ed = time.time()
         sec += ed - st
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     pst = time.time()
     for _ in range(count):
         st = time.thread_time_ns()
-        compile_alc.process_message(msg)
+        compile_alc.process(msg)
         compile_alc.analyse()
         ed = time.thread_time_ns()
         li.append(ed - st)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     prof = cProfile.Profile()
     prof.enable()
     for _ in range(count):
-        compile_alc.process_message(msg)
+        compile_alc.process(msg)
         compile_alc.analyse()
     prof.create_stats()
 

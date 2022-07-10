@@ -150,7 +150,7 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         cmd = f"{header_text}{root.get('name', '')}"
         sep = tuple(separators)[0]
         command_string = cmd or (root['name'] + sep)
-        return f"\n命令: {command_string}{help_string}{usage}%s\n%s{example}"
+        return f"\n命令: {command_string}%s{help_string}{usage}%s{example}"
 
     def part(self, node: Union[Subcommand, Option]) -> str:
         ...

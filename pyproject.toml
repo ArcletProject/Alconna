@@ -8,13 +8,13 @@ author = [
     {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},
 ]
 name = "arclet-alconna"
-version = "1.0.3"
+version = "1.0.4"
 description = "A High-performance, Generality, Humane Command Line Arguments Parser Library."
 readme = "README.md"
 requires_python = ">=3.8"
 license = {text = "MIT"}
 dependencies = [
-    "typing-extensions>=4.2.0;"
+    "typing-extensions^=4.3.0;"
 ]
 keywords = [
     "command",
