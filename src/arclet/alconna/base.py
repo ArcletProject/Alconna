@@ -2,6 +2,7 @@
 
 import re
 import inspect
+from functools import partial
 from copy import deepcopy
 from enum import Enum
 from contextlib import suppress
@@ -50,30 +51,19 @@ class ArgUnit(TypedDict):
 class ArgsMeta(type):
     """Args 类的元类"""
 
-    def __init__(cls, name, bases, attrs):
-        super().__init__(name, bases, attrs)
-        cls.last_key = ''
-        cls.selecting = False
+    def __getattr__(self, name):
+        class _Seminal:
+            __class_getitem__ = partial(self.__class__.__getitem__, self, key=name)
+        return _Seminal
 
-    def __getattr__(cls, name):
-        if name in ('shape', '__test__', '_pytestfixturefunction'):
-            return super().__getattribute__(name)
-        cls.last_key = name
-        cls.selecting = True
-        return cls
-
-    def __getitem__(self, item):
+    def __getitem__(self, item, key: Optional[str] = None):
         if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
             raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
         if not isinstance(item, tuple):
-            if self.selecting:
-                self.selecting = False
-                return self(args=[(self.last_key, item)])
-            return self(args=[(str(item), item)])
+            return self(args=[(key, item)]) if key else self(args=[(str(item), item)])
         arg = list(filter(lambda x: not isinstance(x, slice), item))
-        if self.selecting:
-            self.selecting = False
-            return self(args=[(self.last_key, *arg[:2])])
+        if key:
+            return self(args=[(key, *arg[:2])])
         return self(args=[arg[:3]])
 
 
