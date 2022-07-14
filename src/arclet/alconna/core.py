@@ -12,14 +12,14 @@ from .arpamar import Arpamar
 from .components.action import ActionHandler
 from .components.output import AbstractTextFormatter
 from .components.behavior import T_ABehavior
-from .components.duplication import AlconnaDuplication
+from .components.duplication import Duplication
 from .builtin.formatter import DefaultTextFormatter
 from .builtin.analyser import DefaultCommandAnalyser
 
 if TYPE_CHECKING:
     from .analysis.analyser import Analyser
 
-T_Duplication = TypeVar('T_Duplication', bound=AlconnaDuplication)
+T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
 class _Actions(TypedDict):
@@ -345,7 +345,7 @@ class Alconna(CommandNode):
         analyser.process(message)
         arp = analyser.analyse()
         if arp.matched:
-            arp.execute()
+            arp = arp.execute()
         if duplication:
             return duplication(self).set_target(arp)
         return arp

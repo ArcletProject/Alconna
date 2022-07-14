@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Optional, TYPE_CHECKING, Literal
 from arclet.alconna.components.action import ArgAction
 from arclet.alconna.components.behavior import ArpamarBehavior
-from arclet.alconna.exceptions import BehaveCancelled, OutBoundsBehavior
+from arclet.alconna.exceptions import BehaveCancelled, OutBoundsBehave
 from arclet.alconna.config import config
 
 
@@ -49,15 +49,12 @@ def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[s
         def operate(self, interface: "Arpamar"):
             if not option and not subcommand:
                 raise BehaveCancelled
-            if option and subcommand is None:
-                options = interface.query("options", {})
-                options.setdefault(option, {"value": value, "args": {}})
-            if subcommand and option is None:
-                subcommands = interface.query("subcommands", {})
-                subcommands.setdefault(subcommand, {"value": value, "args": {}, "options": {}})
-            if option and subcommand:
-                sub_options = interface.query(f"{subcommand}.options", {})
-                sub_options.setdefault(option, {"value": value, "args": {}})
+            if option and subcommand is None and not interface.query(f"options.{option}"):
+                interface.update(f"options.{option}", {"value": value, "args": {}})
+            if subcommand and option is None and not interface.query(f"subcommands.{subcommand}"):
+                interface.update(f"subcommands.{subcommand}", {"value": value, "args": {}, "options": {}})
+            if option and subcommand and not interface.query(f"{subcommand}.options.{option}"):
+                interface.update(f"{subcommand}.options.{option}", {"value": value, "args": {}})
 
     return _SetDefault()
 
@@ -74,12 +71,7 @@ def exclusion(target_path: str, other_path: str):
     class _EXCLUSION(ArpamarBehavior):
         def operate(self, interface: "Arpamar"):
             if interface.query(target_path) and interface.query(other_path):
-                interface.matched = False
-                if interface.source.is_raise_exception:
-                    raise OutBoundsBehavior(
-                        config.lang.behavior_exclude_matched.format(target=target_path, other=other_path)
-                    )
-                interface.error_info = OutBoundsBehavior(
+                raise OutBoundsBehave(
                     config.lang.behavior_exclude_matched.format(target=target_path, other=other_path)
                 )
 
@@ -101,10 +93,7 @@ def cool_down(seconds: float):
         def operate(self, interface: "Arpamar"):
             current_time = datetime.now()
             if (current_time - self.last_time).total_seconds() < seconds:
-                if interface.source.is_raise_exception:
-                    raise OutBoundsBehavior(config.lang.behavior_cooldown_matched)
-                interface.matched = False
-                interface.error_info = OutBoundsBehavior(config.lang.behavior_cooldown_matched)
+                raise OutBoundsBehave(config.lang.behavior_cooldown_matched)
             else:
                 self.last_time = current_time
 
@@ -125,12 +114,9 @@ def inclusion(*targets: str, flag: Literal["any", "all"] = "any"):
             if flag == "all":
                 for target in targets:
                     if not interface.query(target):
-                        interface.matched = False
-                        interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)
-                        break
+                        raise OutBoundsBehave(config.lang.behavior_inclusion_matched)
             else:
                 all_count = len(targets) - sum(1 for target in targets if interface.query(target))
                 if all_count > 0:
-                    interface.matched = False
-                    interface.error_info = OutBoundsBehavior(config.lang.behavior_inclusion_matched)
+                    raise OutBoundsBehave(config.lang.behavior_inclusion_matched)
     return _Inclusion()
