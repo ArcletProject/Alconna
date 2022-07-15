@@ -102,6 +102,7 @@ class ArgAction:
 
 class ActionHandler(ArpamarBehavior):
     def operate(self, interface: "Arpamar"):
+        interface.clean()
 
         def _exec_args(args: Dict[str, Any], func: ArgAction):
             result_dict = args.copy()

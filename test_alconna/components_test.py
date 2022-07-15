@@ -1,7 +1,8 @@
 from arclet.alconna import Alconna, Option, Args, Subcommand, Arpamar, ArpamarBehavior, store_value
 from arclet.alconna.builtin.actions import set_default, exclusion, cool_down
-from arclet.alconna.components.duplication import AlconnaDuplication
+from arclet.alconna.components.duplication import Duplication
 from arclet.alconna.components.stub import ArgsStub, OptionStub, SubcommandStub
+from arclet.alconna.exceptions import OutBoundsBehave
 
 
 def test_behavior():
@@ -15,7 +16,7 @@ def test_behavior():
         def operate(cls, interface: "Arpamar"):
             print('\ncom: ')
             print(interface.query("options.foo.value"))
-            interface.matched = False
+            interface.behave_fail()
 
     assert com.parse("comp 123").matched is False
 
@@ -44,14 +45,19 @@ def test_cooldown():
     print('')
     for i in range(4):
         time.sleep(0.2)
-        print(com3.parse("comp3 {}".format(i)))
+        print(com3.parse(f"comp3 {i}"))
 
 
 def test_duplication():
-    class Demo(AlconnaDuplication):
+    class Demo(Duplication):
         testArgs: ArgsStub
         bar: OptionStub
         sub: SubcommandStub
+
+    class Demo1(Duplication):
+        foo: int
+        bar: str
+        baz: str
 
     com4 = Alconna(
         "comp4", Args["foo", int],
@@ -70,6 +76,11 @@ def test_duplication():
     assert duplication.bar.args.bar == 'abc'
     assert duplication.sub.available is True
     assert duplication.sub.option("sub1").args.first_arg == 'xyz'
+    duplication1 = com4.parse("comp4 123 --bar abc sub --sub1 xyz", duplication=Demo1)
+    assert isinstance(duplication1, Demo1)
+    assert isinstance(duplication1.foo, int)
+    assert isinstance(duplication1.bar, str)
+    assert isinstance(duplication1.baz, str)
 
 
 if __name__ == '__main__':

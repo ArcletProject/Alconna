@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from ..arpamar import Arpamar
 
 
-class AlconnaDuplication:
+class Duplication:
     """
     用以更方便的检查、调用解析结果的类。
     """
@@ -33,10 +33,17 @@ class AlconnaDuplication:
         for key in self.__stubs__["subcommands"]:
             if key in target.subcommands:
                 getattr(self, key).set_result(target._subcommands[key])  # noqa
+        for key in target.all_matched_args:
+            if key in self.__stubs__['other_args']:
+                setattr(self, key, target.all_matched_args[key])
+        if isinstance(target.header, dict):
+            for key in target.header:
+                if key in self.__stubs__['other_args']:
+                    setattr(self, key, target.header[key])
         return self
 
     def __init__(self, alconna: 'Alconna'):
-        self.__stubs__ = {"options": [], "subcommands": []}
+        self.__stubs__ = {"options": [], "subcommands": [], "other_args": []}
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):
                 if value == ArgsStub:
@@ -54,6 +61,8 @@ class AlconnaDuplication:
                             self.__stubs__["options"].append(key)
                 else:
                     raise TypeError(config.lang.duplication_stub_type_error.format(target=value))
+            elif key not in '__target':
+                self.__stubs__['other_args'].append(key)
 
     def __repr__(self):
         return f'<{self.__class__.__name__} with {self.__stubs__}>'
@@ -65,15 +74,15 @@ class AlconnaDuplication:
         return cast(SubcommandStub, getattr(self, name, None))
 
 
-def generate_duplication(command: "Alconna") -> AlconnaDuplication:
+def generate_duplication(command: "Alconna") -> Duplication:
     """
     依据给定的命令生成一个解析结果的检查类。
     """
     options = filter(lambda x: isinstance(x, Option), command.options)
     subcommands = filter(lambda x: isinstance(x, Subcommand), command.options)
-    return cast(AlconnaDuplication, type(
+    return cast(Duplication, type(
         command.name.strip("/\\.-:") + 'Interface',
-        (AlconnaDuplication,), {
+        (Duplication,), {
             "__annotations__": {
                 **{"args": ArgsStub},
                 **{opt.dest: OptionStub for opt in options if opt.name.lstrip('-') not in ("help", "shortcut")},

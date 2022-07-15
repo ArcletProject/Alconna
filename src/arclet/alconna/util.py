@@ -171,8 +171,7 @@ class LruCache(Mapping[_K, _V]):
     def update_all(self) -> None:
         now = datetime.now()
         for key in self.cache.keys():
-            expire = self.record[key][1]
-            if expire.total_seconds() > 0 and now > self.record[key][0] + expire:
+            if self.record[key][1].total_seconds() > 0 and now > self.record[key][0] + self.record[key][1]:
                 self.delete(key)
 
     @property
@@ -190,7 +189,7 @@ class LruCache(Mapping[_K, _V]):
     def items(self, size: int = -1) -> Iterator[Tuple[_K, _V]]:
         if size > 0:
             with contextlib.suppress(IndexError):
-                return iter(list(self.cache.items())[:-size:-1])
+                return iter(list(self.cache.items())[:-size-1:-1])
         return iter(self.cache.items())
 
 

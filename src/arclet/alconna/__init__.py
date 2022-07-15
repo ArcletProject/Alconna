@@ -18,10 +18,10 @@ from .builtin.formatter import ArgParserTextFormatter, DefaultTextFormatter
 from .builtin.pattern import ObjectPattern
 from .components.behavior import ArpamarBehavior
 from .components.output import output_manager, AbstractTextFormatter
-from .components.duplication import AlconnaDuplication
+from .components.duplication import Duplication
 from .components.stub import ArgsStub, OptionStub, SubcommandStub
 
-alconna_version = (1, 0, 4)
+alconna_version = (1, 1, 0)
 
 if TYPE_CHECKING:
     from .builtin.actions import version

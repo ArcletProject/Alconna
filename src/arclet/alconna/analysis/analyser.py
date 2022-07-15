@@ -64,7 +64,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
         # return hash(str(data))
-        return hash(''.join(i.__str__() for i in data))
+        return hash(''.join(i.__repr__() for i in data))
         # return hash(tuple(i.__str__() for i in data))
 
     def __init__(self, alconna: "Alconna"):
@@ -100,44 +100,46 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         if _de_count and _de_count == nargs:
             self.default_main_only = True
 
+    @staticmethod
+    def __handle_bracket__(name: str):
+        if len(parts := re.split(r"(\{.*?})", name)) <= 1:
+            return name
+        for i, part in enumerate(parts):
+            if not part:
+                continue
+            if res := re.match(r"\{(.*?)}", part):
+                if not res[1]:
+                    parts[i] = ".+?"
+                    continue
+                if len(_parts := res[1].split(":")) == 1:
+                    parts[i] = f"(?P<{_parts[0]}>.+?)"
+                elif not _parts[0] and not _parts[1]:
+                    parts[i] = ".+?"
+                elif not _parts[0]:
+                    parts[i] = f"{pattern_map[_parts[1]].pattern if _parts[1] in pattern_map else _parts[1]}"
+                elif not _parts[1]:
+                    parts[i] = f"(?P<{_parts[0]}>.+?)"
+                else:
+                    parts[i] = (
+                        f"(?P<{_parts[0]}>"
+                        f"{pattern_map[_parts[1]].pattern if _parts[1] in pattern_map else _parts[1]})"
+                    )
+        return "".join(parts)
+
     def __init_header__(
             self,
             command_name: Union[str, type, BasePattern],
             headers: Union[List[Union[str, Any]], List[Tuple[Any, str]]]
     ):
-        if isinstance(command_name, str) and len(parts := re.split(r"(\{.*?})", command_name)) > 1:
-            for i, part in enumerate(parts):
-                if not part:
-                    continue
-                if res := re.match(r"\{(.*?)}", part):
-                    _res = res[1]
-                    if not _res:
-                        parts[i] = ".+?"
-                        continue
-                    _parts = _res.split(":")
-                    if len(_parts) == 1:
-                        parts[i] = f"(?P<{_parts[0]}>.+?)"
-                    elif not _parts[0] and not _parts[1]:
-                        parts[i] = ".+?"
-                    elif not _parts[0]:
-                        parts[i] = f"{pattern_map.get(_parts[1], _parts[1])}".replace("(", "").replace(")", "")
-                    elif not _parts[1]:
-                        parts[i] = f"(?P<{_parts[0]}>.+?)"
-                    else:
-                        parts[i] = (
-                            f"(?P<{_parts[0]}>"
-                            f"{pattern_map[_parts[1]].pattern if _parts[1] in pattern_map else _parts[1]})"
-                        )
-            command_name = "".join(parts)
-        
         if isinstance(command_name, str):
-            _command_name, _command_str = re.compile(command_name), command_name
-        else:
-            _command_name, _command_str = copy(args_type_parser(command_name)), str(command_name)
+            command_name = self.__handle_bracket__(command_name)
 
+        _command_name, _command_str = (
+            (re.compile(command_name), command_name) if isinstance(command_name, str) else
+            (copy(args_type_parser(command_name)), str(command_name))
+        )
         if headers == [""]:
             self.command_header = _command_name  # type: ignore
-
         elif isinstance(headers[0], tuple):
             mixins = [(h[0], re.compile(re.escape(h[1]) + _command_str)) for h in headers]  # type: ignore
             self.command_header = mixins

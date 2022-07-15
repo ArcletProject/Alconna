@@ -5,7 +5,7 @@
 
 |Alconna| |latest release| |Licence| |PyPI| |PyPI - Python Version|
 
-**English**: `README <README-EN.md>`__
+**English**: `README <https://github.com/ArcletProject/Alconna/blob/main/README-EN.md>`__
 
 ``Alconna`` 隶属于 ``ArcletProject``, 是一个简单、灵活、高效的命令参数解析器, 并且不局限于解析命令式字符串。
 

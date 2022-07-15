@@ -33,7 +33,7 @@ class BehaveCancelled(Exception):
     """行为执行被停止"""
 
 
-class OutBoundsBehavior(Exception):
+class OutBoundsBehave(Exception):
     """越界行为"""
 
 

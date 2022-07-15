@@ -1,3 +1,20 @@
+# Alconna 1.1.x:
+
+## Alconna 1.1.0:
+1. `AlconnaDuplication` -> `Duplication`
+2. `Duplication` 现在支持写入参数名或头部名称, 如
+
+```python
+command = Alconna("test", Args["foo", int]) + Option("bar", Args["bar", str])
+
+class Demo(Duplication):
+    foo: int
+    bar: str
+```
+
+3. `Arpamar` 在执行行为器时可以通过抛出 `OutBoundsBehave` 使解析失败
+4. 修复bugs
+
 # Alconna 1.0.x:
  
 ## Alconna 1.0.2 - 1.0.4:
