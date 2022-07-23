@@ -1,6 +1,6 @@
-from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload
+from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload, Generic
 from contextlib import suppress
-from .typing import DataCollection, Empty
+from .typing import Empty, TDataCollection
 from .config import config
 from .base import SubcommandResult, OptionResult
 from .exceptions import BehaveCancelled, OutBoundsBehave
@@ -14,7 +14,7 @@ T = TypeVar('T')
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
-class Arpamar:
+class Arpamar(Generic[TDataCollection]):
     """
     亚帕玛尔(Arpamar), Alconna的珍藏宝书
 
@@ -27,7 +27,7 @@ class Arpamar:
 
     def __init__(self, alc: "Alconna"):
         self.source: "Alconna" = alc
-        self.origin: DataCollection[Union[str, Any]] = ''
+        self.origin: TDataCollection = ''
         self.matched: bool = False
         self.head_matched: bool = False
         self.error_data: List[Union[str, Any]] = []

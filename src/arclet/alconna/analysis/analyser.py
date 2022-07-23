@@ -341,3 +341,6 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 self.used_tokens.add(self.temp_token)
         self.reset()
         return result
+
+
+TAnalyser = TypeVar("TAnalyser", bound=Analyser)

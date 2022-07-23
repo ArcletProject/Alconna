@@ -36,6 +36,9 @@ class DataCollection(Protocol[DataUnit]):
     def __len__(self) -> int: ...
 
 
+TDataCollection = TypeVar("TDataCollection", bound=DataCollection[Union[str, Any]])
+
+
 class PatternModel(IntEnum):
     """
     参数表达式匹配模式
@@ -453,7 +456,7 @@ def args_type_parser(item: Any, extra: str = "allow"):
     if isinstance(item, (list, tuple, set, ABCSeq, ABCMuSeq, ABCSet, ABCMuSet)):  # Args[foo, [123, int]]
         return UnionArg(map(args_type_parser, item))
     if isinstance(item, (dict, ABCMap, ABCMuMap)):  # Args[foo, {'foo': 'bar'}]
-        return BasePattern(model=PatternModel.TYPE_CONVERT, origin=Any, converter=lambda x: item.get(x, None))
+        return BasePattern("", PatternModel.TYPE_CONVERT, Any, lambda x: item.get(x, None), "|".join(item.keys()))
     if item is None or type(None) == item:
         return Empty
     if extra == "ignore":
@@ -492,5 +495,5 @@ def set_unit(target: Type[TOrigin], predicate: Callable[..., bool]) -> Annotated
 __all__ = [
     "DataCollection", "Empty", "AnyOne", "AllParam", "PatternModel", "BasePattern", "MultiArg", "UnionArg", "Bind",
     "pattern_map", "set_converter", "set_converters", "remove_converter", "args_type_parser", "set_unit",
-    "SequenceArg", "MappingArg", "TPattern"
+    "SequenceArg", "MappingArg", "TPattern", "TDataCollection"
 ]
