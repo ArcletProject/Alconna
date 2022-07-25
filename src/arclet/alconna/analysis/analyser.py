@@ -326,7 +326,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     def converter(command: str) -> T_Origin:
         return command  # type: ignore
 
-    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar:
+    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar[T_Origin]:
         """创建arpamar, 其一定是一次解析的最后部分"""
         result = Arpamar(self.alconna)
         result.head_matched = self.head_matched

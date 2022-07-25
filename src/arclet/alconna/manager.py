@@ -8,7 +8,7 @@ import contextlib
 
 from .exceptions import ExceedMaxCount
 from .util import Singleton, LruCache
-from .typing import DataCollection
+from .typing import TDataCollection, DataCollection
 from .config import config
 
 if TYPE_CHECKING:
@@ -89,15 +89,14 @@ class CommandManager(metaclass=Singleton):
         else:
             for cmd in command.commands:  # type: ignore
                 self.__analysers[cmd] = compile(cmd)
-        if command.namespace not in self.__commands:
-            self.__commands[command.namespace] = {}
+        namespace = self.__commands.setdefault(command.namespace, {})
         cid = command.name.replace(self.sign, "")
-        if _cmd := self.__commands[command.namespace].get(cid):
+        if _cmd := namespace.get(cid):
             if _cmd == command:
                 return
             _cmd.__union__(command)
         else:
-            self.__commands[command.namespace][cid] = command
+            namespace[cid] = command
             self.current_count += 1
 
     def require(self, command: "Alconna") -> "Analyser":
@@ -175,9 +174,8 @@ class CommandManager(metaclass=Singleton):
                     config.lang.manager_target_command_error.format(target=f"{namespace}.{name}", shortcut=shortcut)
                 ) from e
         else:
-            for key in self.__shortcuts:
-                if key.split("::")[1] == shortcut:
-                    return self.__shortcuts.get(key)
+            with contextlib.suppress(StopIteration):
+                return self.__shortcuts.get(next(filter(lambda x: x.split("::")[1] == shortcut, self.__shortcuts)))
             raise ValueError(config.lang.manager_undefined_shortcut.format(target=f"{shortcut}"))
 
     def update_shortcut(self):
@@ -185,14 +183,10 @@ class CommandManager(metaclass=Singleton):
 
     def delete_shortcut(self, shortcut: str, target: Optional[Union["Alconna", str]] = None):
         """删除快捷命令"""
-        try:
-            res = self.find_shortcut(shortcut, target)
-        except ValueError:
-            raise
-        for k, v in self.__shortcuts.items():
-            if v == res:
-                self.__shortcuts.delete(k)
-                return
+        res = self.find_shortcut(shortcut, target)
+        with contextlib.suppress(StopIteration):
+            self.__shortcuts.delete(next(filter(lambda x: self.__shortcuts[x] == res, self.__shortcuts)))
+        return
 
     def set_disable(self, command: Union["Alconna", str]) -> None:
         """禁用命令"""
@@ -222,7 +216,7 @@ class CommandManager(metaclass=Singleton):
             return []
         return list(self.__commands[namespace].values())
 
-    def broadcast(self, message: DataCollection[Union[str, Any]], namespace: str = '') -> Optional['Arpamar']:
+    def broadcast(self, message: TDataCollection, namespace: str = '') -> Optional['Arpamar[TDataCollection]']:
         """将一段命令广播给当前空间内的所有命令"""
         for cmd in self.get_commands(namespace):
             if (res := cmd.parse(message)) and res.matched:

@@ -91,10 +91,10 @@ class AlconnaGroup(CommandNode):
         except StopIteration as e:
             raise KeyError(item) from e
 
-    def __add__(self, other):
+    def __or__(self, other):
         return self.__union__(other)
 
-    def parse(self, message: TDataCollection):
+    def parse(self, message: TDataCollection) -> Optional[Arpamar[TDataCollection]]:
         res = None
         for command in self.commands:
             if (res := command.parse(message)).matched:
@@ -327,7 +327,7 @@ class Alconna(CommandNode):
     @overload
     def parse(
             self, message: TDataCollection, duplication=None, static: bool = True
-    ) -> Arpamar:
+    ) -> Arpamar[TDataCollection]:
         ...
 
     def parse(
@@ -353,21 +353,22 @@ class Alconna(CommandNode):
         return self
 
     def __rshift__(self, other):
-        if isinstance(other, Alconna):
-            return self.__union__(other)
+        command_manager.delete(self)
         if isinstance(other, Option):
-            command_manager.delete(self)
             self.options.append(other)
-            command_manager.register(self)
         elif isinstance(other, str):
-            command_manager.delete(self)
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
-            command_manager.register(self)
+        command_manager.register(self)
         return self
 
     def __add__(self, other):
         return self.__rshift__(other)
+
+    def __or__(self, other):
+        if isinstance(other, Alconna):
+            return AlconnaGroup(self.name, self, other, namespace=self.namespace)
+        return self
 
     def __hash__(self):
         return hash(
