@@ -1,9 +1,9 @@
-import setuptools
+from setuptools import find_namespace_packages, setup
 
-with open("README.md", "r", encoding='utf-8') as fh:
+with open("README.rst", "r", encoding='utf-8') as fh:
     long_description = fh.read()
 
-setuptools.setup(
+setup(
     name="arclet-alconna",
     version="1.1.1",
     author="RF-Tar-Railt",
@@ -11,10 +11,10 @@ setuptools.setup(
     description="A High-performance, Generality, Humane Command Line Arguments Parser Library.",
     license='MIT',
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type="text/rst",
     url="https://github.com/ArcletProject/Alconna",
     package_dir={"": "src"},
-    packages=setuptools.find_namespace_packages(where="src"),
+    packages=find_namespace_packages(where="src"),
     install_requires=['typing_extensions'],
     extras_require={
         'graia': [

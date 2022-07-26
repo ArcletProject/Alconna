@@ -1,5 +1,14 @@
 # Alconna 1.1.x:
 
+## Alconna 1.1.1:
+1. `Arpamar` 泛型支持, 可通过`Arpamar[type]`指定原指令的类型
+2. `Alconna` 可通过 `|` 进行组合, 返回命令组
+```python
+alc = Alconna("{place1}在哪里") | Alconna("哪里有{place1}")
+alc.parse("食物在哪里")
+alc.parse("哪里有食物")
+```
+
 ## Alconna 1.1.0:
 1. `AlconnaDuplication` -> `Duplication`
 2. `Duplication` 现在支持写入参数名或头部名称, 如
