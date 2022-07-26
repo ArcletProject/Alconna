@@ -287,9 +287,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     @staticmethod
     def __handle_force__(slot: ArgUnit, value):
-        slot['value'] = (
-            BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value)
-        )
+        slot['value'] = (BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value))
 
     def __len__(self):
         return len(self.argument)
@@ -377,7 +375,7 @@ class CommandNode:
             action: Optional[Union[ArgAction, Callable]] = None,
             separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
             help_text: Optional[str] = None,
-            requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
+            requires: Optional[Union[str, Sequence[str], Set[str]]] = None
     ):
         """
         初始化命令节点
@@ -433,8 +431,7 @@ class Option(CommandNode):
 
     def __init__(
             self,
-            name: str,
-            args: Union[Args, str, None] = None,
+            name: str, args: Union[Args, str, None] = None,
             alias: Optional[List[str]] = None,
             dest: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
@@ -467,14 +464,12 @@ class Subcommand(CommandNode):
 
     def __init__(
             self,
-            name: str,
-            options: Optional[List[Option]] = None,
-            args: Union[Args, str, None] = None,
+            name: str, options: Optional[List[Option]] = None, args: Union[Args, str, None] = None,
             dest: Optional[str] = None,
             action: Optional[Union[ArgAction, Callable]] = None,
             separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
             help_text: Optional[str] = None,
-            requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
+            requires: Optional[Union[str, Sequence[str], Set[str]]] = None
     ):
         self.options = options or []
         super().__init__(name, args, dest, action, separators, help_text, requires)

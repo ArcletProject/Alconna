@@ -16,9 +16,6 @@ if TYPE_CHECKING:
 class ArgAction:
     """
     负责封装action的类
-
-    Attributes:
-        action: 实际的function
     """
     action: Callable[..., Any]
 

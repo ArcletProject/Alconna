@@ -1,12 +1,12 @@
 """Alconna 主体"""
 import sys
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, TYPE_CHECKING, TypedDict, \
-    Iterable, Any
+    Iterable
 
 from .config import config
 from .analysis.base import compile
 from .base import CommandNode, Args, ArgAction, Option, Subcommand, HelpOption, ShortcutOption
-from .typing import DataCollection, BasePattern
+from .typing import TDataCollection, BasePattern
 from .manager import command_manager
 from .arpamar import Arpamar
 from .components.action import ActionHandler
@@ -17,7 +17,7 @@ from .builtin.formatter import DefaultTextFormatter
 from .builtin.analyser import DefaultCommandAnalyser
 
 if TYPE_CHECKING:
-    from .analysis.analyser import Analyser
+    from .analysis.analyser import TAnalyser
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
@@ -91,10 +91,10 @@ class AlconnaGroup(CommandNode):
         except StopIteration as e:
             raise KeyError(item) from e
 
-    def __add__(self, other):
+    def __or__(self, other):
         return self.__union__(other)
 
-    def parse(self, message: DataCollection[Union[str, Any]]):
+    def parse(self, message: TDataCollection) -> Optional[Arpamar[TDataCollection]]:
         res = None
         for command in self.commands:
             if (res := command.parse(message)).matched:
@@ -141,7 +141,7 @@ class Alconna(CommandNode):
     headers: Union[List[Union[str, object]], List[Tuple[object, str]]]
     command: Union[str, type, BasePattern]
     options: List[Union[Option, Subcommand]]
-    analyser_type: Type["Analyser"]
+    analyser_type: Type["TAnalyser"]
     formatter_type: Type[AbstractTextFormatter]
     namespace: str
     behaviors: List[T_ABehavior]
@@ -160,7 +160,7 @@ class Alconna(CommandNode):
         *,
         headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
         behaviors: Optional[List[T_ABehavior]] = None,
-        analyser_type: Optional[Type["Analyser"]] = None,
+        analyser_type: Optional[Type["TAnalyser"]] = None,
         formatter_type: Optional[Type[AbstractTextFormatter]] = None,
         separator: Optional[str] = None
     ):
@@ -190,7 +190,7 @@ class Alconna(CommandNode):
             namespace: Optional[str] = None,
             separators: Optional[Union[str, Iterable[str]]] = None,
             help_text: Optional[str] = None,
-            analyser_type: Optional[Type["Analyser"]] = None,
+            analyser_type: Optional[Type["TAnalyser"]] = None,
             behaviors: Optional[List[T_ABehavior]] = None,
             formatter_type: Optional[Type[AbstractTextFormatter]] = None,
             is_fuzzy_match: bool = False,
@@ -308,13 +308,7 @@ class Alconna(CommandNode):
     def __repr__(self):
         return f"<{self.namespace}::{self.name} with {len(self.options)} options; args={self.args}>"
 
-    def add(
-        self,
-        name: str, *alias: str,
-        args: Optional[Args] = None,
-        sep: str = " ",
-        help_text: Optional[str] = None,
-    ):
+    def add(self, name: str, *alias: str, args: Optional[Args] = None, sep: str = " ", help_text: Optional[str] = None):
         """链式注册一个 Option"""
         command_manager.delete(self)
         names = name.split(sep)
@@ -326,18 +320,18 @@ class Alconna(CommandNode):
 
     @overload
     def parse(
-            self, message: DataCollection[Union[str, Any]], duplication: Type[T_Duplication], static: bool = True,
+            self, message: TDataCollection, duplication: Type[T_Duplication], static: bool = True,
     ) -> T_Duplication:
         ...
 
     @overload
     def parse(
-            self, message: DataCollection[Union[str, Any]], duplication=None, static: bool = True
-    ) -> Arpamar:
+            self, message: TDataCollection, duplication=None, static: bool = True
+    ) -> Arpamar[TDataCollection]:
         ...
 
     def parse(
-            self, message: DataCollection[Union[str, Any]], duplication: Optional[Type[T_Duplication]] = None,
+            self, message: TDataCollection, duplication: Optional[Type[T_Duplication]] = None,
             static: bool = True,
     ):
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
@@ -359,21 +353,22 @@ class Alconna(CommandNode):
         return self
 
     def __rshift__(self, other):
-        if isinstance(other, Alconna):
-            return self.__union__(other)
+        command_manager.delete(self)
         if isinstance(other, Option):
-            command_manager.delete(self)
             self.options.append(other)
-            command_manager.register(self)
         elif isinstance(other, str):
-            command_manager.delete(self)
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
-            command_manager.register(self)
+        command_manager.register(self)
         return self
 
     def __add__(self, other):
         return self.__rshift__(other)
+
+    def __or__(self, other):
+        if isinstance(other, Alconna):
+            return AlconnaGroup(self.name, self, other, namespace=self.namespace)
+        return self
 
     def __hash__(self):
         return hash(

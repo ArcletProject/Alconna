@@ -1,6 +1,6 @@
-from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload
+from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload, Generic
 from contextlib import suppress
-from .typing import DataCollection, Empty
+from .typing import Empty, TDataCollection
 from .config import config
 from .base import SubcommandResult, OptionResult
 from .exceptions import BehaveCancelled, OutBoundsBehave
@@ -14,20 +14,14 @@ T = TypeVar('T')
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
-class Arpamar:
+class Arpamar(Generic[TDataCollection]):
     """
     亚帕玛尔(Arpamar), Alconna的珍藏宝书
-
-    - `Arpamar.main_args`: 当 Alconna 写入了 main_argument 时,该参数返回对应的解析出来的值
-    - `Arpamar.header`: 当 Alconna 的 command 内写有正则表达式时,该参数返回对应的匹配值
-    - `Arpamar.find`: 判断 Arpamar 内是否有对应的属性
-    - `Arpamar.query`: 返回 Arpamar 中指定的属性
-    - `Arpamar.matched`: 返回命令是否匹配成功
     """
 
     def __init__(self, alc: "Alconna"):
         self.source: "Alconna" = alc
-        self.origin: DataCollection[Union[str, Any]] = ''
+        self.origin: TDataCollection = ''
         self.matched: bool = False
         self.head_matched: bool = False
         self.error_data: List[Union[str, Any]] = []
