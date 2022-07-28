@@ -115,17 +115,18 @@ class Arpamar(Generic[TDataCollection]):
         raise OutBoundsBehave
 
     def execute(self, behaviors: Optional[List[T_ABehavior]] = None):
-        behaviors = [*self.source.behaviors, *(behaviors or [])]
-        exc_behaviors = []
-        for behavior in behaviors:
-            exc_behaviors.extend(requirement_handler(behavior))
-        for b in exc_behaviors:
-            try:
-                b.operate(self)  # type: ignore
-            except BehaveCancelled:
-                continue
-            except OutBoundsBehave as e:
-                return self._fail(e)
+        self.source.behaviors[0].operate(self)
+        if behaviors := [*self.source.behaviors[1:], *(behaviors or [])]:
+            exc_behaviors = []
+            for behavior in behaviors:
+                exc_behaviors.extend(requirement_handler(behavior))
+            for b in exc_behaviors:
+                try:
+                    b.operate(self)  # type: ignore
+                except BehaveCancelled:
+                    continue
+                except OutBoundsBehave as e:
+                    return self._fail(e)
         return self
 
     def _fail(self, exc: Union[Type[BaseException], BaseException, str]):

@@ -178,7 +178,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     @staticmethod
     def default_params_compiler(analyser: "Analyser"):
-        analyser.part_len = range(len(analyser.alconna.options) + (1 if analyser.need_main_args else 0))
+        require_len = 0
         for opts in analyser.alconna.options:
             if isinstance(opts, Option):
                 for al in opts.aliases:
@@ -207,8 +207,12 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 analyser.default_separate &= False
             if opts.requires:
                 analyser.param_ids.update(opts.requires)
+                require_len = max(len(opts.requires), require_len)
                 for k in opts.requires:
                     analyser.command_params.setdefault(k, Sentence(name=k))
+            analyser.part_len = range(
+                len(analyser.alconna.options) + (1 if analyser.need_main_args else 0) + require_len
+            )
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.alconna.path}>"

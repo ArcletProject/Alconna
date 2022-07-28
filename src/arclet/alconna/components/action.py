@@ -11,6 +11,7 @@ from .behavior import ArpamarBehavior
 if TYPE_CHECKING:
     from ..arpamar import Arpamar
     from ..base import Args, SubcommandResult, OptionResult
+    from ..core import Alconna
 
 
 class ArgAction:
@@ -97,51 +98,53 @@ class ArgAction:
         return ArgAction(action)
 
 
+def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
+    result_dict = args.copy()
+    kwargs = {}
+    kwonly = {}
+    varargs = []
+    kw_key = None
+    var_key = None
+    if '__kwargs__' in result_dict:
+        kwargs, kw_key = result_dict.pop('__kwargs__')
+        result_dict.pop(kw_key)
+    if '__varargs__' in result_dict:
+        varargs, var_key = result_dict.pop('__varargs__')
+        result_dict.pop(var_key)
+    if '__kwonly__' in result_dict:
+        kwonly = result_dict.pop('__kwonly__')
+        for k in kwonly:
+            result_dict.pop(k)
+    if kwargs:
+        addition_kwargs = source.local_args.copy()
+        addition_kwargs.update(kwargs)
+        addition_kwargs.update(kwonly)
+    else:
+        addition_kwargs = {**kwonly, **kwargs}
+        result_dict.update(source.local_args)
+    res = func.handle(result_dict, varargs, addition_kwargs, source.is_raise_exception)
+    if kw_key:
+        res[kw_key] = kwargs
+    if var_key:
+        res[var_key] = varargs
+    args.update(res)
+
+
+def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, source: 'Alconna'):
+    if not data['args']:
+        data['value'] = func.handle(
+            {}, [], source.local_args.copy(), source.is_raise_exception
+        )
+        return
+    _exec_args(data['args'], func, source)
+
+
 class ActionHandler(ArpamarBehavior):
     def operate(self, interface: "Arpamar"):
         interface.clean()
 
-        def _exec_args(args: Dict[str, Any], func: ArgAction):
-            result_dict = args.copy()
-            kwargs = {}
-            kwonly = {}
-            varargs = []
-            kw_key = None
-            var_key = None
-            if '__kwargs__' in result_dict:
-                kwargs, kw_key = result_dict.pop('__kwargs__')
-                result_dict.pop(kw_key)
-            if '__varargs__' in result_dict:
-                varargs, var_key = result_dict.pop('__varargs__')
-                result_dict.pop(var_key)
-            if '__kwonly__' in result_dict:
-                kwonly = result_dict.pop('__kwonly__')
-                for k in kwonly:
-                    result_dict.pop(k)
-            if kwargs:
-                addition_kwargs = interface.source.local_args.copy()
-                addition_kwargs.update(kwargs)
-                addition_kwargs.update(kwonly)
-            else:
-                addition_kwargs = {**kwonly, **kwargs}
-                result_dict.update(interface.source.local_args)
-            res = func.handle(result_dict, varargs, addition_kwargs, interface.source.is_raise_exception)
-            if kw_key:
-                res[kw_key] = kwargs
-            if var_key:
-                res[var_key] = varargs
-            args.update(res)
-
-        def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction):
-            if not data['args']:
-                data['value'] = func.handle(
-                    {}, [], interface.source.local_args.copy(), interface.source.is_raise_exception
-                )
-                return
-            _exec_args(data['args'], func)
-
         if action := interface.source.action_list['main']:
-            _exec_args(interface.main_args, action)
+            _exec_args(interface.main_args, action, interface.source)
 
         for path, action in interface.source.action_list['options'].items():
             if d := interface.query(path, None):

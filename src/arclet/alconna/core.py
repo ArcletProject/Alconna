@@ -79,6 +79,7 @@ class AlconnaGroup(CommandNode):
         """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
+        self.__hash = self._hash()
         command_manager.register(self)
         return self
 
@@ -218,13 +219,6 @@ class Alconna(CommandNode):
         self.headers = headers or self.__class__.global_headers
         self.command = command or ""
         self.options = options or []
-        super().__init__(
-            f"{command_manager.sign}{command or self.headers[0]}",
-            main_args,
-            action=action,
-            separators=separators or config.separators.copy(),  # type: ignore
-            help_text=help_text or "Unknown Information"
-        )
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = namespace or config.namespace
         self.options.extend([HelpOption, ShortcutOption])
@@ -234,7 +228,13 @@ class Alconna(CommandNode):
         self.formatter_type = formatter_type or self.__class__.global_formatter_type
         self.is_fuzzy_match = is_fuzzy_match or config.fuzzy_match
         self.is_raise_exception = is_raise_exception or config.raise_exception
-
+        super().__init__(
+            f"{command_manager.sign}{command or self.headers[0]}",
+            main_args,
+            action=action,
+            separators=separators or config.separators.copy(),  # type: ignore
+            help_text=help_text or "Unknown Information"
+        )
         command_manager.register(self)
         self.name = self.name.replace(command_manager.sign, "")
 
@@ -256,6 +256,7 @@ class Alconna(CommandNode):
         """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
+        self.__hash = self._hash()
         command_manager.register(self)
         return self
 
@@ -315,6 +316,7 @@ class Alconna(CommandNode):
         name, requires = names[-1], names[:-1]
         opt = Option(name, args, list(alias), separators=sep, help_text=help_text, requires=requires)
         self.options.append(opt)
+        self.__hash = self._hash()
         command_manager.register(self)
         return self
 
@@ -359,6 +361,7 @@ class Alconna(CommandNode):
         elif isinstance(other, str):
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
+        self.__hash = self._hash()
         command_manager.register(self)
         return self
 
@@ -370,7 +373,7 @@ class Alconna(CommandNode):
             return AlconnaGroup(self.name, self, other, namespace=self.namespace)
         return self
 
-    def __hash__(self):
+    def _hash(self):
         return hash(
             (self.path + str(self.args.argument.keys()) + str([i['value'] for i in self.args.argument.values()])
              + str(self.headers), *self.options)
