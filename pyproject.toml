@@ -1,21 +1,18 @@
 [build-system]
-requires = ["setuptools>=58.3.0", "wheel>=0.37.0"]
-build-backend = "setuptools.build_meta"
+requires = ["pdm-pep517>=1.0.0"]
+build-backend = "pdm.pep517.api"
 
-# Project metadata
 [project]
-author = [
-    {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},
-]
 name = "arclet-alconna"
 version = "1.1.2"
 description = "A High-performance, Generality, Humane Command Line Arguments Parser Library."
-readme = "README.md"
-requires_python = ">=3.8"
-license = {text = "MIT"}
-dependencies = [
-    "typing-extensions^=4.3.0"
+authors = [
+    {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},
 ]
+dependencies = ["typing-extensions~=4.3.0"]
+requires-python = ">=3.8"
+readme = "README-EN.md"
+license = {text = "MIT"}
 keywords = [
     "command",
     "argparse",
@@ -28,6 +25,11 @@ keywords = [
 ]
 classifiers=[
     "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Operating System :: OS Independent",
 ]
 [project.urls]
@@ -38,6 +40,11 @@ repository = "https://github.com/ArcletProject/Alconna"
 cli = ["arclet-alconna-cli"]
 graia = ["arclet-alconna-graia"]
 full = ["arclet-alconna-cli", "arclet-alconna-graia"]
+
+[tool.pdm]
+
+[tool.pdm.build]
+includes = ["src/arclet"]
 
 [tool.pylint.BASIC]
 class-const-naming-style = "any"
