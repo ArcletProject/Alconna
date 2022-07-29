@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from .util import split_once, split, LruCache, Singleton
 from .base import CommandNode, Args, Option, Subcommand
-from .typing import DataCollection, AnyOne, AllParam, Empty, PatternModel, set_converter, Bind
+from .typing import DataCollection, AnyOne, AllParam, Empty, PatternModel, set_converter, Bind, BasePattern
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .analysis.base import compile, analyse
 from .core import Alconna
@@ -21,7 +21,7 @@ from .components.output import output_manager, AbstractTextFormatter
 from .components.duplication import Duplication
 from .components.stub import ArgsStub, OptionStub, SubcommandStub
 
-alconna_version = (1, 1, 1)
+alconna_version = (1, 1, 2)
 
 if TYPE_CHECKING:
     from .builtin.actions import version

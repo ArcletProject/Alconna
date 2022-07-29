@@ -34,17 +34,14 @@ def split_once(text: str, separates: Union[str, Tuple[str, ...]]):  # 相当于�
     """单次分隔字符串"""
     out_text = ""
     quotation = ""
-    is_split = True
     separates = tuple(separates)
     for char in text:
         if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
-                is_split = False
                 quotation = char
             elif char == quotation:
-                is_split = True
                 quotation = ""
-        if char in separates and is_split:
+        if char in separates and not quotation:
             break
         out_text += char
     return out_text, text[len(out_text) + 1:]

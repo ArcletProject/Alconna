@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from ..core import Alconna
 
 
-def compile(alconna: "Alconna", params_compiler: Optional[Callable[[Analyser], None]] = None):
+def compile(alconna: "Alconna", params_compiler: Optional[Callable[[Analyser], None]] = None) -> Analyser:
     _analyser = alconna.analyser_type(alconna)
     if params_compiler:
         params_compiler(_analyser)

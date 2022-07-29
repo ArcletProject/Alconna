@@ -178,7 +178,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
     @staticmethod
     def default_params_compiler(analyser: "Analyser"):
-        analyser.part_len = range(len(analyser.alconna.options) + (1 if analyser.need_main_args else 0))
+        require_len = 0
         for opts in analyser.alconna.options:
             if isinstance(opts, Option):
                 for al in opts.aliases:
@@ -189,9 +189,9 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                         analyser.command_params[al] = [opts]
                 analyser.param_ids.update(opts.aliases)
             elif isinstance(opts, Subcommand):
+                sub_require_len = 0
                 analyser.command_params[opts.name] = opts
                 analyser.param_ids.add(opts.name)
-                opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0))
                 for sub_opts in opts.options:
                     for al in sub_opts.aliases:
                         if (li := opts.sub_params.get(al)) and isinstance(li, list):
@@ -200,15 +200,21 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                         else:
                             opts.sub_params[al] = [sub_opts]
                     if sub_opts.requires:
+                        sub_require_len = max(len(sub_opts.requires), sub_require_len)
                         for k in sub_opts.requires:
                             opts.sub_params.setdefault(k, Sentence(name=k))
                     analyser.param_ids.update(sub_opts.aliases)
+                opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0) + sub_require_len)
             if not analyser.separators.issuperset(opts.separators):
                 analyser.default_separate &= False
             if opts.requires:
                 analyser.param_ids.update(opts.requires)
+                require_len = max(len(opts.requires), require_len)
                 for k in opts.requires:
                     analyser.command_params.setdefault(k, Sentence(name=k))
+            analyser.part_len = range(
+                len(analyser.alconna.options) + (1 if analyser.need_main_args else 0) + require_len
+            )
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.alconna.path}>"
