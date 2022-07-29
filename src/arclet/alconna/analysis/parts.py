@@ -151,7 +151,7 @@ def analyse_args(
                     if optional:
                         continue
                     raise res
-                if not key[0] == '$':
+                if key[0] != '$':
                     option_dict[key] = res
         elif value is AllParam:
             analyser.pushback(may_arg)

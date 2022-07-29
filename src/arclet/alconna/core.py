@@ -1,12 +1,12 @@
 """Alconna 主体"""
 import sys
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, TYPE_CHECKING, TypedDict, \
-    Iterable
+    Iterable, Any
 
 from .config import config
 from .analysis.base import compile
 from .base import CommandNode, Args, ArgAction, Option, Subcommand, HelpOption, ShortcutOption
-from .typing import TDataCollection, BasePattern
+from .typing import TDataCollection
 from .manager import command_manager
 from .arpamar import Arpamar
 from .components.action import ActionHandler
@@ -140,7 +140,7 @@ class Alconna(CommandNode):
     """
     _group = False
     headers: Union[List[Union[str, object]], List[Tuple[object, str]]]
-    command: Union[str, type, BasePattern]
+    command: Union[str, Any]
     options: List[Union[Option, Subcommand]]
     analyser_type: Type["TAnalyser"]
     formatter_type: Type[AbstractTextFormatter]
@@ -182,7 +182,7 @@ class Alconna(CommandNode):
 
     def __init__(
             self,
-            command: Optional[Union[str, type, BasePattern]] = None,
+            command: Optional[Union[str, Any]] = None,
             main_args: Union[Args, str, None] = None,
             headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
             options: Optional[List[Union[Option, Subcommand]]] = None,
@@ -229,13 +229,14 @@ class Alconna(CommandNode):
         self.is_fuzzy_match = is_fuzzy_match or config.fuzzy_match
         self.is_raise_exception = is_raise_exception or config.raise_exception
         super().__init__(
-            f"{command_manager.sign}{command or self.headers[0]}",
+            command_manager.sign,
             main_args,
             action=action,
             separators=separators or config.separators.copy(),  # type: ignore
             help_text=help_text or "Unknown Information"
         )
         command_manager.register(self)
+        self.name = f"{command or self.headers[0]!r}"
         self.name = self.name.replace(command_manager.sign, "")
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:

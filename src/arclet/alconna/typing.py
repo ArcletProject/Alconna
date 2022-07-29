@@ -129,15 +129,21 @@ class BasePattern(Generic[TOrigin]):
     def __eq__(self, other):
         return isinstance(other, BasePattern) and self.__repr__() == other.__repr__()
 
-    @classmethod
-    def of(cls, unit: Type[TOrigin]):
+    @staticmethod
+    def of(unit: Type[TOrigin]) -> 'BasePattern[TOrigin]':
         """提供原来 TAValue 中的 Type[DataUnit] 类型的构造方法"""
-        return cls('', PatternModel.KEEP, unit, alias=unit.__name__, accepts=[unit])
+        return BasePattern('', PatternModel.KEEP, unit, alias=unit.__name__, accepts=[unit])
 
-    @classmethod
-    def on(cls, obj: TOrigin):
+    @staticmethod
+    def on(obj: TOrigin) -> 'BasePattern[TOrigin]':
         """提供原来 TAValue 中的 DataUnit 类型的构造方法"""
-        return cls('', PatternModel.KEEP, type(obj), alias=str(obj), validators=[lambda x: x == obj])
+        return BasePattern('', PatternModel.KEEP, type(obj), alias=str(obj), validators=[lambda x: x == obj])
+
+    @staticmethod
+    def to(content: Any) -> Optional['BasePattern']:
+        """便捷的使用 args_type_parser 的方法"""
+        if isinstance(res := args_type_parser(content, 'allow'), BasePattern):
+            return res
 
     def reverse(self):
         self.anti = not self.anti

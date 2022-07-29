@@ -1,5 +1,9 @@
 # Alconna 1.1.x:
 
+## Alconna 1.1.2:
+1. 修复 bugs
+2. BasePattern 加入 `to` 方法
+
 ## Alconna 1.1.1:
 1. `Arpamar` 泛型支持, 可通过`Arpamar[type]`指定原指令的类型
 2. `Alconna` 可通过 `|` 进行组合, 返回命令组

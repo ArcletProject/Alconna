@@ -45,9 +45,9 @@ class DefaultCommandAnalyser(Analyser):
                 if isinstance(_res, Arpamar):
                     return _res
                 return self.process(_res).analyse()
-            except ValueError:
+            except ValueError as exc:
                 if self.is_raise_exception:
-                    raise e
+                    raise e from exc
                 return self.export(fail=True, exception=e)
         except FuzzyMatchSuccess as Fuzzy:
             output_manager.get(self.alconna.name, lambda: str(Fuzzy)).handle(is_raise_exception=self.is_raise_exception)

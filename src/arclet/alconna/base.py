@@ -414,13 +414,16 @@ class CommandNode:
 
     def separate(self, *separator: str):
         self.separators = set(separator)
+        self.__hash = self._hash()
         return self
 
     def __repr__(self):
         return f"<{self.name} args={self.args}>"
 
     def _hash(self):
-        return hash(str(vars(self)))
+        data = vars(self)
+        data.pop('_CommandNode__hash', None)
+        return hash(str(data))
 
     def __hash__(self):
         return self.__hash

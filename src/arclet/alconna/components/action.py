@@ -142,13 +142,14 @@ def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, sour
 class ActionHandler(ArpamarBehavior):
     def operate(self, interface: "Arpamar"):
         interface.clean()
+        source = interface.source
 
-        if action := interface.source.action_list['main']:
-            _exec_args(interface.main_args, action, interface.source)
+        if action := source.action_list['main']:
+            _exec_args(interface.main_args, action, source)
 
-        for path, action in interface.source.action_list['options'].items():
+        for path, action in source.action_list['options'].items():
             if d := interface.query(path, None):
-                _exec(d, action)  # type: ignore
-        for path, action in interface.source.action_list['subcommands'].items():
+                _exec(d, action, source)  # type: ignore
+        for path, action in source.action_list['subcommands'].items():
             if d := interface.query(path, None):
-                _exec(d, action)  # type: ignore
+                _exec(d, action, source)  # type: ignore
