@@ -1,6 +1,6 @@
 # Alconna 1.1.x:
 
-## Alconna 1.1.2:
+## Alconna 1.1.2 - 1.1.2.1:
 1. 修复 bugs
 2. BasePattern 加入 `to` 方法
 

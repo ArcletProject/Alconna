@@ -90,13 +90,12 @@ class CommandManager(metaclass=Singleton):
             for cmd in command.commands:  # type: ignore
                 self.__analysers[cmd] = compile(cmd)
         namespace = self.__commands.setdefault(command.namespace, {})
-        cid = command.name.replace(self.sign, "")
-        if _cmd := namespace.get(cid):
+        if _cmd := namespace.get(command.name):
             if _cmd == command:
                 return
             _cmd.__union__(command)
         else:
-            namespace[cid] = command
+            namespace[command.name] = command
             self.current_count += 1
 
     def require(self, command: "Alconna") -> "Analyser":

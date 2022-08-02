@@ -235,9 +235,9 @@ class Alconna(CommandNode):
             separators=separators or config.separators.copy(),  # type: ignore
             help_text=help_text or "Unknown Information"
         )
+        self.name = f"{command or self.headers[0]!r}".replace(command_manager.sign, "")
+        self.__hash = self._hash()
         command_manager.register(self)
-        self.name = f"{command or self.headers[0]!r}"
-        self.name = self.name.replace(command_manager.sign, "")
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
         """
