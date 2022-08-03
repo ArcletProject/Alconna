@@ -222,14 +222,15 @@ class MultiArg(BasePattern):
         self.flag = flag
         self.array_length = length
         if flag == 'args':
-            _t = Tuple[base.origin, ...]
-            alias = f"*{base}[:{length}]" if length else f"*{base}"
+            alias = f"*({base})[:{length}]" if length else f"*({base})"
         else:
-            _t = Dict[str, base.origin]
-            alias = f"**{base}[:{length}]" if length else f"**{base}"
+            alias = f"**{{{base}}}[:{length}]" if length else f"**{{{base}}}"
         super().__init__(
-            base.pattern, base.model, _t, base.converter, alias, base.previous, base.accepts, base.validators
+            base.pattern, base.model, base.origin, base.converter, alias, base.previous, base.accepts, base.validators
         )
+
+    def __repr__(self):
+        return self.alias
 
 
 class UnionArg(BasePattern):
