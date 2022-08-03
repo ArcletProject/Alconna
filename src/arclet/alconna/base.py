@@ -406,27 +406,26 @@ class CommandNode:
         self.is_compact = self.separators == {''}
         self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name).lstrip('-')
         self.help_text = help_text or self.dest
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
 
     is_compact: bool
     nargs: int
-    __hash: int
+    _hash: int
 
     def separate(self, *separator: str):
         self.separators = set(separator)
-        self.__hash = self._hash()
         return self
 
     def __repr__(self):
         return f"<{self.name} args={self.args}>"
 
-    def _hash(self):
+    def _calc_hash(self):
         data = vars(self)
         data.pop('_CommandNode__hash', None)
         return hash(str(data))
 
     def __hash__(self):
-        return self.__hash
+        return self._hash
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.__hash__() == other.__hash__()

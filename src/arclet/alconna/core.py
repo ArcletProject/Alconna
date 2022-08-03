@@ -79,7 +79,7 @@ class AlconnaGroup(CommandNode):
         """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
         command_manager.register(self)
         return self
 
@@ -236,7 +236,7 @@ class Alconna(CommandNode):
             help_text=help_text or "Unknown Information"
         )
         self.name = f"{command or self.headers[0]!r}".replace(command_manager.sign, "")
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
         command_manager.register(self)
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
@@ -257,7 +257,7 @@ class Alconna(CommandNode):
         """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
         command_manager.register(self)
         return self
 
@@ -317,7 +317,7 @@ class Alconna(CommandNode):
         name, requires = names[-1], names[:-1]
         opt = Option(name, args, list(alias), separators=sep, help_text=help_text, requires=requires)
         self.options.append(opt)
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
         command_manager.register(self)
         return self
 
@@ -362,7 +362,7 @@ class Alconna(CommandNode):
         elif isinstance(other, str):
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
         command_manager.register(self)
         return self
 
@@ -374,7 +374,7 @@ class Alconna(CommandNode):
             return AlconnaGroup(self.name, self, other, namespace=self.namespace)
         return self
 
-    def _hash(self):
+    def _calc_hash(self):
         return hash(
             (self.path + str(self.args.argument.keys()) + str([i['value'] for i in self.args.argument.values()])
              + str(self.headers), *self.options)
