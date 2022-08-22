@@ -19,7 +19,7 @@ def test_object_pattern():
 
     pat11 = ObjectPattern(A, flag='urlget')
 
-    assert pat11.validate("username=abcd&userid=123")[1] == 'V'
+    assert pat11.validate("username=abcd&userid=123").success
 
 
 if __name__ == '__main__':

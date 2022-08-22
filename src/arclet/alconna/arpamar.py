@@ -1,6 +1,7 @@
 from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload, Generic
 from contextlib import suppress
-from .typing import Empty, TDataCollection
+from nepattern import Empty
+from .typing import TDataCollection
 from .config import config
 from .base import SubcommandResult, OptionResult
 from .exceptions import BehaveCancelled, OutBoundsBehave

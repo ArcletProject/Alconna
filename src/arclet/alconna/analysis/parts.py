@@ -44,11 +44,10 @@ def multi_arg_handler(
                 for ii in range(min(len(result), _m_rest_arg)):
                     analyser.pushback(result.pop(-1))
                 break
-            res, s = value.validate(_m_arg)
-            if s != 'V':
+            if (res := value.validate(_m_arg)).flag != 'valid':
                 analyser.pushback(_m_arg)
                 break
-            result.append(res)
+            result.append(res.value)
         if len(result) == 0:
             result = [default] if default else []
         result_dict[key] = tuple(result)
@@ -73,18 +72,16 @@ def multi_arg_handler(
                 break
             if _kwarg := re.match(r'^([^=]+)=([^=]+?)$', _m_arg):
                 _m_arg = _kwarg.group(2)
-                res, s = value.validate(_m_arg)
-                if s != 'V':
+                if (res := value.validate(_m_arg)).flag != 'valid':
                     analyser.pushback(_m_arg)
                     break
-                result[_kwarg.group(1)] = res
+                result[_kwarg.group(1)] = res.value
             elif _kwarg := re.match(r'^([^=]+)=\s?$', _m_arg):
                 _m_arg, _m_str = analyser.popitem(seps)
-                res, s = value.validate(_m_arg)
-                if s != 'V':
+                if (res := value.validate(_m_arg)).flag != 'valid':
                     __putback(_m_arg)
                     break
-                result[_kwarg.group(1)] = res
+                result[_kwarg.group(1)] = res.value
             else:
                 analyser.pushback(_m_arg)
                 break
@@ -146,15 +143,15 @@ def analyse_args(
             if value.__class__ is MultiArg:
                 multi_arg_handler(analyser, opt_args, may_arg, key, value, default, option_dict)  # type: ignore
             else:
-                res, state = value.invalidate(may_arg, default) if value.anti else value.validate(may_arg, default)
-                if state != "V":
+                res = value.invalidate(may_arg, default) if value.anti else value.validate(may_arg, default)
+                if res.flag != 'valid':
                     analyser.pushback(may_arg)
-                if state == "E":
+                if res.flag == 'error':
                     if optional:
                         continue
-                    raise res
+                    raise ParamsUnmatched(*res.error.args)
                 if key[0] != '$':
-                    option_dict[key] = res
+                    option_dict[key] = res.value
         elif value is AllParam:
             analyser.pushback(may_arg)
             option_dict[key] = analyser.release()
@@ -319,7 +316,7 @@ def analyse_header(
     if isinstance(command, TPattern) and _str and (_head_find := command.fullmatch(head_text)):
         analyser.head_matched = True
         return _head_find.groupdict() or True
-    elif isinstance(command, BasePattern) and (_head_find := command.validate(head_text, Empty)[0]):
+    elif isinstance(command, BasePattern) and (_head_find := command.validate(head_text, Empty).value):
         analyser.head_matched = True
         return _head_find or True
     else:
@@ -338,7 +335,7 @@ def analyse_header(
                     if _m_str and (_command_find := command[1].fullmatch(may_command)):
                         analyser.head_matched = True
                         return _command_find.groupdict() or True
-                elif _command_find := command[1].validate(may_command, Empty)[0]:
+                elif _command_find := command[1].validate(may_command, Empty).value:
                     analyser.head_matched = True
                     return _command_find or True
             elif _str and isinstance(command[0][1], TPattern):
@@ -352,7 +349,7 @@ def analyse_header(
                         analyser.head_matched = True
                         return _command_find.groupdict() or True
                 elif isinstance(command[1], BasePattern) and (_head_find := command[0][1].fullmatch(head_text)) and (
-                    _command_find := command[1].validate(may_command, Empty)[0]
+                    _command_find := command[1].validate(may_command, Empty).value
                 ):
                     analyser.head_matched = True
                     return _command_find or True

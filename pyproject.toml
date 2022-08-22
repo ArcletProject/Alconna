@@ -9,7 +9,10 @@ description = "A High-performance, Generality, Humane Command Line Arguments Par
 authors = [
     {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},
 ]
-dependencies = ["typing-extensions~=4.3.0"]
+dependencies = [
+    "typing-extensions~=4.3.0",
+    "nepattern~=0.1.2",
+]
 requires-python = ">=3.8"
 readme = "README-EN.md"
 license = {text = "MIT"}

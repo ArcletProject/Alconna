@@ -1,7 +1,7 @@
 from typing import Union
+from nepattern import set_unit
 from arclet.alconna.builtin.analyser import DefaultCommandAnalyser
 from arclet.alconna import Alconna, Args
-from arclet.alconna.typing import set_unit
 
 
 def test_filter_out():
