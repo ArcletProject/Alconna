@@ -9,9 +9,9 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, \
     Set, FrozenSet
-
+from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
 from .exceptions import InvalidParam, NullMessage
-from .typing import BasePattern, Empty, AllParam, AnyOne, MultiArg, UnionArg, args_type_parser, pattern_map
+from .typing import MultiArg
 from .config import config
 from .components.action import ArgAction
 
@@ -187,7 +187,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.optional_count = 0
         self.separators = {separators} if isinstance(separators, str) else set(separators)
         self.argument = {  # type: ignore
-            k: {"value": args_type_parser(v), "default": None, 'notice': None,
+            k: {"value": type_parser(v), "default": None, 'notice': None,
                 'optional': False, 'hidden': False, 'kwonly': False}
             for k, v in kwargs.items()
         }
@@ -227,7 +227,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             raise InvalidParam(config.lang.args_name_error)
         if not name.strip():
             raise InvalidParam(config.lang.args_name_empty)
-        _value = args_type_parser(value, self.extra)
+        _value = type_parser(value, self.extra)
         if isinstance(_value, UnionArg) and _value.optional:
             default = Empty if default is None else default
         if default in ("...", Ellipsis):
@@ -414,6 +414,7 @@ class CommandNode:
 
     def separate(self, *separator: str):
         self.separators = set(separator)
+        self._hash = self._calc_hash()
         return self
 
     def __repr__(self):
@@ -421,7 +422,7 @@ class CommandNode:
 
     def _calc_hash(self):
         data = vars(self)
-        data.pop('_CommandNode__hash', None)
+        data.pop('_hash', None)
         return hash(str(data))
 
     def __hash__(self):

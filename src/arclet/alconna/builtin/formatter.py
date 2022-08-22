@@ -1,8 +1,8 @@
-from typing import List, Dict, Any, Union, Set
 import re
+from typing import List, Dict, Any, Union, Set
+from nepattern import Empty, AllParam, BasePattern
 
 from arclet.alconna.base import Args, Subcommand, Option, ArgUnit
-from arclet.alconna.typing import Empty, AllParam, BasePattern
 from arclet.alconna.components.output import AbstractTextFormatter, Trace
 
 

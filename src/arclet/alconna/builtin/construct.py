@@ -2,10 +2,12 @@ from asyncio import AbstractEventLoop
 import sys
 import re
 import inspect
+from contextlib import suppress
 from functools import partial, wraps
 from types import FunctionType, MethodType, ModuleType
 from typing import Dict, Any, Optional, Callable, Union, TypeVar, List, Type, FrozenSet, Literal, get_args, Tuple, \
     Iterable, cast
+from arclet.alconna.manager import command_manager
 from arclet.alconna.typing import DataCollection
 from arclet.alconna.core import Alconna
 from arclet.alconna.base import Args, TAValue, ArgAction, Option, Subcommand, ArgFlag
@@ -658,7 +660,9 @@ def _from_object(
         r = ModuleMounter(inspect.getmodule(inspect.stack()[1][0]) or sys.modules["__main__"], config)
     command = command or (" ".join(sys.argv[1:]) if len(sys.argv) > 1 else None)
     if command:
-        r.parse(command)
+        with suppress(Exception):
+            r.parse(command)
+        command_manager.require(r).reset()
     return r
 
 

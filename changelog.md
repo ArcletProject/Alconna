@@ -1,5 +1,9 @@
 # Alconna 1.1.x:
 
+## Alconna 1.2.0:
+1. 修复 bugs
+2. 加入 ArgFiled
+
 ## Alconna 1.1.2 - 1.1.2.3:
 1. 修复 bugs
 2. BasePattern 加入 `to` 方法

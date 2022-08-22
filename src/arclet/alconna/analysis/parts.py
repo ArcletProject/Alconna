@@ -1,9 +1,11 @@
 import re
 from typing import Iterable, Union, List, Any, Dict, Tuple
+from nepattern import AllParam, Empty, BasePattern
+from nepattern.util import TPattern
 
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
-from ..typing import AllParam, Empty, MultiArg, BasePattern, TPattern
+from ..typing import MultiArg
 from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult, Sentence
 from ..util import levenshtein_norm, split_once
 from ..config import config

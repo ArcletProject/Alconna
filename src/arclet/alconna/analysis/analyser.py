@@ -4,13 +4,15 @@ from weakref import finalize
 from copy import copy
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable
+from nepattern import pattern_map, type_parser, BasePattern
+from nepattern.util import TPattern
 
 from ..manager import command_manager
 from ..exceptions import NullMessage
 from ..base import Args, Option, Subcommand, Sentence, StrMounter
 from ..arpamar import Arpamar
 from ..util import split_once, split
-from ..typing import DataCollection, pattern_map, BasePattern, args_type_parser, TPattern
+from ..typing import DataCollection
 from ..config import config
 
 if TYPE_CHECKING:
@@ -136,7 +138,7 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
 
         _command_name, _command_str = (
             (re.compile(command_name), command_name) if isinstance(command_name, str) else
-            (copy(args_type_parser(command_name)), str(command_name))
+            (copy(type_parser(command_name)), str(command_name))
         )
         if headers == [""]:
             self.command_header = _command_name  # type: ignore

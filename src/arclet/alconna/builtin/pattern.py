@@ -1,9 +1,9 @@
 import inspect
 import re
 from typing import Type, Tuple, Callable, Literal, TypeVar, Any, Union
+from nepattern import BasePattern, Empty, pattern_map, PatternModel, set_converter
 from arclet.alconna import config, ParamsUnmatched, Args
 from arclet.alconna.analysis.base import analyse_args
-from arclet.alconna.typing import BasePattern, Empty, pattern_map, PatternModel, set_converter
 
 TOrigin = TypeVar("TOrigin")
 

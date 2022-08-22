@@ -1,8 +1,8 @@
 from inspect import isclass
 from typing import Dict, Any, List, TypeVar, Union, Type, Generic
 from abc import ABCMeta, abstractmethod
+from nepattern import BasePattern, AllParam
 
-from ..typing import BasePattern, AllParam
 from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
 from ..config import config
 

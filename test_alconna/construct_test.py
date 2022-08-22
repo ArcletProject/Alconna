@@ -30,7 +30,7 @@ def test_format_like():
 
 
 def test_fire_like_class():
-    class Test:
+    class MyClass:
         """测试从类中构建对象"""
 
         def __init__(self, sender: Optional[str]):
@@ -54,7 +54,7 @@ def test_fire_like_class():
             extra = "reject"
             get_subcommand = True
 
-    con2 = AlconnaFire(Test)
+    con2 = AlconnaFire(MyClass)
     assert con2.parse("con2 Alc talk Repo set hhh").matched is True
     assert con2.parse("con2 talk Friend").query("talk.name") == "Friend"
     print('')
@@ -63,7 +63,7 @@ def test_fire_like_class():
 
 
 def test_fire_like_object():
-    class Test:
+    class MyClass:
         def __init__(self, action=sum):
             self.action = action
 
@@ -79,7 +79,7 @@ def test_fire_like_object():
         class Config:
             command = "con3"
 
-    con3 = AlconnaFire(Test(sum))
+    con3 = AlconnaFire(MyClass(sum))
     print('')
     print(con3.get_help())
     assert con3.parse("con3 calculator 1 2 3 4 5 d=6 f=7")
@@ -87,16 +87,16 @@ def test_fire_like_object():
 
 
 def test_fire_like_func():
-    def test_function(name="world"):
+    def my_function(name="world"):
         """测试从函数中构建对象"""
 
         class Config:
             command = "con4"
             description = "测试"
 
-        print("Hello {}!".format(name))
+        print(f"Hello {name}!")
 
-    con4 = AlconnaFire(test_function)
+    con4 = AlconnaFire(my_function)
     assert con4.parse("con4 Friend").matched is True
 
 

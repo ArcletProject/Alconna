@@ -1,8 +1,8 @@
 import inspect
 from types import LambdaType
 from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING, Union
+from nepattern import AnyOne, AllParam, type_parser
 
-from ..typing import AnyOne, AllParam, args_type_parser
 from ..config import config
 from ..exceptions import InvalidParam
 from ..util import is_async
@@ -91,7 +91,7 @@ class ArgAction:
                 value = args.argument[k]['value']
                 if value in (AnyOne, AllParam):
                     continue
-                if value != args_type_parser(anno, args.extra):
+                if value != type_parser(anno, args.extra):
                     raise InvalidParam(config.lang.action_args_error.format(
                         target=argument[i][0], key=k, source=value.origin  # type: ignore
                     ))

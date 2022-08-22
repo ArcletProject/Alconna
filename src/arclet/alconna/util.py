@@ -5,7 +5,6 @@ from functools import lru_cache
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import TypeVar, Optional, Dict, Any, Iterator, Hashable, Tuple, Union, Mapping
-from typing_extensions import get_origin, get_args
 
 R = TypeVar('R')
 
@@ -74,7 +73,8 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None):
                 if index and text[index - 1] == "\\":
                     result += char
         elif char in {"\n", "\r"} or (not quotation and char in separates):
-            result += "\0"
+            if result[-1] != "\0":
+                result += "\0"
         elif char != "\\":
             result += char
     return result.split('\0')
@@ -188,19 +188,3 @@ class LruCache(Mapping[_K, _V]):
             with contextlib.suppress(IndexError):
                 return iter(list(self.cache.items())[:-size-1:-1])
         return iter(self.cache.items())
-
-
-def generic_isinstance(obj: Any, par: Union[type, Any, Tuple[type, ...]]) -> bool:
-    """
-    检查 obj 是否是 par 中的一个类型, 支持泛型, Any, Union, GenericAlias
-    """
-    if par is Any:
-        return True
-    with contextlib.suppress(TypeError):
-        if isinstance(par, (type, tuple)):
-            return isinstance(obj, par)
-        if isinstance(obj, get_origin(par)):  # type: ignore
-            return True
-        if get_origin(par) is Union:
-            return any(generic_isinstance(obj, p) for p in get_args(par))
-    return False

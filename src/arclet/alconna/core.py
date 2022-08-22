@@ -235,7 +235,7 @@ class Alconna(CommandNode):
             separators=separators or config.separators.copy(),  # type: ignore
             help_text=help_text or "Unknown Information"
         )
-        self.name = f"{command or self.headers[0]!r}".replace(command_manager.sign, "")
+        self.name = f"{command or self.headers[0]}".replace(command_manager.sign, "")
         self._hash = self._calc_hash()
         command_manager.register(self)
 
