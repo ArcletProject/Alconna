@@ -18,8 +18,6 @@ class DefaultCommandAnalyser(Analyser):
     内建的默认分析器
     """
 
-    filter_out = ["Source", "File", "Quote"]
-
     def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None) -> Arpamar:
         if command_manager.is_disable(self.alconna):
             return self.export(fail=True)

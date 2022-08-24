@@ -3,7 +3,7 @@ import traceback
 from weakref import finalize
 from copy import copy
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable
+from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable, ClassVar
 from nepattern import pattern_map, type_parser, BasePattern
 from nepattern.util import TPattern
 
@@ -52,17 +52,13 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
     part_len: range  # 分段长度
     default_main_only: bool  # 默认只有主参数
     self_args: Args  # 自身参数
-    filter_out: List[str]  # 元素黑名单
+    filter_out: ClassVar[List[str]]  # 元素黑名单
     temporary_data: Dict[str, Any]  # 临时数据
     origin_data: T_Origin  # 原始数据
     temp_token: int  # 临时token
     used_tokens: Set[int]  # 已使用的token
     sentences: List[str]  # 存放解析到的所有句子
     default_separate: bool
-
-    def __init_subclass__(cls, **kwargs):
-        if not hasattr(cls, "filter_out"):
-            raise TypeError(config.lang.analyser_filter_missing)
 
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
@@ -71,6 +67,8 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
         # return hash(tuple(i.__str__() for i in data))
 
     def __init__(self, alconna: "Alconna"):
+        if not hasattr(self, 'filter_out'):
+            self.filter_out = []
         self.reset()
         self.used_tokens = set()
         self.origin_data = None
@@ -178,46 +176,6 @@ class Analyser(Generic[T_Origin], metaclass=ABCMeta):
                 for option in opt.options:
                     if option.action:
                         actions['subcommands'][f"{opt.dest}.{option.dest}"] = option.action
-
-    @staticmethod
-    def default_params_compiler(analyser: "Analyser"):
-        require_len = 0
-        for opts in analyser.alconna.options:
-            if isinstance(opts, Option):
-                for al in opts.aliases:
-                    if (li := analyser.command_params.get(al)) and isinstance(li, list):
-                        li.append(opts)  # type: ignore
-                        li.sort(key=lambda x: x.priority, reverse=True)
-                    else:
-                        analyser.command_params[al] = [opts]
-                analyser.param_ids.update(opts.aliases)
-            elif isinstance(opts, Subcommand):
-                sub_require_len = 0
-                analyser.command_params[opts.name] = opts
-                analyser.param_ids.add(opts.name)
-                for sub_opts in opts.options:
-                    for al in sub_opts.aliases:
-                        if (li := opts.sub_params.get(al)) and isinstance(li, list):
-                            li.append(sub_opts)  # type: ignore
-                            li.sort(key=lambda x: x.priority, reverse=True)
-                        else:
-                            opts.sub_params[al] = [sub_opts]
-                    if sub_opts.requires:
-                        sub_require_len = max(len(sub_opts.requires), sub_require_len)
-                        for k in sub_opts.requires:
-                            opts.sub_params.setdefault(k, Sentence(name=k))
-                    analyser.param_ids.update(sub_opts.aliases)
-                opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0) + sub_require_len)
-            if not analyser.separators.issuperset(opts.separators):
-                analyser.default_separate &= False
-            if opts.requires:
-                analyser.param_ids.update(opts.requires)
-                require_len = max(len(opts.requires), require_len)
-                for k in opts.requires:
-                    analyser.command_params.setdefault(k, Sentence(name=k))
-            analyser.part_len = range(
-                len(analyser.alconna.options) + (1 if analyser.need_main_args else 0) + require_len
-            )
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.alconna.path}>"

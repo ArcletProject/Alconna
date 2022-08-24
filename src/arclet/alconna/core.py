@@ -196,6 +196,7 @@ class Alconna(CommandNode):
             behaviors: Optional[List[T_ABehavior]] = None,
             formatter_type: Optional[Type[AbstractTextFormatter]] = None,
             is_fuzzy_match: bool = False,
+            hide_in_manager: bool = False
     ):
         """
         以标准形式构造 Alconna
@@ -214,6 +215,7 @@ class Alconna(CommandNode):
             behaviors: 命令解析行为，默认为 None
             formatter_type: 命令帮助文本格式器类型, 默认为 DefaultHelpTextFormatter
             is_fuzzy_match: 是否开启模糊匹配, 默认为 False
+            hide_in_manager: 是否对命令管理器隐藏，默认为 False
         """
         if all((not headers, not command)):
             command = sys.modules["__main__"].__file__.split("/")[-1].split(".")[0]  # type: ignore
@@ -229,6 +231,7 @@ class Alconna(CommandNode):
         self.formatter_type = formatter_type or self.__class__.global_formatter_type
         self.is_fuzzy_match = is_fuzzy_match or config.fuzzy_match
         self.is_raise_exception = is_raise_exception or config.raise_exception
+        self.hide_in_manager = hide_in_manager
         super().__init__(
             command_manager.sign,
             main_args,

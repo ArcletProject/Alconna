@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING, Union, Callable, Optional, List, Any, Tuple
+from typing import TYPE_CHECKING, Union, Callable, List, Any, Tuple, Dict
 import traceback
 
 from .analyser import Analyser
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..typing import DataCollection
-from ..base import Option, Subcommand
+from ..base import Option, Subcommand, Sentence
 from ..args import Args
 
 if TYPE_CHECKING:
@@ -12,12 +12,48 @@ if TYPE_CHECKING:
     from ..core import Alconna
 
 
-def compile(alconna: "Alconna", params_compiler: Optional[Callable[[Analyser], None]] = None) -> Analyser:
+def _compile_opts(option: Option, data: Dict[str, Union[Sentence, List[Option]]]):
+    for alias in option.aliases:
+        if (li := data.get(alias)) and isinstance(li, list):
+            li.append(option)  # type: ignore
+            li.sort(key=lambda x: x.priority, reverse=True)
+        else:
+            data[alias] = [option]
+
+
+def default_params_compiler(analyser: "Analyser"):
+    require_len = 0
+    for opts in analyser.alconna.options:
+        if isinstance(opts, Option):
+            _compile_opts(opts, analyser.command_params)
+            analyser.param_ids.update(opts.aliases)
+        elif isinstance(opts, Subcommand):
+            sub_require_len = 0
+            analyser.command_params[opts.name] = opts
+            analyser.param_ids.add(opts.name)
+            for sub_opts in opts.options:
+                _compile_opts(sub_opts, opts.sub_params)
+                if sub_opts.requires:
+                    sub_require_len = max(len(sub_opts.requires), sub_require_len)
+                    for k in sub_opts.requires:
+                        opts.sub_params.setdefault(k, Sentence(name=k))
+                analyser.param_ids.update(sub_opts.aliases)
+            opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0) + sub_require_len)
+        if not analyser.separators.issuperset(opts.separators):
+            analyser.default_separate &= False
+        if opts.requires:
+            analyser.param_ids.update(opts.requires)
+            require_len = max(len(opts.requires), require_len)
+            for k in opts.requires:
+                analyser.command_params.setdefault(k, Sentence(name=k))
+        analyser.part_len = range(
+            len(analyser.alconna.options) + (1 if analyser.need_main_args else 0) + require_len
+        )
+
+
+def compile(alconna: "Alconna", params_compiler: Callable[[Analyser], None] = default_params_compiler) -> Analyser:
     _analyser = alconna.analyser_type(alconna)
-    if params_compiler:
-        params_compiler(_analyser)
-    else:
-        Analyser.default_params_compiler(_analyser)
+    params_compiler(_analyser)
     return _analyser
 
 
@@ -30,7 +66,7 @@ class AnalyseError(Exception):
 
 
 class _DummyAnalyser(Analyser):
-    filter_out = ["Source", "File", "Quote"]
+    filter_out = []
 
     class _DummyALC:
         is_fuzzy_match = False
@@ -91,7 +127,7 @@ def analyse_option(option: Option, command: DataCollection[Union[str, Any]], rai
     _analyser.need_main_args = False
     _analyser.is_raise_exception = True
     _analyser.alconna.options.append(option)
-    _analyser.default_params_compiler(_analyser)
+    default_params_compiler(_analyser)
     _analyser.alconna.options.clear()
     try:
         _analyser.process(command)
@@ -109,7 +145,7 @@ def analyse_subcommand(subcommand: Subcommand, command: DataCollection[Union[str
     _analyser.need_main_args = False
     _analyser.is_raise_exception = True
     _analyser.alconna.options.append(subcommand)
-    _analyser.default_params_compiler(_analyser)
+    default_params_compiler(_analyser)
     _analyser.alconna.options.clear()
     try:
         _analyser.process(command)

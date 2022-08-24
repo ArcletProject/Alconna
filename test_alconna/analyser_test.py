@@ -5,7 +5,7 @@ from arclet.alconna import Alconna, Args
 
 
 def test_filter_out():
-    DefaultCommandAnalyser.filter_out.append("int")
+    DefaultCommandAnalyser.filter_out = ["int"]
     ana = Alconna("ana", Args["foo", str])
     assert ana.parse(["ana", 123, "bar"]).matched is True
     assert ana.parse("ana bar").matched is True
