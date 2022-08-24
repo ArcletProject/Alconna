@@ -7,7 +7,7 @@ from .args import Args, ArgField, ArgFlag
 from .base import CommandNode, Option, Subcommand
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .analysis.base import compile, analyse
-from .core import Alconna
+from .core import Alconna, AlconnaGroup, CommandMeta
 from .arpamar import Arpamar
 from .manager import command_manager
 from .config import config, load_lang_file

@@ -123,7 +123,7 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
     else:
         addition_kwargs = {**kwonly, **kwargs}
         result_dict.update(source.local_args)
-    res = func.handle(result_dict, varargs, addition_kwargs, source.is_raise_exception)
+    res = func.handle(result_dict, varargs, addition_kwargs, source.meta.raise_exception)
     if kw_key:
         res[kw_key] = kwargs
     if var_key:
@@ -134,7 +134,7 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
 def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, source: 'Alconna'):
     if not data['args']:
         data['value'] = func.handle(
-            {}, [], source.local_args.copy(), source.is_raise_exception
+            {}, [], source.local_args.copy(), source.meta.raise_exception
         )
         return
     _exec_args(data['args'], func, source)

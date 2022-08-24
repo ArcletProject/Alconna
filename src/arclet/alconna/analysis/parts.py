@@ -122,7 +122,7 @@ def analyse_args(analyser: Analyser, args: Args) -> Dict[str, Any]:
             _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
             if not _kwarg:
                 analyser.pushback(may_arg)
-                if analyser.alconna.is_fuzzy_match and (k := may_arg.split('=')[0]) != may_arg:
+                if analyser.alconna.meta.fuzzy_match and (k := may_arg.split('=')[0]) != may_arg:
                     if levenshtein_norm(k, key) >= config.fuzzy_threshold:
                         raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=k, target=key))
                 if default_val is None and analyser.is_raise_exception:
@@ -268,7 +268,7 @@ def analyse_subcommand(analyser: Analyser, param: Subcommand) -> Tuple[str, Subc
     for _ in param.sub_part_len:
         _text, _str = analyser.popitem(param.separators, move=False)
         _param = _param if (_param := (param.sub_params.get(_text) if _str and _text else Ellipsis)) else (
-            analyse_unmatch_params(param.sub_params.values(), _text, analyser.alconna.is_fuzzy_match)
+            analyse_unmatch_params(param.sub_params.values(), _text, analyser.alconna.meta.fuzzy_match)
         )
         if (not _param or _param is Ellipsis) and not args:
             res['args'] = analyse_args(analyser, param.args)
@@ -346,7 +346,7 @@ def analyse_header(analyser: Analyser) -> Union[Dict[str, Any], bool, None]:
                     return _command_find or True
 
     if not analyser.head_matched:
-        if _str and analyser.alconna.is_fuzzy_match:
+        if _str and analyser.alconna.meta.fuzzy_match:
             headers_text = []
             if analyser.alconna.headers and analyser.alconna.headers != [""]:
                 for i in analyser.alconna.headers:

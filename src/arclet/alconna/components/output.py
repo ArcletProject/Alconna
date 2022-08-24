@@ -126,7 +126,10 @@ class AbstractTextFormatter(metaclass=ABCMeta):
             if command.name in hds:
                 hds.remove(command.name)  # type: ignore
             return Trace(
-                {'name': command.name, 'header': hds or [''], 'description': command.help_text},
+                {
+                    'name': command.name, 'header': hds or [''], 'description': command.meta.description,
+                    'usage': command.meta.usage, 'example': command.meta.example
+                },
                 command.args, command.separators, command.options
             )
 

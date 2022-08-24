@@ -56,7 +56,7 @@ class DefaultCommandAnalyser(Analyser):
                 _text, _str = self.popitem(move=False)
                 _param = _param if (_param := (self.command_params.get(_text) if _str and _text else Ellipsis)) else (
                     None if self.default_separate else analyse_unmatch_params(
-                        self.command_params.values(), _text, self.alconna.is_fuzzy_match
+                        self.command_params.values(), _text, self.alconna.meta.fuzzy_match
                     )
                 )
                 if (not _param or _param is Ellipsis) and not self.main_args:

@@ -172,3 +172,8 @@ ShortcutOption = Option(
     '--shortcut|-SCT', Args["delete;O", "delete"]["name", str]["command", str, "_"]["expiration;K", int, 0],
     help_text='设置快捷命令'
 )
+
+__all__ = [
+    "CommandNode", "Option", "Subcommand", "OptionResult", "SubcommandResult", "Sentence",
+    "HelpOption", "ShortcutOption", "StrMounter"
+]
