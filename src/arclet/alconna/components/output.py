@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 from .action import ArgAction
 from ..util import Singleton
-from ..base import Option, Subcommand, Args, ArgUnit
+from ..args import Args, ArgUnit
+from ..base import Option, Subcommand
 
 
 class OutputAction(ArgAction):

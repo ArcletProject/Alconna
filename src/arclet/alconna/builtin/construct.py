@@ -10,9 +10,11 @@ from typing import Dict, Any, Optional, Callable, Union, TypeVar, List, Type, Fr
 from arclet.alconna.manager import command_manager
 from arclet.alconna.typing import DataCollection
 from arclet.alconna.core import Alconna
-from arclet.alconna.base import Args, TAValue, ArgAction, Option, Subcommand, ArgFlag
+from arclet.alconna.args import Args, ArgFlag, TAValue, ArgField
+from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.util import split, split_once
 from arclet.alconna.config import config as global_config
+from arclet.alconna.components.action import ArgAction
 
 from .actions import store_value
 
@@ -544,7 +546,7 @@ class ClassMounter(AlconnaMounter):
         if self.instance:
             for k, a in self.args.argument.items():
                 if hasattr(self.instance, k):
-                    a['default'] = getattr(self.instance, k)
+                    a['default'].default = getattr(self.instance, k)
 
 
 class ModuleMounter(AlconnaMounter):
@@ -603,7 +605,7 @@ class ObjectMounter(AlconnaMounter):
             main_args = Args.from_callable(obj.__init__, extra=config.get("extra", "ignore"))[0]
             for k, a in main_args.argument.items():
                 if hasattr(self.instance, k):
-                    a['default'] = getattr(self.instance, k)
+                    a['default'].default = getattr(self.instance, k)
 
             instance_handle = self._instance_action
 

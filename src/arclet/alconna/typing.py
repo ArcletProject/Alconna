@@ -8,11 +8,8 @@ DataUnit = TypeVar("DataUnit", covariant=True)
 @runtime_checkable
 class DataCollection(Protocol[DataUnit]):
     """数据集合协议"""
-
     def __repr__(self) -> str: ...
-
     def __iter__(self) -> Iterator[DataUnit]: ...
-
     def __len__(self) -> int: ...
 
 

@@ -3,7 +3,8 @@
 from typing import TYPE_CHECKING
 from nepattern import AllParam as AllParam  # noqa
 from .util import split_once, split, LruCache, Singleton
-from .base import CommandNode, Args, Option, Subcommand
+from .args import Args, ArgField, ArgFlag
+from .base import CommandNode, Option, Subcommand
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .analysis.base import compile, analyse
 from .core import Alconna

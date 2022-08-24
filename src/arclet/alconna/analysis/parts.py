@@ -6,7 +6,8 @@ from nepattern.util import TPattern
 from .analyser import Analyser
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess
 from ..typing import MultiArg
-from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult, Sentence
+from ..args import Args
+from ..base import Option, Subcommand, OptionResult, SubcommandResult, Sentence
 from ..util import levenshtein_norm, split_once
 from ..config import config
 
@@ -90,34 +91,32 @@ def multi_arg_handler(
         result_dict[key] = result
 
 
-def analyse_args(
-        analyser: Analyser,
-        opt_args: Args
-) -> Dict[str, Any]:
+def analyse_args(analyser: Analyser, args: Args) -> Dict[str, Any]:
     """
     分析 Args 部分
 
     Args:
         analyser: 使用的分析器
-        opt_args: 目标Args
+        args: 目标Args
 
     Returns:
         Dict: 解析结果
     """
     option_dict: Dict[str, Any] = {}
-    seps = opt_args.separators
-    for key, arg in opt_args.argument.items():
+    seps = args.separators
+    for key, arg in args.argument.items():
         value = arg['value']
         default = arg['default']
+        default_val = default.default_gen
         optional = arg['optional']
         may_arg, _str = analyser.popitem(seps)
         if not may_arg or (_str and may_arg in analyser.param_ids):
             analyser.pushback(may_arg)
-            if default is None:
+            if default_val is None:
                 if optional:
                     continue
                 raise ArgumentMissing(config.lang.args_missing.format(key=key))
-            option_dict[key] = None if default is Empty else default
+            option_dict[key] = None if default_val is Empty else default_val
             continue
         if arg['kwonly']:
             _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
@@ -126,24 +125,24 @@ def analyse_args(
                 if analyser.alconna.is_fuzzy_match and (k := may_arg.split('=')[0]) != may_arg:
                     if levenshtein_norm(k, key) >= config.fuzzy_threshold:
                         raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=k, target=key))
-                if default is None and analyser.is_raise_exception:
+                if default_val is None and analyser.is_raise_exception:
                     raise ParamsUnmatched(config.lang.args_key_missing.format(target=may_arg, key=key))
-                option_dict[key] = None if default is Empty else default
+                option_dict[key] = None if default_val is Empty else default_val
                 continue
             may_arg = _kwarg[0]
             if may_arg == '':
                 may_arg, _str = analyser.popitem(seps)
                 if _str:
                     analyser.pushback(may_arg)
-                    if default is None and analyser.is_raise_exception:
+                    if default_val is None and analyser.is_raise_exception:
                         raise ParamsUnmatched(config.lang.args_type_error.format(target=may_arg.__class__))
-                    option_dict[key] = None if default is Empty else default
+                    option_dict[key] = None if default_val is Empty else default_val
                     continue
         if isinstance(value, BasePattern):
             if value.__class__ is MultiArg:
-                multi_arg_handler(analyser, opt_args, may_arg, key, value, default, option_dict)  # type: ignore
+                multi_arg_handler(analyser, args, may_arg, key, value, default_val, option_dict)  # type: ignore
             else:
-                res = value.invalidate(may_arg, default) if value.anti else value.validate(may_arg, default)
+                res = value.invalidate(may_arg, default_val) if value.anti else value.validate(may_arg, default_val)
                 if res.flag != 'valid':
                     analyser.pushback(may_arg)
                 if res.flag == 'error':
@@ -160,26 +159,26 @@ def analyse_args(
             return option_dict
         elif may_arg == value:
             option_dict[key] = may_arg
-        elif default is None:
+        elif default_val is None:
             if optional:
                 continue
             raise ParamsUnmatched(config.lang.args_error.format(target=may_arg))
         else:
-            option_dict[key] = None if default is Empty else default
-    if opt_args.var_keyword:
-        kwargs = option_dict[opt_args.var_keyword]
+            option_dict[key] = None if default_val is Empty else default_val
+    if args.var_keyword:
+        kwargs = option_dict[args.var_keyword]
         if not isinstance(kwargs, dict):
-            kwargs = {opt_args.var_keyword: kwargs}
-        option_dict['__kwargs__'] = (kwargs, opt_args.var_keyword)
-    if opt_args.var_positional:
-        varargs = option_dict[opt_args.var_positional]
+            kwargs = {args.var_keyword: kwargs}
+        option_dict['__kwargs__'] = (kwargs, args.var_keyword)
+    if args.var_positional:
+        varargs = option_dict[args.var_positional]
         if not isinstance(varargs, Iterable):
             varargs = [varargs]
         elif not isinstance(varargs, list):
             varargs = list(varargs)
-        option_dict['__varargs__'] = (varargs, opt_args.var_positional)
-    if opt_args.keyword_only:
-        option_dict['__kwonly__'] = {k: v for k, v in option_dict.items() if k in opt_args.keyword_only}
+        option_dict['__varargs__'] = (varargs, args.var_positional)
+    if args.keyword_only:
+        option_dict['__kwonly__'] = {k: v for k, v in option_dict.items() if k in args.keyword_only}
     return option_dict
 
 
@@ -207,10 +206,7 @@ def analyse_unmatch_params(
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=_p.name))
 
 
-def analyse_option(
-        analyser: Analyser,
-        param: Option,
-) -> Tuple[str, OptionResult]:
+def analyse_option(analyser: Analyser, param: Option) -> Tuple[str, OptionResult]:
     """
     分析 Option 部分
 
@@ -242,10 +238,7 @@ def analyse_option(
     return name, res
 
 
-def analyse_subcommand(
-        analyser: Analyser,
-        param: Subcommand
-) -> Tuple[str, SubcommandResult]:
+def analyse_subcommand(analyser: Analyser, param: Subcommand) -> Tuple[str, SubcommandResult]:
     """
     分析 Subcommand 部分
 
@@ -300,9 +293,7 @@ def analyse_subcommand(
     return name, res
 
 
-def analyse_header(
-        analyser: Analyser,
-) -> Union[Dict[str, Any], bool, None]:
+def analyse_header(analyser: Analyser) -> Union[Dict[str, Any], bool, None]:
     """
     分析命令头部
 

@@ -3,6 +3,7 @@ from types import LambdaType
 from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING, Union
 from nepattern import AnyOne, AllParam, type_parser
 
+from ..args import Args
 from ..config import config
 from ..exceptions import InvalidParam
 from ..util import is_async
@@ -10,7 +11,7 @@ from .behavior import ArpamarBehavior
 
 if TYPE_CHECKING:
     from ..arpamar import Arpamar
-    from ..base import Args, SubcommandResult, OptionResult
+    from ..base import SubcommandResult, OptionResult
     from ..core import Alconna
 
 

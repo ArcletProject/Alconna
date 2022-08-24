@@ -3,7 +3,8 @@ from typing import Dict, Any, List, TypeVar, Union, Type, Generic
 from abc import ABCMeta, abstractmethod
 from nepattern import BasePattern, AllParam
 
-from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
+from ..args import Args
+from ..base import Option, Subcommand, OptionResult, SubcommandResult
 from ..config import config
 
 T = TypeVar('T')

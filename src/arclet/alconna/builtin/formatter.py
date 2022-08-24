@@ -2,7 +2,8 @@ import re
 from typing import List, Dict, Any, Union, Set
 from nepattern import Empty, AllParam, BasePattern
 
-from arclet.alconna.base import Args, Subcommand, Option, ArgUnit
+from arclet.alconna.args import Args, ArgUnit
+from arclet.alconna.base import Subcommand, Option
 from arclet.alconna.components.output import AbstractTextFormatter, Trace
 
 
@@ -23,10 +24,10 @@ class DefaultTextFormatter(AbstractTextFormatter):
                 return f"<...{name}>"
             if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
                 arg += f"{'@' if parameter['kwonly'] else ':'}{parameter['value']}"
-            if parameter['default'] is Empty:
+            if parameter['default'].display is Empty:
                 arg += " = None"
-            elif parameter['default'] is not None:
-                arg += f" = {parameter['default']} "
+            elif parameter['default'].display is not None:
+                arg += f" = {parameter['default'].display} "
         return arg + ("]" if parameter['optional'] else ">")
 
     def parameters(self, args: Args) -> str:
@@ -118,10 +119,10 @@ class ArgParserTextFormatter(AbstractTextFormatter):
                 return f"{name.upper()}..."
             if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
                 arg += f"=[{parameter['value']}]" if parameter['kwonly'] else f"[{parameter['value']}]"
-            if parameter['default'] is Empty:
+            if parameter['default'].display is Empty:
                 arg += "=None"
-            elif parameter['default'] is not None:
-                arg += f"={parameter['default']}"
+            elif parameter['default'].display is not None:
+                arg += f"={parameter['default'].display}"
         return arg + ("]" if parameter['optional'] else "")
 
     def parameters(self, args: Args) -> str:

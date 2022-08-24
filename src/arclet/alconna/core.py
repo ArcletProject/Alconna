@@ -5,11 +5,12 @@ from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, 
 
 from .config import config
 from .analysis.base import compile
-from .base import CommandNode, Args, ArgAction, Option, Subcommand, HelpOption, ShortcutOption
+from .args import Args
+from .base import CommandNode, Option, Subcommand, HelpOption, ShortcutOption
 from .typing import TDataCollection
 from .manager import command_manager
 from .arpamar import Arpamar
-from .components.action import ActionHandler
+from .components.action import ActionHandler, ArgAction
 from .components.output import AbstractTextFormatter
 from .components.behavior import T_ABehavior
 from .components.duplication import Duplication

@@ -9,7 +9,8 @@ from nepattern.util import TPattern
 
 from ..manager import command_manager
 from ..exceptions import NullMessage
-from ..base import Args, Option, Subcommand, Sentence, StrMounter
+from ..args import Args
+from ..base import Option, Subcommand, Sentence, StrMounter
 from ..arpamar import Arpamar
 from ..util import split_once, split
 from ..typing import DataCollection

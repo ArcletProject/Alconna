@@ -4,7 +4,8 @@ import traceback
 from .analyser import Analyser
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..typing import DataCollection
-from ..base import Args, Option, Subcommand
+from ..base import Option, Subcommand
+from ..args import Args
 
 if TYPE_CHECKING:
     from ..arpamar import Arpamar

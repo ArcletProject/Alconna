@@ -1,7 +1,7 @@
 from typing_extensions import ParamSpec
 from typing import TypeVar, Callable, Optional
 from functools import wraps
-from arclet.alconna.base import Args
+from arclet.alconna.args import Args
 from arclet.alconna.analysis.base import analyse_args
 
 T = TypeVar("T")
