@@ -307,6 +307,7 @@ def test_args_notice():
 def test_completion():
     alc20 = Alconna(
         "core20",
+        Args["test", int, ArgField(default=1, completion=lambda: "try -1 ?")],
         options=[
             Option("fool"),
             Option(
@@ -319,6 +320,7 @@ def test_completion():
     alc20.parse("core20 --comp")
     alc20.parse("core20 f --comp")
     alc20.parse("core20 foo --comp")
+    alc20.parse("core20 fool --comp")
 
 
 if __name__ == "__main__":
