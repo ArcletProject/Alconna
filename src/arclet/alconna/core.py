@@ -1,23 +1,21 @@
 """Alconna 主体"""
 import sys
-from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, TYPE_CHECKING, Iterable, Any
+from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any
 from dataclasses import dataclass, field
 from .config import config
 from .analysis.base import compile
 from .args import Args
-from .base import CommandNode, Option, Subcommand, HelpOption, ShortcutOption
+from .base import CommandNode, Option, Subcommand, HelpOption, ShortcutOption, CompletionOption
 from .typing import TDataCollection
 from .manager import command_manager
 from .arpamar import Arpamar
+from .analysis.analyser import TAnalyser, Analyser
 from .components.action import ActionHandler, ArgAction
 from .components.output import AbstractTextFormatter
 from .components.behavior import T_ABehavior
 from .components.duplication import Duplication
 from .builtin.formatter import DefaultTextFormatter
-from .builtin.analyser import DefaultCommandAnalyser
 
-if TYPE_CHECKING:
-    from .analysis.analyser import TAnalyser
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
@@ -157,7 +155,7 @@ class Alconna(CommandNode):
 
     global_headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = [""]
     global_behaviors: List[T_ABehavior] = []
-    global_analyser_type: Type["Analyser"] = DefaultCommandAnalyser  # type: ignore
+    global_analyser_type: Type["Analyser"] = Analyser
     global_formatter_type: Type[AbstractTextFormatter] = DefaultTextFormatter  # type: ignore
 
     @classmethod
@@ -223,7 +221,7 @@ class Alconna(CommandNode):
         self.options = options or []
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = namespace or config.namespace
-        self.options.extend([HelpOption, ShortcutOption])
+        self.options.extend([HelpOption, ShortcutOption, CompletionOption])
         self.analyser_type = analyser_type or self.__class__.global_analyser_type
         self.behaviors = behaviors or self.__class__.global_behaviors.copy()
         self.behaviors.insert(0, ActionHandler())
@@ -238,19 +236,22 @@ class Alconna(CommandNode):
             separators=separators or config.separators.copy(),  # type: ignore
         )
         self.name = f"{command or self.headers[0]}".replace(command_manager.sign, "")
+        self._deprecate(kwargs)
+        self._hash = self._calc_hash()
+        command_manager.register(self)
+
+    def _deprecate(self, kwargs):
         for key, value in kwargs.items():
             import warnings
             if key == "help_text":
                 warnings.warn("'help_text' will not support in 1.3.0 !", DeprecationWarning, 2)
                 self.meta.description = value
-            if key == "is_raise_exception":
-                warnings.warn("'is_raise_exception' will not support in 1.3.0 !", DeprecationWarning, 2)
+            if key == "raise_exception":
+                warnings.warn("'raise_exception' will not support in 1.3.0 !", DeprecationWarning, 2)
                 self.meta.raise_exception = value
             if key == "is_fuzzy_match":
                 warnings.warn("'is_fuzzy_match' will not support in 1.3.0 !", DeprecationWarning, 2)
                 self.meta.fuzzy_match = value
-        self._hash = self._calc_hash()
-        command_manager.register(self)
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
         """

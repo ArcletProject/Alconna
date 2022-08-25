@@ -14,7 +14,7 @@ class _StoreValue(ArgAction):
     def __init__(self, value: Any):
         super().__init__(lambda: value)
 
-    def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
+    def handle(self, option_dict, varargs=None, kwargs=None, raise_exception=False):
         return self.action()
 
 

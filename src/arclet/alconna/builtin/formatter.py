@@ -74,7 +74,7 @@ class DefaultTextFormatter(AbstractTextFormatter):
     def body(self, parts: List[Union[Option, Subcommand]]) -> str:
         option_string = "".join(
             self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
-            if opt.name not in {"--help", "--shortcut"}
+            if opt.name not in {"--help", "--shortcut", "--comp"}
         )
         subcommand_string = "".join(self.part(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts))
         option_help = "可用的选项有:\n" if option_string else ""

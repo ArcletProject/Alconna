@@ -2,6 +2,7 @@ from arclet.alconna.core import AlconnaGroup
 from arclet.alconna import (
     Alconna,
     Args,
+    ArgField,
     Option,
     Subcommand,
     ArgParserTextFormatter,
@@ -38,7 +39,7 @@ def test_alconna_multi_match():
         main_args=Args["IP", "ip"],
         meta=CommandMeta(description="测试指令1")
     )
-    assert len(alc1.options) == 5
+    assert len(alc1.options) == 6
     print("")
     print(repr(alc1.get_help()))
     res1 = alc1.parse(["/core1 -u", 123, "test Test -u AAA -n 222 127.0.0.1"])
@@ -115,8 +116,8 @@ def test_alconna_special_help():
 def test_alconna_chain_option():
     alc5 = (
         Alconna("点歌")
-        .add("歌名", sep="：", args=Args(song_name=str))
-        .add("歌手", sep="：", args=Args(singer_name=str))
+            .add("歌名", sep="：", args=Args(song_name=str))
+            .add("歌手", sep="：", args=Args(singer_name=str))
     )
     res = alc5.parse("点歌 歌名：Freejia")
     assert res.song_name == "Freejia"
@@ -168,9 +169,9 @@ def test_alconna_namespace():
 
 def test_alconna_add_option():
     alc8 = Alconna("core8") + Option("foo", Args["foo", str]) >> Option("bar")
-    assert len(alc8.options) == 4
+    assert len(alc8.options) == 5
     alc8_1 = Alconna("core8_1") + "foo/bar:str" >> "baz"
-    assert len(alc8_1.options) == 4
+    assert len(alc8_1.options) == 5
 
 
 def test_alconna_action():
@@ -229,7 +230,7 @@ def test_requires():
     assert alc12.parse("core12 123 user perm del 123").find("user_perm_del") is True
     assert alc12.parse("core12 123 group perm set 123").find("group_perm_set") is True
     assert (
-        alc12.parse("core12 123 group perm del 123 test").find("group_perm_del") is True
+            alc12.parse("core12 123 group perm del 123 test").find("group_perm_del") is True
     )
     print("\n------------------------")
     print(alc12.get_help())
@@ -301,6 +302,20 @@ def test_args_notice():
     )
     print("")
     print(alc19.get_help())
+
+
+def test_completion():
+    alc20 = Alconna("core20") + Option(
+        "foo", Args[
+            "bar",
+            "a|b|c",
+            ArgField(completion=lambda: "test completion; choose a, b or c")
+        ]
+    ) + Option("fool")
+    print("")
+    print(alc20.parse("core20 --comp"))
+    print(alc20.parse("core20 foo").error_info)
+    alc20.parse("core20 foo --comp")
 
 
 if __name__ == "__main__":

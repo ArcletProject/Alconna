@@ -30,7 +30,7 @@ class ArgAction:
             option_dict: dict,
             varargs: Optional[List] = None,
             kwargs: Optional[Dict] = None,
-            is_raise_exception: bool = False,
+            raise_exception: bool = False,
     ):
         """
         处理action
@@ -39,7 +39,7 @@ class ArgAction:
             option_dict: 参数字典
             varargs: 可变参数
             kwargs: 关键字参数
-            is_raise_exception: 是否抛出异常
+            raise_exception: 是否抛出异常
         """
         _varargs = list(option_dict.values())
         _varargs.extend(varargs or [])
@@ -64,7 +64,7 @@ class ArgAction:
                     break
                 option_dict[k] = additional_values[i]
         except Exception as e:
-            if is_raise_exception:
+            if raise_exception:
                 raise e
         return option_dict
 

@@ -169,11 +169,12 @@ class StrMounter(List[str]):
 
 HelpOption = Option("--help|-h", help_text="显示帮助信息")
 ShortcutOption = Option(
-    '--shortcut|-SCT', Args["delete;O", "delete"]["name", str]["command", str, "_"]["expiration;K", int, 0],
+    '--shortcut|-sct', Args["delete;O", "delete"]["name", str]["command", str, "_"]["expiration;K", int, 0],
     help_text='设置快捷命令'
 )
+CompletionOption = Option("--comp|-cp", help_text="补全当前命令")
 
 __all__ = [
     "CommandNode", "Option", "Subcommand", "OptionResult", "SubcommandResult", "Sentence",
-    "HelpOption", "ShortcutOption", "StrMounter"
+    "HelpOption", "ShortcutOption", "CompletionOption", "StrMounter"
 ]

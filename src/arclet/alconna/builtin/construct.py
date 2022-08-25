@@ -468,7 +468,7 @@ def visit_subcommand(obj: Any):
 
             class _InstanceAction(ArgAction):
 
-                def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
+                def handle(self, option_dict, varargs=None, kwargs=None, raise_exception=False):
                     if not sub.sub_instance:
                         sub.sub_instance = subcommand_cls(*option_dict.values(), *varargs, **kwargs)
                     else:
@@ -521,7 +521,7 @@ class ClassMounter(AlconnaMounter):
             instance_handle = self._instance_action
 
             class _InstanceAction(ArgAction):
-                def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
+                def handle(self, option_dict, varargs=None, kwargs=None, raise_exception=False):
                     return instance_handle(option_dict, varargs, kwargs)
 
             main_action = _InstanceAction(lambda: None)
@@ -630,7 +630,7 @@ class ObjectMounter(AlconnaMounter):
 
             class _InstanceAction(ArgAction):
 
-                def handle(self, option_dict, varargs=None, kwargs=None, is_raise_exception=False):
+                def handle(self, option_dict, varargs=None, kwargs=None, raise_exception=False):
                     return instance_handle(option_dict, varargs, kwargs)
 
             main_action = _InstanceAction(lambda: None)

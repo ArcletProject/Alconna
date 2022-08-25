@@ -17,8 +17,8 @@ class OutputAction(ArgAction):
         self.output_text_call = out_call
         self.command = command
 
-    def handle(self, option_dict=None, varargs=None, kwargs=None, is_raise_exception=False):
-        return super().handle({"help": self.output_text_call()}, varargs, kwargs, is_raise_exception)
+    def handle(self, option_dict=None, varargs=None, kwargs=None, raise_exception=False):
+        return super().handle({"help": self.output_text_call()}, varargs, kwargs, raise_exception)
 
 
 class OutputActionManager(metaclass=Singleton):
