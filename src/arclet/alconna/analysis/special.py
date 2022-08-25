@@ -40,43 +40,39 @@ def handle_completion(
         analyser: 'Analyser',
         trigger: Union[None, ArgUnit, Subcommand, str] = None
 ):
+    r_e = analyser.raise_exception
     if isinstance(trigger, dict):
         trigger: ArgUnit
-        if gen := trigger['default'].completion:
-            output_manager.get(analyser.alconna.name, lambda: gen()).handle(raise_exception=analyser.raise_exception)
+        if gen := trigger['field'].completion:
+            output_manager.get(analyser.alconna.name, lambda: gen()).handle(raise_exception=r_e)
         else:
-            default = trigger['default'].default_gen
+            default = trigger['field'].default_gen
             o = f"{trigger['value']}{'' if default is None else f' default:({None if default is Empty else default})'}"
-            output_manager.get(
-                analyser.alconna.name, lambda: f'next arg:\n{o}'
-            ).handle(raise_exception=analyser.raise_exception)
+            output_manager.get(analyser.alconna.name, lambda: f'next arg:\n{o}').handle(raise_exception=r_e)
     elif isinstance(trigger, Subcommand):
         output_manager.get(
             analyser.alconna.name, lambda: 'next input maybe:\n- ' + '\n- '.join(trigger.sub_params)
-        ).handle(raise_exception=analyser.raise_exception)
+        ).handle(raise_exception=r_e)
     elif isinstance(trigger, str):
         res = list(filter(lambda x: x.startswith(trigger), analyser.command_params))
         if not res:
             return analyser.export(
-                fail=True,
-                exception=ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=trigger))
+                fail=True, exception=ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=trigger))
             )
         output_manager.get(analyser.alconna.name, lambda: 'next input maybe:\n- ' + '\n- '.join(res)).handle(
-            raise_exception=analyser.raise_exception
+            raise_exception=r_e
         )
     else:
         res = []
         if analyser.sentences:
-            sentence_len = len(stc := analyser.sentences)
+            s_len = len(stc := analyser.sentences)
             for opt in filter(
-                lambda x: x.requires and len(x.requires) >= sentence_len and x.requires[sentence_len - 1] == stc[-1],
-                analyser.alconna.options
+                lambda x: len(x.requires) >= s_len and x.requires[s_len - 1] == stc[-1], analyser.alconna.options
             ):
                 res.extend(
-                    [opt.requires[sentence_len]] if len(opt.requires) > sentence_len else
+                    [opt.requires[s_len]] if len(opt.requires) > s_len else
                     (opt.aliases if isinstance(opt, Option) else [opt.name])
                 )
-
         else:
             for opt in filter(lambda x: x.name not in ("--shortcut", "--comp"), analyser.alconna.options):
                 res.extend(
@@ -84,6 +80,6 @@ def handle_completion(
                     (opt.aliases if isinstance(opt, Option) else [opt.name])
                 )
         output_manager.get(analyser.alconna.name, lambda: 'next input maybe:\n- ' + '\n- '.join(set(res))).handle(
-            raise_exception=analyser.raise_exception
+            raise_exception=r_e
         )
     return analyser.export(fail=True)

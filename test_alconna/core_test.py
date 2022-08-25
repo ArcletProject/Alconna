@@ -305,16 +305,19 @@ def test_args_notice():
 
 
 def test_completion():
-    alc20 = Alconna("core20") + Option(
-        "foo", Args[
-            "bar",
-            "a|b|c",
-            ArgField(completion=lambda: "test completion; choose a, b or c")
+    alc20 = Alconna(
+        "core20",
+        options=[
+            Option("fool"),
+            Option(
+                "foo",
+                Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
+            )
         ]
-    ) + Option("fool")
-    print("")
-    print(alc20.parse("core20 --comp"))
-    print(alc20.parse("core20 foo").error_info)
+    )
+
+    alc20.parse("core20 --comp")
+    alc20.parse("core20 f --comp")
     alc20.parse("core20 foo --comp")
 
 

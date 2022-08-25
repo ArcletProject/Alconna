@@ -2,7 +2,11 @@
 
 ## Alconna 1.2.0:
 1. 修复 bugs
-2. 加入 ArgFiled
+2. 加入 ArgField, 可填入 `alias`, `default_factory`等
+3. 命令管理器可以获取原始的命令数据
+4. 加入命令补全功能, 暂由`--comp|-cp`触发
+5. 加入 CommandMeta, 并取代`help_text`、`is_raise_exception`等
+6. meta 新增 `hide`, 可以在命令管理器获取所有帮助时跳过该命令
 
 ## Alconna 1.1.2 - 1.1.2.3:
 1. 修复 bugs

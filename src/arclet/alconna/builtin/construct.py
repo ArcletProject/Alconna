@@ -563,7 +563,7 @@ class ClassMounter(AlconnaMounter):
         if self.instance:
             for k, a in self.args.argument.items():
                 if hasattr(self.instance, k):
-                    a['default'].default = getattr(self.instance, k)
+                    a['field'].default = getattr(self.instance, k)
 
 
 class ModuleMounter(AlconnaMounter):
@@ -624,7 +624,7 @@ class ObjectMounter(AlconnaMounter):
             main_args = Args.from_callable(obj.__init__, extra=config.get("extra", "ignore"))[0]
             for k, a in main_args.argument.items():
                 if hasattr(self.instance, k):
-                    a['default'].default = getattr(self.instance, k)
+                    a['field'].default = getattr(self.instance, k)
 
             instance_handle = self._instance_action
 

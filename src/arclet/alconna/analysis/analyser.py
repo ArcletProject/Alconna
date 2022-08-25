@@ -99,7 +99,7 @@ class Analyser(Generic[T_Origin]):
         nargs = nargs or len(main_args)
         if nargs > 0 and nargs > main_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = sum(a['default'] is not None for k, a in main_args.argument.items())
+        _de_count = sum(a['field'] is not None for k, a in main_args.argument.items())
         if _de_count and _de_count == nargs:
             self.default_main_only = True
 

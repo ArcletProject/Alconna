@@ -108,7 +108,7 @@ def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
     seps = args.separators
     for key, arg in args.argument.items():
         value = arg['value']
-        default_val = arg['default'].default_gen
+        default_val = arg['field'].default_gen
         optional = arg['optional']
         may_arg, _str = analyser.popitem(seps)
         if may_arg in ("--comp", "-cp"):

@@ -23,10 +23,10 @@ class DefaultTextFormatter(AbstractTextFormatter):
                 return f"<...{name}>"
             if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
                 arg += f"{'@' if parameter['kwonly'] else ':'}{parameter['value']}"
-            if parameter['default'].display is Empty:
+            if parameter['field'].display is Empty:
                 arg += " = None"
-            elif parameter['default'].display is not None:
-                arg += f" = {parameter['default'].display} "
+            elif parameter['field'].display is not None:
+                arg += f" = {parameter['field'].display} "
         return f"{arg}]" if parameter['optional'] else f"{arg}>"
 
     def parameters(self, args: Args) -> str:
@@ -110,10 +110,10 @@ class ArgParserTextFormatter(AbstractTextFormatter):
                 return f"{name.upper()}..."
             if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
                 arg += f"=[{parameter['value']}]" if parameter['kwonly'] else f"[{parameter['value']}]"
-            if parameter['default'].display is Empty:
+            if parameter['field'].display is Empty:
                 arg += "=None"
-            elif parameter['default'].display is not None:
-                arg += f"={parameter['default'].display}"
+            elif parameter['field'].display is not None:
+                arg += f"={parameter['field'].display}"
         return f"{arg}]" if parameter['optional'] else arg
 
     def parameters(self, args: Args) -> str:

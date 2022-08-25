@@ -52,7 +52,8 @@ includes = ["src/arclet"]
 [tool.pdm.dev-dependencies]
 dev = [
     "pytest~=7.1.2",
-    "coverage~=6.4.1"
+    "coverage~=6.4.1",
+    "pydeps~=1.10.12"
 ]
 
 [tool.pylint.BASIC]

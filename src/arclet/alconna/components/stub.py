@@ -52,7 +52,7 @@ class ArgsStub(BaseStub[Args]):
                 self.__annotations__[key] = value['value'].origin
             else:
                 self.__annotations__[key] = value['value']
-            setattr(self, key, value['default'])
+            setattr(self, key, value['field'].default_gen)
         self.available = False
 
     def set_result(self, result: Dict[str, Any]):

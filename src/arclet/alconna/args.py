@@ -17,9 +17,7 @@ TAValue = Union[BasePattern, AllParam.__class__, type]
 
 
 class ArgFlag(str, Enum):
-    """
-    参数标记
-    """
+    """参数标记"""
     VAR_POSITIONAL = "S"
     VAR_KEYWORD = "W"
     OPTIONAL = 'O'
@@ -31,6 +29,7 @@ class ArgFlag(str, Enum):
 
 @dataclass
 class ArgField:
+    """标识参数单元字段"""
     default: Any = field(default=None)
     default_factory: Callable[..., Any] = field(default=lambda: None)
     alias: Optional[str] = field(default=None)
@@ -49,7 +48,7 @@ class ArgUnit(TypedDict):
     """参数单元 """
     value: TAValue
     """参数值"""
-    default: ArgField
+    field: ArgField
     """默认值"""
     notice: Optional[str]
     """参数提示"""
@@ -201,7 +200,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.optional_count = 0
         self.separators = {separators} if isinstance(separators, str) else set(separators)
         self.argument = {  # type: ignore
-            k: {"value": type_parser(v), "default": ArgField(), 'notice': None,
+            k: {"value": type_parser(v), "field": ArgField(), 'notice': None,
                 'optional': False, 'hidden': False, 'kwonly': False}
             for k, v in kwargs.items()
         }
@@ -225,7 +224,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         """设置参数的默认值"""
         for k, v in kwargs.items():
             if self.argument.get(k):
-                self.argument[k]['default'] = v if isinstance(v, ArgField) else ArgField(v)
+                self.argument[k]['field'] = v if isinstance(v, ArgField) else ArgField(v)
         return self
 
     def separate(self, *separator: str):
@@ -260,7 +259,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         if _value is Empty:
             raise InvalidParam(config.lang.args_value_error.format(target=name))
         slot: ArgUnit = {
-            'value': _value, 'default': default, 'notice': None,
+            'value': _value, 'field': default, 'notice': None,
             'optional': False, 'hidden': False, 'kwonly': False
         }
         if res := re.match(r"^.+?#(?P<notice>[^;#]+)", name):
@@ -332,7 +331,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     def __getitem__(self, item) -> Union["Args", Tuple[TAValue, ArgField]]:
         if isinstance(item, str) and self.argument.get(item):
-            return self.argument[item]['value'], self.argument[item]['default']
+            return self.argument[item]['value'], self.argument[item]['field']
         if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
             raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
         if not isinstance(item, tuple):
@@ -369,7 +368,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         repr_string = "Args({0})"
         repr_args = ", ".join(
             f"'{name}': {arg['value']}" + (
-                f" = '{arg['default'].display}'" if arg['default'].display is not None else ""
+                f" = '{arg['field'].display}'" if arg['field'].display is not None else ""
             )
             for name, arg in self.argument.items()
         )
