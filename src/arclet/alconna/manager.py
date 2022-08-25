@@ -1,6 +1,6 @@
 """Alconna 负责记录命令的部分"""
-
 import weakref
+from copy import copy
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, Optional, Union, List, Tuple, Any
 import shelve
@@ -13,7 +13,7 @@ from .config import config
 
 if TYPE_CHECKING:
     from .analysis.analyser import Analyser
-    from .core import Alconna, AlconnaGroup
+    from .core import Alconna, AlconnaGroup, CommandMeta
     from .arpamar import Arpamar
 
 
@@ -229,7 +229,7 @@ class CommandManager(metaclass=Singleton):
             pages: Optional[str] = None,
             footer: Optional[str] = None,
             max_length: int = -1,
-            page: int = 1,
+            page: int = 1
     ) -> str:
         """
         获取所有命令的帮助信息
@@ -246,15 +246,14 @@ class CommandManager(metaclass=Singleton):
         header = header or config.lang.manager_help_header
         pages = pages or config.lang.manager_help_pages
         footer = footer or config.lang.manager_help_footer
-        cmds = self.get_commands(namespace or '')
+        cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
 
         if max_length < 1:
             command_string = "\n".join(
-                f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : " +
-                slot.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]
+                f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
                 for index, slot in enumerate(cmds)
             ) if show_index else "\n".join(
-                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
+                f" - {cmd.name} : {cmd.meta.description}"
                 for cmd in cmds
             )
         else:
@@ -263,16 +262,20 @@ class CommandManager(metaclass=Singleton):
                 page = 1
             header += "\t" + pages.format(current=page, total=max_page)
             command_string = "\n".join(
-                f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : "
-                f"{cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
+                f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : {cmd.meta.description}"
                 for index, cmd in enumerate(
                     cmds[(page - 1) * max_length: page * max_length], start=(page - 1) * max_length
                 )
             ) if show_index else "\n".join(
-                f" - {cmd.name} : {cmd.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}"
+                f" - {cmd.name} : {cmd.meta.description}"
                 for cmd in cmds[(page - 1) * max_length: page * max_length]
             )
         return f"{header}\n{command_string}\n{footer}"
+
+    def all_command_raw_help(self, namespace: Optional[str] = None) -> Dict[str, 'CommandMeta']:
+        """获取所有命令的原始帮助信息"""
+        cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
+        return {cmd.path: copy(cmd.meta) for cmd in cmds}
 
     def command_help(self, command: str) -> Optional[str]:
         """获取单个命令的帮助"""

@@ -1,9 +1,10 @@
 from inspect import isclass
 from typing import Dict, Any, List, TypeVar, Union, Type, Generic
 from abc import ABCMeta, abstractmethod
+from nepattern import BasePattern, AllParam
 
-from ..typing import BasePattern, AllParam
-from ..base import Args, Option, Subcommand, OptionResult, SubcommandResult
+from ..args import Args
+from ..base import Option, Subcommand, OptionResult, SubcommandResult
 from ..config import config
 
 T = TypeVar('T')
@@ -51,7 +52,7 @@ class ArgsStub(BaseStub[Args]):
                 self.__annotations__[key] = value['value'].origin
             else:
                 self.__annotations__[key] = value['value']
-            setattr(self, key, value['default'])
+            setattr(self, key, value['field'].default_gen)
         self.available = False
 
     def set_result(self, result: Dict[str, Any]):

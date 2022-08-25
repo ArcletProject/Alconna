@@ -1,8 +1,8 @@
 from typing import List, Dict, Any, Union, Set
-import re
+from nepattern import Empty, AllParam, BasePattern
 
-from arclet.alconna.base import Args, Subcommand, Option, ArgUnit
-from arclet.alconna.typing import Empty, AllParam, BasePattern
+from arclet.alconna.args import Args, ArgUnit
+from arclet.alconna.base import Subcommand, Option
 from arclet.alconna.components.output import AbstractTextFormatter, Trace
 
 
@@ -17,17 +17,17 @@ class DefaultTextFormatter(AbstractTextFormatter):
         return header % (param, body)
 
     def param(self, name: str, parameter: ArgUnit) -> str:
-        arg = ("[" if parameter['optional'] else "<") + name
+        arg = f"[{name}" if parameter['optional'] else f"<{name}"
         if not parameter['hidden']:
             if parameter['value'] is AllParam:
                 return f"<...{name}>"
             if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
                 arg += f"{'@' if parameter['kwonly'] else ':'}{parameter['value']}"
-            if parameter['default'] is Empty:
+            if parameter['field'].display is Empty:
                 arg += " = None"
-            elif parameter['default'] is not None:
-                arg += f" = {parameter['default']} "
-        return arg + ("]" if parameter['optional'] else ">")
+            elif parameter['field'].display is not None:
+                arg += f" = {parameter['field'].display} "
+        return f"{arg}]" if parameter['optional'] else f"{arg}>"
 
     def parameters(self, args: Args) -> str:
         param_texts = [self.param(k, param) for k, param in args.argument.items()]
@@ -39,18 +39,12 @@ class DefaultTextFormatter(AbstractTextFormatter):
         notice = [(k, param['notice']) for k, param in args.argument.items() if param['notice']]
         if not notice:
             return res
-        return res + "\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice)
+        return f"{res}\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice)
 
     def header(self, root: Dict[str, Any], separators: Set[str]) -> str:
-        help_string = ("\n" + root['description']) if root.get('description') else ""
-        usage = ""
-        if res := re.findall(r".*Usage:(.+?);", help_string, flags=re.S):
-            help_string = help_string.replace(f"Usage:{res[0]};", "")
-            usage = '\n用法:\n' + res[0]
-        example = ""
-        if res := re.findall(r".*Example:(.+?);", help_string, flags=re.S):
-            help_string = help_string.replace(f"Example:{res[0]};", "")
-            example = '\n使用示例:\n' + res[0]
+        help_string = f"\n{desc}" if (desc := root.get('description')) else ""
+        usage = f"\n用法:\n{usage}" if (usage := root.get('usage')) else ""
+        example = f"\n使用示例:\n{example}" if (example := root.get('example')) else ""
         headers = f"[{''.join(map(str, headers))}]" if (headers := root.get('header', [''])) != [''] else ""
         cmd = f"{headers}{root.get('name', '')}"
         command_string = cmd or (root['name'] + tuple(separators)[0])
@@ -80,7 +74,7 @@ class DefaultTextFormatter(AbstractTextFormatter):
     def body(self, parts: List[Union[Option, Subcommand]]) -> str:
         option_string = "".join(
             self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
-            if opt.name not in {"--help", "--shortcut"}
+            if opt.name not in {"--help", "--shortcut", "--comp"}
         )
         subcommand_string = "".join(self.part(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts))
         option_help = "可用的选项有:\n" if option_string else ""
@@ -103,26 +97,24 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         opt_names = (
             " ".join(f"[{i}]" for i in opt_names) if len(opt_names) < 6 else " [OPTIONS]"
         ) if opt_names else ""
-
-        topic = trace.head['name'] + " " + sub_names + " " + opt_names
+        topic = f"{trace.head['name']} {sub_names} {opt_names}"
         header = self.header(trace.head, trace.separators)
         param = self.parameters(trace.args)
         body = self.body(parts)
-        return topic + '\n' + header % (param, body)
+        return f"{topic}\n{header % (param, body)}"
 
     def param(self, name: str, parameter: ArgUnit) -> str:
-        # FOO[str], BAR=<int>
-        arg = ("[" if parameter['optional'] else "") + name.upper()
+        arg = f"[{name.upper()}" if parameter['optional'] else name.upper()
         if not parameter['hidden']:
             if parameter['value'] is AllParam:
                 return f"{name.upper()}..."
             if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
                 arg += f"=[{parameter['value']}]" if parameter['kwonly'] else f"[{parameter['value']}]"
-            if parameter['default'] is Empty:
+            if parameter['field'].display is Empty:
                 arg += "=None"
-            elif parameter['default'] is not None:
-                arg += f"={parameter['default']}"
-        return arg + ("]" if parameter['optional'] else "")
+            elif parameter['field'].display is not None:
+                arg += f"={parameter['field'].display}"
+        return f"{arg}]" if parameter['optional'] else arg
 
     def parameters(self, args: Args) -> str:
         param_texts = [self.param(k, param) for k, param in args.argument.items()]
@@ -134,18 +126,12 @@ class ArgParserTextFormatter(AbstractTextFormatter):
         notice = [(k, param['notice']) for k, param in args.argument.items() if param['notice']]
         if not notice:
             return res
-        return res + "\n  内容:\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice)
+        return f"{res}\n  内容:\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice)
 
     def header(self, root: Dict[str, Any], separators: Set[str]) -> str:
-        help_string = ("\n描述: " + root['description'] + "\n") if root.get('description') else ""
-        usage = ""
-        if res := re.findall(r".*Usage:(.+?);", help_string, flags=re.S):
-            help_string = help_string.replace(f"Usage:{res[0]};", "")
-            usage = '\n用法:' + res[0] + '\n'
-        example = ""
-        if res := re.findall(r".*Example:(.+?);", help_string, flags=re.S):
-            help_string = help_string.replace(f"Example:{res[0]};", "")
-            example = '\n样例:' + res[0] + '\n'
+        help_string = f"\n描述: {desc}\n" if (desc := root.get('description')) else ""
+        usage = f"\n用法:{usage}\n" if (usage := root.get('usage')) else ""
+        example = f"\n样例:{example}\n" if (example := root.get('example')) else ""
         header_text = f"/{''.join(map(str, headers))}/" if (headers := root.get('header', [''])) != [''] else ""
         cmd = f"{header_text}{root.get('name', '')}"
         sep = tuple(separators)[0]

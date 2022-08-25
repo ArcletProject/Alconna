@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 from .action import ArgAction
 from ..util import Singleton
-from ..base import Option, Subcommand, Args, ArgUnit
+from ..args import Args, ArgUnit
+from ..base import Option, Subcommand
 
 
 class OutputAction(ArgAction):
@@ -16,8 +17,8 @@ class OutputAction(ArgAction):
         self.output_text_call = out_call
         self.command = command
 
-    def handle(self, option_dict=None, varargs=None, kwargs=None, is_raise_exception=False):
-        return super().handle({"help": self.output_text_call()}, varargs, kwargs, is_raise_exception)
+    def handle(self, option_dict=None, varargs=None, kwargs=None, raise_exception=False):
+        return super().handle({"help": self.output_text_call()}, varargs, kwargs, raise_exception)
 
 
 class OutputActionManager(metaclass=Singleton):
@@ -125,7 +126,10 @@ class AbstractTextFormatter(metaclass=ABCMeta):
             if command.name in hds:
                 hds.remove(command.name)  # type: ignore
             return Trace(
-                {'name': command.name, 'header': hds or [''], 'description': command.help_text},
+                {
+                    'name': command.name, 'header': hds or [''], 'description': command.meta.description,
+                    'usage': command.meta.usage, 'example': command.meta.example
+                },
                 command.args, command.separators, command.options
             )
 

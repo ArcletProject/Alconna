@@ -1,35 +1,39 @@
 """Alconna 主体"""
 import sys
-from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, TYPE_CHECKING, TypedDict, \
-    Iterable, Any
-
+from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any
+from dataclasses import dataclass, field
 from .config import config
 from .analysis.base import compile
-from .base import CommandNode, Args, ArgAction, Option, Subcommand, HelpOption, ShortcutOption
+from .args import Args
+from .base import CommandNode, Option, Subcommand, HelpOption, ShortcutOption, CompletionOption
 from .typing import TDataCollection
 from .manager import command_manager
 from .arpamar import Arpamar
-from .components.action import ActionHandler
+from .analysis.analyser import TAnalyser, Analyser
+from .components.action import ActionHandler, ArgAction
 from .components.output import AbstractTextFormatter
 from .components.behavior import T_ABehavior
 from .components.duplication import Duplication
 from .builtin.formatter import DefaultTextFormatter
-from .builtin.analyser import DefaultCommandAnalyser
 
-if TYPE_CHECKING:
-    from .analysis.analyser import TAnalyser
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
-class _Actions(TypedDict):
-    main: Optional[ArgAction]
-    options: Dict[str, ArgAction]
-    subcommands: Dict[str, ArgAction]
+@dataclass(unsafe_hash=True)
+class CommandMeta:
+    description: str = field(default="Unknown")
+    usage: Optional[str] = field(default=None)
+    example: Optional[str] = field(default=None)
+    author: Optional[str] = field(default=None)
+    fuzzy_match: bool = field(default=False)
+    raise_exception: bool = field(default=False)
+    hide: bool = field(default=False)
 
 
 class AlconnaGroup(CommandNode):
     _group = True
+    meta: CommandMeta
     commands: List['Alconna']
 
     def __init__(
@@ -40,18 +44,16 @@ class AlconnaGroup(CommandNode):
     ):
         self.commands = list(commands)
         self.namespace = namespace or config.namespace
+        self.meta = CommandMeta()
         name = command_manager.sign + name
         super().__init__(name, )
         self.name.replace(command_manager.sign, '')
         self.__handler_help_text__()
 
     def __handler_help_text__(self):
-        self.help_text = "\n"
+        self.meta.description = "\n"
         for command in self.commands:
-            self.help_text += (
-                f" * {command.name} : "
-                f"{command.help_text.replace('Usage', ';').replace('Example', ';').split(';')[0]}\n"
-            )
+            self.meta.description += f" * {command.name} : {command.meta.description}\n"
         return self
 
     @property
@@ -79,7 +81,7 @@ class AlconnaGroup(CommandNode):
         """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
         command_manager.register(self)
         return self
 
@@ -145,14 +147,15 @@ class Alconna(CommandNode):
     analyser_type: Type["TAnalyser"]
     formatter_type: Type[AbstractTextFormatter]
     namespace: str
+    meta: CommandMeta
     behaviors: List[T_ABehavior]
-    action_list: _Actions
+    action_list: Dict[str, Union[None, ArgAction, Dict[str, ArgAction]]]
     local_args = {}
     custom_types = {}
 
     global_headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = [""]
     global_behaviors: List[T_ABehavior] = []
-    global_analyser_type: Type["Analyser"] = DefaultCommandAnalyser  # type: ignore
+    global_analyser_type: Type["Analyser"] = Analyser
     global_formatter_type: Type[AbstractTextFormatter] = DefaultTextFormatter  # type: ignore
 
     @classmethod
@@ -186,15 +189,14 @@ class Alconna(CommandNode):
             main_args: Union[Args, str, None] = None,
             headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
             options: Optional[List[Union[Option, Subcommand]]] = None,
-            is_raise_exception: bool = False,
             action: Optional[Union[ArgAction, Callable]] = None,
+            meta: Optional[CommandMeta] = None,
             namespace: Optional[str] = None,
             separators: Optional[Union[str, Iterable[str]]] = None,
-            help_text: Optional[str] = None,
             analyser_type: Optional[Type["TAnalyser"]] = None,
             behaviors: Optional[List[T_ABehavior]] = None,
             formatter_type: Optional[Type[AbstractTextFormatter]] = None,
-            is_fuzzy_match: bool = False,
+            **kwargs
     ):
         """
         以标准形式构造 Alconna
@@ -204,15 +206,13 @@ class Alconna(CommandNode):
             command: 命令名称, 你的命令的名字, 与 headers 至少有一个填写
             options: 命令选项, 你的命令可选择的所有 option, 包括子命令与单独的选项
             main_args: 主参数, 填入后当且仅当命令中含有该参数时才会成功解析
-            is_raise_exception: 当解析失败时是否抛出异常, 默认为 False
             action: 命令解析后针对主参数的回调函数
+            meta: 命令元信息
             namespace: 命令命名空间, 默认为 'Alconna'
             separators: 命令参数分隔符, 默认为空格
-            help_text: 帮助文档, 默认为 'Unknown Information'
             analyser_type: 命令解析器类型, 默认为 DisorderCommandAnalyser
             behaviors: 命令解析行为，默认为 None
             formatter_type: 命令帮助文本格式器类型, 默认为 DefaultHelpTextFormatter
-            is_fuzzy_match: 是否开启模糊匹配, 默认为 False
         """
         if all((not headers, not command)):
             command = sys.modules["__main__"].__file__.split("/")[-1].split(".")[0]  # type: ignore
@@ -221,23 +221,37 @@ class Alconna(CommandNode):
         self.options = options or []
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = namespace or config.namespace
-        self.options.extend([HelpOption, ShortcutOption])
+        self.options.extend([HelpOption, ShortcutOption, CompletionOption])
         self.analyser_type = analyser_type or self.__class__.global_analyser_type
         self.behaviors = behaviors or self.__class__.global_behaviors.copy()
         self.behaviors.insert(0, ActionHandler())
         self.formatter_type = formatter_type or self.__class__.global_formatter_type
-        self.is_fuzzy_match = is_fuzzy_match or config.fuzzy_match
-        self.is_raise_exception = is_raise_exception or config.raise_exception
+        self.meta = meta or CommandMeta()
+        self.meta.fuzzy_match = self.meta.fuzzy_match or config.fuzzy_match
+        self.meta.raise_exception = self.meta.raise_exception or config.raise_exception
         super().__init__(
             command_manager.sign,
             main_args,
             action=action,
             separators=separators or config.separators.copy(),  # type: ignore
-            help_text=help_text or "Unknown Information"
         )
-        self.name = f"{command or self.headers[0]!r}".replace(command_manager.sign, "")
-        self.__hash = self._hash()
+        self.name = f"{command or self.headers[0]}".replace(command_manager.sign, "")
+        self._deprecate(kwargs)
+        self._hash = self._calc_hash()
         command_manager.register(self)
+
+    def _deprecate(self, kwargs):
+        for key, value in kwargs.items():
+            import warnings
+            if key == "help_text":
+                warnings.warn("'help_text' will not support in 1.3.0 !", DeprecationWarning, 2)
+                self.meta.description = value
+            if key == "raise_exception":
+                warnings.warn("'raise_exception' will not support in 1.3.0 !", DeprecationWarning, 2)
+                self.meta.raise_exception = value
+            if key == "is_fuzzy_match":
+                warnings.warn("'is_fuzzy_match' will not support in 1.3.0 !", DeprecationWarning, 2)
+                self.meta.fuzzy_match = value
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
         """
@@ -257,7 +271,7 @@ class Alconna(CommandNode):
         """重新设置命名空间"""
         command_manager.delete(self)
         self.namespace = namespace
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
         command_manager.register(self)
         return self
 
@@ -303,7 +317,7 @@ class Alconna(CommandNode):
             else:
                 raise ValueError(config.lang.shortcut_no_recent_command)
         except Exception as e:
-            if self.is_raise_exception:
+            if self.meta.raise_exception:
                 raise e
             return str(e)
 
@@ -317,7 +331,7 @@ class Alconna(CommandNode):
         name, requires = names[-1], names[:-1]
         opt = Option(name, args, list(alias), separators=sep, help_text=help_text, requires=requires)
         self.options.append(opt)
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
         command_manager.register(self)
         return self
 
@@ -362,7 +376,7 @@ class Alconna(CommandNode):
         elif isinstance(other, str):
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
-        self.__hash = self._hash()
+        self._hash = self._calc_hash()
         command_manager.register(self)
         return self
 
@@ -374,8 +388,8 @@ class Alconna(CommandNode):
             return AlconnaGroup(self.name, self, other, namespace=self.namespace)
         return self
 
-    def _hash(self):
+    def _calc_hash(self):
         return hash(
             (self.path + str(self.args.argument.keys()) + str([i['value'] for i in self.args.argument.values()])
-             + str(self.headers), *self.options)
+             + str(self.headers), *self.options, self.meta)
         )

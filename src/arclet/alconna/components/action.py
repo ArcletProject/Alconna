@@ -1,8 +1,9 @@
 import inspect
 from types import LambdaType
 from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING, Union
+from nepattern import AnyOne, AllParam, type_parser
 
-from ..typing import AnyOne, AllParam, args_type_parser
+from ..args import Args
 from ..config import config
 from ..exceptions import InvalidParam
 from ..util import is_async
@@ -10,7 +11,7 @@ from .behavior import ArpamarBehavior
 
 if TYPE_CHECKING:
     from ..arpamar import Arpamar
-    from ..base import Args, SubcommandResult, OptionResult
+    from ..base import SubcommandResult, OptionResult
     from ..core import Alconna
 
 
@@ -29,7 +30,7 @@ class ArgAction:
             option_dict: dict,
             varargs: Optional[List] = None,
             kwargs: Optional[Dict] = None,
-            is_raise_exception: bool = False,
+            raise_exception: bool = False,
     ):
         """
         处理action
@@ -38,7 +39,7 @@ class ArgAction:
             option_dict: 参数字典
             varargs: 可变参数
             kwargs: 关键字参数
-            is_raise_exception: 是否抛出异常
+            raise_exception: 是否抛出异常
         """
         _varargs = list(option_dict.values())
         _varargs.extend(varargs or [])
@@ -63,7 +64,7 @@ class ArgAction:
                     break
                 option_dict[k] = additional_values[i]
         except Exception as e:
-            if is_raise_exception:
+            if raise_exception:
                 raise e
         return option_dict
 
@@ -91,7 +92,7 @@ class ArgAction:
                 value = args.argument[k]['value']
                 if value in (AnyOne, AllParam):
                     continue
-                if value != args_type_parser(anno, args.extra):
+                if value != type_parser(anno, args.extra):
                     raise InvalidParam(config.lang.action_args_error.format(
                         target=argument[i][0], key=k, source=value.origin  # type: ignore
                     ))
@@ -122,7 +123,7 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
     else:
         addition_kwargs = {**kwonly, **kwargs}
         result_dict.update(source.local_args)
-    res = func.handle(result_dict, varargs, addition_kwargs, source.is_raise_exception)
+    res = func.handle(result_dict, varargs, addition_kwargs, source.meta.raise_exception)
     if kw_key:
         res[kw_key] = kwargs
     if var_key:
@@ -133,7 +134,7 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
 def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, source: 'Alconna'):
     if not data['args']:
         data['value'] = func.handle(
-            {}, [], source.local_args.copy(), source.is_raise_exception
+            {}, [], source.local_args.copy(), source.meta.raise_exception
         )
         return
     _exec_args(data['args'], func, source)

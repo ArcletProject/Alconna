@@ -39,3 +39,7 @@ class OutBoundsBehave(Exception):
 
 class FuzzyMatchSuccess(Exception):
     """模糊匹配成功"""
+
+
+class CompletionTriggered(Exception):
+    """补全触发"""
