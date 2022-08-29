@@ -107,6 +107,7 @@ def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
     seps = args.separators
     for key, arg in args.argument.items():
+        analyser.context = arg
         value = arg['value']
         default_val = arg['field'].default_gen
         optional = arg['optional']
@@ -217,6 +218,7 @@ def analyse_option(analyser: 'Analyser', param: Option) -> Tuple[str, OptionResu
         analyser: 使用的分析器
         param: 目标Option
     """
+    analyser.context = param
     if param.requires and analyser.sentences != param.requires:
         raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
     analyser.sentences = []
@@ -249,6 +251,7 @@ def analyse_subcommand(analyser: 'Analyser', param: Subcommand) -> Tuple[str, Su
         analyser: 使用的分析器
         param: 目标Subcommand
     """
+    analyser.context = param
     if param.requires and analyser.sentences != param.requires:
         raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
     analyser.sentences = []

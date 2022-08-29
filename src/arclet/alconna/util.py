@@ -60,8 +60,6 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None):
     separates = separates or (" ",)
     result = ""
     quotation = ""
-    if not text:
-        return []
     for index, char in enumerate(text):
         if char in {"'", '"'}:
             if not quotation:

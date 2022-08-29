@@ -8,7 +8,7 @@ from nepattern.util import TPattern
 
 from ..manager import command_manager
 from ..exceptions import NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered
-from ..args import Args
+from ..args import Args, ArgUnit
 from ..base import Option, Subcommand, Sentence, StrMounter
 from ..arpamar import Arpamar
 from ..util import split_once, split
@@ -30,6 +30,7 @@ class Analyser(Generic[T_Origin]):
     text_sign: str = 'text'
 
     alconna: 'Alconna'  # Alconna实例
+    context: Optional[Union[ArgUnit, Subcommand, Option]]
     current_index: int  # 当前数据的index
     content_index: int  # 内部index
     is_str: bool  # 是否是字符串
@@ -188,7 +189,7 @@ class Analyser(Generic[T_Origin]):
         self.is_str, self.head_matched = False, False
         self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
         self.raw_data, self.sentences = [], []
-        self.origin_data, self.header = None, None
+        self.origin_data, self.header, self.context = None, None, None
         self.head_pos = (0, 0)
 
     def popitem(self, separate: Optional[Set[str]] = None, move: bool = True) -> Tuple[Union[str, Any], bool]:
@@ -363,8 +364,8 @@ class Analyser(Generic[T_Origin]):
                 if rest := self.release():
                     if rest[-1] in ("--help", "-h"):
                         return handle_help(self)
-                    # if rest[-1] in ("--comp", "-cp"):
-                    #     return handle_completion(self, )
+                    if rest[-1] in ("--comp", "-cp"):
+                        return handle_completion(self, self.context)
                 if self.raise_exception:
                     raise
                 return self.export(fail=True, exception=e1)

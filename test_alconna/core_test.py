@@ -313,14 +313,20 @@ def test_completion():
             Option(
                 "foo",
                 Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
+            ),
+            Option(
+                "off",
+                Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
             )
         ]
     )
 
     alc20.parse("core20 --comp")
     alc20.parse("core20 f --comp")
+    alc20.parse("core20 fo --comp")
     alc20.parse("core20 foo --comp")
     alc20.parse("core20 fool --comp")
+    alc20.parse("core20 off c --comp")
 
 
 if __name__ == "__main__":

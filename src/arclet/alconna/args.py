@@ -31,9 +31,9 @@ class ArgFlag(str, Enum):
 class ArgField:
     """标识参数单元字段"""
     default: Any = field(default=None)
-    default_factory: Callable[..., Any] = field(default=lambda: None)
+    default_factory: Callable[[], Any] = field(default=lambda: None)
     alias: Optional[str] = field(default=None)
-    completion: Optional[Callable[..., str]] = field(default=None)
+    completion: Optional[Callable[[], Union[str, List[str]]]] = field(default=None)
 
     @property
     def display(self):
