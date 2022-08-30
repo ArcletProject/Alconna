@@ -41,7 +41,7 @@ class ArgField:
 
     @property
     def default_gen(self):
-        return self.default or self.default_factory()
+        return self.default if self.default is not None else self.default_factory()
 
 
 class ArgUnit(TypedDict):

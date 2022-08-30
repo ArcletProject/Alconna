@@ -91,10 +91,10 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 * 精简、多样的构造方法
 * 强大的类型解析与转换功能
 * 可传入同步与异步的 action 函数
-* 高度自定义的 HelpFormat、Analyser
+* 高度自定义的帮助信息格式、命令解析器
 * 自定义语言文件, 支持 i18n
 * 命令输入缓存, 以保证重复命令的快速响应
-* Duplication、FuzzyMatch等一众特性
+* 模糊匹配、命令补全等一众特性
 
 类型转换示范:
 ```python
@@ -141,6 +141,23 @@ alc.parse("test 3")
 '''
 'foo': 2
 ParamsUnmatched: 参数 3 不正确
+'''
+```
+
+命令补全示范:
+```python
+from arclet.alconna import Alconna, Args, Option
+
+alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
+alc.parse("test --comp")
+
+'''
+下一个输入可能是以下：
+> fool
+> -h
+> int
+> foo
+> --help
 '''
 ```
 

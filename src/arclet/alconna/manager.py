@@ -119,7 +119,7 @@ class CommandManager(metaclass=Singleton):
             del self.__commands[namespace][name]
             self.current_count -= 1
         finally:
-            if self.__commands[namespace] == {}:
+            if self.__commands.get(namespace) == {}:
                 del self.__commands[namespace]
             return None
 
