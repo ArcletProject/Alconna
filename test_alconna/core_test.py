@@ -328,6 +328,9 @@ def test_completion():
     alc20.parse("core20 fool --comp")
     alc20.parse("core20 off c --comp")
 
+    alc20_1 = Alconna("core20_1", Args.foo[int], options=[Option("bar")])
+    alc20_1.parse("core20_1 -cp")
+
 
 if __name__ == "__main__":
     import pytest

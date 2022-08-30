@@ -79,7 +79,7 @@ def _handle_sentence(analyser: "Analyser"):
 
 def _handle_none(analyser: "Analyser", got: List[str]):
     res: List[str] = []
-    if analyser.need_main_args and not analyser.main_args:
+    if not analyser.main_args:
         unit = list(analyser.self_args.argument.values())[0]
         if gen := unit["field"].completion:
             res.append(comp if isinstance(comp := gen(), str) else "\n> ".join(comp))
@@ -128,11 +128,11 @@ def handle_completion(
     else:
         got = [*analyser.options.keys(), *analyser.subcommands.keys(), *analyser.sentences]
         target = analyser.release(recover=True)[-2]
-        if _res := list(filter(lambda x: target in x, analyser.command_params)):
+        if _res := list(filter(lambda x: target in x and target != x, analyser.command_params)):
             out = [i for i in _res if i not in got]
             output_manager.get(
                 analyser.alconna.name,
-                lambda: f"{config.lang.common_completion_node}\n> " + "\n> ".join(out or res),
+                lambda: f"{config.lang.common_completion_node}\n> " + "\n> ".join(out or _res),
             ).handle(raise_exception=analyser.raise_exception)
         else:
             res = (
