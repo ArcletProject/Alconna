@@ -244,14 +244,16 @@ class Analyser(Generic[T_Origin]):
                 if replace:
                     self.raw_data[self.current_index] = data
 
-    def release(self, separate: Optional[Set[str]] = None) -> List[Union[str, Any]]:
+    def release(self, separate: Optional[Set[str]] = None, recover: bool = False) -> List[Union[str, Any]]:
         _result = []
         is_cur = False
-        for _data in self.raw_data[self.current_index:]:
+        for _data in self.raw_data[0 if recover else self.current_index:]:
             if isinstance(_data, StrMounter):
-                for s in _data[0 if is_cur else self.content_index:]:
-                    _result.extend(
-                        split(s, tuple(separate)) if separate and not self.separators.issuperset(separate) else [s])
+                for s in _data[0 if is_cur or recover else self.content_index:]:
+                    if separate and not self.separators.issuperset(separate):
+                        _result.extend(split(s, tuple(separate)))
+                    else:
+                        _result.append(s)
                     is_cur = True
             else:
                 _result.append(_data)
@@ -382,7 +384,7 @@ class Analyser(Generic[T_Origin]):
         rest = self.release()
         if len(rest) > 0:
             if rest[-1] in ("--comp", "-cp"):
-                return handle_completion(self, self.popitem(move=False)[0])
+                return handle_completion(self, rest[-2])
             exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.popitem(move=False)[0]))
         else:
             exc = ArgumentMissing(config.lang.analyser_param_missing)

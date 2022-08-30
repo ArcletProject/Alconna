@@ -18,6 +18,8 @@ def test_split():
     assert split(text1) == ["rrr", "b", "bbbb"]
     assert split(text2) == ["rrr b", "bbbb"]
     assert split(text3) == ["'rrr b'", "bbbb"]
+    assert split("") == []
+    assert split("  ") == []
 
 
 def test_lru():

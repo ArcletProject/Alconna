@@ -51,7 +51,7 @@ def _handle_unit(analyser: "Analyser", trigger: ArgUnit):
             return output_manager.get(analyser.alconna.name, lambda: gen()).handle(
                 raise_exception=analyser.raise_exception
             )
-        target = analyser.release()[-2]
+        target = analyser.release(recover=True)[-2]
         o = "\n> ".join(list(filter(lambda x: target in x, comp)) or comp)
         return output_manager.get(
             analyser.alconna.name, lambda: f"{config.lang.common_completion_arg}\n> {o}"
@@ -126,13 +126,22 @@ def handle_completion(
             + "\n> ".join(out or res),
         ).handle(raise_exception=analyser.raise_exception)
     else:
-        res = (
-            _handle_sentence(analyser)
-            if analyser.sentences
-            else _handle_none(analyser, [*analyser.options.keys(), *analyser.subcommands.keys(), *analyser.sentences])
-        )
-        output_manager.get(
-            analyser.alconna.name,
-            lambda: f"{config.lang.common_completion_node}\n> " + "\n> ".join(set(res)),
-        ).handle(raise_exception=analyser.raise_exception)
-    return analyser.export(fail=True)
+        got = [*analyser.options.keys(), *analyser.subcommands.keys(), *analyser.sentences]
+        target = analyser.release(recover=True)[-2]
+        if _res := list(filter(lambda x: target in x, analyser.command_params)):
+            out = [i for i in _res if i not in got]
+            output_manager.get(
+                analyser.alconna.name,
+                lambda: f"{config.lang.common_completion_node}\n> " + "\n> ".join(out or res),
+            ).handle(raise_exception=analyser.raise_exception)
+        else:
+            res = (
+                _handle_sentence(analyser)
+                if analyser.sentences
+                else _handle_none(analyser, got)
+            )
+            output_manager.get(
+                analyser.alconna.name,
+                lambda: f"{config.lang.common_completion_node}\n> " + "\n> ".join(set(res)),
+            ).handle(raise_exception=analyser.raise_exception)
+    return analyser.export(fail=True, exception='NoneType: None\n')  # type: ignore
