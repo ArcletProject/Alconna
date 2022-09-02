@@ -66,7 +66,7 @@ class Analyser(Generic[T_Origin]):
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
         # return hash(str(data))
-        return hash(''.join(i.__repr__() for i in data))
+        return hash(''.join(f'{i}' for i in data))
         # return hash(tuple(i.__str__() for i in data))
 
     def __init__(self, alconna: "Alconna"):

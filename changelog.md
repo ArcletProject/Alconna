@@ -1,6 +1,6 @@
 # Alconna 1.2.x:
 
-## Alconna 1.2.0 ~ 1.2.0.5:
+## Alconna 1.2.0 ~ 1.2.0.6:
 1. 修复 bugs
 2. 加入 ArgField, 可填入 `alias`, `default_factory`等
 3. 命令管理器可以获取原始的命令数据
