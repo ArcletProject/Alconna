@@ -5,7 +5,7 @@ with open("README.rst", "r", encoding='utf-8') as fh:
 
 setup(
     name="arclet-alconna",
-    version="1.2.0",
+    version="1.2.0.6",
     author="RF-Tar-Railt",
     author_email="rf_tar_railt@qq.com",
     description="A High-performance, Generality, Humane Command Line Arguments Parser Library.",
@@ -15,7 +15,7 @@ setup(
     url="https://github.com/ArcletProject/Alconna",
     package_dir={"": "src"},
     packages=find_namespace_packages(where="src"),
-    install_requires=['typing_extensions'],
+    install_requires=["typing-extensions~=4.3.0", "nepattern~=0.1.2"],
     extras_require={
         'graia': [
             'arclet-alconna-graia',

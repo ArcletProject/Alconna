@@ -77,6 +77,7 @@ class _DummyAnalyser(Analyser):
         cls.command_params = {}
         cls.param_ids = set()
         cls.default_separate = True
+        cls.context = None
         return super().__new__(cls)
 
     def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None):

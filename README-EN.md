@@ -89,10 +89,10 @@ QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 * Simple and Flexible Constructor 
 * Powerful Automatic Type Parse and Conversion
 * Support Synchronous and Asynchronous Actions
-* Customizable HelpFormatter and Analyser
+* Customizable Help Text Formatter, Command Analyser, etc.
 * Customizable Language File, Support i18n
 * Cache of input command for quick response of repeated command
-* Various Features (Duplication, FuzzyMatch, etc.)
+* Various Features (FuzzyMatch, Command Completion, etc.)
 
 Example of Type Conversion:
 
@@ -141,6 +141,24 @@ alc.parse("test 3")
 '''
 'foo': 2
 ParamsUnmatched: param 3 is incorrect
+'''
+```
+
+
+Example of Command Completion:
+```python
+from arclet.alconna import Alconna, Args, Option
+
+alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
+alc.parse("test --comp")
+
+'''
+next input maybe:
+> foo
+> int
+> -h
+> --help
+> fool
 '''
 ```
 

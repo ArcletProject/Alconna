@@ -1,4 +1,5 @@
 import re
+from inspect import isclass
 from typing import Iterable, Union, List, Any, Dict, Tuple, TYPE_CHECKING
 from nepattern import AllParam, Empty, BasePattern
 from nepattern.util import TPattern
@@ -107,6 +108,7 @@ def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
     seps = args.separators
     for key, arg in args.argument.items():
+        analyser.context = arg
         value = arg['value']
         default_val = arg['field'].default_gen
         optional = arg['optional']
@@ -217,6 +219,7 @@ def analyse_option(analyser: 'Analyser', param: Option) -> Tuple[str, OptionResu
         analyser: 使用的分析器
         param: 目标Option
     """
+    analyser.context = param
     if param.requires and analyser.sentences != param.requires:
         raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
     analyser.sentences = []
@@ -249,6 +252,7 @@ def analyse_subcommand(analyser: 'Analyser', param: Subcommand) -> Tuple[str, Su
         analyser: 使用的分析器
         param: 目标Subcommand
     """
+    analyser.context = param
     if param.requires and analyser.sentences != param.requires:
         raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
     analyser.sentences = []
@@ -323,9 +327,11 @@ def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
                     analyser.head_matched = True
                     return _head_find.groupdict() or True
         if isinstance(command, tuple):
-            if not _str and (
+            if not _str and not isclass(head_text) and (
                 (isinstance(command[0], list) and head_text in command[0]) or
-                (isinstance(command[0], tuple) and head_text in command[0][0])
+                (isinstance(command[0], tuple) and head_text in command[0][0]) or
+                (isinstance(command[0], list) and head_text.__class__ in command[0]) or
+                (isinstance(command[0], tuple) and head_text.__class__ in command[0][0])
             ):
                 if isinstance(command[1], TPattern):
                     if _m_str and (_command_find := command[1].fullmatch(may_command)):
@@ -334,7 +340,7 @@ def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
                 elif _command_find := command[1].validate(may_command, Empty).value:
                     analyser.head_matched = True
                     return _command_find or True
-            elif _str and isinstance(command[0][1], TPattern):
+            elif _str and isinstance(command[0], tuple) and isinstance(command[0][1], TPattern):
                 if _m_str:
                     pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
                     if _head_find := pat.fullmatch(head_text):

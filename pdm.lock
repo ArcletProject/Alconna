@@ -389,12 +389,12 @@ content_hash = "sha256:0ca199305e3d9d0179dbe5da5acec39df29380baba87e6414ca89b7f0
     {url = "https://files.pythonhosted.org/packages/27/6b/a89fbcfae70cf53f066ec22591938296889d3cc58fec1e1c393b10e8d71d/aiosignal-1.2.0.tar.gz", hash = "sha256:78ed67db6c7b7ced4f98e495e572106d5c432a93e1ddd1bf475e1dc05f5b7df2"},
     {url = "https://files.pythonhosted.org/packages/3b/87/fe94898f2d44a93a35d5aa74671ed28094d80753a1113d68b799fab6dc22/aiosignal-1.2.0-py3-none-any.whl", hash = "sha256:26e62109036cd181df6e6ad646f91f0dcfd05fe16d0cb924138ff2ab75d64e3a"},
 ]
+"arclet-alconna 1.2.0" = [
+    {url = "https://files.pythonhosted.org/packages/cb/58/9bf5b2efe1b61aeda26eb396ecc39261c3bd74c056ff7ccfbc9d6f9dc2a1/arclet-alconna-1.2.0.tar.gz", hash = "sha256:8057be072c49bc4388487d7e001c341e8a68a7fe2b72e65fa65eecbc36a77354"},
+    {url = "https://files.pythonhosted.org/packages/cc/13/f8f7a5cb4d50b13238a746ffd866292457bb66b79bb91602e619b1feb052/arclet_alconna-1.2.0-py3-none-any.whl", hash = "sha256:e3913a893c5c469ef26af2b0bd93b70eabe70299d46dc05b782a20b2d2ec397d"},
+]
 "arclet-alconna-cli 0.1.0" = [
     {url = "https://files.pythonhosted.org/packages/ec/1b/6559a1f61a845a71712e80ea9885a3d31c40398c0279d5cff3c0b9d19a9f/arclet_alconna_cli-0.1.0-py3-none-any.whl", hash = "sha256:1bcfa9f79ef3738e7b8316c6cd272785f74a39f4e2a3ce7dec444b7fba7f4b29"},
-]
-"arclet-alconna-graia 0.4.7" = [
-    {url = "https://files.pythonhosted.org/packages/5e/66/8582262e4901e58e7c41a2516526473a94f1d8ab0aabd85c5e0605fe9dee/arclet_alconna_graia-0.4.7-py3-none-any.whl", hash = "sha256:7ef32e8d4732cd941560894c2d969639ad98473b22ecae222d74c024fc7e213c"},
-    {url = "https://files.pythonhosted.org/packages/7d/4f/1c01c4ea8cfce25c9ac147ba975b577e473b72ec4c6d8523e50ec61ea924/arclet-alconna-graia-0.4.7.tar.gz", hash = "sha256:d7d5398d768a980750761c69c7baff2d018be58b16c344e353761e9b8e61d91f"},
 ]
 "async-timeout 4.0.2" = [
     {url = "https://files.pythonhosted.org/packages/54/6e/9678f7b2993537452710ffb1750c62d2c26df438aa621ad5fa9d1507a43a/async-timeout-4.0.2.tar.gz", hash = "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15"},

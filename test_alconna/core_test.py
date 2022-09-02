@@ -153,9 +153,26 @@ def test_alconna_multi_header():
     alc6_5 = Alconna(headers=["/dd", "!cd"])
     assert alc6_5.parse("/dd").head_matched is True
     assert alc6_5.parse("/dd !cd").matched is False
-    alc6_6 = Alconna(1234)  # type: ignore
+    alc6_6 = Alconna(1234)
     assert alc6_6.parse([1234]).head_matched is True
     assert alc6_6.parse([4321]).head_matched is False
+    alc6_7 = Alconna("core6_7", headers=[A])
+    assert alc6_7.parse([a, "core6_7"]).head_matched is True
+    assert alc6_7.parse([b, "core6_7"]).head_matched is True
+    assert alc6_7.parse([A, "core6_7"]).head_matched is False
+    assert alc6_7.parse("core6_7").head_matched is False
+    alc6_8 = Alconna("core6_8", headers=[A, '/'])
+    assert alc6_8.parse([a, "core6_8"]).head_matched is True
+    assert alc6_8.parse([b, "core6_8"]).head_matched is True
+    assert alc6_8.parse([A, "core6_8"]).head_matched is False
+    assert alc6_8.parse("/core6_8").head_matched is True
+    assert alc6_8.parse("core6_8").head_matched is False
+    alc6_9 = Alconna(a, headers=["/", b])
+    assert alc6_9.parse(["/", a]).head_matched is True
+    assert alc6_9.parse([b, b]).head_matched is False
+    assert alc6_9.parse([b, a]).head_matched is True
+    assert alc6_9.parse([b]).head_matched is False
+    assert alc6_9.parse([b, "abc"]).head_matched is False
 
 
 def test_alconna_namespace():
@@ -307,18 +324,29 @@ def test_args_notice():
 def test_completion():
     alc20 = Alconna(
         "core20",
+        Args["test", int, ArgField(default=1, completion=lambda: "try -1 ?")],
         options=[
             Option("fool"),
             Option(
                 "foo",
                 Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
+            ),
+            Option(
+                "off",
+                Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
             )
         ]
     )
 
     alc20.parse("core20 --comp")
     alc20.parse("core20 f --comp")
+    alc20.parse("core20 fo --comp")
     alc20.parse("core20 foo --comp")
+    alc20.parse("core20 fool --comp")
+    alc20.parse("core20 off c --comp")
+
+    alc20_1 = Alconna("core20_1", Args.foo[int], options=[Option("bar")])
+    alc20_1.parse("core20_1 -cp")
 
 
 if __name__ == "__main__":

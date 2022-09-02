@@ -1,7 +1,7 @@
 import inspect
 import re
 from typing import Type, Tuple, Callable, Literal, TypeVar, Any, Union
-from nepattern import BasePattern, Empty, pattern_map, PatternModel, set_converter, MatchFailed
+from nepattern import BasePattern, Empty, pattern_map, PatternModel, set_converter, MatchFailed, lang
 from arclet.alconna import config, Args
 from arclet.alconna.analysis.base import analyse_args
 
@@ -64,12 +64,12 @@ class ObjectPattern(BasePattern):
         if isinstance(input_, self.origin):
             return input_  # type: ignore
         elif not isinstance(input_, str):
-            raise MatchFailed(config.lang.args_type_error.format(target=input_.__class__))
+            raise MatchFailed(lang.type_error.format(target=input_.__class__))
         if not (mat := self._re_pattern.fullmatch(input_)):
-            raise MatchFailed(config.lang.args_error.format(target=input_))
+            raise MatchFailed(lang.content_error.format(target=input_))
         res = analyse_args(self._args, list(mat.groupdict().values()), raise_exception=False)
         if not res:
-            raise MatchFailed(config.lang.args_error.format(target=input_))
+            raise MatchFailed(lang.content_error.format(target=input_))
         return self.origin(**res)
 
     def __call__(self, *args, **kwargs):

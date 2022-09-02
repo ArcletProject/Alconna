@@ -8,7 +8,7 @@ from nepattern.util import TPattern
 
 from ..manager import command_manager
 from ..exceptions import NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered
-from ..args import Args
+from ..args import Args, ArgUnit
 from ..base import Option, Subcommand, Sentence, StrMounter
 from ..arpamar import Arpamar
 from ..util import split_once, split
@@ -30,6 +30,7 @@ class Analyser(Generic[T_Origin]):
     text_sign: str = 'text'
 
     alconna: 'Alconna'  # Alconna实例
+    context: Optional[Union[ArgUnit, Subcommand, Option]]
     current_index: int  # 当前数据的index
     content_index: int  # 内部index
     is_str: bool  # 是否是字符串
@@ -65,7 +66,7 @@ class Analyser(Generic[T_Origin]):
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
         # return hash(str(data))
-        return hash(''.join(i.__repr__() for i in data))
+        return hash(''.join(f'{i}' for i in data))
         # return hash(tuple(i.__str__() for i in data))
 
     def __init__(self, alconna: "Alconna"):
@@ -188,7 +189,7 @@ class Analyser(Generic[T_Origin]):
         self.is_str, self.head_matched = False, False
         self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
         self.raw_data, self.sentences = [], []
-        self.origin_data, self.header = None, None
+        self.origin_data, self.header, self.context = None, None, None
         self.head_pos = (0, 0)
 
     def popitem(self, separate: Optional[Set[str]] = None, move: bool = True) -> Tuple[Union[str, Any], bool]:
@@ -243,14 +244,16 @@ class Analyser(Generic[T_Origin]):
                 if replace:
                     self.raw_data[self.current_index] = data
 
-    def release(self, separate: Optional[Set[str]] = None) -> List[Union[str, Any]]:
+    def release(self, separate: Optional[Set[str]] = None, recover: bool = False) -> List[Union[str, Any]]:
         _result = []
         is_cur = False
-        for _data in self.raw_data[self.current_index:]:
+        for _data in self.raw_data[0 if recover else self.current_index:]:
             if isinstance(_data, StrMounter):
-                for s in _data[0 if is_cur else self.content_index:]:
-                    _result.extend(
-                        split(s, tuple(separate)) if separate and not self.separators.issuperset(separate) else [s])
+                for s in _data[0 if is_cur or recover else self.content_index:]:
+                    if separate and not self.separators.issuperset(separate):
+                        _result.extend(split(s, tuple(separate)))
+                    else:
+                        _result.append(s)
                     is_cur = True
             else:
                 _result.append(_data)
@@ -363,8 +366,8 @@ class Analyser(Generic[T_Origin]):
                 if rest := self.release():
                     if rest[-1] in ("--help", "-h"):
                         return handle_help(self)
-                    # if rest[-1] in ("--comp", "-cp"):
-                    #     return handle_completion(self, )
+                    if rest[-1] in ("--comp", "-cp"):
+                        return handle_completion(self, self.context)
                 if self.raise_exception:
                     raise
                 return self.export(fail=True, exception=e1)
@@ -381,7 +384,7 @@ class Analyser(Generic[T_Origin]):
         rest = self.release()
         if len(rest) > 0:
             if rest[-1] in ("--comp", "-cp"):
-                return handle_completion(self, self.popitem(move=False)[0])
+                return handle_completion(self, rest[-2])
             exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.popitem(move=False)[0]))
         else:
             exc = ArgumentMissing(config.lang.analyser_param_missing)

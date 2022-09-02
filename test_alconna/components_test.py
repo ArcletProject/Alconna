@@ -2,6 +2,7 @@ from arclet.alconna import Alconna, Option, Args, Subcommand, Arpamar, ArpamarBe
 from arclet.alconna.builtin.actions import set_default, exclusion, cool_down
 from arclet.alconna.components.duplication import Duplication
 from arclet.alconna.components.stub import ArgsStub, OptionStub, SubcommandStub
+from arclet.alconna.exceptions import OutBoundsBehave
 
 
 def test_behavior():

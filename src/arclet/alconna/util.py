@@ -60,8 +60,6 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None):
     separates = separates or (" ",)
     result = ""
     quotation = ""
-    if not text:
-        return []
     for index, char in enumerate(text):
         if char in {"'", '"'}:
             if not quotation:
@@ -73,11 +71,11 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None):
                 if index and text[index - 1] == "\\":
                     result += char
         elif char in {"\n", "\r"} or (not quotation and char in separates):
-            if result[-1] != "\0":
+            if result and result[-1] != "\0":
                 result += "\0"
         elif char != "\\":
             result += char
-    return result.split('\0')
+    return result.split('\0') if result else []
 
 
 def levenshtein_norm(source: str, target: str) -> float:
