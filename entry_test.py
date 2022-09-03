@@ -10,4 +10,4 @@ from test_alconna.analyser_test import *
 
 if __name__ == '__main__':
     import pytest
-    pytest.main([__file__, "-vs"])
+    pytest.main([__file__, "-v"])

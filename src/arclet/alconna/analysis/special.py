@@ -79,7 +79,7 @@ def _handle_sentence(analyser: "Analyser"):
 
 def _handle_none(analyser: "Analyser", got: List[str]):
     res: List[str] = []
-    if not analyser.main_args:
+    if not analyser.main_args and analyser.self_args.argument:
         unit = list(analyser.self_args.argument.values())[0]
         if gen := unit["field"].completion:
             res.append(comp if isinstance(comp := gen(), str) else "\n> ".join(comp))
