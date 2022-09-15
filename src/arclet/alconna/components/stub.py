@@ -17,10 +17,10 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
     """
 
     available: bool
-    value: Any
+    _value: Any
     _origin: T_Origin
 
-    __ignore__ = ['available', 'value', '_origin', 'origin', '__ignore__']
+    __ignore__ = ['available', '_value', '_origin', 'origin', '__ignore__']
 
     @property
     def origin(self) -> T_Origin:
@@ -40,11 +40,11 @@ class ArgsStub(BaseStub[Args]):
     """
     参数存根
     """
-    value: Dict[str, Any]
+    _value: Dict[str, Any]
 
     def __init__(self, args: Args):
         self._origin = args
-        self.value = {}
+        self._value = {}
         for key, value in args.argument.items():
             if value['value'] is AllParam:
                 self.__annotations__[key] = Any
@@ -57,7 +57,7 @@ class ArgsStub(BaseStub[Args]):
 
     def set_result(self, result: Dict[str, Any]):
         if result:
-            self.value = result
+            self._value = result
             self.available = True
 
     @property
@@ -66,36 +66,36 @@ class ArgsStub(BaseStub[Args]):
 
     def get(self, item: Union[str, Type[T]], default=None) -> Union[T, Any]:
         if isinstance(item, str):
-            return self.value.get(item, default)
+            return self._value.get(item, default)
         for k, v in self.__annotations__.items():
             if isclass(item):
                 if v == item:
-                    return self.value.get(k, default)
+                    return self._value.get(k, default)
             elif isinstance(item, v):
-                return self.value.get(k, default)
+                return self._value.get(k, default)
         return default
 
     def __contains__(self, item):
-        return item in self.value
+        return item in self._value
 
     def __iter__(self):
-        return iter(self.value)
+        return iter(self._value)
 
     def __len__(self):
-        return len(self.value)
+        return len(self._value)
 
     def __getattribute__(self, item):
         if item in super(ArgsStub, self).__getattribute__('__ignore__'):
             return super().__getattribute__(item)
-        if item in super().__getattribute__('value'):
-            return super().__getattribute__('value').get(item, None)
+        if item in super().__getattribute__('_value'):
+            return super().__getattribute__('_value').get(item, None)
         return super().__getattribute__(item)
 
     def __getitem__(self, item):
         if isinstance(item, str):
-            return self.value[item]
+            return self._value[item]
         elif isinstance(item, int):
-            return list(self.value.values())[item]
+            return list(self._value.values())[item]
         else:
             raise TypeError(config.lang.stub_key_error.format(target=item))
 
@@ -116,11 +116,11 @@ class OptionStub(BaseStub[Option]):
         self.dest = option.dest
         self._origin = option
         self.available = False
-        self.value = None
+        self._value = None
 
     def set_result(self, result: Union[OptionResult, None]):
         if result:
-            self.value = result['value']
+            self._value = result['value']
             self.args.set_result(result['args'])
             self.available = True
 
@@ -139,12 +139,12 @@ class SubcommandStub(BaseStub[Subcommand]):
         self.options = [OptionStub(option) for option in subcommand.options]
         self.name = subcommand.name.lstrip('-')
         self.available = False
-        self.value = None
+        self._value = None
         self.dest = subcommand.dest
         self._origin = subcommand
 
     def set_result(self, result: SubcommandResult):
-        self.value = result['value']
+        self._value = result['value']
         self.args.set_result(result['args'])
         for option in self.options:
             option.set_result(result['options'].get(option.dest, None))

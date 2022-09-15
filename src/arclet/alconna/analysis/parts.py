@@ -147,7 +147,7 @@ def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
             if value.__class__ is MultiArg:
                 multi_arg_handler(analyser, args, may_arg, key, value, default_val, result)  # type: ignore
             else:
-                res = value.invalidate(may_arg, default_val) if value.anti else value.validate(may_arg, default_val)
+                res = value(may_arg, default_val)
                 if res.flag != 'valid':
                     analyser.pushback(may_arg)
                 if res.flag == 'error':

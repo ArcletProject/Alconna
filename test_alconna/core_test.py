@@ -13,10 +13,10 @@ from arclet.alconna import (
 
 def test_alconna_create():
     alc = Alconna(
+        ["!"],
         "core",
         Args["foo", str],
-        headers=["!"],
-        options=[Option("bar", Args["num", int])],
+        Option("bar", Args["num", int]),
     )
     assert alc.path == "Alconna.core"
     assert alc.parse("!core abc bar 123").matched is True
@@ -24,19 +24,17 @@ def test_alconna_create():
 
 def test_alconna_multi_match():
     alc1 = Alconna(
-        headers=["/", "!"],
-        command="core1",
-        options=[
-            Subcommand(
-                "test",
-                [Option("-u", Args["username", str], help_text="输入用户名")],
-                args=Args["test", "Test"],
-                help_text="测试用例",
-            ),
-            Option("-n|--num", Args["count", int, 123], help_text="输入数字"),
-            Option("-u", Args(id=int), help_text="输入需要At的用户"),
-        ],
-        main_args=Args["IP", "ip"],
+        ["/", "!"],
+        "core1",
+        Subcommand(
+            "test",
+            [Option("-u", Args["username", str], help_text="输入用户名")],
+            args=Args["test", "Test"],
+            help_text="测试用例",
+        ),
+        Option("-n|--num", Args["count", int, 123], help_text="输入数字"),
+        Option("-u", Args(id=int), help_text="输入需要At的用户"),
+        Args["IP", "ip"],
         meta=CommandMeta(description="测试指令1")
     )
     assert len(alc1.options) == 6
@@ -63,22 +61,20 @@ def test_special_header():
 
 def test_formatter():
     alc3 = Alconna(
-        command="/pip",
-        options=[
-            Subcommand(
-                "install",
-                [
-                    Option("--upgrade", help_text="升级包"),
-                    Option("-i|--index-url", Args["url", "url"]),
-                ],
-                Args["pak", str],
-                help_text="安装一个包",
-            ),
-            Option("--retries", Args["retries", int], help_text="设置尝试次数"),
-            Option("-t|--timeout", Args["sec", int], help_text="设置超时时间"),
-            Option("--exists-action", Args["action", str], help_text="添加行为"),
-            Option("--trusted-host", Args["host", str], help_text="选择可信赖地址"),
-        ],
+        "/pip",
+        Subcommand(
+            "install",
+            [
+                Option("--upgrade", help_text="升级包"),
+                Option("-i|--index-url", Args["url", "url"]),
+            ],
+            Args["pak", str],
+            help_text="安装一个包",
+        ),
+        Option("--retries", Args["retries", int], help_text="设置尝试次数"),
+        Option("-t|--timeout", Args["sec", int], help_text="设置超时时间"),
+        Option("--exists-action", Args["action", str], help_text="添加行为"),
+        Option("--trusted-host", Args["host", str], help_text="选择可信赖地址"),
         meta=CommandMeta(description="简单的pip指令"),
         formatter_type=ArgParserTextFormatter,
     )
@@ -97,15 +93,13 @@ def test_formatter():
 def test_alconna_special_help():
     alc4 = Alconna(
         "Cal",
+        Subcommand(
+            "-div",
+            [Option("--round|-r", Args.decimal[int], help_text="保留n位小数")],
+            Args(num_a=int, num_b=int),
+            help_text="除法计算",
+        ),
         meta=CommandMeta(description="计算器", usage="Cal <expression>", example="Cal -sum 1 2"),
-        options=[
-            Subcommand(
-                "-div",
-                options=[Option("--round|-r", Args.decimal[int], help_text="保留n位小数")],
-                args=Args(num_a=int, num_b=int),
-                help_text="除法计算",
-            )
-        ],
     )
     print("")
     print(alc4.get_help())
@@ -128,15 +122,15 @@ def test_alconna_multi_header():
         pass
 
     a, b = A(), A()
-    alc6 = Alconna("core6", headers=["/", "!", "."])
+    alc6 = Alconna("core6", ["/", "!", "."])
     assert alc6.parse("!core6").head_matched is True
     assert alc6.parse("#core6").head_matched is False
     assert alc6.parse([a]).head_matched is False
-    alc6_1 = Alconna("core6_1", headers=["/", a])
+    alc6_1 = Alconna("core6_1", ["/", a])
     assert alc6_1.parse("/core6_1").head_matched is True
     assert alc6_1.parse([a, "core6_1"]).head_matched is True
     assert alc6_1.parse([b, "core6_1"]).head_matched is False
-    alc6_2 = Alconna("core6_2", headers=[(a, "/")])
+    alc6_2 = Alconna("core6_2", [(a, "/")])
     assert alc6_2.parse([a, "/core6_2"]).head_matched is True
     assert alc6_2.parse([a, "core6_2"]).head_matched is False
     assert alc6_2.parse("/core6_2").head_matched is False
@@ -144,30 +138,30 @@ def test_alconna_multi_header():
     assert alc6_3.parse([a]).head_matched is True
     assert alc6_3.parse([b]).head_matched is True
     assert alc6_3.parse("a").head_matched is False
-    alc6_4 = Alconna(A, headers=["/", b])
+    alc6_4 = Alconna(A, ["/", b])
     assert alc6_4.parse(["/", a]).head_matched is True
     assert alc6_4.parse([b, b]).head_matched is True
     assert alc6_4.parse([b, a]).head_matched is True
     assert alc6_4.parse([b]).head_matched is False
     assert alc6_4.parse([b, "abc"]).head_matched is False
-    alc6_5 = Alconna(headers=["/dd", "!cd"])
+    alc6_5 = Alconna(["/dd", "!cd"])
     assert alc6_5.parse("/dd").head_matched is True
     assert alc6_5.parse("/dd !cd").matched is False
     alc6_6 = Alconna(1234)
     assert alc6_6.parse([1234]).head_matched is True
     assert alc6_6.parse([4321]).head_matched is False
-    alc6_7 = Alconna("core6_7", headers=[A])
+    alc6_7 = Alconna("core6_7", [A])
     assert alc6_7.parse([a, "core6_7"]).head_matched is True
     assert alc6_7.parse([b, "core6_7"]).head_matched is True
     assert alc6_7.parse([A, "core6_7"]).head_matched is False
     assert alc6_7.parse("core6_7").head_matched is False
-    alc6_8 = Alconna("core6_8", headers=[A, '/'])
+    alc6_8 = Alconna("core6_8", [A, '/'])
     assert alc6_8.parse([a, "core6_8"]).head_matched is True
     assert alc6_8.parse([b, "core6_8"]).head_matched is True
     assert alc6_8.parse([A, "core6_8"]).head_matched is False
     assert alc6_8.parse("/core6_8").head_matched is True
     assert alc6_8.parse("core6_8").head_matched is False
-    alc6_9 = Alconna(a, headers=["/", b])
+    alc6_9 = Alconna(a, ["/", b])
     assert alc6_9.parse(["/", a]).head_matched is True
     assert alc6_9.parse([b, b]).head_matched is False
     assert alc6_9.parse([b, a]).head_matched is True
@@ -185,9 +179,9 @@ def test_alconna_namespace():
 
 
 def test_alconna_add_option():
-    alc8 = Alconna("core8") + Option("foo", Args["foo", str]) >> Option("bar")
+    alc8 = Alconna("core8") + Option("foo", Args["foo", str]) + Option("bar")
     assert len(alc8.options) == 5
-    alc8_1 = Alconna("core8_1") + "foo/bar:str" >> "baz"
+    alc8_1 = Alconna("core8_1") + "foo/bar:str" + "baz"
     assert len(alc8_1.options) == 5
 
 
@@ -207,15 +201,20 @@ def test_alconna_action():
 
 def test_alconna_synthesise():
     alc10 = Alconna(
-        main_args=Args["min", r"(\d+)张"]["max;O", r"(\d+)张"] / "到",
-        headers=["发涩图", "来点涩图", "来点好康的"],
-        options=[Option("从", Args["tags;5", str] / ("和", "与"), separators="")],
+        Args["min", r"(\d+)张"]["max;O", r"(\d+)张"] / "到",
+        ["发涩图", "来点涩图", "来点好康的"],
+        Option("从", Args["tags;5", str] / ("和", "与"), separators=""),
         action=lambda x, y: (int(x), int(y)),
     )
     res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
     assert res.matched is True
     assert res.min == 3
     assert res.tags == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
+
+    alc10_1 = Alconna("yiyu", Args["value;SH", str] / ";")
+    print("")
+    print(msg := "yiyu 嘿嘿\n12345 4 6\nfsdg")
+    print(" ".join(alc10_1.parse(msg).query("value")))
 
 
 def test_simple_override():
@@ -230,17 +229,15 @@ def test_requires():
     alc12 = Alconna(
         "core12",
         Args["target", int],
-        options=[
-            Option("user perm set", Args["foo", str], help_text="set user permission"),
-            Option("user perm del", Args["foo", str], help_text="del user permission"),
-            Option(
-                "group perm set", Args["foo", str], help_text="set group permission"
-            ),
-            Option(
-                "group perm del", Args["foo", str], help_text="del group permission"
-            ),
-            Option("test"),
-        ],
+        Option("user perm set", Args["foo", str], help_text="set user permission"),
+        Option("user perm del", Args["foo", str], help_text="del user permission"),
+        Option(
+            "group perm set", Args["foo", str], help_text="set group permission"
+        ),
+        Option(
+            "group perm del", Args["foo", str], help_text="del group permission"
+        ),
+        Option("test"),
     )
 
     assert alc12.parse("core12 123 user perm set 123").find("user_perm_set") is True
@@ -268,8 +265,8 @@ def test_wildcard():
 def test_alconna_group():
     alc14 = AlconnaGroup(
         "core14",
-        Alconna("core14", options=[Option("--foo"), Option("--bar", Args["num", int])]),
-        Alconna("core14", options=[Option("--baz"), Option("--qux", Args["num", int])]),
+        Alconna("core14", Option("--foo"), Option("--bar", Args["num", int])),
+        Alconna("core14", Option("--baz"), Option("--qux", Args["num", int])),
     )
     assert alc14.parse("core14 --foo --bar 123").matched is True
     assert alc14.parse("core14 --baz --qux 123").matched is True
@@ -278,12 +275,12 @@ def test_alconna_group():
 
 
 def test_fuzzy():
-    alc15 = Alconna(main_args="foo:str", headers=["!core15"], meta=CommandMeta(fuzzy_match=True))
+    alc15 = Alconna(["!core15"], main_args="foo:str", meta=CommandMeta(fuzzy_match=True))
     assert alc15.parse("core15 foo bar").matched is False
 
 
 def test_shortcut():
-    alc16 = Alconna("core16", Args["foo", int], options=[Option("bar")])
+    alc16 = Alconna("core16", Args["foo", int], Option("bar"))
     assert alc16.parse("core16 123 bar").matched is True
     alc16.shortcut("TEST", "core16 432 bar")
     res = alc16.parse("TEST")
@@ -325,17 +322,15 @@ def test_completion():
     alc20 = Alconna(
         "core20",
         Args["test", int, ArgField(default=1, completion=lambda: "try -1 ?")],
-        options=[
-            Option("fool"),
-            Option(
-                "foo",
-                Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
-            ),
-            Option(
-                "off",
-                Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
-            )
-        ]
+        Option("fool"),
+        Option(
+            "foo",
+            Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
+        ),
+        Option(
+            "off",
+            Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
+        )
     )
 
     alc20.parse("core20 --comp")
@@ -345,7 +340,7 @@ def test_completion():
     alc20.parse("core20 fool --comp")
     alc20.parse("core20 off c --comp")
 
-    alc20_1 = Alconna("core20_1", Args.foo[int], options=[Option("bar")])
+    alc20_1 = Alconna("core20_1", Args.foo[int], Option("bar"))
     alc20_1.parse("core20_1 -cp")
 
 

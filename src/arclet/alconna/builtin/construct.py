@@ -532,7 +532,10 @@ class ClassMounter(AlconnaMounter):
                     func = self._inject_instance(func)
                 _options.append(Option(name, _opt_args, action=ArgAction(func), help_text=help_text))
             super().__init__(
-                config.get('command', mount_cls.__name__), main_args, config.get('headers', None), _options,
+                config.get('command', mount_cls.__name__),
+                main_args=main_args,
+                headers=config.get('headers', None),
+                options=_options,
                 namespace=config.get('namespace', None),
                 meta=CommandMeta(
                     description=config.get('description', main_help_text),
@@ -635,7 +638,10 @@ class ObjectMounter(AlconnaMounter):
 
             main_action = _InstanceAction(lambda: None)
             super().__init__(
-                config.get('command', obj_name), main_args, config.get('headers', None), _options,
+                config.get('command', obj_name),
+                main_args=main_args,
+                headers=config.get('headers', None),
+                options=_options,
                 meta=CommandMeta(
                     description=config.get('description', main_help_text),
                     raise_exception=config.get('raise_exception', True)

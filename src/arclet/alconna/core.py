@@ -1,4 +1,5 @@
 """Alconna 主体"""
+import re
 import sys
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any
 from dataclasses import dataclass, field
@@ -18,6 +19,7 @@ from .builtin.formatter import DefaultTextFormatter
 
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
+T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
 
 
 @dataclass(unsafe_hash=True)
@@ -29,6 +31,8 @@ class CommandMeta:
     fuzzy_match: bool = field(default=False)
     raise_exception: bool = field(default=False)
     hide: bool = field(default=False)
+    keep_crlf: bool = field(default=False)
+    limit_split: int = field(default=-1)
 
 
 class AlconnaGroup(CommandNode):
@@ -153,7 +157,7 @@ class Alconna(CommandNode):
     local_args = {}
     custom_types = {}
 
-    global_headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = [""]
+    global_headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = []
     global_behaviors: List[T_ABehavior] = []
     global_analyser_type: Type["Analyser"] = Analyser
     global_formatter_type: Type[AbstractTextFormatter] = DefaultTextFormatter  # type: ignore
@@ -184,28 +188,22 @@ class Alconna(CommandNode):
         return cls
 
     def __init__(
-            self,
-            command: Optional[Union[str, Any]] = None,
-            main_args: Union[Args, str, None] = None,
-            headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
-            options: Optional[List[Union[Option, Subcommand]]] = None,
-            action: Optional[Union[ArgAction, Callable]] = None,
-            meta: Optional[CommandMeta] = None,
-            namespace: Optional[str] = None,
-            separators: Optional[Union[str, Iterable[str]]] = None,
-            analyser_type: Optional[Type["TAnalyser"]] = None,
-            behaviors: Optional[List[T_ABehavior]] = None,
-            formatter_type: Optional[Type[AbstractTextFormatter]] = None,
-            **kwargs
+        self,
+        *args: Union[Option, Subcommand, str, T_Header, Any, Args],
+        action: Optional[Union[ArgAction, Callable]] = None,
+        meta: Optional[CommandMeta] = None,
+        namespace: Optional[str] = None,
+        separators: Optional[Union[str, Iterable[str]]] = None,
+        analyser_type: Optional[Type["TAnalyser"]] = None,
+        behaviors: Optional[List[T_ABehavior]] = None,
+        formatter_type: Optional[Type[AbstractTextFormatter]] = None,
+        **kwargs
     ):
         """
         以标准形式构造 Alconna
 
         Args:
-            headers: 呼叫该命令的命令头, 一般是你的机器人的名字或者符号, 与 command 至少有一个填写
-            command: 命令名称, 你的命令的名字, 与 headers 至少有一个填写
-            options: 命令选项, 你的命令可选择的所有 option, 包括子命令与单独的选项
-            main_args: 主参数, 填入后当且仅当命令中含有该参数时才会成功解析
+            args: 命令选项、主参数、命令名称或命令头
             action: 命令解析后针对主参数的回调函数
             meta: 命令元信息
             namespace: 命令命名空间, 默认为 'Alconna'
@@ -214,11 +212,15 @@ class Alconna(CommandNode):
             behaviors: 命令解析行为，默认为 None
             formatter_type: 命令帮助文本格式器类型, 默认为 DefaultHelpTextFormatter
         """
-        if all((not headers, not command)):
-            command = sys.modules["__main__"].__file__.split("/")[-1].split(".")[0]  # type: ignore
-        self.headers = headers or self.__class__.global_headers
-        self.command = command or ""
-        self.options = options or []
+        try:
+            self.headers = next(filter(lambda x: isinstance(x, list), args))
+        except StopIteration:
+            self.headers = self.__class__.global_headers
+        try:
+            self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args)), args))
+        except StopIteration:
+            self.command = "" if self.headers else sys.argv[0]
+        self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = namespace or config.namespace
         self.options.extend([HelpOption, ShortcutOption, CompletionOption])
@@ -231,11 +233,11 @@ class Alconna(CommandNode):
         self.meta.raise_exception = self.meta.raise_exception or config.raise_exception
         super().__init__(
             command_manager.sign,
-            main_args,
+            li[0] if (li := [i for i in args if isinstance(i, Args)]) else None,
             action=action,
             separators=separators or config.separators.copy(),  # type: ignore
         )
-        self.name = f"{command or self.headers[0]}".replace(command_manager.sign, "")
+        self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
         self._deprecate(kwargs)
         self._hash = self._calc_hash()
         command_manager.register(self)
@@ -243,6 +245,23 @@ class Alconna(CommandNode):
     def _deprecate(self, kwargs):
         for key, value in kwargs.items():
             import warnings
+            if key == "headers":
+                warnings.warn("'headers' will not support in 1.3.0 !", DeprecationWarning, 2)
+                self.headers = value or self.__class__.global_headers
+                if self.command == sys.argv[0]:
+                    self.command = ''
+            if key == "command":
+                warnings.warn("'command' will not support in 1.3.0 !", DeprecationWarning, 2)
+                self.command = value
+            if key == "options":
+                warnings.warn("'options' will not support in 1.3.0 !", DeprecationWarning, 2)
+                self.options = value
+                self.options.extend([HelpOption, ShortcutOption, CompletionOption])
+            if key == "main_args":
+                warnings.warn("'main_args' will not support in 1.3.0 !", DeprecationWarning, 2)
+                self.args = value if isinstance(value, Args) else Args.from_string_list(
+                    [re.split("[:=]", p) for p in re.split(r"\s*,\s*", value)], {}
+                )
             if key == "help_text":
                 warnings.warn("'help_text' will not support in 1.3.0 !", DeprecationWarning, 2)
                 self.meta.description = value
@@ -369,7 +388,7 @@ class Alconna(CommandNode):
         self.reset_namespace(other)
         return self
 
-    def __rshift__(self, other):
+    def __add__(self, other):
         command_manager.delete(self)
         if isinstance(other, Option):
             self.options.append(other)
@@ -379,9 +398,6 @@ class Alconna(CommandNode):
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
-
-    def __add__(self, other):
-        return self.__rshift__(other)
 
     def __or__(self, other):
         if isinstance(other, Alconna):

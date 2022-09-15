@@ -46,10 +46,8 @@ from arclet.alconna import Alconna, Option, Subcommand, Args
 
 cmd = Alconna(
     "/pip",
-    options=[
-        Subcommand("install", [Option("-u|--upgrade")], Args.pak_name[str]),
-        Option("list"),
-    ]
+    Subcommand("install", [Option("-u|--upgrade")], Args.pak_name[str]),
+    Option("list")
 )
 
 result = cmd.parse("/pip install cesloi --upgrade") # 该方法返回一个Arpamar类的实例

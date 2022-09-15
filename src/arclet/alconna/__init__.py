@@ -21,7 +21,7 @@ from .components.output import output_manager, AbstractTextFormatter
 from .components.duplication import Duplication
 from .components.stub import ArgsStub, OptionStub, SubcommandStub
 
-alconna_version = (1, 2, 0)
+alconna_version = (1, 3, 0)
 
 if TYPE_CHECKING:
     from .builtin.actions import version

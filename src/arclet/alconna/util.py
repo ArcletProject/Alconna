@@ -47,12 +47,13 @@ def split_once(text: str, separates: Union[str, Tuple[str, ...]]):  # 相当于�
 
 
 @lru_cache(4096)
-def split(text: str, separates: Optional[Tuple[str, ...]] = None):
+def split(text: str, separates: Optional[Tuple[str, ...]] = None, crlf: bool = True):
     """尊重引号与转义的字符串切分
 
     Args:
         text (str): 要切割的字符串
         separates (Set(str)): 切割符. 默认为 " ".
+        crlf (bool): 是否去除 \n 与 \r，默认为 True
 
     Returns:
         List[str]: 切割后的字符串, 可能含有空格
@@ -70,7 +71,7 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None):
                 quotation = ""
                 if index and text[index - 1] == "\\":
                     result += char
-        elif char in {"\n", "\r"} or (not quotation and char in separates):
+        elif (not quotation and char in separates) or (crlf and char in {"\n", "\r"}):
             if result and result[-1] != "\0":
                 result += "\0"
         elif char != "\\":

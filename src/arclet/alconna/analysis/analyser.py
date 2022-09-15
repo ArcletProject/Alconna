@@ -142,7 +142,7 @@ class Analyser(Generic[T_Origin]):
             (re.compile(command_name), command_name) if isinstance(command_name, str) else
             (copy(type_parser(command_name)), str(command_name))
         )
-        if headers == [""]:
+        if not headers:
             self.command_header = _command_name  # type: ignore
         elif isinstance(headers[0], tuple):
             mixins = [(h[0], re.compile(re.escape(h[1]) + _command_str)) for h in headers]  # type: ignore
@@ -266,6 +266,7 @@ class Analyser(Generic[T_Origin]):
             self.is_str = True
             data = [data]
         i, exc = 0, None
+        keep_crlf = not self.alconna.meta.keep_crlf
         raw_data = self.raw_data
         for unit in data:
             if (uname := unit.__class__.__name__) in self.filter_out:
@@ -273,7 +274,7 @@ class Analyser(Generic[T_Origin]):
             if (proc := self.preprocessors.get(uname)) and (res := proc(unit)):
                 unit = res
             if text := getattr(unit, self.text_sign, unit if isinstance(unit, str) else None):
-                if not (res := split(text.strip(), tuple(self.separators))):
+                if not (res := split(text.strip(), tuple(self.separators), keep_crlf)):
                     continue
                 raw_data.append(StrMounter(res))
             else:
