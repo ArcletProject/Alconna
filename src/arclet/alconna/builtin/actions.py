@@ -55,6 +55,8 @@ def set_default(
         def operate(self, interface: "Arpamar"):
             if not option and not subcommand:
                 raise BehaveCancelled
+            if arg:
+                interface.update("other_args", {arg: value})
             if option and subcommand is None and not interface.query(f"options.{option}"):
                 interface.update(
                     f"options.{option}",

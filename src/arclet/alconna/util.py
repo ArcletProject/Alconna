@@ -29,18 +29,22 @@ class Singleton(type):
 
 
 @lru_cache(4096)
-def split_once(text: str, separates: Union[str, Tuple[str, ...]]):  # 相当于另类的pop, 不会改变本来的字符串
+def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = True):
     """单次分隔字符串"""
     out_text = ""
     quotation = ""
     separates = tuple(separates)
-    for char in text:
+    for index, char in enumerate(text):
         if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
                 quotation = char
+                if index and text[index - 1] == "\\":
+                    out_text += char
             elif char == quotation:
                 quotation = ""
-        if char in separates and not quotation:
+                if index and text[index - 1] == "\\":
+                    out_text += char
+        if (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
             break
         out_text += char
     return out_text, text[len(out_text) + 1:]

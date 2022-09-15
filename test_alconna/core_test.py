@@ -201,10 +201,10 @@ def test_alconna_action():
 
 def test_alconna_synthesise():
     alc10 = Alconna(
-        Args["min", r"(\d+)张"]["max;O", r"(\d+)张"] / "到",
+        Args["min", r".*(\d+)张.*"]["max;O", r".*(\d+)张.*"] / "到",
         ["发涩图", "来点涩图", "来点好康的"],
         Option("从", Args["tags;5", str] / ("和", "与"), separators=""),
-        action=lambda x, y: (int(x), int(y)),
+        action=lambda x, y=6: (int(x), int(y)),
     )
     res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
     assert res.matched is True

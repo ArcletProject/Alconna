@@ -4,8 +4,7 @@ from functools import partial
 from copy import deepcopy
 from enum import Enum
 from contextlib import suppress
-from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, \
-    Set
+from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
 from dataclasses import dataclass, field
 from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
 
@@ -263,11 +262,11 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             'optional': False, 'hidden': False, 'kwonly': False
         }
         if res := re.match(r"^.+?#(?P<notice>[^;#]+)", name):
-            slot['notice'] = res.group("notice")
-            name = name.replace(f"#{res.group('notice')}", "")
+            slot['notice'] = res["notice"]
+            name = name.replace(f"#{res['notice']}", "")
         if res := re.match(r"^.+?;(?P<flag>[^;#]+)", name):
-            flags = res.group("flag")
-            name = name.replace(f";{res.group('flag')}", "")
+            flags = res["flag"]
+            name = name.replace(f";{res['flag']}", "")
             _limit = False
             for flag in flags:
                 if flag == ArgFlag.FORCE and not _limit:

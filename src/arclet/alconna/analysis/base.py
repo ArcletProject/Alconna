@@ -1,3 +1,4 @@
+from collections import namedtuple
 from typing import TYPE_CHECKING, Union, Callable, List, Any, Tuple, Dict
 import traceback
 
@@ -71,6 +72,7 @@ class _DummyAnalyser(Analyser):
     class _DummyALC:
         is_fuzzy_match = False
         options = []
+        meta = namedtuple("Meta", "keep_crlf")(False)
 
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore

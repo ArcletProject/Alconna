@@ -22,14 +22,16 @@ def test_behavior():
 
 def test_set_defualt():
     com1 = Alconna("comp1") + \
-           Option("foo", action=store_value(123)) + \
+           Option("--foo", action=store_value(123)) + \
            Option("bar", Args["baz", int, 234])
     com1.behaviors.append(set_default(321, option="bar", arg="baz"))
     com1.behaviors.append(set_default(423, option="foo"))
+    assert com1.parse("comp1").query("foo.value") == 423
+    assert com1.parse("comp1").query("baz") == 321
     assert com1.parse("comp1 bar").query("foo.value") == 423
     assert com1.parse("comp1 bar").query("bar.baz") == 234
-    assert com1.parse("comp1 foo").query("foo.value") == 123
-    assert com1.parse("comp1 foo").query("bar.baz") == 321
+    assert com1.parse("comp1 --foo").query("foo.value") == 123
+    assert com1.parse("comp1 --foo").query("bar.baz") == 321
 
 
 def test_exclusion():
