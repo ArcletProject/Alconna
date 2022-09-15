@@ -33,7 +33,12 @@ if TYPE_CHECKING:
         return _StoreValue(value) if value else _StoreValue(alconna_version)
 
 
-def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[str] = None):
+def set_default(
+    value: Any,
+    arg: Optional[str] = None,
+    option: Optional[str] = None,
+    subcommand: Optional[str] = None,
+):
     """
     设置一个选项的默认值, 在无该选项时会被设置
 
@@ -41,6 +46,7 @@ def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[s
 
     Args:
         value: 默认值
+        arg: 参数名称
         option: 选项名
         subcommand: 子命令名
     """
@@ -50,11 +56,21 @@ def set_default(value: Any, option: Optional[str] = None, subcommand: Optional[s
             if not option and not subcommand:
                 raise BehaveCancelled
             if option and subcommand is None and not interface.query(f"options.{option}"):
-                interface.update(f"options.{option}", {"value": value, "args": {}})
+                interface.update(
+                    f"options.{option}",
+                    {"value": None, "args": {arg: value}} if arg else {"value": value, "args": {}}
+                )
             if subcommand and option is None and not interface.query(f"subcommands.{subcommand}"):
-                interface.update(f"subcommands.{subcommand}", {"value": value, "args": {}, "options": {}})
+                interface.update(
+                    f"subcommands.{subcommand}",
+                    {"value": None, "args": {arg: value}, "options": {}}
+                    if arg else {"value": value, "args": {}, "options": {}}
+                )
             if option and subcommand and not interface.query(f"{subcommand}.options.{option}"):
-                interface.update(f"{subcommand}.options.{option}", {"value": value, "args": {}})
+                interface.update(
+                    f"{subcommand}.options.{option}",
+                    {"value": None, "args": {arg: value}} if arg else {"value": value, "args": {}}
+                )
 
     return _SetDefault()
 
