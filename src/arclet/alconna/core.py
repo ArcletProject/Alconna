@@ -12,10 +12,9 @@ from .manager import command_manager
 from .arpamar import Arpamar
 from .analysis.analyser import TAnalyser, Analyser
 from .components.action import ActionHandler, ArgAction
-from .components.output import AbstractTextFormatter
+from .components.output import TextFormatter
 from .components.behavior import T_ABehavior
 from .components.duplication import Duplication
-from .builtin.formatter import DefaultTextFormatter
 
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
@@ -113,43 +112,30 @@ class Alconna(CommandNode):
     """
     亚尔康娜 (Alconna), Cesloi 的妹妹
 
-    用于更加精确的命令解析，支持 String 与 MessageChain
+    用于更加精确的命令解析
 
     Examples:
 
         >>> from arclet.alconna import Alconna
         >>> alc = Alconna(
-        ...     headers=["h1", "h2"],
-        ...     command="name",
-        ...     options=[
-        ...         Option("opt", Args["opt_arg", "opt_arg"]),
-        ...         Subcommand(
-        ...             "sub_name",
-        ...             [Option("sub_opt", Args["sub_arg", "sub_arg"])],
-        ...             args=Args["sub_main_args", "sub_main_args"]
-        ...         )
-        ...     ],
-        ...     main_args=Args["main_args", "main_args"],
+        ...     "name",
+        ...     ["h1", "h2"],
+        ...     Option("opt", Args["opt_arg", "opt_arg"]),
+        ...     Subcommand(
+        ...         "sub_name",
+        ...         [Option("sub_opt", Args["sub_arg", "sub_arg"])],
+        ...          Args["sub_main_args", "sub_main_args"]
+        ...     ),
+        ...     Args["main_args", "main_args"],
         ...  )
         >>> alc.parse("name opt opt_arg")
-
-
-    其中
-        - name: 命令名称
-        - sub_name: 子命令名称
-        - sub_opt: 子命令选项名称
-        - sub_arg: 子命令选项参数
-        - sub_main_args: 子命令主参数
-        - opt: 命令选项名称
-        - opt_arg: 命令选项参数
-        - main_args: 命令主参数
     """
     _group = False
     headers: Union[List[Union[str, object]], List[Tuple[object, str]]]
     command: Union[str, Any]
     options: List[Union[Option, Subcommand]]
     analyser_type: Type["TAnalyser"]
-    formatter_type: Type[AbstractTextFormatter]
+    formatter_type: Type[TextFormatter]
     namespace: str
     meta: CommandMeta
     behaviors: List[T_ABehavior]
@@ -160,7 +146,7 @@ class Alconna(CommandNode):
     global_headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = []
     global_behaviors: List[T_ABehavior] = []
     global_analyser_type: Type["Analyser"] = Analyser
-    global_formatter_type: Type[AbstractTextFormatter] = DefaultTextFormatter  # type: ignore
+    global_formatter_type: Type[TextFormatter] = TextFormatter
 
     @classmethod
     def config(
@@ -169,7 +155,7 @@ class Alconna(CommandNode):
         headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
         behaviors: Optional[List[T_ABehavior]] = None,
         analyser_type: Optional[Type["TAnalyser"]] = None,
-        formatter_type: Optional[Type[AbstractTextFormatter]] = None,
+        formatter_type: Optional[Type[TextFormatter]] = None,
         separator: Optional[str] = None
     ):
         """
@@ -196,7 +182,7 @@ class Alconna(CommandNode):
         separators: Optional[Union[str, Iterable[str]]] = None,
         analyser_type: Optional[Type["TAnalyser"]] = None,
         behaviors: Optional[List[T_ABehavior]] = None,
-        formatter_type: Optional[Type[AbstractTextFormatter]] = None,
+        formatter_type: Optional[Type[TextFormatter]] = None,
         **kwargs
     ):
         """
@@ -246,30 +232,30 @@ class Alconna(CommandNode):
         for key, value in kwargs.items():
             import warnings
             if key == "headers":
-                warnings.warn("'headers' will not support in 1.3.0 !", DeprecationWarning, 2)
+                warnings.warn("'headers' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.headers = value or self.__class__.global_headers
                 if self.command == sys.argv[0]:
                     self.command = ''
             if key == "command":
-                warnings.warn("'command' will not support in 1.3.0 !", DeprecationWarning, 2)
+                warnings.warn("'command' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.command = value
             if key == "options":
-                warnings.warn("'options' will not support in 1.3.0 !", DeprecationWarning, 2)
+                warnings.warn("'options' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.options = value
                 self.options.extend([HelpOption, ShortcutOption, CompletionOption])
             if key == "main_args":
-                warnings.warn("'main_args' will not support in 1.3.0 !", DeprecationWarning, 2)
+                warnings.warn("'main_args' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.args = value if isinstance(value, Args) else Args.from_string_list(
                     [re.split("[:=]", p) for p in re.split(r"\s*,\s*", value)], {}
                 )
             if key == "help_text":
-                warnings.warn("'help_text' will not support in 1.3.0 !", DeprecationWarning, 2)
+                warnings.warn("'help_text' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.meta.description = value
             if key == "raise_exception":
-                warnings.warn("'raise_exception' will not support in 1.3.0 !", DeprecationWarning, 2)
+                warnings.warn("'raise_exception' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.meta.raise_exception = value
             if key == "is_fuzzy_match":
-                warnings.warn("'is_fuzzy_match' will not support in 1.3.0 !", DeprecationWarning, 2)
+                warnings.warn("'is_fuzzy_match' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.meta.fuzzy_match = value
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
@@ -310,11 +296,7 @@ class Alconna(CommandNode):
         cls.custom_types = types
 
     def shortcut(
-            self,
-            short_key: str,
-            command: Optional[str] = None,
-            delete: bool = False,
-            expiration: int = 0
+        self, short_key: str, command: Optional[TDataCollection] = None, delete: bool = False, expiration: int = 0
     ):
         """添加快捷命令"""
         try:
@@ -331,7 +313,7 @@ class Alconna(CommandNode):
                     return config.lang.shortcut_add_success.format(shortcut=short_key, target=self.path.split(".")[-1])
                 raise ValueError(
                     config.lang.shortcut_recent_command_error.format(
-                        target=self.path, source=getattr(alc, "path", "Unknown Source"))
+                        target=self.path, source=getattr(alc, "path", "Unknown"))
                 )
             else:
                 raise ValueError(config.lang.shortcut_no_recent_command)
@@ -343,12 +325,12 @@ class Alconna(CommandNode):
     def __repr__(self):
         return f"<{self.namespace}::{self.name} with {len(self.options)} options; args={self.args}>"
 
-    def add(self, name: str, *alias: str, args: Optional[Args] = None, sep: str = " ", help_text: Optional[str] = None):
+    def add(self, name: str, *alias: str, args: Optional[Args] = None, sep: str = " ", help_: Optional[str] = None):
         """链式注册一个 Option"""
         command_manager.delete(self)
         names = name.split(sep)
         name, requires = names[-1], names[:-1]
-        opt = Option(name, args, list(alias), separators=sep, help_text=help_text, requires=requires)
+        opt = Option(name, args, list(alias), separators=sep, help_text=help_, requires=requires)
         self.options.append(opt)
         self._hash = self._calc_hash()
         command_manager.register(self)

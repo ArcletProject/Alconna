@@ -198,13 +198,14 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.keyword_only = []
         self.optional_count = 0
         self.separators = {separators} if isinstance(separators, str) else set(separators)
-        self.argument = {  # type: ignore
+        self.argument = {}
+        for arg in (args or []):
+            self.__check_var__(arg)
+        self.argument.update({  # type: ignore
             k: {"value": type_parser(v), "field": ArgField(), 'notice': None,
                 'optional': False, 'hidden': False, 'kwonly': False}
             for k, v in kwargs.items()
-        }
-        for arg in (args or []):
-            self.__check_var__(arg)
+        })
 
     __slots__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separators", "keyword_only"
 

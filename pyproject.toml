@@ -40,9 +40,10 @@ documentation = "https://arcletproject.github.io/docs/alconna/tutorial"
 repository = "https://github.com/ArcletProject/Alconna"
 
 [project.optional-dependencies]
+full = ["arclet-alconna-tools"]
 cli = ["arclet-alconna-cli"]
 graia = ["arclet-alconna-graia"]
-full = ["arclet-alconna-cli", "arclet-alconna-graia"]
+all = ["arclet-alconna-cli", "arclet-alconna-graia", "arclet-alconna-tools"]
 
 [tool.pdm]
 

@@ -1,5 +1,5 @@
 from arclet.alconna import Alconna, Option, Args, Subcommand, Arpamar, ArpamarBehavior, store_value
-from arclet.alconna.builtin.actions import set_default, exclusion, cool_down
+from arclet.alconna.builtin import set_default
 from arclet.alconna.components.duplication import Duplication, generate_duplication
 from arclet.alconna.components.stub import ArgsStub, OptionStub, SubcommandStub
 
@@ -32,26 +32,6 @@ def test_set_defualt():
     assert com1.parse("comp1 bar").query("bar.baz") == 234
     assert com1.parse("comp1 --foo").query("foo.value") == 123
     assert com1.parse("comp1 --foo").query("bar.baz") == 321
-
-
-def test_exclusion():
-    com2 = Alconna(
-        "comp2",
-        options=[Option("foo"), Option("bar")],
-        behaviors=[exclusion(target_path="options.foo", other_path="options.bar")]
-    )
-    assert com2.parse("comp2 foo").matched is True
-    assert com2.parse("comp2 bar").matched is True
-    assert com2.parse("comp2 foo bar").matched is False
-
-
-def test_cooldown():
-    import time
-    com3 = Alconna("comp3", Args["bar", int], behaviors=[cool_down(0.3)])
-    print('')
-    for i in range(4):
-        time.sleep(0.2)
-        print(com3.parse(f"comp3 {i}"))
 
 
 def test_duplication():

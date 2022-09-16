@@ -5,7 +5,6 @@ from arclet.alconna import (
     ArgField,
     Option,
     Subcommand,
-    ArgParserTextFormatter,
     AllParam,
     CommandMeta,
 )
@@ -76,7 +75,6 @@ def test_formatter():
         Option("--exists-action", Args["action", str], help_text="添加行为"),
         Option("--trusted-host", Args["host", str], help_text="选择可信赖地址"),
         meta=CommandMeta(description="简单的pip指令"),
-        formatter_type=ArgParserTextFormatter,
     )
     print("")
     print(alc3.get_help())
