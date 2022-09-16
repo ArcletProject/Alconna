@@ -3,8 +3,7 @@ import contextlib
 import inspect
 from functools import lru_cache
 from collections import OrderedDict
-from datetime import datetime, timedelta
-from typing import TypeVar, Optional, Dict, Any, Iterator, Hashable, Tuple, Union, Mapping
+from typing import TypeVar, Optional, Any, Iterator, Hashable, Tuple, Union, Mapping
 
 R = TypeVar('R')
 
@@ -105,14 +104,12 @@ _T = TypeVar("_T")
 class LruCache(Mapping[_K, _V]):
     max_size: int
     cache: OrderedDict
-    record: Dict[_K, Tuple[datetime, timedelta]]
 
-    __slots__ = ("max_size", "cache", "record", "__size")
+    __slots__ = ("max_size", "cache", "__size")
 
     def __init__(self, max_size: int = -1) -> None:
         self.max_size = max_size
         self.cache = OrderedDict()
-        self.record = {}
         self.__size = 0
 
     def get(self, key: _K, default: Optional[_T] = None) -> Union[_V, _T]:
@@ -126,25 +123,17 @@ class LruCache(Mapping[_K, _V]):
             return res
         raise ValueError
 
-    def query_time(self, key: _K) -> datetime:
-        if key in self.cache:
-            return self.record[key][0]
-        raise KeyError(key)
-
-    def set(self, key: _K, value: Any, expiration: int = 0) -> None:
+    def set(self, key: _K, value: Any) -> None:
         if key in self.cache:
             return
         self.cache[key] = value
         self.__size += 1
         if 0 < self.max_size < self.__size:
             _k = self.cache.popitem(last=False)[0]
-            self.record.pop(_k)
             self.__size -= 1
-        self.record[key] = (datetime.now(), timedelta(seconds=expiration))
 
     def delete(self, key: _K) -> None:
         self.cache.pop(key)
-        self.record.pop(key)
 
     def size(self) -> int:
         return self.__size
@@ -154,7 +143,6 @@ class LruCache(Mapping[_K, _V]):
 
     def clear(self) -> None:
         self.cache.clear()
-        self.record.clear()
 
     def __len__(self) -> int:
         return len(self.cache)
@@ -167,12 +155,6 @@ class LruCache(Mapping[_K, _V]):
 
     def __repr__(self) -> str:
         return repr(self.cache)
-
-    def update_all(self) -> None:
-        now = datetime.now()
-        for key in self.cache.keys():
-            if self.record[key][1].total_seconds() > 0 and now > self.record[key][0] + self.record[key][1]:
-                self.delete(key)
 
     @property
     def recent(self) -> Optional[_V]:

@@ -13,14 +13,6 @@ from .components.action import ArgAction
 class CommandNode:
     """
     命令体基类, 规定基础命令的参数
-
-    Attributes:
-        name: 命令名称
-        dest: 自定义命令名称
-        args: 命令参数
-        separators: 命令分隔符组
-        action: 命令动作
-        help_text: 命令帮助信息
     """
     name: str
     dest: str
@@ -169,7 +161,7 @@ class StrMounter(List[str]):
 
 HelpOption = Option("--help|-h", help_text="显示帮助信息")
 ShortcutOption = Option(
-    '--shortcut|-sct', Args["delete;O", "delete"]["name", str]["command", str, "_"]["expiration;K", int, 0],
+    '--shortcut|-sct', Args["delete;O", "delete"]["name", str]["command", str, "_"],
     help_text='设置快捷命令'
 )
 CompletionOption = Option("--comp|-cp", help_text="补全当前命令")

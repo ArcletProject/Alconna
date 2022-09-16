@@ -143,8 +143,7 @@ class CommandManager(metaclass=Singleton):
             self,
             target: Union["Alconna", str],
             shortcut: str,
-            source: Union["Arpamar", DataCollection[Union[str, Any]]],
-            expiration: int = 0,
+            source: Union["Arpamar", DataCollection[Union[str, Any]]]
     ) -> None:
         """添加快捷命令"""
         from .arpamar import Arpamar
@@ -154,7 +153,7 @@ class CommandManager(metaclass=Singleton):
         except KeyError as e:
             raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
         if isinstance(source, Arpamar) and source.matched or not isinstance(source, Arpamar):
-            self.__shortcuts.set(f"{namespace}.{name}::{shortcut}", source, expiration)
+            self.__shortcuts.set(f"{namespace}.{name}::{shortcut}", source)
         else:
             raise ValueError(config.lang.manager_incorrect_shortcut.format(target=f"{shortcut}"))
 
@@ -176,9 +175,6 @@ class CommandManager(metaclass=Singleton):
             with contextlib.suppress(StopIteration):
                 return self.__shortcuts.get(next(filter(lambda x: x.split("::")[1] == shortcut, self.__shortcuts)))
             raise ValueError(config.lang.manager_undefined_shortcut.format(target=f"{shortcut}"))
-
-    def update_shortcut(self):
-        return self.__shortcuts.update_all()
 
     def delete_shortcut(self, shortcut: str, target: Optional[Union["Alconna", str]] = None):
         """删除快捷命令"""

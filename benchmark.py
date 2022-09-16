@@ -28,7 +28,7 @@ alc = Alconna(
 compile_alc = compile(alc)
 
 msg = [Plain(".test"), At(124)]
-count = 20000
+count = 40000
 
 config.enable_message_cache = True
 

@@ -296,7 +296,7 @@ class Alconna(CommandNode):
         cls.custom_types = types
 
     def shortcut(
-        self, short_key: str, command: Optional[TDataCollection] = None, delete: bool = False, expiration: int = 0
+        self, short_key: str, command: Optional[TDataCollection] = None, delete: bool = False
     ):
         """添加快捷命令"""
         try:
@@ -304,12 +304,12 @@ class Alconna(CommandNode):
                 command_manager.delete_shortcut(short_key, self)
                 return config.lang.shortcut_delete_success.format(shortcut=short_key, target=self.path.split(".")[-1])
             if command:
-                command_manager.add_shortcut(self, short_key, command, expiration)
+                command_manager.add_shortcut(self, short_key, command)
                 return config.lang.shortcut_add_success.format(shortcut=short_key, target=self.path.split(".")[-1])
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
-                    command_manager.add_shortcut(self, short_key, cmd, expiration)
+                    command_manager.add_shortcut(self, short_key, cmd)
                     return config.lang.shortcut_add_success.format(shortcut=short_key, target=self.path.split(".")[-1])
                 raise ValueError(
                     config.lang.shortcut_recent_command_error.format(

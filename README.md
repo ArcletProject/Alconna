@@ -26,11 +26,12 @@
 pip
 ```bash
 pip install --upgrade arclet-alconna
+pip install --upgrade arclet-alconna[full]
 ```
 
 完整安装
 ```bash
-pip install --upgrade arclet-alconna[full]
+pip install --upgrade arclet-alconna[all]
 ```
 
 ## 文档
@@ -56,27 +57,6 @@ print(result.query('install'))  # 或者 result.install
 其结果为
 ```
 {'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
-```
-
-### 搭配响应函数
-
-```python
-from arclet.alconna import Alconna, Option, Args
-from arclet.alconna.builtin.construct import ALCCommand
-
-def send_message(message: str, to: str = None):
-    print(f"sending {message} to {to}")
-
-command = ALCCommand(
-    Alconna("send_message", Args.message[str]) + Option("-t|--to", Args.to[str]),
-    send_message
-)
-
-command("send_message -t Alconna hello")
-```
-输出为
-```
-sending hello to Alconna
 ```
 
 ## 讨论
