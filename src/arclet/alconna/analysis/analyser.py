@@ -65,9 +65,7 @@ class Analyser(Generic[T_Origin]):
 
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
-        # return hash(str(data))
         return hash(''.join(f'{i}' for i in data))
-        # return hash(tuple(i.__str__() for i in data))
 
     def __init__(self, alconna: "Alconna"):
         if not hasattr(self, 'filter_out'):
@@ -194,7 +192,6 @@ class Analyser(Generic[T_Origin]):
 
     def popitem(self, separate: Optional[Set[str]] = None, move: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
-        self.temporary_data["separators"] = None
         if self.current_index == self.ndata:
             return "", True
         _current_data = self.raw_data[self.current_index]
@@ -204,11 +201,10 @@ class Analyser(Generic[T_Origin]):
             if separate and not self.separators.issuperset(separate):
                 _text, _rest_text = split_once(_text, tuple(separate))
             if move:
-                if _rest_text:  # 这里实际上还是pop了
-                    self.temporary_data["separators"] = separate
-                    _current_data[self.content_index] = _rest_text
-                else:
-                    self.content_index += 1
+                self.content_index += 1
+                if _rest_text:
+                    _current_data[self.content_index - 1] = _text
+                    _current_data.insert(self.content_index, _rest_text)
             if len(_current_data) == self.content_index:
                 self.current_index += 1
                 self.content_index = 0
@@ -221,28 +217,19 @@ class Analyser(Generic[T_Origin]):
         """把 pop的数据放回 (实际只是‘指针’移动)"""
         if not data:
             return
-        if self.current_index == self.ndata:
+        if self.current_index >= 1:
             self.current_index -= 1
-            if isinstance(data, str):
-                self.content_index = len(self.raw_data[self.current_index]) - 1
-            if replace:
-                if isinstance(data, str):
-                    self.raw_data[self.current_index][self.content_index] = data
-                else:
-                    self.raw_data[self.current_index] = data
-        else:
-            _current_data = self.raw_data[self.current_index]
-            if isinstance(_current_data, StrMounter) and isinstance(data, str):
-                if seps := self.temporary_data.get("separators", None):
-                    _current_data[self.content_index] = f"{data}{tuple(seps)[0]}{_current_data[self.content_index]}"
-                else:
-                    self.content_index -= 1
-                    if replace:
-                        _current_data[self.content_index] = data
+        _current_data = self.raw_data[self.current_index]
+        if isinstance(_current_data, StrMounter):
+            if self.content_index == 0:
+                self.content_index = len(_current_data) - 1
             else:
-                self.current_index -= 1
-                if replace:
-                    self.raw_data[self.current_index] = data
+                self.content_index -= 1
+        if replace:
+            if isinstance(data, str):
+                _current_data[self.content_index] = data
+            else:
+                self.raw_data[self.current_index] = data
 
     def release(self, separate: Optional[Set[str]] = None, recover: bool = False) -> List[Union[str, Any]]:
         _result = []
@@ -291,6 +278,12 @@ class Analyser(Generic[T_Origin]):
                 self.temp_token = self.generate_token(raw_data)
         return self
 
+    _special = {
+        "--help": handle_help, "-h": handle_help,
+        "--comp": handle_completion, "-cp": handle_completion,
+        "--shortcut": handle_shortcut, "-sct": handle_shortcut
+    }
+
     def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None) -> Arpamar:
         """主体解析函数, 应针对各种情况进行解析"""
         if command_manager.is_disable(self.alconna):
@@ -337,12 +330,8 @@ class Analyser(Generic[T_Origin]):
                     self.main_args = analyse_args(self, self.self_args)
                 elif isinstance(_param, list):
                     for opt in _param:
-                        if opt.name == "--help":
-                            return handle_help(self)
-                        if opt.name == "--shortcut":
-                            return handle_shortcut(self)
-                        if opt.name == "--comp":
-                            return handle_completion(self)
+                        if handler := self._special.get(opt.name):
+                            return handler(self)
                         _current_index, _content_index = self.current_index, self.content_index
                         try:
                             opt_n, opt_v = analyse_option(self, opt)
@@ -365,10 +354,10 @@ class Analyser(Generic[T_Origin]):
                 return handle_completion(self, comp.args[0])
             except (ParamsUnmatched, ArgumentMissing) as e1:
                 if rest := self.release():
-                    if rest[-1] in ("--help", "-h"):
-                        return handle_help(self)
                     if rest[-1] in ("--comp", "-cp"):
                         return handle_completion(self, self.context)
+                    if handler := self._special.get(rest[-1]):
+                        return handler(self)
                 if self.raise_exception:
                     raise
                 return self.export(fail=True, exception=e1)

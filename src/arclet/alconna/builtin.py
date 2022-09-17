@@ -3,6 +3,17 @@ from typing import TYPE_CHECKING, Optional, Any
 from .components.action import ArgAction
 from .components.behavior import ArpamarBehavior
 from .exceptions import BehaveCancelled
+from .base import Option
+from .args import Args
+
+__all__ = ["HelpOption", "ShortcutOption", "CompletionOption", "set_default", "store_value", "version"]
+
+HelpOption = Option("--help|-h", help_text="显示帮助信息")
+ShortcutOption = Option(
+    '--shortcut|-sct', Args["delete;O", "delete"]["name", str]["command", str, "_"],
+    help_text='设置快捷命令'
+)
+CompletionOption = Option("--comp|-cp", help_text="补全当前命令")
 
 
 class _StoreValue(ArgAction):

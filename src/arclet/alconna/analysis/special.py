@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING, Union, List
 from nepattern import Empty
 from ..components.output import output_manager
-from ..base import ShortcutOption, Subcommand, Option
+from ..base import Subcommand, Option
 from ..args import ArgUnit
+from ..builtin import ShortcutOption
 from ..config import config
 from ..exceptions import ParamsUnmatched
 from .parts import analyse_option

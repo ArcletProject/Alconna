@@ -1,12 +1,14 @@
 """Alconna 主体"""
 import re
 import sys
+from functools import reduce
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any
 from dataclasses import dataclass, field
 from .config import config
 from .analysis.base import compile
 from .args import Args
-from .base import CommandNode, Option, Subcommand, HelpOption, ShortcutOption, CompletionOption
+from .base import CommandNode, Option, Subcommand
+from .builtin import HelpOption, ShortcutOption, CompletionOption
 from .typing import TDataCollection
 from .manager import command_manager
 from .arpamar import Arpamar
@@ -219,7 +221,7 @@ class Alconna(CommandNode):
         self.meta.raise_exception = self.meta.raise_exception or config.raise_exception
         super().__init__(
             command_manager.sign,
-            li[0] if (li := [i for i in args if isinstance(i, Args)]) else None,
+            reduce(lambda x, y: x + y, li) if (li := [i for i in args if isinstance(i, Args)]) else None,
             action=action,
             separators=separators or config.separators.copy(),  # type: ignore
         )
