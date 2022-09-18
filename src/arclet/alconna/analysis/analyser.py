@@ -279,7 +279,7 @@ class Analyser(Generic[T_Origin]):
         else:
             self.ndata = i
             if self.message_cache:
-                self.temp_token = self.generate_token(data)
+                self.temp_token = self.generate_token(raw_data)
         return self
 
     _special = {

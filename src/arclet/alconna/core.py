@@ -239,9 +239,11 @@ class Alconna(CommandNode):
                 self.headers = value or config.namespaces[self.namespace].headers
                 if self.command == sys.argv[0]:
                     self.command = ''
+                self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
             if key == "command":
                 warnings.warn("'command' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.command = value
+                self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
             if key == "options":
                 warnings.warn("'options' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.options = value

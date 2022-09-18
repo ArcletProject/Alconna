@@ -28,7 +28,7 @@ alc = Alconna(
     main_args=Args["bar", AnyOne]
 )
 compile_alc = compile(alc)
-
+print(alc)
 msg = [Plain(".test"), At(124)]
 count = 20000
 

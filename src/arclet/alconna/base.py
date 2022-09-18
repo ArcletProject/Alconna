@@ -71,7 +71,7 @@ class CommandNode:
         return self
 
     def __repr__(self):
-        return f"<{self.name} args={self.args}>"
+        return self.dest + ("" if self.args.empty else f"(args={self.args})")
 
     def _calc_hash(self):
         data = vars(self)

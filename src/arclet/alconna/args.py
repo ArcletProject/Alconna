@@ -367,9 +367,13 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             return "Empty"
         repr_string = "Args({0})"
         repr_args = ", ".join(
-            f"'{name}': {arg['value']}" + (
+            (n if (n := f"'{name}'") == (v := str(arg['value'])) else f"{n}: {v}") + (
                 f" = '{arg['field'].display}'" if arg['field'].display is not None else ""
             )
             for name, arg in self.argument.items()
         )
         return repr_string.format(repr_args)
+
+    @property
+    def empty(self) -> bool:
+        return not self.argument
