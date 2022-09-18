@@ -62,10 +62,12 @@ class Analyser(Generic[T_Origin]):
     used_tokens: Set[int]  # 已使用的token
     sentences: List[str]  # 存放解析到的所有句子
     default_separate: bool
+    message_cache: bool
+    fuzzy_match: bool
 
     @staticmethod
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
-        return hash(''.join(f'{i}' for i in data))
+        return hash(str(data))
 
     def __init__(self, alconna: "Alconna"):
         if not hasattr(self, 'filter_out'):
@@ -80,6 +82,8 @@ class Analyser(Generic[T_Origin]):
         self.need_main_args = False
         self.default_main_only = False
         self.default_separate = True
+        self.fuzzy_match = alconna.meta.fuzzy_match
+        self.message_cache = alconna.namespace_config.enable_message_cache
         self.param_ids = set()
         self.command_params = {}
         self.__handle_main_args__(alconna.args, alconna.nargs)
@@ -274,8 +278,8 @@ class Analyser(Generic[T_Origin]):
             self.temporary_data["fail"] = exp
         else:
             self.ndata = i
-            if config.enable_message_cache:
-                self.temp_token = self.generate_token(raw_data)
+            if self.message_cache:
+                self.temp_token = self.generate_token(data)
         return self
 
     _special = {
@@ -323,7 +327,7 @@ class Analyser(Generic[T_Origin]):
                 _text, _str = self.popitem(move=False)
                 _param = _param if (_param := (self.command_params.get(_text) if _str and _text else Ellipsis)) else (
                     None if self.default_separate else analyse_unmatch_params(
-                        self.command_params.values(), _text, self.alconna.meta.fuzzy_match
+                        self.command_params.values(), _text, self.fuzzy_match
                     )
                 )
                 if (not _param or _param is Ellipsis) and not self.main_args:
@@ -396,7 +400,7 @@ class Analyser(Generic[T_Origin]):
             result.error_data = self.release()
         else:
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
-            if config.enable_message_cache:
+            if self.message_cache:
                 command_manager.record(self.temp_token, self.origin_data, result)  # type: ignore
                 self.used_tokens.add(self.temp_token)
         self.reset()

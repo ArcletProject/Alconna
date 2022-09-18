@@ -17,7 +17,7 @@ def test_alconna_create():
         Args["foo", str],
         Option("bar", Args["num", int]),
     )
-    assert alc.path == "Alconna.core"
+    assert alc.path == "Alconna::core"
     assert alc.parse("!core abc bar 123").matched is True
 
 
@@ -169,11 +169,11 @@ def test_alconna_multi_header():
 
 def test_alconna_namespace():
     alc7 = Alconna("core7", namespace="Test")
-    assert alc7.path == "Test.core7"
+    assert alc7.path == "Test::core7"
     alc7_1 = Alconna("core7_1").reset_namespace("Test")
-    assert alc7_1.path == "Test.core7_1"
+    assert alc7_1.path == "Test::core7_1"
     alc7_2 = "Test" / Alconna("core7_2")
-    assert alc7_2.path == "Test.core7_2"
+    assert alc7_2.path == "Test::core7_2"
 
 
 def test_alconna_add_option():

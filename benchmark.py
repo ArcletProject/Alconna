@@ -20,6 +20,8 @@ class At:
         self.target = t
 
 
+config.default_namespace.enable_message_cache = True
+
 alc = Alconna(
     headers=["."],
     command="test",
@@ -28,9 +30,7 @@ alc = Alconna(
 compile_alc = compile(alc)
 
 msg = [Plain(".test"), At(124)]
-count = 40000
-
-config.enable_message_cache = True
+count = 20000
 
 if __name__ == "__main__":
 

@@ -4,7 +4,7 @@ import sys
 from functools import reduce
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any
 from dataclasses import dataclass, field
-from .config import config
+from .config import config, Namespace
 from .analysis.base import compile
 from .args import Args
 from .base import CommandNode, Option, Subcommand
@@ -33,7 +33,6 @@ class CommandMeta:
     raise_exception: bool = field(default=False)
     hide: bool = field(default=False)
     keep_crlf: bool = field(default=False)
-    limit_split: int = field(default=-1)
 
 
 class AlconnaGroup(CommandNode):
@@ -45,10 +44,15 @@ class AlconnaGroup(CommandNode):
             self,
             name: str,
             *commands: "Alconna",
-            namespace: Optional[str] = None,
+            namespace: Optional[Union[str, Namespace]] = None,
     ):
+        if not namespace:
+            self.namespace = config.default_namespace.name
+        elif isinstance(namespace, Namespace):
+            self.namespace = config.namespaces.setdefault(namespace.name, namespace).name
+        else:
+            self.namespace = config.namespaces.setdefault(namespace, Namespace(namespace)).name
         self.commands = list(commands)
-        self.namespace = namespace or config.namespace
         self.meta = CommandMeta()
         name = command_manager.sign + name
         super().__init__(name, )
@@ -63,7 +67,7 @@ class AlconnaGroup(CommandNode):
 
     @property
     def path(self) -> str:
-        return f"{self.namespace}.{self.name.replace(command_manager.sign, '')}"
+        return f"{self.namespace}::{self.name.replace(command_manager.sign, '')}"
 
     def get_help(self) -> str:
         """返回该命令的帮助信息"""
@@ -82,10 +86,12 @@ class AlconnaGroup(CommandNode):
             self.commands.append(other)
         return self
 
-    def reset_namespace(self, namespace: str):
+    def reset_namespace(self, namespace: Union[str, Namespace]):
         """重新设置命名空间"""
         command_manager.delete(self)
-        self.namespace = namespace
+        if isinstance(namespace, str):
+            namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
+        self.namespace = namespace.name
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
@@ -142,10 +148,8 @@ class Alconna(CommandNode):
     meta: CommandMeta
     behaviors: List[T_ABehavior]
     action_list: Dict[str, Union[None, ArgAction, Dict[str, ArgAction]]]
-    local_args = {}
     custom_types = {}
 
-    global_headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = []
     global_behaviors: List[T_ABehavior] = []
     global_analyser_type: Type["Analyser"] = Analyser
     global_formatter_type: Type[TextFormatter] = TextFormatter
@@ -154,25 +158,19 @@ class Alconna(CommandNode):
     def config(
         cls,
         *,
-        headers: Optional[Union[List[Union[str, object]], List[Tuple[object, str]]]] = None,
         behaviors: Optional[List[T_ABehavior]] = None,
         analyser_type: Optional[Type["TAnalyser"]] = None,
         formatter_type: Optional[Type[TextFormatter]] = None,
-        separator: Optional[str] = None
     ):
         """
         配置 Alconna 的默认属性
         """
-        if headers is not None:
-            cls.global_headers = headers
         if behaviors is not None:
             cls.global_behaviors.extend(behaviors)
         if analyser_type is not None:
             cls.global_analyser_type = analyser_type
         if formatter_type is not None:
             cls.global_formatter_type = formatter_type
-        if separator is not None:
-            config.separators = {separator}
         return cls
 
     def __init__(
@@ -180,7 +178,7 @@ class Alconna(CommandNode):
         *args: Union[Option, Subcommand, str, T_Header, Any, Args],
         action: Optional[Union[ArgAction, Callable]] = None,
         meta: Optional[CommandMeta] = None,
-        namespace: Optional[str] = None,
+        namespace: Optional[Union[str, Namespace]] = None,
         separators: Optional[Union[str, Iterable[str]]] = None,
         analyser_type: Optional[Type["TAnalyser"]] = None,
         behaviors: Optional[List[T_ABehavior]] = None,
@@ -200,30 +198,33 @@ class Alconna(CommandNode):
             behaviors: 命令解析行为，默认为 None
             formatter_type: 命令帮助文本格式器类型, 默认为 DefaultHelpTextFormatter
         """
-        try:
-            self.headers = next(filter(lambda x: isinstance(x, list), args))
-        except StopIteration:
-            self.headers = self.__class__.global_headers
+        if not namespace:
+            np_config = config.default_namespace
+        elif isinstance(namespace, Namespace):
+            np_config = config.namespaces.setdefault(namespace.name, namespace)
+        else:
+            np_config = config.namespaces.setdefault(namespace, Namespace(namespace))
+        self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers, )))
         try:
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args)), args))
         except StopIteration:
             self.command = "" if self.headers else sys.argv[0]
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
-        self.namespace = namespace or config.namespace
+        self.namespace = np_config.name
         self.options.extend([HelpOption, ShortcutOption, CompletionOption])
         self.analyser_type = analyser_type or self.__class__.global_analyser_type
         self.behaviors = behaviors or self.__class__.global_behaviors.copy()
         self.behaviors.insert(0, ActionHandler())
         self.formatter_type = formatter_type or self.__class__.global_formatter_type
         self.meta = meta or CommandMeta()
-        self.meta.fuzzy_match = self.meta.fuzzy_match or config.fuzzy_match
-        self.meta.raise_exception = self.meta.raise_exception or config.raise_exception
+        self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
+        self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
         super().__init__(
             command_manager.sign,
             reduce(lambda x, y: x + y, li) if (li := [i for i in args if isinstance(i, Args)]) else None,
             action=action,
-            separators=separators or config.separators.copy(),  # type: ignore
+            separators=separators or np_config.separators.copy(),  # type: ignore
         )
         self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
         self._deprecate(kwargs)
@@ -235,7 +236,7 @@ class Alconna(CommandNode):
             import warnings
             if key == "headers":
                 warnings.warn("'headers' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.headers = value or self.__class__.global_headers
+                self.headers = value or config.namespaces[self.namespace].headers
                 if self.command == sys.argv[0]:
                     self.command = ''
             if key == "command":
@@ -272,12 +273,18 @@ class Alconna(CommandNode):
 
     @property
     def path(self) -> str:
-        return f"{self.namespace}.{self.name.replace(command_manager.sign, '')}"
+        return f"{self.namespace}::{self.name.replace(command_manager.sign, '')}"
 
-    def reset_namespace(self, namespace: str):
+    @property
+    def namespace_config(self) -> Namespace:
+        return config.namespaces[self.namespace]
+
+    def reset_namespace(self, namespace: Union[Namespace, str]):
         """重新设置命名空间"""
         command_manager.delete(self)
-        self.namespace = namespace
+        if isinstance(namespace, str):
+            namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
+        self.namespace = namespace.name
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
@@ -325,7 +332,7 @@ class Alconna(CommandNode):
             return str(e)
 
     def __repr__(self):
-        return f"<{self.namespace}::{self.name} with {len(self.options)} options; args={self.args}>"
+        return f"{self.namespace}::{self.name}(args={self.args}, options={self.options})"
 
     def add(self, name: str, *alias: str, args: Optional[Args] = None, sep: str = " ", help_: Optional[str] = None):
         """链式注册一个 Option"""

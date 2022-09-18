@@ -116,13 +116,7 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
         kwonly = result_dict.pop('__kwonly__')
         for k in kwonly:
             result_dict.pop(k)
-    if kwargs:
-        addition_kwargs = source.local_args.copy()
-        addition_kwargs.update(kwargs)
-        addition_kwargs.update(kwonly)
-    else:
-        addition_kwargs = {**kwonly, **kwargs}
-        result_dict.update(source.local_args)
+    addition_kwargs = {**kwonly, **kwargs}
     res = func.handle(result_dict, varargs, addition_kwargs, source.meta.raise_exception)
     if kw_key:
         res[kw_key] = kwargs
@@ -133,9 +127,7 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
 
 def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, source: 'Alconna'):
     if not data['args']:
-        data['value'] = func.handle(
-            {}, [], source.local_args.copy(), source.meta.raise_exception
-        )
+        data['value'] = func.handle({}, [], {}, source.meta.raise_exception)
         return
     _exec_args(data['args'], func, source)
 

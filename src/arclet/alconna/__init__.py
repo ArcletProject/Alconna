@@ -10,7 +10,7 @@ from .analysis.base import compile, analyse
 from .core import Alconna, AlconnaGroup, CommandMeta
 from .arpamar import Arpamar
 from .manager import command_manager
-from .config import config, load_lang_file
+from .config import config, load_lang_file, namespace, Namespace
 
 from .builtin import store_value, set_default
 from .components.behavior import ArpamarBehavior

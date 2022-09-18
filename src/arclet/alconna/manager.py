@@ -9,7 +9,7 @@ import contextlib
 from .exceptions import ExceedMaxCount
 from .util import Singleton, LruCache
 from .typing import TDataCollection, DataCollection
-from .config import config
+from .config import config, Namespace
 
 if TYPE_CHECKING:
     from .analysis.analyser import Analyser
@@ -74,10 +74,15 @@ class CommandManager(metaclass=Singleton):
     @staticmethod
     def _command_part(command: str) -> Tuple[str, str]:
         """获取命令的组成部分"""
-        command_parts = command.split(".", maxsplit=1)[-2:]
+        command_parts = command.split("::", maxsplit=1)[-2:]
         if len(command_parts) != 2:
-            command_parts.insert(0, config.namespace)
+            command_parts.insert(0, config.default_namespace.name)
         return command_parts[0], command_parts[1]
+
+    def get_namespace_config(self, name: str) -> Optional[Namespace]:
+        if name not in self.__commands:
+            return
+        return config.namespaces.get(name)
 
     def register(self, command: Union["Alconna", "AlconnaGroup"]) -> None:
         """注册命令解析器, 会同时记录解析器对应的命令"""
@@ -203,15 +208,19 @@ class CommandManager(metaclass=Singleton):
             return None
         return self.__commands[namespace][name]
 
-    def get_commands(self, namespace: str = '') -> List[Union["Alconna", "AlconnaGroup"]]:
+    def get_commands(self, namespace: Union[str, Namespace] = '') -> List[Union["Alconna", "AlconnaGroup"]]:
         """获取命令列表"""
         if not namespace:
             return [ana for namespace in self.__commands for ana in self.__commands[namespace].values()]
+        if isinstance(namespace, Namespace):
+            namespace = Namespace.name
         if namespace not in self.__commands:
             return []
         return list(self.__commands[namespace].values())
 
-    def broadcast(self, message: TDataCollection, namespace: str = '') -> Optional['Arpamar[TDataCollection]']:
+    def broadcast(
+        self, message: TDataCollection, namespace: Union[str, Namespace] = ''
+    ) -> Optional['Arpamar[TDataCollection]']:
         """将一段命令广播给当前空间内的所有命令"""
         for cmd in self.get_commands(namespace):
             if (res := cmd.parse(message)) and res.matched:
@@ -220,7 +229,7 @@ class CommandManager(metaclass=Singleton):
     def all_command_help(
             self,
             show_index: bool = False,
-            namespace: Optional[str] = None,
+            namespace: Optional[Union[str, Namespace]] = None,
             header: Optional[str] = None,
             pages: Optional[str] = None,
             footer: Optional[str] = None,
@@ -268,7 +277,7 @@ class CommandManager(metaclass=Singleton):
             )
         return f"{header}\n{command_string}\n{footer}"
 
-    def all_command_raw_help(self, namespace: Optional[str] = None) -> Dict[str, 'CommandMeta']:
+    def all_command_raw_help(self, namespace: Optional[Union[str, Namespace]] = None) -> Dict[str, 'CommandMeta']:
         """获取所有命令的原始帮助信息"""
         cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
         return {cmd.path: copy(cmd.meta) for cmd in cmds}

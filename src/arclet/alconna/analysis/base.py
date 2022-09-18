@@ -70,9 +70,8 @@ class _DummyAnalyser(Analyser):
     filter_out = []
 
     class _DummyALC:
-        is_fuzzy_match = False
         options = []
-        meta = namedtuple("Meta", "keep_crlf")(False)
+        meta = namedtuple("Meta", ["keep_crlf", "fuzzy_match"])(False, False)
 
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore
@@ -80,6 +79,7 @@ class _DummyAnalyser(Analyser):
         cls.param_ids = set()
         cls.default_separate = True
         cls.context = None
+        cls.message_cache = False
         return super().__new__(cls)
 
     def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None):
