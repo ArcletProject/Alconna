@@ -12,6 +12,7 @@ from .builtin import HelpOption, ShortcutOption, CompletionOption
 from .typing import TDataCollection
 from .manager import command_manager
 from .arpamar import Arpamar
+from .exceptions import PauseTriggered
 from .analysis.analyser import TAnalyser, Analyser
 from .components.action import ActionHandler, ArgAction
 from .components.output import TextFormatter
@@ -349,24 +350,33 @@ class Alconna(CommandNode):
 
     @overload
     def parse(
-            self, message: TDataCollection, duplication: Type[T_Duplication], static: bool = True,
+        self, message: TDataCollection, duplication: Type[T_Duplication], static: bool = True, interrupt: bool = False
     ) -> T_Duplication:
         ...
 
     @overload
     def parse(
-            self, message: TDataCollection, duplication=None, static: bool = True
+        self, message: TDataCollection, duplication=None, static: bool = True, interrupt: bool = False
     ) -> Arpamar[TDataCollection]:
         ...
 
+    @overload
     def parse(
-            self, message: TDataCollection, duplication: Optional[Type[T_Duplication]] = None,
-            static: bool = True,
+        self, message: TDataCollection, duplication=..., static: bool = True, interrupt: bool = True
+    ) -> TAnalyser:
+        ...
+
+    def parse(
+        self, message: TDataCollection, duplication: Optional[Type[T_Duplication]] = None,
+        static: bool = True, interrupt: bool = False
     ):
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         analyser = command_manager.require(self) if static else compile(self)
         analyser.process(message)
-        arp = analyser.analyse()
+        try:
+            arp: Arpamar[TDataCollection] = analyser.analyse(interrupt=interrupt)
+        except PauseTriggered:
+            return analyser
         if arp.matched:
             arp = arp.execute()
         if duplication:

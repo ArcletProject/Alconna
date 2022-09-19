@@ -43,3 +43,7 @@ class FuzzyMatchSuccess(Exception):
 
 class CompletionTriggered(Exception):
     """补全触发"""
+
+
+class PauseTriggered(Exception):
+    """解析状态保存触发"""

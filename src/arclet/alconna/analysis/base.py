@@ -22,7 +22,7 @@ def _compile_opts(option: Option, data: Dict[str, Union[Sentence, List[Option]]]
             data[alias] = [option]
 
 
-def default_params_compiler(analyser: "Analyser"):
+def default_params_parser(analyser: "Analyser"):
     require_len = 0
     for opts in analyser.alconna.options:
         if isinstance(opts, Option):
@@ -52,9 +52,9 @@ def default_params_compiler(analyser: "Analyser"):
         )
 
 
-def compile(alconna: "Alconna", params_compiler: Callable[[Analyser], None] = default_params_compiler) -> Analyser:
+def compile(alconna: "Alconna", params_parser: Callable[[Analyser], None] = default_params_parser) -> Analyser:
     _analyser = alconna.analyser_type(alconna)
-    params_compiler(_analyser)
+    params_parser(_analyser)
     return _analyser
 
 
@@ -130,7 +130,7 @@ def analyse_option(option: Option, command: DataCollection[Union[str, Any]], rai
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.alconna.options.append(option)
-    default_params_compiler(_analyser)
+    default_params_parser(_analyser)
     _analyser.alconna.options.clear()
     try:
         _analyser.process(command)
@@ -148,7 +148,7 @@ def analyse_subcommand(subcommand: Subcommand, command: DataCollection[Union[str
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.alconna.options.append(subcommand)
-    default_params_compiler(_analyser)
+    default_params_parser(_analyser)
     _analyser.alconna.options.clear()
     try:
         _analyser.process(command)

@@ -342,6 +342,14 @@ def test_completion():
     alc20_1.parse("core20_1 -cp")
 
 
+def test_interrupt():
+    alc21 = Alconna("core21", Args.foo[int], Args.bar[str])
+    print("\n", alc21.parse("core21"))
+    print("\n", ana := alc21.parse("core21", interrupt=True))
+
+    assert ana.push("1", "a").analyse().matched
+
+
 if __name__ == "__main__":
     import pytest
 

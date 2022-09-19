@@ -2,12 +2,16 @@ import re
 import traceback
 from weakref import finalize
 from copy import copy
-from typing import Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable, ClassVar
+from typing import (
+    Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable, ClassVar
+)
 from nepattern import pattern_map, type_parser, BasePattern
 from nepattern.util import TPattern
 
 from ..manager import command_manager
-from ..exceptions import NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered
+from ..exceptions import (
+    NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, PauseTriggered
+)
 from ..args import Args, ArgUnit
 from ..base import Option, Subcommand, Sentence, StrMounter
 from ..arpamar import Arpamar
@@ -194,6 +198,20 @@ class Analyser(Generic[T_Origin]):
         self.origin_data, self.header, self.context = None, None, None
         self.head_pos = (0, 0)
 
+    def push(self, *data: Union[str, Any]):
+        for d in data:
+            if not d:
+                continue
+            if isinstance(d, str) and isinstance(self.raw_data[-1], StrMounter):
+                if self.current_index == self.ndata:
+                    self.current_index -= 1
+                    self.content_index = len(self.raw_data[-1]) - 1
+                self.raw_data[-1].append(d)
+            else:
+                self.raw_data.append(StrMounter([d]) if isinstance(d, str) else d)
+                self.ndata += 1
+        return self
+
     def popitem(self, separate: Optional[Set[str]] = None, move: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
         if self.current_index == self.ndata:
@@ -288,7 +306,11 @@ class Analyser(Generic[T_Origin]):
         "--shortcut": handle_shortcut, "-sct": handle_shortcut
     }
 
-    def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None) -> Arpamar:
+    def analyse(
+        self,
+        message: Union[DataCollection[Union[str, Any]], None] = None,
+        interrupt: bool = False
+    ) -> Arpamar:
         """主体解析函数, 应针对各种情况进行解析"""
         if command_manager.is_disable(self.alconna):
             return self.export(fail=True)
@@ -362,6 +384,8 @@ class Analyser(Generic[T_Origin]):
                         return handle_completion(self, self.context)
                     if handler := self._special.get(rest[-1]):
                         return handler(self)
+                if interrupt and isinstance(e1, ArgumentMissing):
+                    raise PauseTriggered from e1
                 if self.raise_exception:
                     raise
                 return self.export(fail=True, exception=e1)
@@ -382,6 +406,8 @@ class Analyser(Generic[T_Origin]):
             exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.popitem(move=False)[0]))
         else:
             exc = ArgumentMissing(config.lang.analyser_param_missing)
+        if interrupt and isinstance(exc, ArgumentMissing):
+            raise PauseTriggered
         if self.raise_exception:
             raise exc
         return self.export(fail=True, exception=exc)
