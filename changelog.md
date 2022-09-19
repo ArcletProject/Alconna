@@ -1,4 +1,4 @@
-# Alconna 1.23.x:
+# Alconna 1.3.x:
 
 ## Alconna 1.3.0
 1. 修复 bugs
