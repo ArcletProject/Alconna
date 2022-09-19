@@ -1,7 +1,7 @@
-from abc import ABCMeta, abstractmethod
 from weakref import finalize
 from typing import Dict, Callable, Union, Coroutine, Any, Optional, List, TYPE_CHECKING, Set
 from dataclasses import dataclass
+from nepattern import Empty, AllParam, BasePattern
 
 from .action import ArgAction
 from ..util import Singleton
@@ -93,9 +93,7 @@ def resolve_requires(options: List[Union[Option, Subcommand]]):
                     _cache = _cache[req]
             _cache[opt.name] = opt  # type: ignore
             [_cache.setdefault(i, opt) for i in opt.aliases] if isinstance(opt, Option) else None  # type: ignore
-
             _u(reqs, _reqs)
-
     return reqs
 
 
@@ -111,7 +109,7 @@ class Trace:
         self.body = list({*self.body, *other.body})
 
 
-class AbstractTextFormatter(metaclass=ABCMeta):
+class TextFormatter:
     """
     帮助文档格式化器
 
@@ -177,29 +175,82 @@ class AbstractTextFormatter(metaclass=ABCMeta):
 
         return "\n".join(map(_handle, self.data))
 
-    @abstractmethod
     def format(self, trace: Trace) -> str:
         """help text的生成入口"""
+        header = self.header(trace.head, trace.separators)
+        param = self.parameters(trace.args)
+        body = self.body(trace.body)
+        return header % (param, body)
 
-    @abstractmethod
     def param(self, name: str, parameter: ArgUnit) -> str:
         """对单个参数的描述"""
+        arg = f"[{name}" if parameter['optional'] else f"<{name}"
+        if not parameter['hidden']:
+            if parameter['value'] is AllParam:
+                return f"<...{name}>"
+            if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
+                arg += f"{'@' if parameter['kwonly'] else ':'}{parameter['value']}"
+            if parameter['field'].display is Empty:
+                arg += " = None"
+            elif parameter['field'].display is not None:
+                arg += f" = {parameter['field'].display} "
+        return f"{arg}]" if parameter['optional'] else f"{arg}>"
 
-    @abstractmethod
     def parameters(self, args: Args) -> str:
         """参数列表的描述"""
+        param_texts = [self.param(k, param) for k, param in args.argument.items()]
+        if len(args.separators) == 1:
+            separator = tuple(args.separators)[0]
+            res = separator.join(param_texts)
+        else:
+            res = " ".join(param_texts) + " splitBy:" + "/".join(args.separators)
+        notice = [(k, param['notice']) for k, param in args.argument.items() if param['notice']]
+        if not notice:
+            return res
+        return f"{res}\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice)
 
-    @abstractmethod
     def header(self, root: Dict[str, Any], separators: Set[str]) -> str:
         """头部节点的描述"""
+        help_string = f"\n{desc}" if (desc := root.get('description')) else ""
+        usage = f"\n用法:\n{usage}" if (usage := root.get('usage')) else ""
+        example = f"\n使用示例:\n{example}" if (example := root.get('example')) else ""
+        headers = f"[{''.join(map(str, headers))}]" if (headers := root.get('header', [''])) != [''] else ""
+        cmd = f"{headers}{root.get('name', '')}"
+        command_string = cmd or (root['name'] + tuple(separators)[0])
+        return f"{command_string} %s{help_string}{usage}\n%s{example}"
 
-    @abstractmethod
     def part(self, node: Union[Subcommand, Option]) -> str:
         """每个子节点的描述"""
+        if isinstance(node, Subcommand):
+            name = " ".join(node.requires) + (' ' if node.requires else '') + node.name
+            option_string = "".join([self.part(i).replace("\n", "\n ") for i in node.options])
+            option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
+            return (
+                f"# {node.help_text}\n"
+                f"  {name}{tuple(node.separators)[0]}"
+                f"{self.parameters(node.args)}\n"
+                f"{option_help}{option_string}"
+            )
+        elif isinstance(node, Option):
+            alias_text = " ".join(node.requires) + (' ' if node.requires else '') + ", ".join(node.aliases)
+            return (
+                f"# {node.help_text}\n"
+                f"  {alias_text}{tuple(node.separators)[0]}"
+                f"{self.parameters(node.args)}\n"
+            )
+        else:
+            raise TypeError(f"{node} is not a valid node")
 
-    @abstractmethod
     def body(self, parts: List[Union[Option, Subcommand]]) -> str:
         """子节点列表的描述"""
+        option_string = "".join(
+            self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
+            if opt.name not in {"--help", "--shortcut", "--comp"}
+        )
+        subcommand_string = "".join(self.part(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts))
+        option_help = "可用的选项有:\n" if option_string else ""
+        subcommand_help = "可用的子命令有:\n" if subcommand_string else ""
+        return f"{subcommand_help}{subcommand_string}{option_help}{option_string}"
 
 
-__all__ = ["AbstractTextFormatter", "output_manager", "Trace"]
+__all__ = ["TextFormatter", "output_manager", "Trace"]

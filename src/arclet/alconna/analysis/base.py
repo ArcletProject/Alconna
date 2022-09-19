@@ -1,9 +1,10 @@
+from collections import namedtuple
 from typing import TYPE_CHECKING, Union, Callable, List, Any, Tuple, Dict
 import traceback
 
 from .analyser import Analyser
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
-from ..typing import DataCollection
+from ..typing import DataCollection, TDataCollection
 from ..base import Option, Subcommand, Sentence
 from ..args import Args
 
@@ -21,11 +22,11 @@ def _compile_opts(option: Option, data: Dict[str, Union[Sentence, List[Option]]]
             data[alias] = [option]
 
 
-def default_params_compiler(analyser: "Analyser"):
+def default_params_parser(analyser: "Analyser"):
     require_len = 0
     for opts in analyser.alconna.options:
         if isinstance(opts, Option):
-            _compile_opts(opts, analyser.command_params)
+            _compile_opts(opts, analyser.command_params)  # type: ignore
             analyser.param_ids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
             sub_require_len = 0
@@ -51,13 +52,13 @@ def default_params_compiler(analyser: "Analyser"):
         )
 
 
-def compile(alconna: "Alconna", params_compiler: Callable[[Analyser], None] = default_params_compiler) -> Analyser:
+def compile(alconna: "Alconna", params_parser: Callable[[Analyser], None] = default_params_parser) -> Analyser:
     _analyser = alconna.analyser_type(alconna)
-    params_compiler(_analyser)
+    params_parser(_analyser)
     return _analyser
 
 
-def analyse(alconna: "Alconna", command: DataCollection[Union[str, Any]]) -> "Arpamar":
+def analyse(alconna: "Alconna", command: TDataCollection) -> "Arpamar[TDataCollection]":
     return compile(alconna).process(command).analyse().execute()
 
 
@@ -69,8 +70,8 @@ class _DummyAnalyser(Analyser):
     filter_out = []
 
     class _DummyALC:
-        is_fuzzy_match = False
         options = []
+        meta = namedtuple("Meta", ["keep_crlf", "fuzzy_match"])(False, False)
 
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore
@@ -78,9 +79,10 @@ class _DummyAnalyser(Analyser):
         cls.param_ids = set()
         cls.default_separate = True
         cls.context = None
+        cls.message_cache = False
         return super().__new__(cls)
 
-    def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None):
+    def analyse(self, message=None, interrupt=False):
         pass
 
 
@@ -128,7 +130,7 @@ def analyse_option(option: Option, command: DataCollection[Union[str, Any]], rai
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.alconna.options.append(option)
-    default_params_compiler(_analyser)
+    default_params_parser(_analyser)
     _analyser.alconna.options.clear()
     try:
         _analyser.process(command)
@@ -146,7 +148,7 @@ def analyse_subcommand(subcommand: Subcommand, command: DataCollection[Union[str
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.alconna.options.append(subcommand)
-    default_params_compiler(_analyser)
+    default_params_parser(_analyser)
     _analyser.alconna.options.clear()
     try:
         _analyser.process(command)

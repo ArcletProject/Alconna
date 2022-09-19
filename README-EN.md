@@ -26,6 +26,8 @@
 pip
 ```shell
 $ pip install --upgrade arclet-alconna
+$ pip install --upgrade arclet-alconna[full]
+$ pip install --upgrade arclet-alconna[all]
 ```
 
 ## Documentation
@@ -54,29 +56,6 @@ print(result.query('install'))  # Or result.install
 Output as follows:
 ```
 {'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
-```
-
-
-### With Simple Callback
-
-```python
-from arclet.alconna import Alconna, Option, Args
-from arclet.alconna.builtin.construct import ALCCommand
-
-def send_message(message: str, to: str = None):
-    print(f"sending {message} to {to}")
-
-command = ALCCommand(
-    Alconna("send_message", Args.message[str]) + Option("-t|--to", Args.to[str]),
-    send_message
-)
-
-command("send_message -t Alconna hello")
-```
-
-Output as follows:
-```
-sending hello to Alconna
 ```
 
 ## Communication

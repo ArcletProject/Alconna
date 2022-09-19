@@ -1,6 +1,18 @@
+# Alconna 1.23.x:
+
+## Alconna 1.3.0
+1. 修复 bugs
+2. 调整 Alconna的构造样式, 将header、command、options等合并; 兼容旧版写法到1.4
+3. 原先的builtins迁移至[`arclet-alconna-tools`](https://github.com/ArcletProject/Alconna-Tools), 只保留set_default、store_value与version
+4. `set_default`可以附加一个 arg 名
+5. 调整repr样式
+6. 取消 shortcut的expiration
+7. 新增命名空间配置，并将原先部分全局配置划为命名空间下的配置
+8. 允许.parse传入参数interrupt(bool)以在参数缺失的情况下可后续自行加参数
+
 # Alconna 1.2.x:
 
-## Alconna 1.2.0 ~ 1.2.0.6:
+## Alconna 1.2.0 ~ 1.2.0.7:
 1. 修复 bugs
 2. 加入 ArgField, 可填入 `alias`, `default_factory`等
 3. 命令管理器可以获取原始的命令数据

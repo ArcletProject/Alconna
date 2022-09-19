@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING, Union, List
 from nepattern import Empty
 from ..components.output import output_manager
-from ..base import ShortcutOption, Subcommand, Option
+from ..base import Subcommand, Option
 from ..args import ArgUnit
+from ..builtin import ShortcutOption
 from ..config import config
 from ..exceptions import ParamsUnmatched
 from .parts import analyse_option
@@ -31,8 +32,7 @@ def handle_shortcut(analyser: "Analyser"):
         msg = analyser.alconna.shortcut(
             opt_v["name"],
             None if opt_v["command"] == "_" else analyser.converter(opt_v["command"]),
-            bool(opt_v.get("delete")),
-            opt_v["expiration"],
+            bool(opt_v.get("delete"))
         )
         output_manager.get(analyser.alconna.name, lambda: msg).handle(
             raise_exception=analyser.raise_exception
@@ -79,7 +79,7 @@ def _handle_sentence(analyser: "Analyser"):
 
 def _handle_none(analyser: "Analyser", got: List[str]):
     res: List[str] = []
-    if not analyser.main_args:
+    if not analyser.main_args and analyser.self_args.argument:
         unit = list(analyser.self_args.argument.values())[0]
         if gen := unit["field"].completion:
             res.append(comp if isinstance(comp := gen(), str) else "\n> ".join(comp))

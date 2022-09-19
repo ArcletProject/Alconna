@@ -3,8 +3,7 @@ import contextlib
 import inspect
 from functools import lru_cache
 from collections import OrderedDict
-from datetime import datetime, timedelta
-from typing import TypeVar, Optional, Dict, Any, Iterator, Hashable, Tuple, Union, Mapping
+from typing import TypeVar, Optional, Any, Iterator, Hashable, Tuple, Union, Mapping
 
 R = TypeVar('R')
 
@@ -29,30 +28,35 @@ class Singleton(type):
 
 
 @lru_cache(4096)
-def split_once(text: str, separates: Union[str, Tuple[str, ...]]):  # 相当于另类的pop, 不会改变本来的字符串
+def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = True):
     """单次分隔字符串"""
     out_text = ""
     quotation = ""
     separates = tuple(separates)
-    for char in text:
+    for index, char in enumerate(text):
         if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
                 quotation = char
+                if index and text[index - 1] == "\\":
+                    out_text += char
             elif char == quotation:
                 quotation = ""
-        if char in separates and not quotation:
+                if index and text[index - 1] == "\\":
+                    out_text += char
+        if (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
             break
         out_text += char
     return out_text, text[len(out_text) + 1:]
 
 
 @lru_cache(4096)
-def split(text: str, separates: Optional[Tuple[str, ...]] = None):
+def split(text: str, separates: Optional[Tuple[str, ...]] = None, crlf: bool = True):
     """尊重引号与转义的字符串切分
 
     Args:
         text (str): 要切割的字符串
         separates (Set(str)): 切割符. 默认为 " ".
+        crlf (bool): 是否去除 \n 与 \r，默认为 True
 
     Returns:
         List[str]: 切割后的字符串, 可能含有空格
@@ -70,7 +74,7 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None):
                 quotation = ""
                 if index and text[index - 1] == "\\":
                     result += char
-        elif char in {"\n", "\r"} or (not quotation and char in separates):
+        elif (not quotation and char in separates) or (crlf and char in {"\n", "\r"}):
             if result and result[-1] != "\0":
                 result += "\0"
         elif char != "\\":
@@ -100,14 +104,12 @@ _T = TypeVar("_T")
 class LruCache(Mapping[_K, _V]):
     max_size: int
     cache: OrderedDict
-    record: Dict[_K, Tuple[datetime, timedelta]]
 
-    __slots__ = ("max_size", "cache", "record", "__size")
+    __slots__ = ("max_size", "cache", "__size")
 
     def __init__(self, max_size: int = -1) -> None:
         self.max_size = max_size
         self.cache = OrderedDict()
-        self.record = {}
         self.__size = 0
 
     def get(self, key: _K, default: Optional[_T] = None) -> Union[_V, _T]:
@@ -121,25 +123,17 @@ class LruCache(Mapping[_K, _V]):
             return res
         raise ValueError
 
-    def query_time(self, key: _K) -> datetime:
-        if key in self.cache:
-            return self.record[key][0]
-        raise KeyError(key)
-
-    def set(self, key: _K, value: Any, expiration: int = 0) -> None:
+    def set(self, key: _K, value: Any) -> None:
         if key in self.cache:
             return
         self.cache[key] = value
         self.__size += 1
         if 0 < self.max_size < self.__size:
             _k = self.cache.popitem(last=False)[0]
-            self.record.pop(_k)
             self.__size -= 1
-        self.record[key] = (datetime.now(), timedelta(seconds=expiration))
 
     def delete(self, key: _K) -> None:
         self.cache.pop(key)
-        self.record.pop(key)
 
     def size(self) -> int:
         return self.__size
@@ -149,7 +143,6 @@ class LruCache(Mapping[_K, _V]):
 
     def clear(self) -> None:
         self.cache.clear()
-        self.record.clear()
 
     def __len__(self) -> int:
         return len(self.cache)
@@ -162,12 +155,6 @@ class LruCache(Mapping[_K, _V]):
 
     def __repr__(self) -> str:
         return repr(self.cache)
-
-    def update_all(self) -> None:
-        now = datetime.now()
-        for key in self.cache.keys():
-            if self.record[key][1].total_seconds() > 0 and now > self.record[key][0] + self.record[key][1]:
-                self.delete(key)
 
     @property
     def recent(self) -> Optional[_V]:

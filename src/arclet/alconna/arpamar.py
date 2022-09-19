@@ -214,7 +214,7 @@ class Arpamar(Generic[TDataCollection]):
         """根据path更新值"""
         parts = path.split('.')
         cache, endpoint = self.__require__(parts)
-        if not cache:
+        if cache is None:
             return
         if endpoint:
             self._record.add(path)

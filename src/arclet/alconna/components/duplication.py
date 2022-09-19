@@ -85,7 +85,7 @@ def generate_duplication(command: "Alconna") -> Duplication:
         (Duplication,), {
             "__annotations__": {
                 **{"args": ArgsStub},
-                **{opt.dest: OptionStub for opt in options if opt.name.lstrip('-') not in ("help", "shortcut")},
+                **{opt.dest: OptionStub for opt in options if opt.name.lstrip('-') not in ("help", "shortcut", "comp")},
                 **{sub.dest: SubcommandStub for sub in subcommands},
             }
         }

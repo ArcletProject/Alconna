@@ -4,8 +4,7 @@ from functools import partial
 from copy import deepcopy
 from enum import Enum
 from contextlib import suppress
-from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, \
-    Set
+from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
 from dataclasses import dataclass, field
 from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
 
@@ -199,13 +198,14 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.keyword_only = []
         self.optional_count = 0
         self.separators = {separators} if isinstance(separators, str) else set(separators)
-        self.argument = {  # type: ignore
+        self.argument = {}
+        for arg in (args or []):
+            self.__check_var__(arg)
+        self.argument.update({  # type: ignore
             k: {"value": type_parser(v), "field": ArgField(), 'notice': None,
                 'optional': False, 'hidden': False, 'kwonly': False}
             for k, v in kwargs.items()
-        }
-        for arg in (args or []):
-            self.__check_var__(arg)
+        })
 
     __slots__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separators", "keyword_only"
 
@@ -263,11 +263,11 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             'optional': False, 'hidden': False, 'kwonly': False
         }
         if res := re.match(r"^.+?#(?P<notice>[^;#]+)", name):
-            slot['notice'] = res.group("notice")
-            name = name.replace(f"#{res.group('notice')}", "")
+            slot['notice'] = res["notice"]
+            name = name.replace(f"#{res['notice']}", "")
         if res := re.match(r"^.+?;(?P<flag>[^;#]+)", name):
-            flags = res.group("flag")
-            name = name.replace(f";{res.group('flag')}", "")
+            flags = res["flag"]
+            name = name.replace(f";{res['flag']}", "")
             _limit = False
             for flag in flags:
                 if flag == ArgFlag.FORCE and not _limit:
@@ -333,7 +333,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         if isinstance(item, str) and self.argument.get(item):
             return self.argument[item]['value'], self.argument[item]['field']
         if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
-            raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
+            raise InvalidParam(f"{self.__class__.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
         if not isinstance(item, tuple):
             self.__check_var__([str(item), item])
         else:
@@ -367,9 +367,13 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             return "Empty"
         repr_string = "Args({0})"
         repr_args = ", ".join(
-            f"'{name}': {arg['value']}" + (
+            (n if (n := f"'{name}'") == (v := str(arg['value'])) else f"{n}: {v}") + (
                 f" = '{arg['field'].display}'" if arg['field'].display is not None else ""
             )
             for name, arg in self.argument.items()
         )
         return repr_string.format(repr_args)
+
+    @property
+    def empty(self) -> bool:
+        return not self.argument

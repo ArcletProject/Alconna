@@ -1,5 +1,5 @@
+from arclet.alconna.typing import DataCollection
 from arclet.alconna.util import split_once, split, LruCache
-from arclet.alconna.builtin.checker import simple_type
 
 
 def test_split_once():
@@ -36,20 +36,13 @@ def test_lru():
     assert cache.get("b", Ellipsis) == Ellipsis
 
 
-def test_checker():
-    @simple_type()
-    def hello(num: int):
-        return num
-
-    assert hello(123) == 123
-    assert hello("123") == 123  # type: ignore
-
-    @simple_type()
-    def test(foo: 'bar'):  # type: ignore
-        return foo
-
-    assert test("bar") == "bar"
-    assert test("foo") is None
+def test_collection():
+    """测试数据集合协议, 要求__str__、__iter__和__len__"""
+    assert isinstance("abcdefg", DataCollection)
+    assert isinstance(["abcd", "efg"], DataCollection)
+    assert isinstance({"a": 1}, DataCollection)
+    assert isinstance([123, 456, 7.0, {"a": 1}], DataCollection)
+    assert issubclass(list, DataCollection)
 
 
 if __name__ == '__main__':
