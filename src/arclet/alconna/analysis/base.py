@@ -4,7 +4,7 @@ import traceback
 
 from .analyser import Analyser
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
-from ..typing import DataCollection
+from ..typing import DataCollection, TDataCollection
 from ..base import Option, Subcommand, Sentence
 from ..args import Args
 
@@ -26,7 +26,7 @@ def default_params_parser(analyser: "Analyser"):
     require_len = 0
     for opts in analyser.alconna.options:
         if isinstance(opts, Option):
-            _compile_opts(opts, analyser.command_params)
+            _compile_opts(opts, analyser.command_params)  # type: ignore
             analyser.param_ids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
             sub_require_len = 0
@@ -58,7 +58,7 @@ def compile(alconna: "Alconna", params_parser: Callable[[Analyser], None] = defa
     return _analyser
 
 
-def analyse(alconna: "Alconna", command: DataCollection[Union[str, Any]]) -> "Arpamar":
+def analyse(alconna: "Alconna", command: TDataCollection) -> "Arpamar[TDataCollection]":
     return compile(alconna).process(command).analyse().execute()
 
 
@@ -82,7 +82,7 @@ class _DummyAnalyser(Analyser):
         cls.message_cache = False
         return super().__new__(cls)
 
-    def analyse(self, message: Union[DataCollection[Union[str, Any]], None] = None):
+    def analyse(self, message=None, interrupt=False):
         pass
 
 

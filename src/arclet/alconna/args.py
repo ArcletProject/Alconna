@@ -333,7 +333,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         if isinstance(item, str) and self.argument.get(item):
             return self.argument[item]['value'], self.argument[item]['field']
         if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
-            raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
+            raise InvalidParam(f"{self.__class__.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
         if not isinstance(item, tuple):
             self.__check_var__([str(item), item])
         else:

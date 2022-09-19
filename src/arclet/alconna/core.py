@@ -19,7 +19,6 @@ from .components.output import TextFormatter
 from .components.behavior import T_ABehavior
 from .components.duplication import Duplication
 
-
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
 
@@ -143,7 +142,7 @@ class Alconna(CommandNode):
     headers: Union[List[Union[str, object]], List[Tuple[object, str]]]
     command: Union[str, Any]
     options: List[Union[Option, Subcommand]]
-    analyser_type: Type["TAnalyser"]
+    analyser_type: Type[Analyser]
     formatter_type: Type[TextFormatter]
     namespace: str
     meta: CommandMeta
@@ -157,11 +156,11 @@ class Alconna(CommandNode):
 
     @classmethod
     def config(
-        cls,
-        *,
-        behaviors: Optional[List[T_ABehavior]] = None,
-        analyser_type: Optional[Type["TAnalyser"]] = None,
-        formatter_type: Optional[Type[TextFormatter]] = None,
+            cls,
+            *,
+            behaviors: Optional[List[T_ABehavior]] = None,
+            analyser_type: Optional[Type[TAnalyser]] = None,
+            formatter_type: Optional[Type[TextFormatter]] = None,
     ):
         """
         配置 Alconna 的默认属性
@@ -181,7 +180,7 @@ class Alconna(CommandNode):
         meta: Optional[CommandMeta] = None,
         namespace: Optional[Union[str, Namespace]] = None,
         separators: Optional[Union[str, Iterable[str]]] = None,
-        analyser_type: Optional[Type["TAnalyser"]] = None,
+        analyser_type: Optional[Type[TAnalyser]] = None,
         behaviors: Optional[List[T_ABehavior]] = None,
         formatter_type: Optional[Type[TextFormatter]] = None,
         **kwargs
@@ -205,7 +204,7 @@ class Alconna(CommandNode):
             np_config = config.namespaces.setdefault(namespace.name, namespace)
         else:
             np_config = config.namespaces.setdefault(namespace, Namespace(namespace))
-        self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers, )))
+        self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers,)))  # type: ignore
         try:
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args)), args))
         except StopIteration:
@@ -214,7 +213,7 @@ class Alconna(CommandNode):
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = np_config.name
         self.options.extend([HelpOption, ShortcutOption, CompletionOption])
-        self.analyser_type = analyser_type or self.__class__.global_analyser_type
+        self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
         self.behaviors = behaviors or self.__class__.global_behaviors.copy()
         self.behaviors.insert(0, ActionHandler())
         self.formatter_type = formatter_type or self.__class__.global_formatter_type
@@ -227,7 +226,7 @@ class Alconna(CommandNode):
             action=action,
             separators=separators or np_config.separators.copy(),  # type: ignore
         )
-        self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
+        self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
         self._deprecate(kwargs)
         self._hash = self._calc_hash()
         command_manager.register(self)
@@ -256,13 +255,13 @@ class Alconna(CommandNode):
                 )
             if key == "help_text":
                 warnings.warn("'help_text' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.meta.description = value
+                self.meta.description = str(value)
             if key == "raise_exception":
                 warnings.warn("'raise_exception' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.meta.raise_exception = value
+                self.meta.raise_exception = bool(value)
             if key == "is_fuzzy_match":
                 warnings.warn("'is_fuzzy_match' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.meta.fuzzy_match = value
+                self.meta.fuzzy_match = bool(value)
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
         """
@@ -308,7 +307,7 @@ class Alconna(CommandNode):
         cls.custom_types = types
 
     def shortcut(
-        self, short_key: str, command: Optional[TDataCollection] = None, delete: bool = False
+            self, short_key: str, command: Optional[TDataCollection] = None, delete: bool = False
     ):
         """添加快捷命令"""
         try:
@@ -350,26 +349,26 @@ class Alconna(CommandNode):
 
     @overload
     def parse(
-        self, message: TDataCollection, duplication: Type[T_Duplication], static: bool = True, interrupt: bool = False
+        self, message, duplication: Type[T_Duplication], static=True, interrupt=False
     ) -> T_Duplication:
         ...
 
     @overload
     def parse(
-        self, message: TDataCollection, duplication=None, static: bool = True, interrupt: bool = False
+        self, message: TDataCollection, duplication=None, static=True, interrupt=False
     ) -> Arpamar[TDataCollection]:
         ...
 
     @overload
     def parse(
-        self, message: TDataCollection, duplication=..., static: bool = True, interrupt: bool = True
-    ) -> TAnalyser:
+        self, message, duplication=None, static=True, interrupt=True
+    ) -> Analyser:
         ...
 
     def parse(
-        self, message: TDataCollection, duplication: Optional[Type[T_Duplication]] = None,
-        static: bool = True, interrupt: bool = False
-    ):
+            self, message: TDataCollection, duplication: Optional[Type[T_Duplication]] = None,
+            static: bool = True, interrupt: bool = False
+    ) -> Union[Analyser, Arpamar[TDataCollection], T_Duplication]:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         analyser = command_manager.require(self) if static else compile(self)
         analyser.process(message)
