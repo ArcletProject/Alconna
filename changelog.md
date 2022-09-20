@@ -1,4 +1,4 @@
-# Alconna 1.23.x:
+# Alconna 1.3.x:
 
 ## Alconna 1.3.1
 1. 调整lang config
