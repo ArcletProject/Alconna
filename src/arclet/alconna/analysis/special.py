@@ -52,9 +52,9 @@ def _handle_unit(analyser: "Analyser", trigger: ArgUnit):
                 raise_exception=analyser.raise_exception
             )
         target = analyser.release(recover=True)[-2]
-        o = "\n> ".join(list(filter(lambda x: target in x, comp)) or comp)
+        o = "\n- ".join(list(filter(lambda x: target in x, comp)) or comp)
         return output_manager.get(
-            analyser.alconna.name, lambda: f"{config.lang.common_completion_arg}\n> {o}"
+            analyser.alconna.name, lambda: f"{config.lang.common_completion_arg}\n- {o}"
         ).handle(raise_exception=analyser.raise_exception)
     default = trigger["field"].default_gen
     o = f"{trigger['value']}{'' if default is None else f' default:({None if default is Empty else default})'}"
@@ -82,7 +82,7 @@ def _handle_none(analyser: "Analyser", got: List[str]):
     if not analyser.main_args and analyser.self_args.argument:
         unit = list(analyser.self_args.argument.values())[0]
         if gen := unit["field"].completion:
-            res.append(comp if isinstance(comp := gen(), str) else "\n> ".join(comp))
+            res.append(comp if isinstance(comp := gen(), str) else "\n- ".join(comp))
         else:
             default = unit["field"].default_gen
             res.append(
@@ -107,8 +107,8 @@ def handle_completion(
     elif isinstance(trigger, Subcommand):
         output_manager.get(
             analyser.alconna.name,
-            lambda: f"{config.lang.common_completion_node}\n> "
-            + "\n> ".join(trigger.sub_params),
+            lambda: f"{config.lang.common_completion_node}\n- "
+            + "\n- ".join(trigger.sub_params),
         ).handle(raise_exception=analyser.raise_exception)
     elif isinstance(trigger, str):
         res = list(filter(lambda x: trigger in x, analyser.command_params))
@@ -122,8 +122,8 @@ def handle_completion(
         out = [i for i in res if i not in (*analyser.options.keys(), *analyser.subcommands.keys(), *analyser.sentences)]
         output_manager.get(
             analyser.alconna.name,
-            lambda: f"{config.lang.common_completion_node}\n> "
-            + "\n> ".join(out or res),
+            lambda: f"{config.lang.common_completion_node}\n- "
+            + "\n- ".join(out or res),
         ).handle(raise_exception=analyser.raise_exception)
     else:
         got = [*analyser.options.keys(), *analyser.subcommands.keys(), *analyser.sentences]
@@ -132,7 +132,7 @@ def handle_completion(
             out = [i for i in _res if i not in got]
             output_manager.get(
                 analyser.alconna.name,
-                lambda: f"{config.lang.common_completion_node}\n> " + "\n> ".join(out or _res),
+                lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(out or _res),
             ).handle(raise_exception=analyser.raise_exception)
         else:
             res = (
@@ -142,6 +142,6 @@ def handle_completion(
             )
             output_manager.get(
                 analyser.alconna.name,
-                lambda: f"{config.lang.common_completion_node}\n> " + "\n> ".join(set(res)),
+                lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(set(res)),
             ).handle(raise_exception=analyser.raise_exception)
     return analyser.export(fail=True, exception='NoneType: None\n')  # type: ignore

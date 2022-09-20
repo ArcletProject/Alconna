@@ -1,4 +1,9 @@
-# Alconna 1.3.x:
+# Alconna 1.23.x:
+
+## Alconna 1.3.1
+1. 调整lang config
+2. 修改 help text 的 bug
+3. 调整 completion 样式
 
 ## Alconna 1.3.0
 1. 修复 bugs

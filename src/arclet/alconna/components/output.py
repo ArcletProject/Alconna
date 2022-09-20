@@ -125,7 +125,7 @@ class TextFormatter:
                 hds.remove(command.name)  # type: ignore
             return Trace(
                 {
-                    'name': command.name, 'header': hds or [''], 'description': command.meta.description,
+                    'name': command.name, 'header': hds or [], 'description': command.meta.description,
                     'usage': command.meta.usage, 'example': command.meta.example
                 },
                 command.args, command.separators, command.options
@@ -151,24 +151,28 @@ class TextFormatter:
                 if text in _cache:
                     _cache = _cache[text]
                     _parts.append(text)
-                if not isinstance(_cache, dict):
-                    break
-            else:
-                return self.format(trace)
+                if not _parts:
+                    return self.format(trace)
             if isinstance(_cache, dict):
+                _opts, _visited = [], set()
+                for k, i in _cache.items():
+                    if isinstance(i, dict):
+                        _opts.append(Option(k, requires=_parts))
+                    elif i not in _visited:
+                        _opts.append(i)
+                        _visited.add(i)
                 return self.format(Trace(
-                    {"name": _parts[-1], 'header': [''], 'description': _parts[-1]}, Args(), trace.separators,
-                    [Option(k, requires=_parts) if isinstance(i, dict) else i for k, i in _cache.items()]
+                    {"name": _parts[-1], 'header': [], 'description': _parts[-1]}, Args(), trace.separators,
+                    _opts
                 ))
             if isinstance(_cache, Option):
-                _hdr = [i for i in _cache.aliases if i != _cache.name]
                 return self.format(Trace(
-                    {"name": _cache.name, "header": _hdr or [""], "description": _cache.help_text}, _cache.args,
+                    {"name": "", "header": list(_cache.aliases), "description": _cache.help_text}, _cache.args,
                     _cache.separators, []
                 ))
             if isinstance(_cache, Subcommand):
                 return self.format(Trace(
-                    {"name": _cache.name, "header": [""], "description": _cache.help_text}, _cache.args,
+                    {"name": _cache.name, "header": [], "description": _cache.help_text}, _cache.args,
                     _cache.separators, _cache.options  # type: ignore
                 ))
             return self.format(trace)
