@@ -1,5 +1,5 @@
 {
-  "default": "zh-CN",
+  "$default": "zh-CN",
   "zh-CN": {
     "common.fuzzy_matched": "无法解析 {target}。您想要输入的是不是 \"{source}\" ?",
     "common.custom_type_error": "自定义参数类型传入的不是类型而是 {target}, 这是有意而为之的吗?",

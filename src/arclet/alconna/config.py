@@ -28,16 +28,16 @@ class _LangConfig:
 
     def __init__(self):
         self.__file = json.load(self.path.open("r", encoding="utf-8"))
-        self.__config: Dict[str, str] = self.__file[self.__file["default"]]
+        self.__config: Dict[str, str] = self.__file[self.__file["$default"]]
 
     @property
     def types(self):
-        return [key for key in self.__file if key != "default"]
+        return [key for key in self.__file if key != "$default"]
 
     def change_type(self, name: str):
-        if name != "default" and name in self.__file:
+        if name != "$default" and name in self.__file:
             self.__config = self.__file[name]
-            self.__file["default"] = name
+            self.__file["$default"] = name
             json.dump(
                 self.__file,
                 self.path.open("w", encoding="utf-8"),
