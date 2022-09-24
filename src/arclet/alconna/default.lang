@@ -64,7 +64,7 @@
   },
   "en-US": {
     "common.fuzzy_matched": "{target} is not matched. Do you mean \"{source}\"?",
-    "common.custom_type_error": "自定义参数类型传入的不是类型而是 {target}, 这是有意而为之的吗?",
+    "common.custom_type_error": "The custom parameter type {target} can't be a type.",
     "common.completion_arg": "suggest next arg:",
     "common.completion_node": "next input maybe:",
     "lang.name_error": "{target} is not a valid Alconna Lang Config name",
