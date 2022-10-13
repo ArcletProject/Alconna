@@ -69,6 +69,12 @@ def test_from_callable():
     assert analyse_option(opt4, "foo 123 True") == ("foo", {"args": {"bar": 123, "baz": True}, "value": None})
 
 
+def test_add():
+    assert (Option("abcd") + Args.foo[int]).nargs == 1
+    assert len((Option("foo") + Option("bar") + "baz").options) == 2
+
+
 if __name__ == '__main__':
     import pytest
+
     pytest.main([__file__, "-vs"])

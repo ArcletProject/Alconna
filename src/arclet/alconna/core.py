@@ -392,8 +392,13 @@ class Alconna(CommandNode):
 
     def __add__(self, other):
         command_manager.delete(self)
-        if isinstance(other, Option):
+        if isinstance(other, CommandMeta):
+            self.meta = other
+        elif isinstance(other, Option):
             self.options.append(other)
+        elif isinstance(other, Args):
+            self.args += other
+            self.nargs = len(self.args)
         elif isinstance(other, str):
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))

@@ -1,4 +1,7 @@
-# Alconna 1.23.x:
+# Alconna 1.3.x:
+
+## Alconna 1.3.2
+1. 添加通过“+”以组合字符串与选项或者子命令等隐式构建命令的方法
 
 ## Alconna 1.3.1
 1. 调整lang config

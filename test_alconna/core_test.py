@@ -181,6 +181,8 @@ def test_alconna_add_option():
     assert len(alc8.options) == 5
     alc8_1 = Alconna("core8_1") + "foo/bar:str" + "baz"
     assert len(alc8_1.options) == 5
+    alc8_2 = "core8_2" + Option("baz")
+    assert len(alc8_2.options) == 4
 
 
 def test_alconna_action():
@@ -317,18 +319,14 @@ def test_args_notice():
 
 
 def test_completion():
-    alc20 = Alconna(
-        "core20",
-        Args["test", int, ArgField(default=1, completion=lambda: "try -1 ?")],
-        Option("fool"),
-        Option(
+    alc20 = (
+        "core20" + Option("fool") + Option(
             "foo",
             Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
-        ),
-        Option(
+        ) + Option(
             "off",
             Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
-        )
+        ) + Args["test", int, ArgField(1, completion=lambda: "try -1 ?")]
     )
 
     alc20.parse("core20 --comp")

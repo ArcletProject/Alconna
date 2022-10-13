@@ -4,14 +4,14 @@ build-backend = "pdm.pep517.api"
 
 [project]
 name = "arclet-alconna"
-version = "1.3.1"
+version = "1.3.2"
 description = "A High-performance, Generality, Humane Command Line Arguments Parser Library."
 authors = [
     {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},
 ]
 dependencies = [
-    "typing-extensions~=4.3.0",
-    "nepattern>=0.2.0",
+    "typing-extensions~=4.4.0",
+    "nepattern>=0.3.0",
 ]
 requires-python = ">=3.8"
 readme = "README-EN.md"
@@ -27,6 +27,7 @@ keywords = [
     "optparse"
 ]
 classifiers=[
+    "Typing :: Typed",
     "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.8",
@@ -40,10 +41,10 @@ documentation = "https://arcletproject.github.io/docs/alconna/tutorial"
 repository = "https://github.com/ArcletProject/Alconna"
 
 [project.optional-dependencies]
-full = ["arclet-alconna-tools"]
-cli = ["arclet-alconna-cli"]
-graia = ["arclet-alconna-graia"]
-all = ["arclet-alconna-cli", "arclet-alconna-graia", "arclet-alconna-tools"]
+full = ["arclet-alconna-tools>=0.2.0"]
+cli = ["arclet-alconna-cli>=0.3.0"]
+graia = ["arclet-alconna-graia>=0.8.0"]
+all = ["arclet-alconna-cli>=0.3.0", "arclet-alconna-graia>=0.8.0", "arclet-alconna-tools>=0.2.0"]
 
 [tool.pdm]
 
@@ -53,8 +54,8 @@ includes = ["src/arclet"]
 [tool.pdm.dev-dependencies]
 dev = [
     "pytest~=7.1.3",
-    "coverage~=6.4.4",
-    "pydeps~=1.10.12"
+    "coverage~=6.5.0",
+    "pydeps~=1.10.24"
 ]
 
 [tool.pylint.BASIC]

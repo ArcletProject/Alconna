@@ -352,6 +352,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     def __add__(self, other) -> "Args":
         return self.__merge__(other)
 
+    def __iadd__(self, other) -> "Args":
+        return self.__merge__(other)
+
     def __lshift__(self, other) -> "Args":
         return self.__merge__(other)
 
