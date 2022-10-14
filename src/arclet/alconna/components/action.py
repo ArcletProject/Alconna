@@ -122,14 +122,13 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
         res[kw_key] = kwargs
     if var_key:
         res[var_key] = varargs
-    args.update(res)
+    return res
 
 
 def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, source: 'Alconna'):
     if not data['args']:
-        data['value'] = func.handle({}, [], {}, source.meta.raise_exception)
-        return
-    _exec_args(data['args'], func, source)
+        return "value", func.handle({}, [], {}, source.meta.raise_exception)
+    return "args", _exec_args(data['args'], func, source)
 
 
 class ActionHandler(ArpamarBehavior):
@@ -138,11 +137,14 @@ class ActionHandler(ArpamarBehavior):
         source = interface.source
 
         if action := source.action_list['main']:
-            _exec_args(interface.main_args, action, source)
+            interface.update("main_args", _exec_args(interface.main_args, action, source))
 
         for path, action in source.action_list['options'].items():
             if d := interface.query(path, None):
-                _exec(d, action, source)  # type: ignore
+                end, value = _exec(d, action, source)
+                interface.update(f"{path}.{end}", value)  # type: ignore
+
         for path, action in source.action_list['subcommands'].items():
             if d := interface.query(path, None):
-                _exec(d, action, source)  # type: ignore
+                end, value = _exec(d, action, source)
+                interface.update(f"{path}.{end}", value)  # type: ignore

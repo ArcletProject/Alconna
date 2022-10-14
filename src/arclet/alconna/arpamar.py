@@ -1,4 +1,5 @@
-from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload, Generic
+from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload, Generic, Mapping
+from types import MappingProxyType
 from contextlib import suppress
 from nepattern import Empty
 from .typing import TDataCollection
@@ -194,20 +195,20 @@ class Arpamar(Generic[TDataCollection]):
         return None, prefix
 
     @overload
-    def query(self, path: str) -> Union[Dict[str, Any], Any, None]:
+    def query(self, path: str) -> Union[Mapping[str, Any], Any, None]:
         ...
 
     @overload
-    def query(self, path: str, default: T) -> Union[T, Dict[str, Any], Any]:
+    def query(self, path: str, default: T) -> Union[T, Mapping[str, Any], Any]:
         ...
 
-    def query(self, path: str, default: Optional[T] = None) -> Union[Any, Dict[str, Any], T, None]:
+    def query(self, path: str, default: Optional[T] = None) -> Union[Any, Mapping[str, Any], T, None]:
         """根据path查询值"""
         cache, endpoint = self.__require__(path.split('.'))
         if cache is None:
             return default
         if not endpoint:
-            return cache if cache is not None else default
+            return MappingProxyType(cache) if cache is not None else default
         return cache.get(endpoint, default)
 
     def update(self, path: str, value: Any):
@@ -223,17 +224,17 @@ class Arpamar(Generic[TDataCollection]):
             cache.update(value)
             self._record.update([f"{path}.{k}" for k in value])
 
-    def query_with(self, arg_type: Type[T], name: Optional[str] = None, default: Optional[T] = None) -> Optional[T]:
+    def query_with(self, arg_type: Type[T], path: Optional[str] = None, default: Optional[T] = None) -> Optional[T]:
         """根据类型查询参数"""
-        if name:
-            return res if isinstance(res := self.query(name, Empty), arg_type) else default
+        if path:
+            return res if isinstance(res := self.query(path, Empty), arg_type) else default
         with suppress(IndexError):
             return [v for v in self.all_matched_args.values() if isinstance(v, arg_type)][0]
         return default
 
-    def find(self, name: str) -> bool:
-        """查询是否存在"""
-        return any([name in self.components, name in self.main_args, name in self.other_args])
+    def find(self, path: str) -> bool:
+        """查询路径是否存在"""
+        return self.query(path, Empty) != Empty
 
     def clean(self):
         if not self._record:

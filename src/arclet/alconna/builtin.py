@@ -4,7 +4,7 @@ from .components.action import ArgAction
 from .components.behavior import ArpamarBehavior
 from .exceptions import BehaveCancelled
 
-__all__ = ["set_default", "store_value", "version"]
+__all__ = ["set_default", "store_value", "version", "store_true", "store_false"]
 
 
 class _StoreValue(ArgAction):
@@ -20,6 +20,10 @@ class _StoreValue(ArgAction):
 def store_value(value: Any):
     """存储一个值"""
     return _StoreValue(value)
+
+
+store_true = store_value(True)
+store_false = store_value(False)
 
 
 if TYPE_CHECKING:
