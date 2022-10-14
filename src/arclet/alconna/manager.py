@@ -248,9 +248,7 @@ class CommandManager(metaclass=Singleton):
             max_length: 单个页面展示的最大长度
             page: 当前页码
         """
-        header = header or config.lang.manager_help_header
         pages = pages or config.lang.manager_help_pages
-        footer = footer or config.lang.manager_help_footer
         cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
 
         if max_length < 1:
@@ -275,6 +273,11 @@ class CommandManager(metaclass=Singleton):
                 f" - {cmd.name} : {cmd.meta.description}"
                 for cmd in cmds[(page - 1) * max_length: page * max_length]
             )
+        help_names = set()
+        for i in cmds:
+            help_names.update(i.namespace_config.builtin_option_name['help'])
+        header = header or config.lang.manager_help_header
+        footer = footer or config.lang.manager_help_footer.format(help="|".join(help_names))
         return f"{header}\n{command_string}\n{footer}"
 
     def all_command_raw_help(self, namespace: Optional[Union[str, Namespace]] = None) -> Dict[str, 'CommandMeta']:

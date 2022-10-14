@@ -2,18 +2,43 @@ import asyncio
 import json
 from pathlib import Path
 from contextlib import contextmanager
-from typing import Union, Dict, Final, Optional, Set, List, Tuple, ContextManager
+from typing import (
+    Union,
+    Dict,
+    Final,
+    Optional,
+    Set,
+    List,
+    Tuple,
+    ContextManager,
+    TypedDict,
+)
 from dataclasses import dataclass, field
+
+
+class OptionNames(TypedDict):
+    help: Set[str]
+    shortcut: Set[str]
+    completion: Set[str]
 
 
 @dataclass
 class Namespace:
     name: str
-    headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = field(default_factory=list)
+    headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = field(
+        default_factory=list
+    )
     separators: Set[str] = field(default_factory=lambda: set(" "))
     fuzzy_match: bool = field(default=False)
     raise_exception: bool = field(default=False)
     enable_message_cache: bool = field(default=True)
+    builtin_option_name: OptionNames = field(
+        default_factory=lambda: {
+            "help": {"--help", "-h"},
+            "shortcut": {"--shortcut", "-sct"},
+            "completion": {"--comp", "-cp"},
+        }
+    )
 
     def __eq__(self, other):
         return isinstance(other, Namespace) and other.name == self.name
@@ -82,7 +107,9 @@ class _AlconnaConfig:
     message_max_cache: int = 100
     fuzzy_threshold: float = 0.6
     _default_namespace = "Alconna"
-    namespaces: Dict[str, Namespace] = {_default_namespace: Namespace(_default_namespace)}
+    namespaces: Dict[str, Namespace] = {
+        _default_namespace: Namespace(_default_namespace)
+    }
 
     @property
     def default_namespace(self):

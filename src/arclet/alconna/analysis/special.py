@@ -2,11 +2,10 @@ from typing import TYPE_CHECKING, Union, List
 from nepattern import Empty
 from ..components.output import output_manager
 from ..base import Subcommand, Option
-from ..args import ArgUnit
-from ..builtin import ShortcutOption
+from ..args import ArgUnit, Args
 from ..config import config
 from ..exceptions import ParamsUnmatched
-from .parts import analyse_option
+from .parts import analyse_args
 
 if TYPE_CHECKING:
     from .analyser import Analyser
@@ -14,7 +13,9 @@ if TYPE_CHECKING:
 
 def handle_help(analyser: "Analyser"):
     analyser.current_index, analyser.content_index = analyser.head_pos
-    _help_param = [str(i) for i in analyser.release() if i not in {"-h", "--help"}]
+    _help_param = [
+        str(i) for i in analyser.release() if i not in analyser.alconna.namespace_config.builtin_option_name['help']
+    ]
 
     def _get_help():
         formatter = analyser.alconna.formatter_type(analyser.alconna)
@@ -27,7 +28,8 @@ def handle_help(analyser: "Analyser"):
 
 
 def handle_shortcut(analyser: "Analyser"):
-    opt_v = analyse_option(analyser, ShortcutOption)[1]["args"]
+    analyser.popitem()
+    opt_v = analyse_args(analyser, Args["delete;O", "delete"]["name", str]["command", str, "_"])
     try:
         msg = analyser.alconna.shortcut(
             opt_v["name"],
@@ -89,7 +91,7 @@ def _handle_none(analyser: "Analyser", got: List[str]):
                 f"{unit['value']}{'' if default is None else f' ({None if default is Empty else default})'}"
             )
     for opt in filter(
-        lambda x: x.name not in ("--shortcut", "--comp"),
+        lambda x: x.name not in analyser.alconna.namespace_config.builtin_option_name['completion'],
         analyser.alconna.options,
     ):
         if opt.requires and all(opt.requires[0] not in i for i in got):

@@ -8,7 +8,6 @@ from .config import config, Namespace
 from .analysis.base import compile
 from .args import Args
 from .base import CommandNode, Option, Subcommand
-from .builtin import HelpOption, ShortcutOption, CompletionOption
 from .typing import TDataCollection
 from .manager import command_manager
 from .arpamar import Arpamar
@@ -212,7 +211,23 @@ class Alconna(CommandNode):
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = np_config.name
-        self.options.extend([HelpOption, ShortcutOption, CompletionOption])
+        self.options.extend(
+            [
+                Option(
+                    "|".join(np_config.builtin_option_name['help']),
+                    help_text=config.lang.builtin_option_help
+                ),
+                Option(
+                    "|".join(np_config.builtin_option_name['shortcut']),
+                    Args["delete;O", "delete"]["name", str]["command", str, "_"],
+                    help_text=config.lang.builtin_option_shortcut
+                ),
+                Option(
+                    "|".join(np_config.builtin_option_name['completion']),
+                    help_text=config.lang.builtin_option_completion
+                )
+            ]
+        )
         self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
         self.behaviors = behaviors or self.__class__.global_behaviors.copy()
         self.behaviors.insert(0, ActionHandler())
@@ -247,7 +262,23 @@ class Alconna(CommandNode):
             if key == "options":
                 warnings.warn("'options' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.options = value
-                self.options.extend([HelpOption, ShortcutOption, CompletionOption])
+                self.options.extend(
+                    [
+                        Option(
+                            "|".join(self.namespace_config.builtin_option_name['help']),
+                            help_text=config.lang.builtin_option_help
+                        ),
+                        Option(
+                            "|".join(self.namespace_config.builtin_option_name['shortcut']),
+                            Args["delete;O", "delete"]["name", str]["command", str, "_"],
+                            help_text=config.lang.builtin_option_shortcut
+                        ),
+                        Option(
+                            "|".join(self.namespace_config.builtin_option_name['completion']),
+                            help_text=config.lang.builtin_option_completion
+                        )
+                    ]
+                )
             if key == "main_args":
                 warnings.warn("'main_args' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.args = value if isinstance(value, Args) else Args.from_string_list(
@@ -287,6 +318,19 @@ class Alconna(CommandNode):
         if isinstance(namespace, str):
             namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.namespace = namespace.name
+        self.options[0] = Option(
+            "|".join(namespace.builtin_option_name['help']),
+            help_text=config.lang.builtin_option_help
+        )
+        self.options[1] = Option(
+            "|".join(namespace.builtin_option_name['shortcut']),
+            Args["delete;O", "delete"]["name", str]["command", str, "_"],
+            help_text=config.lang.builtin_option_shortcut
+        )
+        self.options[2] = Option(
+            "|".join(namespace.builtin_option_name['completion']),
+            help_text=config.lang.builtin_option_completion
+        )
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self

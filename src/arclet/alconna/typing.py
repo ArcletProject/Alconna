@@ -29,7 +29,8 @@ class MultiArg(BasePattern):
         else:
             alias = f"**{{{base}}}[:{length}]" if length else f"**{{{base}}}"
         super().__init__(
-            base.pattern, base.model, base.origin, base.converter, alias, base.previous, base.accepts, base.validators
+            base.pattern, base.model, base.origin, base.converter, alias,
+            base.previous, base.pattern_accepts + base.type_accepts, base.validators  # type: ignore
         )
 
     def __repr__(self):

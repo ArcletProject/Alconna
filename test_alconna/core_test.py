@@ -8,6 +8,7 @@ from arclet.alconna import (
     AllParam,
     CommandMeta,
 )
+from nepattern import IP, URL
 
 
 def test_alconna_create():
@@ -33,7 +34,7 @@ def test_alconna_multi_match():
         ),
         Option("-n|--num", Args["count", int, 123], help_text="输入数字"),
         Option("-u", Args(id=int), help_text="输入需要At的用户"),
-        Args["IP", "ip"],
+        Args["IP", IP],
         meta=CommandMeta(description="测试指令1")
     )
     assert len(alc1.options) == 6
@@ -65,7 +66,7 @@ def test_formatter():
             "install",
             [
                 Option("--upgrade", help_text="升级包"),
-                Option("-i|--index-url", Args["url", "url"]),
+                Option("-i|--index-url", Args["url", URL]),
             ],
             Args["pak", str],
             help_text="安装一个包",
@@ -177,7 +178,7 @@ def test_alconna_namespace():
 
 
 def test_alconna_add_option():
-    alc8 = Alconna("core8") + Option("foo", Args["foo", str]) + Option("bar")
+    alc8 = "core8" + Option("foo", Args["foo", str]) + Option("bar")
     assert len(alc8.options) == 5
     alc8_1 = Alconna("core8_1") + "foo/bar:str" + "baz"
     assert len(alc8_1.options) == 5

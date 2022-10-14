@@ -113,7 +113,7 @@ def test_kwonly():
 
 
 def test_pattern():
-    test_type = BasePattern("(.+?).py", PatternModel.REGEX_CONVERT, list, lambda x: x.split("/"), "test")
+    test_type = BasePattern("(.+?).py", PatternModel.REGEX_CONVERT, list, lambda _, x: x.split("/"), "test")
     arg15 = Args().add_argument("bar", value=test_type)
     assert analyse_args(arg15, 'abc.py') == {'bar': ['abc']}
     assert analyse_args(arg15, 'abc/def.py') == {'bar': ['abc', 'def']}
