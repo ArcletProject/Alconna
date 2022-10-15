@@ -287,6 +287,10 @@ def test_shortcut():
     res = alc16.parse("TEST")
     assert res.matched is True
     assert res.foo == 432
+    alc16.parse("core16 --shortcut TEST1 'core16 123'")
+    res1 = alc16.parse("TEST1")
+    assert res1.matched is True
+    assert res1.foo == 123
 
 
 def test_help():

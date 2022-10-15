@@ -1,7 +1,10 @@
 # Alconna 1.3.x:
 
 ## Alconna 1.3.2
-1. 添加通过“+”以组合字符串与选项或者子命令等隐式构建命令的方法
+1. 添加通过"+"以组合字符串与选项或者子命令等隐式构建命令的方法
+2. 允许自定义内建选项的名称，比如改"--help"为"帮助"
+3. `Arpamar.find` 现在可以用 query_path 了
+4. `Arpamar.query` 现在返回的是MappingProxyType, 若需要修改path的值请用`Arpamar.update`
 
 ## Alconna 1.3.1
 1. 调整lang config
