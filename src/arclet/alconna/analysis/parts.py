@@ -113,7 +113,7 @@ def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
         default_val = arg['field'].default_gen
         optional = arg['optional']
         may_arg, _str = analyser.popitem(seps)
-        if may_arg in ("--comp", "-cp"):
+        if may_arg in analyser.alconna.namespace_config.builtin_option_name['completion']:
             raise CompletionTriggered(arg)
         if not may_arg or (_str and may_arg in analyser.param_ids):
             analyser.pushback(may_arg)
@@ -274,7 +274,7 @@ def analyse_subcommand(analyser: 'Analyser', param: Subcommand) -> Tuple[str, Su
     args = False
     for _ in param.sub_part_len:
         _text, _str = analyser.popitem(param.separators, move=False)
-        if _text in ("--comp", "-cp"):
+        if _text in analyser.alconna.namespace_config.builtin_option_name['completion']:
             raise CompletionTriggered(param)
         _param = _param if (_param := (param.sub_params.get(_text) if _str and _text else Ellipsis)) else (
             analyse_unmatch_params(param.sub_params.values(), _text, analyser.fuzzy_match)

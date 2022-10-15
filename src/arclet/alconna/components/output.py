@@ -118,8 +118,12 @@ class TextFormatter:
 
     def __init__(self, base: Union['Alconna', 'AlconnaGroup']):
         self.data = []
+        self.ignore_names = set()
 
         def _handle(command: 'Alconna'):
+            self.ignore_names.update(command.namespace_config.builtin_option_name['help'])
+            self.ignore_names.update(command.namespace_config.builtin_option_name['shortcut'])
+            self.ignore_names.update(command.namespace_config.builtin_option_name['completion'])
             hds = command.headers.copy()
             if command.name in hds:
                 hds.remove(command.name)  # type: ignore
@@ -218,7 +222,7 @@ class TextFormatter:
         help_string = f"\n{desc}" if (desc := root.get('description')) else ""
         usage = f"\n用法:\n{usage}" if (usage := root.get('usage')) else ""
         example = f"\n使用示例:\n{example}" if (example := root.get('example')) else ""
-        headers = f"[{''.join(map(str, headers))}]" if (headers := root.get('header', [''])) != [''] else ""
+        headers = f"[{''.join(map(str, headers))}]" if (headers := root.get('header', [])) != [] else ""
         cmd = f"{headers}{root.get('name', '')}"
         command_string = cmd or (root['name'] + tuple(separators)[0])
         return f"{command_string} %s{help_string}{usage}\n%s{example}"
@@ -249,7 +253,7 @@ class TextFormatter:
         """子节点列表的描述"""
         option_string = "".join(
             self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
-            if opt.name not in {"--help", "--shortcut", "--comp"}
+            if opt.name not in self.ignore_names
         )
         subcommand_string = "".join(self.part(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts))
         option_help = "可用的选项有:\n" if option_string else ""

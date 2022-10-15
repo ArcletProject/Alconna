@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
-from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDict, Set, FrozenSet
+from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDict, Set, FrozenSet, overload
 
 from .args import Args
 from .exceptions import InvalidParam
@@ -116,6 +116,33 @@ class Option(CommandNode):
             " ".join(rest) + (" " if rest else "") + name, args, dest, action, separators, help_text, requires
         )
 
+    @overload
+    def __add__(self, other: "Option") -> "Subcommand":
+        ...
+
+    @overload
+    def __add__(self, other: Args) -> "Option":
+        ...
+
+    def __add__(self, other):
+        if isinstance(other, Option):
+            return Subcommand(
+                self.name, [other], self.args, self.dest, self.action,
+                self.separators, self.help_text, self.requires
+            )
+        if isinstance(other, Args):
+            self.args += other
+            self.nargs = len(self.args)
+            self._hash = self._calc_hash()
+            return self
+        raise TypeError(f"unsupported operand type(s) for +: 'Option' and '{other.__class__.__name__}'")
+
+    def __radd__(self, other):
+        if isinstance(other, str):
+            from .core import Alconna
+            return Alconna(other, self)
+        raise TypeError(f"unsupported operand type(s) for +: '{other.__class__.__name__}' and 'Option'")
+
 
 class Subcommand(CommandNode):
     """子命令, 次于主命令, 可解析 SubOption"""
@@ -136,6 +163,24 @@ class Subcommand(CommandNode):
         super().__init__(name, args, dest, action, separators, help_text, requires)
         self.sub_params = {}
         self.sub_part_len = range(self.nargs)
+
+    def __add__(self, other):
+        if isinstance(other, (Option, str)):
+            self.options.append(Option(other) if isinstance(other, str) else other)
+            self._hash = self._calc_hash()
+            return self
+        if isinstance(other, Args):
+            self.args += other
+            self.nargs = len(self.args)
+            self._hash = self._calc_hash()
+            return self
+        raise TypeError(f"unsupported operand type(s) for +: 'Subcommand' and '{other.__class__.__name__}'")
+
+    def __radd__(self, other):
+        if isinstance(other, str):
+            from .core import Alconna
+            return Alconna(other, self)
+        raise TypeError(f"unsupported operand type(s) for +: '{other.__class__.__name__}' and 'Subcommand'")
 
 
 @dataclass

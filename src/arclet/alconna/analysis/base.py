@@ -7,6 +7,7 @@ from .parts import analyse_args as ala, analyse_header as alh, analyse_option as
 from ..typing import DataCollection, TDataCollection
 from ..base import Option, Subcommand, Sentence
 from ..args import Args
+from ..config import config
 
 if TYPE_CHECKING:
     from ..arpamar import Arpamar
@@ -72,6 +73,7 @@ class _DummyAnalyser(Analyser):
     class _DummyALC:
         options = []
         meta = namedtuple("Meta", ["keep_crlf", "fuzzy_match"])(False, False)
+        namespace_config = config.default_namespace
 
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore

@@ -8,6 +8,7 @@ from arclet.alconna import (
     AllParam,
     CommandMeta,
 )
+from nepattern import IP, URL
 
 
 def test_alconna_create():
@@ -33,7 +34,7 @@ def test_alconna_multi_match():
         ),
         Option("-n|--num", Args["count", int, 123], help_text="输入数字"),
         Option("-u", Args(id=int), help_text="输入需要At的用户"),
-        Args["IP", "ip"],
+        Args["IP", IP],
         meta=CommandMeta(description="测试指令1")
     )
     assert len(alc1.options) == 6
@@ -65,7 +66,7 @@ def test_formatter():
             "install",
             [
                 Option("--upgrade", help_text="升级包"),
-                Option("-i|--index-url", Args["url", "url"]),
+                Option("-i|--index-url", Args["url", URL]),
             ],
             Args["pak", str],
             help_text="安装一个包",
@@ -177,10 +178,12 @@ def test_alconna_namespace():
 
 
 def test_alconna_add_option():
-    alc8 = Alconna("core8") + Option("foo", Args["foo", str]) + Option("bar")
+    alc8 = "core8" + Option("foo", Args["foo", str]) + Option("bar")
     assert len(alc8.options) == 5
     alc8_1 = Alconna("core8_1") + "foo/bar:str" + "baz"
     assert len(alc8_1.options) == 5
+    alc8_2 = "core8_2" + Option("baz")
+    assert len(alc8_2.options) == 4
 
 
 def test_alconna_action():
@@ -284,6 +287,10 @@ def test_shortcut():
     res = alc16.parse("TEST")
     assert res.matched is True
     assert res.foo == 432
+    alc16.parse("core16 --shortcut TEST1 'core16 123'")
+    res1 = alc16.parse("TEST1")
+    assert res1.matched is True
+    assert res1.foo == 123
 
 
 def test_help():
@@ -317,18 +324,14 @@ def test_args_notice():
 
 
 def test_completion():
-    alc20 = Alconna(
-        "core20",
-        Args["test", int, ArgField(default=1, completion=lambda: "try -1 ?")],
-        Option("fool"),
-        Option(
+    alc20 = (
+        "core20" + Option("fool") + Option(
             "foo",
             Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
-        ),
-        Option(
+        ) + Option(
             "off",
             Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
-        )
+        ) + Args["test", int, ArgField(1, completion=lambda: "try -1 ?")]
     )
 
     alc20.parse("core20 --comp")

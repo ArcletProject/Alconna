@@ -3,17 +3,8 @@ from typing import TYPE_CHECKING, Optional, Any
 from .components.action import ArgAction
 from .components.behavior import ArpamarBehavior
 from .exceptions import BehaveCancelled
-from .base import Option
-from .args import Args
 
-__all__ = ["HelpOption", "ShortcutOption", "CompletionOption", "set_default", "store_value", "version"]
-
-HelpOption = Option("--help|-h", help_text="显示帮助信息")
-ShortcutOption = Option(
-    '--shortcut|-sct', Args["delete;O", "delete"]["name", str]["command", str, "_"],
-    help_text='设置快捷命令'
-)
-CompletionOption = Option("--comp|-cp", help_text="补全当前命令")
+__all__ = ["set_default", "store_value", "version", "store_true", "store_false"]
 
 
 class _StoreValue(ArgAction):
@@ -29,6 +20,10 @@ class _StoreValue(ArgAction):
 def store_value(value: Any):
     """存储一个值"""
     return _StoreValue(value)
+
+
+store_true = store_value(True)
+store_false = store_value(False)
 
 
 if TYPE_CHECKING:

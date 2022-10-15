@@ -49,7 +49,7 @@
     "manager.target_command_error": "{shortcut} 的目标命令 {target} 错误",
     "manager.help_header": "# 当前可用的命令有:",
     "manager.help_pages": "第 {current}/{total} 页",
-    "manager.help_footer": "# 输入'命令名 --help' 查看特定命令的语法",
+    "manager.help_footer": "# 输入'命令名 {help}' 查看特定命令的语法",
     "visitor.duplicate_option": "选项 {target} 已存在",
     "visitor.duplicate_subcommand": "子命令 {target} 已存在",
     "visitor.duplicate_suboption": "子命令的选项 {target} 已存在",
@@ -60,11 +60,14 @@
     "behavior.exclude_matched": "{target} 与 {other} 不能同时存在",
     "behavior.cooldown_matched": "操作过于频繁",
     "construct.decorate_error": "该行为必须在 @xxx.command() 之后",
-    "construct.function_name_error": "函数名不能以 '_' 开头"
+    "construct.function_name_error": "函数名不能以 '_' 开头",
+    "builtin.option_help": "显示帮助信息",
+    "builtin.option_shortcut": "设置快捷命令",
+    "builtin.option_completion": "补全当前命令"
   },
   "en-US": {
     "common.fuzzy_matched": "{target} is not matched. Do you mean \"{source}\"?",
-    "common.custom_type_error": "自定义参数类型传入的不是类型而是 {target}, 这是有意而为之的吗?",
+    "common.custom_type_error": "The custom parameter type {target} can't be a type.",
     "common.completion_arg": "suggest next arg:",
     "common.completion_node": "next input maybe:",
     "lang.name_error": "{target} is not a valid Alconna Lang Config name",
@@ -111,7 +114,7 @@
     "manager.target_command_error": "The target command of {shortcut} is not {target}",
     "manager.help_header": "# Following commands are available:",
     "manager.help_pages": "Page {current} of {total}",
-    "manager.help_footer": "# Invoke '$command --help' to see syntax",
+    "manager.help_footer": "# Invoke '$command {help}' to see syntax",
     "visitor.duplicate_option": "Option {target} is already exists",
     "visitor.duplicate_subcommand": "Subcommand {target} is already exists",
     "visitor.duplicate_suboption": "Option {target} of subcommand is already exists",
@@ -122,6 +125,9 @@
     "behavior.exclude_matched": "{target} and {other} cannot be both matched",
     "behavior.cooldown_matched": "Your action is too frequent",
     "construct.decorate_error": "This action must behind a @xxx.command()",
-    "construct.function_name_error": "function name can not start with '_'"
+    "construct.function_name_error": "function name can not start with '_'",
+    "builtin.option_help": "show the help information",
+    "builtin.option_shortcut": "set a shortcut command",
+    "builtin.option_completion": "give a next input suggestion of current command"
   }
 }

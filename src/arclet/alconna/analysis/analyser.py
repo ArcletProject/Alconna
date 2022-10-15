@@ -90,6 +90,12 @@ class Analyser(Generic[T_Origin]):
         self.message_cache = alconna.namespace_config.enable_message_cache
         self.param_ids = set()
         self.command_params = {}
+        self._special = {}
+        self._special.update(
+            [(i, handle_help) for i in alconna.namespace_config.builtin_option_name['help']] +
+            [(i, handle_completion) for i in alconna.namespace_config.builtin_option_name['completion']] +
+            [(i, handle_shortcut) for i in alconna.namespace_config.builtin_option_name['shortcut']]
+        )
         self.__handle_main_args__(alconna.args, alconna.nargs)
         self.__init_header__(alconna.command, alconna.headers)
         self.__init_actions__()
@@ -300,12 +306,6 @@ class Analyser(Generic[T_Origin]):
                 self.temp_token = self.generate_token(raw_data)
         return self
 
-    _special = {
-        "--help": handle_help, "-h": handle_help,
-        "--comp": handle_completion, "-cp": handle_completion,
-        "--shortcut": handle_shortcut, "-sct": handle_shortcut
-    }
-
     def analyse(
         self,
         message: Union[DataCollection[Union[str, Any]], None] = None,
@@ -380,7 +380,7 @@ class Analyser(Generic[T_Origin]):
                 return handle_completion(self, comp.args[0])
             except (ParamsUnmatched, ArgumentMissing) as e1:
                 if rest := self.release():
-                    if rest[-1] in ("--comp", "-cp"):
+                    if rest[-1] in self.alconna.namespace_config.builtin_option_name['completion']:
                         return handle_completion(self, self.context)
                     if handler := self._special.get(rest[-1]):
                         return handler(self)
@@ -401,7 +401,7 @@ class Analyser(Generic[T_Origin]):
 
         rest = self.release()
         if len(rest) > 0:
-            if rest[-1] in ("--comp", "-cp"):
+            if rest[-1] in self.alconna.namespace_config.builtin_option_name['completion']:
                 return handle_completion(self, rest[-2])
             exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.popitem(move=False)[0]))
         else:
