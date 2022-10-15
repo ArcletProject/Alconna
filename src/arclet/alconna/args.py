@@ -165,7 +165,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 de = inspect.Signature.empty
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
-                    anno = BasePattern(f"(?:-*no)?-*{name}", 3, bool, lambda x: not x.lstrip("-").startswith('no'))
+                    anno = BasePattern(f"(?:-*no)?-*{name}", 3, bool, lambda _, x: not x.lstrip("-").startswith('no'))
                 else:
                     _args.add_argument(f"${name}_key", value=f"-*{name}")
                 _args.keyword_only.append(name)
