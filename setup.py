@@ -15,7 +15,7 @@ setup(
     url="https://github.com/ArcletProject/Alconna",
     package_dir={"": "src"},
     packages=find_namespace_packages(where="src"),
-    install_requires=["typing-extensions>=4.3,<4.5", "nepattern~=0.1.2"],
+    install_requires=["typing-extensions>=4.3,<4.5", "nepattern>=0.1.2,<0.4.0"],
     extras_require={
         'graia': [
             'arclet-alconna-graia',
