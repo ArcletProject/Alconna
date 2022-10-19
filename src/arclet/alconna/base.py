@@ -7,20 +7,13 @@ from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDi
 from .args import Args
 from .exceptions import InvalidParam
 from .config import config
-from .components.action import ArgAction
+from .action import ArgAction
 
 
 class CommandNode:
     """
     命令体基类, 规定基础命令的参数
     """
-    name: str
-    dest: str
-    args: Args
-    separators: Set[str]
-    action: Optional[ArgAction]
-    help_text: str
-    requires: Union[Sequence[str], Set[str]]
 
     def __init__(
             self, name: str, args: Union[Args, str, None] = None,
@@ -30,16 +23,6 @@ class CommandNode:
             help_text: Optional[str] = None,
             requires: Optional[Union[str, Sequence[str], Set[str]]] = None
     ):
-        """
-        初始化命令节点
-
-        Args:
-            name(str): 命令节点名称
-            args(Args): 命令节点参数
-            action(ArgAction): 命令节点响应动作
-            separators(Set[str]): 命令分隔符
-            help_text(str): 命令帮助信息
-        """
         if not name:
             raise InvalidParam(config.lang.node_name_empty)
         if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
@@ -87,8 +70,6 @@ class CommandNode:
 
 class Option(CommandNode):
     """命令选项, 可以使用别名"""
-    aliases: FrozenSet[str]
-    priority: int
 
     def __init__(
             self,
@@ -146,10 +127,6 @@ class Option(CommandNode):
 
 class Subcommand(CommandNode):
     """子命令, 次于主命令, 可解析 SubOption"""
-    options: List[Option]
-    sub_params: Dict[str, Union[List[Option], 'Sentence']]
-    sub_part_len: range
-
     def __init__(
             self,
             name: str, options: Optional[List[Option]] = None, args: Union[Args, str, None] = None,

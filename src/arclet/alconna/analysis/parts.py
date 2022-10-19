@@ -8,7 +8,7 @@ from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, Co
 from ..typing import MultiArg
 from ..args import Args
 from ..base import Option, Subcommand, OptionResult, SubcommandResult, Sentence
-from ..util import levenshtein_norm, split_once
+from ..util import split_once
 from ..config import config
 
 if TYPE_CHECKING:
@@ -127,9 +127,6 @@ def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
             _kwarg = re.findall(f'^{key}=(.*)$', may_arg)
             if not _kwarg:
                 analyser.pushback(may_arg)
-                if analyser.fuzzy_match and (k := may_arg.split('=')[0]) != may_arg:
-                    if levenshtein_norm(k, key) >= config.fuzzy_threshold:
-                        raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=k, target=key))
                 if default_val is None and analyser.raise_exception:
                     raise ParamsUnmatched(config.lang.args_key_missing.format(target=may_arg, key=key))
                 result[key] = None if default_val is Empty else default_val
@@ -200,15 +197,10 @@ def analyse_unmatch_params(
                 if _may_param in _o.aliases or any(map(lambda x: _may_param.startswith(x), _o.aliases)):
                     res.append(_o)
                     continue
-                if is_fuzzy_match and levenshtein_norm(_may_param, _o.name) >= config.fuzzy_threshold:
-                    raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=_o.name))
             if res:
                 return res
-        else:
-            if (_may_param := split_once(text, tuple(_p.separators))[0]) == _p.name:
-                return _p
-            if is_fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=_p.name))
+        elif (_may_param := split_once(text, tuple(_p.separators))[0]) == _p.name:
+            return _p
 
 
 def analyse_option(analyser: 'Analyser', param: Option) -> Tuple[str, OptionResult]:
@@ -374,8 +366,4 @@ def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
             if source == analyser.alconna.command:
                 analyser.head_matched = False
                 raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
-            for ht in headers_text:
-                if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
-                    analyser.head_matched = True
-                    raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(target=source, source=ht))
         raise ParamsUnmatched(config.lang.header_error.format(target=head_text))

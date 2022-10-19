@@ -6,14 +6,11 @@ from .typing import TDataCollection
 from .config import config
 from .base import SubcommandResult, OptionResult
 from .exceptions import BehaveCancelled, OutBoundsBehave
-from .components.behavior import T_ABehavior, requirement_handler
-from .components.duplication import Duplication, generate_duplication
 
 if TYPE_CHECKING:
     from .core import Alconna
 
 T = TypeVar('T')
-T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
 class Arpamar(Generic[TDataCollection]):
@@ -84,11 +81,6 @@ class Arpamar(Generic[TDataCollection]):
         """返回 Alconna 中所有 Args 解析到的值"""
         return {**self.main_args, **self.other_args}
 
-    def get_duplication(self, dup: Optional[Type[T_Duplication]] = None) -> T_Duplication:
-        if dup:
-            return dup(self.source).set_target(self)
-        return generate_duplication(self.source).set_target(self)  # type: ignore
-
     def encapsulate_result(
             self,
             header: Union[Dict[str, Any], bool, None],
@@ -109,34 +101,6 @@ class Arpamar(Generic[TDataCollection]):
             if sub_opts := v['options']:
                 for vv in sub_opts.values():
                     self.other_args = {**self.other_args, **vv['args']}
-
-    def behave_cancel(self):
-        raise BehaveCancelled
-
-    def behave_fail(self):
-        raise OutBoundsBehave
-
-    def execute(self, behaviors: Optional[List[T_ABehavior]] = None):
-        self.source.behaviors[0].operate(self)
-        if behaviors := [*self.source.behaviors[1:], *(behaviors or [])]:
-            exc_behaviors = []
-            for behavior in behaviors:
-                exc_behaviors.extend(requirement_handler(behavior))
-            for b in exc_behaviors:
-                try:
-                    b.operate(self)  # type: ignore
-                except BehaveCancelled:
-                    continue
-                except OutBoundsBehave as e:
-                    return self._fail(e)
-        return self
-
-    def _fail(self, exc: Union[Type[BaseException], BaseException, str]):
-        arp = Arpamar(self.source)
-        arp.matched = False
-        arp.head_matched = True
-        arp.error_info = exc
-        return arp
 
     def __require__(self, parts: List[str]) -> Tuple[Union[Dict[str, Any], OptionResult, SubcommandResult, None], str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""

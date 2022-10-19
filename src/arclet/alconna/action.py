@@ -3,16 +3,15 @@ from types import LambdaType
 from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING, Union
 from nepattern import AnyOne, AllParam, type_parser
 
-from ..args import Args
-from ..config import config
-from ..exceptions import InvalidParam
-from ..util import is_async
-from .behavior import ArpamarBehavior
+from .args import Args
+from .config import config
+from .exceptions import InvalidParam
+from .util import is_async
 
 if TYPE_CHECKING:
-    from ..arpamar import Arpamar
-    from ..base import SubcommandResult, OptionResult
-    from ..core import Alconna
+    from .arpamar import Arpamar
+    from .base import SubcommandResult, OptionResult
+    from .core import Alconna
 
 
 class ArgAction:
@@ -131,20 +130,19 @@ def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, sour
     return "args", _exec_args(data['args'], func, source)
 
 
-class ActionHandler(ArpamarBehavior):
-    def operate(self, interface: "Arpamar"):
-        interface.clean()
-        source = interface.source
+def action_handler(interface: "Arpamar"):
+    interface.clean()
+    source = interface.source
 
-        if action := source.action_list['main']:
-            interface.update("main_args", _exec_args(interface.main_args, action, source))
+    if action := source.action_list['main']:
+        interface.update("main_args", _exec_args(interface.main_args, action, source))
 
-        for path, action in source.action_list['options'].items():
-            if d := interface.query(path, None):
-                end, value = _exec(d, action, source)
-                interface.update(f"{path}.{end}", value)  # type: ignore
+    for path, action in source.action_list['options'].items():
+        if d := interface.query(path, None):
+            end, value = _exec(d, action, source)
+            interface.update(f"{path}.{end}", value)  # type: ignore
 
-        for path, action in source.action_list['subcommands'].items():
-            if d := interface.query(path, None):
-                end, value = _exec(d, action, source)
-                interface.update(f"{path}.{end}", value)  # type: ignore
+    for path, action in source.action_list['subcommands'].items():
+        if d := interface.query(path, None):
+            end, value = _exec(d, action, source)
+            interface.update(f"{path}.{end}", value)  # type: ignore

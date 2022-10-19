@@ -4,7 +4,7 @@ from functools import partial
 from copy import deepcopy
 from enum import Enum
 from contextlib import suppress
-from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
+from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict
 from dataclasses import dataclass, field
 from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
 
@@ -82,30 +82,10 @@ class ArgsMeta(type):
 class Args(metaclass=ArgsMeta):  # type: ignore
     """
     对命令参数的封装
-
-    Attributes:
-        argument: 存放参数内容的容器
     """
-    extra: Literal["allow", "ignore", "reject"]
-    argument: Dict[str, ArgUnit]
-    var_positional: Optional[str]
-    var_keyword: Optional[str]
-    keyword_only: List[str]
-    optional_count: int
-    separators: Set[str]
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
-        """
-        从处理好的字符串列表中生成Args
-
-        Args:
-            args: 字符串列表
-            custom_types: 自定义的类型
-
-        Examples:
-            >>> Args.from_string_list([["foo", "str"], ["bar", "digit", "123"]], {"digit":int})
-        """
         _args = cls()
         for arg in args:
             if (_le := len(arg)) == 0:
@@ -136,16 +116,6 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     def from_callable(cls, target: Callable, extra: Literal["allow", "ignore", "reject"] = "allow"):
         """
         从可调用函数中构造Args
-
-        Args:
-            target: 可调用函数
-            extra: 额外类型检查的策略
-
-        Examples:
-            >>> def test(a: str, b: int, c: float = 0.0, *, d: str, e: int = 0, f: float = 0.0):
-            ...     pass
-            >>> Args.from_callable(test)
-
         """
         sig = inspect.signature(target)
         _args = cls(extra=extra)
@@ -179,7 +149,6 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     def __init__(
             self,
             args: Optional[Iterable[Sequence]] = None,
-            extra: Literal["allow", "ignore", "reject"] = "allow",
             separators: Union[str, Iterable[str]] = " ",
             **kwargs: TAValue
     ):
@@ -188,11 +157,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
         Args:
             args: 应传入 slice|tuple, 代表key、value、default
-            extra: 额外类型检查的策略
             separator: 参数分隔符
             kwargs: 其他参数
         """
-        self.extra = extra
         self.var_positional = None
         self.var_keyword = None
         self.keyword_only = []
@@ -207,7 +174,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             for k, v in kwargs.items()
         })
 
-    __slots__ = "extra", "var_positional", "var_keyword", "argument", "optional_count", "separators", "keyword_only"
+    __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "separators", "keyword_only"
 
     def add_argument(self, name: str, *, value: Any, default: Any = None, flags: Optional[Iterable[ArgFlag]] = None):
         """
@@ -251,7 +218,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         default: ArgField
         if not name.strip():
             raise InvalidParam(config.lang.args_name_empty)
-        _value = type_parser(value, self.extra)
+        _value = type_parser(value)
         if isinstance(_value, UnionArg) and _value.optional:
             default.default = Empty if default.default is None else default.default
         if default.default in ("...", Ellipsis):

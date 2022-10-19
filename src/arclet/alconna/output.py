@@ -4,9 +4,8 @@ from dataclasses import dataclass
 from nepattern import Empty, AllParam, BasePattern
 
 from .action import ArgAction
-from ..util import Singleton
-from ..args import Args, ArgUnit
-from ..base import Option, Subcommand
+from .args import Args, ArgUnit
+from .base import Option, Subcommand
 
 
 class OutputAction(ArgAction):
@@ -21,7 +20,7 @@ class OutputAction(ArgAction):
         return super().handle({"help": self.output_text_call()}, varargs, kwargs, raise_exception)
 
 
-class OutputActionManager(metaclass=Singleton):
+class OutputActionManager:
     """帮助信息"""
     cache: Dict[str, Callable]
     outputs: Dict[str, OutputAction]
@@ -35,7 +34,6 @@ class OutputActionManager(metaclass=Singleton):
         def _clr(mgr: 'OutputActionManager'):
             mgr.cache.clear()
             mgr.outputs.clear()
-            Singleton.remove(mgr.__class__)
 
         finalize(self, _clr, self)
 
@@ -65,7 +63,7 @@ output_manager = OutputActionManager()
 
 
 if TYPE_CHECKING:
-    from ..core import Alconna, AlconnaGroup
+    from .core import Alconna
 
 
 def resolve_requires(options: List[Union[Option, Subcommand]]):
@@ -116,30 +114,21 @@ class TextFormatter:
     该格式化器负责将传入的命令节点字典解析并生成帮助文档字符串
     """
 
-    def __init__(self, base: Union['Alconna', 'AlconnaGroup']):
-        self.data = []
+    def __init__(self, base: 'Alconna'):
         self.ignore_names = set()
-
-        def _handle(command: 'Alconna'):
-            self.ignore_names.update(command.namespace_config.builtin_option_name['help'])
-            self.ignore_names.update(command.namespace_config.builtin_option_name['shortcut'])
-            self.ignore_names.update(command.namespace_config.builtin_option_name['completion'])
-            hds = command.headers.copy()
-            if command.name in hds:
-                hds.remove(command.name)  # type: ignore
-            return Trace(
-                {
-                    'name': command.name, 'header': hds or [], 'description': command.meta.description,
-                    'usage': command.meta.usage, 'example': command.meta.example
-                },
-                command.args, command.separators, command.options
-            )
-
-        for cmd in base.commands if base._group else [base]:  # type: ignore
-            if self.data and self.data[-1].head['name'] == cmd.name:
-                self.data[-1].union(_handle(cmd))  # type: ignore
-            else:
-                self.data.append(_handle(cmd))  # type: ignore
+        self.ignore_names.update(base.namespace_config.builtin_option_name['help'])
+        self.ignore_names.update(base.namespace_config.builtin_option_name['shortcut'])
+        self.ignore_names.update(base.namespace_config.builtin_option_name['completion'])
+        hds = base.headers.copy()
+        if base.name in hds:
+            hds.remove(command.name)  # type: ignore
+        self.data = Trace(
+            {
+                'name': base.name, 'header': hds or [], 'description': base.meta.description,
+                'usage': base.meta.usage, 'example': base.meta.example
+            },
+            base.args, base.separators, base.options
+        )
 
     def format_node(self, end: Optional[list] = None):
         """
@@ -181,7 +170,7 @@ class TextFormatter:
                 ))
             return self.format(trace)
 
-        return "\n".join(map(_handle, self.data))
+        return _handle(self.data)
 
     def format(self, trace: Trace) -> str:
         """help text的生成入口"""

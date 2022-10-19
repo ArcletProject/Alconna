@@ -3,24 +3,23 @@ import traceback
 from weakref import finalize
 from copy import copy
 from typing import (
-    Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable, ClassVar
+    Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable
 )
 from nepattern import pattern_map, type_parser, BasePattern
 from nepattern.util import TPattern
 
-from ..manager import command_manager
 from ..exceptions import (
-    NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, PauseTriggered
+    NullMessage, ParamsUnmatched, ArgumentMissing, PauseTriggered
 )
-from ..args import Args, ArgUnit
+from ..args import Args
 from ..base import Option, Subcommand, Sentence, StrMounter
 from ..arpamar import Arpamar
+from ..action import action_handler
 from ..util import split_once, split
-from ..typing import DataCollection
+from ..typing import DataCollection, TDataCollection
 from ..config import config
-from ..components.output import output_manager
+from ..output import output_manager
 from .parts import analyse_args, analyse_option, analyse_subcommand, analyse_header, analyse_unmatch_params
-from .special import handle_help, handle_shortcut, handle_completion
 
 if TYPE_CHECKING:
     from ..core import Alconna
@@ -32,46 +31,6 @@ class Analyser(Generic[T_Origin]):
     """ Alconna使用的分析器基类, 实现了一些通用的方法 """
     preprocessors: Dict[str, Callable[..., Any]] = {}
     text_sign: str = 'text'
-
-    alconna: 'Alconna'  # Alconna实例
-    context: Optional[Union[ArgUnit, Subcommand, Option]]
-    current_index: int  # 当前数据的index
-    content_index: int  # 内部index
-    is_str: bool  # 是否是字符串
-    raw_data: List[Union[Any, StrMounter]]  # 原始数据
-    ndata: int  # 原始数据的长度
-    command_params: Dict[str, Union[Sentence, List[Option], Subcommand]]
-    param_ids: Set[str]
-    # 命令头部
-    command_header: Union[
-        Union[TPattern, BasePattern], List[Tuple[Any, TPattern]],
-        Tuple[Union[Tuple[List[Any], TPattern], List[Any]], Union[TPattern, BasePattern]],
-    ]
-    separators: Set[str]  # 分隔符
-    raise_exception: bool  # 是否抛出异常
-    options: Dict[str, Any]  # 存放解析到的所有选项
-    subcommands: Dict[str, Any]  # 存放解析到的所有子命令
-    main_args: Dict[str, Any]  # 主参数
-    header: Optional[Union[Dict[str, Any], bool]]  # 命令头部
-    need_main_args: bool  # 是否需要主参数
-    head_matched: bool  # 是否匹配了命令头部
-    head_pos: Tuple[int, int]
-    part_len: range  # 分段长度
-    default_main_only: bool  # 默认只有主参数
-    self_args: Args  # 自身参数
-    filter_out: ClassVar[List[str]]  # 元素黑名单
-    temporary_data: Dict[str, Any]  # 临时数据
-    origin_data: T_Origin  # 原始数据
-    temp_token: int  # 临时token
-    used_tokens: Set[int]  # 已使用的token
-    sentences: List[str]  # 存放解析到的所有句子
-    default_separate: bool
-    message_cache: bool
-    fuzzy_match: bool
-
-    @staticmethod
-    def generate_token(data: List[Union[Any, List[str]]]) -> int:
-        return hash(str(data))
 
     def __init__(self, alconna: "Alconna"):
         if not hasattr(self, 'filter_out'):
@@ -90,12 +49,6 @@ class Analyser(Generic[T_Origin]):
         self.message_cache = alconna.namespace_config.enable_message_cache
         self.param_ids = set()
         self.command_params = {}
-        self._special = {}
-        self._special.update(
-            [(i, handle_help) for i in alconna.namespace_config.builtin_option_name['help']] +
-            [(i, handle_completion) for i in alconna.namespace_config.builtin_option_name['completion']] +
-            [(i, handle_shortcut) for i in alconna.namespace_config.builtin_option_name['shortcut']]
-        )
         self.__handle_main_args__(alconna.args, alconna.nargs)
         self.__init_header__(alconna.command, alconna.headers)
         self.__init_actions__()
@@ -169,7 +122,7 @@ class Analyser(Generic[T_Origin]):
                     elements.append(h)
             if not elements:
                 if isinstance(_command_name, TPattern):
-                    self.command_header = re.compile(f"(?:{ch_text[:-1]}){_command_str}")   # noqa
+                    self.command_header = re.compile(f"(?:{ch_text[:-1]}){_command_str}")  # noqa
                 else:
                     _command_name.pattern = f"(?:{ch_text[:-1]}){_command_name.pattern}"  # type: ignore
                     _command_name.regex_pattern = re.compile(_command_name.pattern)  # type: ignore
@@ -177,7 +130,8 @@ class Analyser(Generic[T_Origin]):
             elif not ch_text:
                 self.command_header = (elements, _command_name)  # type: ignore
             else:
-                self.command_header = (elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name # type: ignore # noqa
+                self.command_header = (
+                                      elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name  # type: ignore # noqa
 
     def __init_actions__(self):
         actions = self.alconna.action_list
@@ -191,6 +145,45 @@ class Analyser(Generic[T_Origin]):
                 for option in opt.options:
                     if option.action:
                         actions['subcommands'][f"{opt.dest}.{option.dest}"] = option.action
+
+    @staticmethod
+    def _compile_opts(option: Option, data: Dict[str, Union[Sentence, List[Option]]]):
+        for alias in option.aliases:
+            if (li := data.get(alias)) and isinstance(li, list):
+                li.append(option)  # type: ignore
+                li.sort(key=lambda x: x.priority, reverse=True)
+            else:
+                data[alias] = [option]
+
+    @staticmethod
+    def default_params_parser(analyser: "Analyser"):
+        require_len = 0
+        for opts in analyser.alconna.options:
+            if isinstance(opts, Option):
+                _compile_opts(opts, analyser.command_params)  # type: ignore
+                analyser.param_ids.update(opts.aliases)
+            elif isinstance(opts, Subcommand):
+                sub_require_len = 0
+                analyser.command_params[opts.name] = opts
+                analyser.param_ids.add(opts.name)
+                for sub_opts in opts.options:
+                    analyser._compile_opts(sub_opts, opts.sub_params)
+                    if sub_opts.requires:
+                        sub_require_len = max(len(sub_opts.requires), sub_require_len)
+                        for k in sub_opts.requires:
+                            opts.sub_params.setdefault(k, Sentence(name=k))
+                    analyser.param_ids.update(sub_opts.aliases)
+                opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0) + sub_require_len)
+            if not analyser.separators.issuperset(opts.separators):
+                analyser.default_separate &= False
+            if opts.requires:
+                analyser.param_ids.update(opts.requires)
+                require_len = max(len(opts.requires), require_len)
+                for k in opts.requires:
+                    analyser.command_params.setdefault(k, Sentence(name=k))
+            analyser.part_len = range(
+                len(analyser.alconna.options) + (1 if analyser.need_main_args else 0) + require_len
+            )
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.alconna.path}>"
@@ -301,48 +294,30 @@ class Analyser(Generic[T_Origin]):
                 raise exp
             self.temporary_data["fail"] = exp
         else:
-            self.ndata = i
-            if self.message_cache:
-                self.temp_token = self.generate_token(raw_data)
+            self.ndata = 1
         return self
 
     def analyse(
-        self,
-        message: Union[DataCollection[Union[str, Any]], None] = None,
-        interrupt: bool = False
+            self,
+            message: Union[DataCollection[Union[str, Any]], None] = None,
+            interrupt: bool = False
     ) -> Arpamar:
         """主体解析函数, 应针对各种情况进行解析"""
-        if command_manager.is_disable(self.alconna):
-            return self.export(fail=True)
-
         if self.ndata == 0 and not self.temporary_data.get('fail'):
             if not message:
                 raise ValueError(config.lang.analyser_handle_null_message.format(target=message))
             self.process(message)
         if self.temporary_data.get('fail'):
             return self.export(fail=True, exception=self.temporary_data.get('exception'))
-        if (res := command_manager.get_record(self.temp_token)) and self.temp_token in self.used_tokens:
-            self.reset()
-            return res
         try:
             self.header = analyse_header(self)
             self.head_pos = self.current_index, self.content_index
         except ParamsUnmatched as e:
             self.current_index = 0
             self.content_index = 0
-            try:
-                _res = command_manager.find_shortcut(self.popitem(move=False)[0], self.alconna)
-                self.reset()
-                if isinstance(_res, Arpamar):
-                    return _res
-                return self.process(_res).analyse()
-            except ValueError as exc:
-                if self.raise_exception:
-                    raise e from exc
-                return self.export(fail=True, exception=e)
-        except FuzzyMatchSuccess as Fuzzy:
-            output_manager.get(self.alconna.name, lambda: str(Fuzzy)).handle(raise_exception=self.raise_exception)
-            return self.export(fail=True)
+            if self.raise_exception:
+                raise e
+            return self.export(fail=True, exception=e)
 
         for _ in self.part_len:
             try:
@@ -356,8 +331,17 @@ class Analyser(Generic[T_Origin]):
                     self.main_args = analyse_args(self, self.self_args)
                 elif isinstance(_param, list):
                     for opt in _param:
-                        if handler := self._special.get(opt.name):
-                            return handler(self)
+                        if opt.name == "--help":
+                            self.current_index, self.content_index = self.head_pos
+                            _help_param = [str(i) for i in self.release() if i not in {"-h", "--help"}]
+
+                            def _get_help():
+                                formatter = self.alconna.formatter_type(self.alconna)
+                                return formatter.format_node(_help_param)
+
+                            output_manager.get(self.alconna.name, _get_help).handle(
+                                is_raise_exception=self.raise_exception)
+                            return self.export(fail=True)
                         _current_index, _content_index = self.current_index, self.content_index
                         try:
                             opt_n, opt_v = analyse_option(self, opt)
@@ -373,17 +357,19 @@ class Analyser(Generic[T_Origin]):
                     self.subcommands.setdefault(*analyse_subcommand(self, _param))
                 elif isinstance(_param, Sentence):
                     self.sentences.append(self.popitem()[0])
-            except FuzzyMatchSuccess as e:
-                output_manager.get(self.alconna.name, lambda: str(e)).handle(raise_exception=self.raise_exception)
-                return self.export(fail=True)
-            except CompletionTriggered as comp:
-                return handle_completion(self, comp.args[0])
             except (ParamsUnmatched, ArgumentMissing) as e1:
                 if rest := self.release():
-                    if rest[-1] in self.alconna.namespace_config.builtin_option_name['completion']:
-                        return handle_completion(self, self.context)
-                    if handler := self._special.get(rest[-1]):
-                        return handler(self)
+                    if rest[-1] in ("--help", "-h"):
+                        self.current_index, self.content_index = self.head_pos
+                        _help_param = [str(i) for i in self.release() if i not in {"-h", "--help"}]
+
+                        def _get_help():
+                            formatter = self.alconna.formatter_type(self.alconna)
+                            return formatter.format_node(_help_param)
+
+                        output_manager.get(self.alconna.name, _get_help).handle(
+                            is_raise_exception=self.raise_exception)
+                        return self.export(fail=True)
                 if interrupt and isinstance(e1, ArgumentMissing):
                     raise PauseTriggered from e1
                 if self.raise_exception:
@@ -401,8 +387,6 @@ class Analyser(Generic[T_Origin]):
 
         rest = self.release()
         if len(rest) > 0:
-            if rest[-1] in self.alconna.namespace_config.builtin_option_name['completion']:
-                return handle_completion(self, rest[-2])
             exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.popitem(move=False)[0]))
         else:
             exc = ArgumentMissing(config.lang.analyser_param_missing)
@@ -426,11 +410,19 @@ class Analyser(Generic[T_Origin]):
             result.error_data = self.release()
         else:
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
-            if self.message_cache:
-                command_manager.record(self.temp_token, self.origin_data, result)  # type: ignore
-                self.used_tokens.add(self.temp_token)
+            action_handler(result)
         self.reset()
         return result
 
 
 TAnalyser = TypeVar("TAnalyser", bound=Analyser)
+
+
+def compile(alconna: "Alconna") -> Analyser:
+    _analyser = alconna.analyser_type(alconna)
+    Analyser.default_params_parser(_analyser)
+    return _analyser
+
+
+def analyse(alconna: "Alconna", command: TDataCollection) -> "Arpamar[TDataCollection]":
+    return compile(alconna).process(command).analyse().execute()
