@@ -181,8 +181,7 @@ class Alconna(CommandNode):
         separators: Optional[Union[str, Iterable[str]]] = None,
         analyser_type: Optional[Type[TAnalyser]] = None,
         behaviors: Optional[List[T_ABehavior]] = None,
-        formatter_type: Optional[Type[TextFormatter]] = None,
-        **kwargs
+        formatter_type: Optional[Type[TextFormatter]] = None
     ):
         """
         以标准形式构造 Alconna
@@ -242,57 +241,8 @@ class Alconna(CommandNode):
             separators=separators or np_config.separators.copy(),  # type: ignore
         )
         self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
-        self._deprecate(kwargs)
         self._hash = self._calc_hash()
         command_manager.register(self)
-
-    def _deprecate(self, kwargs):
-        for key, value in kwargs.items():
-            import warnings
-            if key == "headers":
-                warnings.warn("'headers' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.headers = value or config.namespaces[self.namespace].headers
-                if self.command == sys.argv[0]:
-                    self.command = ''
-                self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
-            if key == "command":
-                warnings.warn("'command' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.command = value
-                self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
-            if key == "options":
-                warnings.warn("'options' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.options = value
-                self.options.extend(
-                    [
-                        Option(
-                            "|".join(self.namespace_config.builtin_option_name['help']),
-                            help_text=config.lang.builtin_option_help
-                        ),
-                        Option(
-                            "|".join(self.namespace_config.builtin_option_name['shortcut']),
-                            Args["delete;O", "delete"]["name", str]["command", str, "_"],
-                            help_text=config.lang.builtin_option_shortcut
-                        ),
-                        Option(
-                            "|".join(self.namespace_config.builtin_option_name['completion']),
-                            help_text=config.lang.builtin_option_completion
-                        )
-                    ]
-                )
-            if key == "main_args":
-                warnings.warn("'main_args' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.args = value if isinstance(value, Args) else Args.from_string_list(
-                    [re.split("[:=]", p) for p in re.split(r"\s*,\s*", value)], {}
-                )
-            if key == "help_text":
-                warnings.warn("'help_text' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.meta.description = str(value)
-            if key == "raise_exception":
-                warnings.warn("'raise_exception' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.meta.raise_exception = bool(value)
-            if key == "is_fuzzy_match":
-                warnings.warn("'is_fuzzy_match' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.meta.fuzzy_match = bool(value)
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
         """
