@@ -212,10 +212,11 @@ def test_alconna_synthesise():
     assert res.min == 3
     assert res.tags == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
 
-    alc10_1 = Alconna("yiyu", Args["value;SH", str] / ";")
+    alc10_1 = Alconna("yiyu", Args["value;*|H", str] / ",", meta=CommandMeta(keep_crlf=True))
     print("")
-    print(msg := "yiyu 嘿嘿\n12345 4 6\nfsdg")
-    print(" ".join(alc10_1.parse(msg).query("value")))
+    print(msg := "yiyu 嘿嘿,12345\n4, 6 , fsdg")
+    print(alc10_1.parse(msg))
+    print("\n".join(repr(i) for i in alc10_1.parse(msg).query("value")))
 
 
 def test_simple_override():
@@ -276,7 +277,7 @@ def test_alconna_group():
 
 
 def test_fuzzy():
-    alc15 = Alconna(["!core15"], main_args="foo:str", meta=CommandMeta(fuzzy_match=True))
+    alc15 = Alconna("!core15", Args["foo", str], meta=CommandMeta(fuzzy_match=True))
     assert alc15.parse("core15 foo bar").matched is False
 
 
@@ -299,10 +300,9 @@ def test_help():
     alc17.parse("core17 --help foo")
     alc17_1 = Alconna(
         "core17_1",
-        options=[
-            Option("foo bar abc baz", Args["qux", int]),
-            Option("foo qux bar", Args["baz", str]),
-        ],
+        Option("foo bar abc baz", Args["qux", int]),
+        Option("foo qux bar", Args["baz", str]),
+
     )
     alc17_1.parse("core17_1 --help")
     alc17_1.parse("core17_1 --help aaa")
@@ -325,13 +325,13 @@ def test_args_notice():
 
 def test_completion():
     alc20 = (
-        "core20" + Option("fool") + Option(
-            "foo",
-            Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
-        ) + Option(
-            "off",
-            Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
-        ) + Args["test", int, ArgField(1, completion=lambda: "try -1 ?")]
+            "core20" + Option("fool") + Option(
+        "foo",
+        Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
+    ) + Option(
+        "off",
+        Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
+    ) + Args["test", int, ArgField(1, completion=lambda: "try -1 ?")]
     )
 
     alc20.parse("core20 --comp")

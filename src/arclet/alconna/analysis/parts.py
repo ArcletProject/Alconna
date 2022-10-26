@@ -22,20 +22,21 @@ def multi_arg_handler(
     key: str,
     value: MultiArg,
     default: Any,
-    result_dict: Dict[str, Any]
+    result_dict: Dict[str, Any],
+    nargs: int
 ):
     # 当前args 已经解析 m 个参数， 总共需要 n 个参数，总共剩余p个参数，
     # q = n - m 为剩余需要参数（包括自己）， p - q + 1 为自己可能需要的参数个数
-    nargs = len(args.argument)
-    seps = args.separators
-    if value.flag == 'args' and args.var_keyword:
-        nargs -= 1
-    elif value.flag == 'kwargs' and args.var_positional:
-        nargs -= 1
-    _m_rest_arg = nargs - len(result_dict) - 1
-    _m_all_args_count = len(analyser.release(seps)) - _m_rest_arg + 1
-    if value.array_length:
-        _m_all_args_count = min(_m_all_args_count, value.array_length)
+    # nargs = len(args.argument)
+    # seps = args.separators
+    # if value.flag == 'args' and args.var_keyword:
+    #     nargs -= 1
+    # elif value.flag == 'kwargs' and args.var_positional:
+    #     nargs -= 1
+    # _m_rest_arg = nargs - len(result_dict) - 1
+    # _m_all_args_count = len(analyser.release(seps)) - _m_rest_arg + 1
+    # if value.array_length:
+    #     _m_all_args_count = min(_m_all_args_count, value.array_length)
     analyser.pushback(may_arg)
     if value.flag == 'args':
         result = []
@@ -94,13 +95,14 @@ def multi_arg_handler(
         result_dict[key] = result
 
 
-def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
+def analyse_args(analyser: 'Analyser', args: Args, nargs: int) -> Dict[str, Any]:
     """
     分析 Args 部分
 
     Args:
         analyser: 使用的分析器
         args: 目标Args
+        nargs: 目标Args的参数个数
 
     Returns:
         Dict: 解析结果
@@ -112,7 +114,7 @@ def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
         value = arg['value']
         default_val = arg['field'].default_gen
         optional = arg['optional']
-        may_arg, _str = analyser.popitem(seps)
+        may_arg, _str = analyser.popitem(None if len(result) + 1 >= nargs else seps)
         if may_arg in analyser.alconna.namespace_config.builtin_option_name['completion']:
             raise CompletionTriggered(arg)
         if not may_arg or (_str and may_arg in analyser.param_ids):
@@ -145,7 +147,7 @@ def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
                     continue
         if isinstance(value, BasePattern):
             if value.__class__ is MultiArg:
-                multi_arg_handler(analyser, args, may_arg, key, value, default_val, result)  # type: ignore
+                multi_arg_handler(analyser, args, may_arg, key, value, default_val, result, nargs)  # type: ignore
             else:
                 res = value(may_arg, default_val)
                 if res.flag != 'valid':
@@ -240,7 +242,7 @@ def analyse_option(analyser: 'Analyser', param: Option) -> Tuple[str, OptionResu
     if param.nargs == 0:
         res['value'] = Ellipsis
     else:
-        res['args'] = analyse_args(analyser, param.args)
+        res['args'] = analyse_args(analyser, param.args, param.nargs)
     return name, res
 
 
@@ -280,19 +282,17 @@ def analyse_subcommand(analyser: 'Analyser', param: Subcommand) -> Tuple[str, Su
             analyse_unmatch_params(param.sub_params.values(), _text, analyser.fuzzy_match)
         )
         if (not _param or _param is Ellipsis) and not args:
-            res['args'] = analyse_args(analyser, param.args)
+            res['args'] = analyse_args(analyser, param.args, param.nargs)
             args = True
         elif isinstance(_param, List):
             for p in _param:
-                _current_index = analyser.current_index
-                _content_index = analyser.content_index
+                _data = analyser.raw_data.copy()
                 try:
                     res['options'].setdefault(*analyse_option(analyser, p))
                     break
                 except Exception as e:
                     exc = e
-                    analyser.current_index = _current_index
-                    analyser.content_index = _content_index
+                    analyser.raw_data = _data
                     continue
             else:
                 raise exc  # type: ignore  # noqa

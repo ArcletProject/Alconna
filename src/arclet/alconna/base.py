@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
-from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDict, Set, FrozenSet, overload
+from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDict, Set, FrozenSet, overload, Tuple
 
 from .args import Args
 from .exceptions import InvalidParam
@@ -17,7 +17,7 @@ class CommandNode:
     name: str
     dest: str
     args: Args
-    separators: Set[str]
+    separators: Tuple[str, ...]
     action: Optional[ArgAction]
     help_text: str
     requires: Union[Sequence[str], Set[str]]
@@ -37,7 +37,7 @@ class CommandNode:
             name(str): 命令节点名称
             args(Args): 命令节点参数
             action(ArgAction): 命令节点响应动作
-            separators(Set[str]): 命令分隔符
+            separators(str | Sequence[str] | Set[str]): 命令分隔符
             help_text(str): 命令帮助信息
         """
         if not name:
@@ -52,11 +52,11 @@ class CommandNode:
             [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
         )) if args else Args()
         self.action = ArgAction.__validator__(action, self.args)
-        self.separators = {' '} if separators is None else (
-            {separators} if isinstance(separators, str) else set(separators)
+        self.separators = (' ', ) if separators is None else (
+            (separators, ) if isinstance(separators, str) else tuple(separators)
         )
         self.nargs = len(self.args.argument)
-        self.is_compact = self.separators == {''}
+        self.is_compact = self.separators == ('', )
         self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name).lstrip('-')
         self.help_text = help_text or self.dest
         self._hash = self._calc_hash()
@@ -66,7 +66,7 @@ class CommandNode:
     _hash: int
 
     def separate(self, *separator: str):
-        self.separators = set(separator)
+        self.separators = separator
         self._hash = self._calc_hash()
         return self
 

@@ -4,7 +4,7 @@ from functools import partial
 from copy import deepcopy
 from enum import Enum
 from contextlib import suppress
-from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, Set
+from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict
 from dataclasses import dataclass, field
 from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
 
@@ -17,13 +17,15 @@ TAValue = Union[BasePattern, AllParam.__class__, type]
 
 class ArgFlag(str, Enum):
     """参数标记"""
-    VAR_POSITIONAL = "S"
-    VAR_KEYWORD = "W"
+    VAR_POSITIONAL_MORE = "+"
+    VAR_KEYWORD_MORE = "++"
+    VAR_POSITIONAL = "*"
+    VAR_KEYWORD = "**"
     OPTIONAL = 'O'
-    KWONLY = 'K'
+    KWONLY = '@'
     HIDDEN = "H"
     FORCE = "F"
-    ANTI = "A"
+    ANTI = "!"
 
 
 @dataclass
@@ -92,7 +94,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     var_keyword: Optional[str]
     keyword_only: List[str]
     optional_count: int
-    separators: Set[str]
+    separators: Tuple[str, ...]
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -197,7 +199,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.var_keyword = None
         self.keyword_only = []
         self.optional_count = 0
-        self.separators = {separators} if isinstance(separators, str) else set(separators)
+        self.separators = (separators, ) if isinstance(separators, str) else tuple(separators)
         self.argument = {}
         for arg in (args or []):
             self.__check_var__(arg)
@@ -229,7 +231,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     def separate(self, *separator: str):
         """设置参数的分隔符"""
-        self.separators = set(separator)
+        self.separators = separator
         return self
 
     def __check_var__(self, val: Sequence):
@@ -262,14 +264,14 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             'value': _value, 'field': default, 'notice': None,
             'optional': False, 'hidden': False, 'kwonly': False
         }
-        if res := re.match(r"^.+?#(?P<notice>[^;#]+)", name):
+        if res := re.match(r"^.+?#(?P<notice>[^;#|]+)", name):
             slot['notice'] = res["notice"]
             name = name.replace(f"#{res['notice']}", "")
         if res := re.match(r"^.+?;(?P<flag>[^;#]+)", name):
             flags = res["flag"]
             name = name.replace(f";{res['flag']}", "")
             _limit = False
-            for flag in flags:
+            for flag in flags.split('|'):
                 if flag == ArgFlag.FORCE and not _limit:
                     self.__handle_force__(slot, value)
                     _limit = True

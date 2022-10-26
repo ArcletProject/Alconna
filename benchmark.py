@@ -23,9 +23,9 @@ class At:
 config.default_namespace.enable_message_cache = True
 
 alc = Alconna(
-    headers=["."],
-    command="test",
-    main_args=Args["bar", AnyOne]
+    ["."],
+    "test",
+    Args["bar", AnyOne]
 )
 compile_alc = compile(alc)
 print(alc)

@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 
 def handle_help(analyser: "Analyser"):
-    analyser.current_index, analyser.content_index = analyser.head_pos
     _help_param = [
-        str(i) for i in analyser.release() if i not in analyser.alconna.namespace_config.builtin_option_name['help']
+        str(i) for i in analyser.release(recover=True, move_head=True)
+        if i not in analyser.alconna.namespace_config.builtin_option_name['help']
     ]
 
     def _get_help():

@@ -1,5 +1,4 @@
 """Alconna 主体"""
-import re
 import sys
 from functools import reduce
 from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any
@@ -212,10 +211,7 @@ class Alconna(CommandNode):
         self.namespace = np_config.name
         self.options.extend(
             [
-                Option(
-                    "|".join(np_config.builtin_option_name['help']),
-                    help_text=config.lang.builtin_option_help
-                ),
+                Option("|".join(np_config.builtin_option_name['help']), help_text=config.lang.builtin_option_help),
                 Option(
                     "|".join(np_config.builtin_option_name['shortcut']),
                     Args["delete;O", "delete"]["name", str]["command", str, "_"],
@@ -238,7 +234,7 @@ class Alconna(CommandNode):
             command_manager.sign,
             reduce(lambda x, y: x + y, li) if (li := [i for i in args if isinstance(i, Args)]) else None,
             action=action,
-            separators=separators or np_config.separators.copy(),  # type: ignore
+            separators=separators or np_config.separators,  # type: ignore
         )
         self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
         self._hash = self._calc_hash()
@@ -246,7 +242,7 @@ class Alconna(CommandNode):
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
         """
-        合并两个 重名的Alconna 实例
+        合并两个 重名的 Alconna 实例
         """
         if self.path != other.path:
             raise ValueError("两个命令的命令名称不一致")
@@ -269,8 +265,7 @@ class Alconna(CommandNode):
             namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.namespace = namespace.name
         self.options[0] = Option(
-            "|".join(namespace.builtin_option_name['help']),
-            help_text=config.lang.builtin_option_help
+            "|".join(namespace.builtin_option_name['help']), help_text=config.lang.builtin_option_help
         )
         self.options[1] = Option(
             "|".join(namespace.builtin_option_name['shortcut']),
@@ -278,8 +273,7 @@ class Alconna(CommandNode):
             help_text=config.lang.builtin_option_shortcut
         )
         self.options[2] = Option(
-            "|".join(namespace.builtin_option_name['completion']),
-            help_text=config.lang.builtin_option_completion
+            "|".join(namespace.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
         )
         self._hash = self._calc_hash()
         command_manager.register(self)
@@ -360,8 +354,8 @@ class Alconna(CommandNode):
         ...
 
     def parse(
-            self, message: TDataCollection, duplication: Optional[Type[T_Duplication]] = None,
-            static: bool = True, interrupt: bool = False
+        self, message: TDataCollection, duplication: Optional[Type[T_Duplication]] = None,
+        static: bool = True, interrupt: bool = False
     ) -> Union[Analyser, Arpamar[TDataCollection], T_Duplication]:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         analyser = command_manager.require(self) if static else compile(self)

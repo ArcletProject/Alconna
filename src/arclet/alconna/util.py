@@ -30,9 +30,11 @@ class Singleton(type):
 @lru_cache(4096)
 def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = True):
     """单次分隔字符串"""
+    index = 0
     out_text = ""
     quotation = ""
     separates = tuple(separates)
+    text = text.lstrip()
     for index, char in enumerate(text):
         if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
@@ -46,7 +48,7 @@ def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = T
         if (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
             break
         out_text += char
-    return out_text, text[len(out_text) + 1:]
+    return out_text, text[index + 1:]
 
 
 @lru_cache(4096)

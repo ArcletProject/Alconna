@@ -28,7 +28,7 @@ class Namespace:
     headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = field(
         default_factory=list
     )
-    separators: Set[str] = field(default_factory=lambda: set(" "))
+    separators: Tuple[str, ...] = field(default_factory=lambda: (" ", ))
     fuzzy_match: bool = field(default=False)
     raise_exception: bool = field(default=False)
     enable_message_cache: bool = field(default=True)

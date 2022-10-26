@@ -41,7 +41,7 @@ def default_params_parser(analyser: "Analyser"):
                         opts.sub_params.setdefault(k, Sentence(name=k))
                 analyser.param_ids.update(sub_opts.aliases)
             opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0) + sub_require_len)
-        if not analyser.separators.issuperset(opts.separators):
+        if not set(analyser.separators).issuperset(opts.separators):
             analyser.default_separate &= False
         if opts.requires:
             analyser.param_ids.update(opts.requires)
