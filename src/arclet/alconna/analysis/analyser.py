@@ -45,7 +45,6 @@ class Analyser(Generic[T_Origin]):
         self.need_main_args = False
         self.default_main_only = False
         self.default_separate = True
-        self.fuzzy_match = alconna.meta.fuzzy_match
         self.message_cache = alconna.namespace_config.enable_message_cache
         self.param_ids = set()
         self.command_params = {}
@@ -160,7 +159,7 @@ class Analyser(Generic[T_Origin]):
         require_len = 0
         for opts in analyser.alconna.options:
             if isinstance(opts, Option):
-                _compile_opts(opts, analyser.command_params)  # type: ignore
+                analyser._compile_opts(opts, analyser.command_params)  # type: ignore
                 analyser.param_ids.update(opts.aliases)
             elif isinstance(opts, Subcommand):
                 sub_require_len = 0
@@ -324,7 +323,7 @@ class Analyser(Generic[T_Origin]):
                 _text, _str = self.popitem(move=False)
                 _param = _param if (_param := (self.command_params.get(_text) if _str and _text else Ellipsis)) else (
                     None if self.default_separate else analyse_unmatch_params(
-                        self.command_params.values(), _text, self.fuzzy_match
+                        self.command_params.values(), _text
                     )
                 )
                 if (not _param or _param is Ellipsis) and not self.main_args:

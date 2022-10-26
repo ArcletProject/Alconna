@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Args, AnyOne, compile, command_manager, config
+from arclet.alconna import Alconna, Args, AnyOne, compile, config
 import cProfile
 import pstats
 
@@ -23,9 +23,9 @@ class At:
 config.default_namespace.enable_message_cache = True
 
 alc = Alconna(
-    headers=["."],
-    command="test",
-    main_args=Args["bar", AnyOne]
+    ["."],
+    "test",
+    Args["bar", AnyOne]
 )
 compile_alc = compile(alc)
 print(alc)
@@ -56,8 +56,6 @@ if __name__ == "__main__":
     led = time.time()
 
     print(f"Alconna: {sum(li) / count} ns per loop with {count} loops")
-
-    command_manager.records.clear()
 
     prof = cProfile.Profile()
     prof.enable()

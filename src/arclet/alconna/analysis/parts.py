@@ -4,7 +4,7 @@ from typing import Iterable, Union, List, Any, Dict, Tuple, TYPE_CHECKING
 from nepattern import AllParam, Empty, BasePattern
 from nepattern.util import TPattern
 
-from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered
+from ..exceptions import ParamsUnmatched, ArgumentMissing, CompletionTriggered
 from ..typing import MultiArg
 from ..args import Args
 from ..base import Option, Subcommand, OptionResult, SubcommandResult, Sentence
@@ -186,8 +186,7 @@ def analyse_args(analyser: 'Analyser', args: Args) -> Dict[str, Any]:
 
 def analyse_unmatch_params(
         params: Iterable[Union[List[Option], Sentence, Subcommand]],
-        text: str,
-        is_fuzzy_match: bool = False
+        text: str
 ):
     for _p in params:
         if isinstance(_p, list):
@@ -269,7 +268,7 @@ def analyse_subcommand(analyser: 'Analyser', param: Subcommand) -> Tuple[str, Su
         if _text in analyser.alconna.namespace_config.builtin_option_name['completion']:
             raise CompletionTriggered(param)
         _param = _param if (_param := (param.sub_params.get(_text) if _str and _text else Ellipsis)) else (
-            analyse_unmatch_params(param.sub_params.values(), _text, analyser.fuzzy_match)
+            analyse_unmatch_params(param.sub_params.values(), _text)
         )
         if (not _param or _param is Ellipsis) and not args:
             res['args'] = analyse_args(analyser, param.args)
@@ -349,21 +348,4 @@ def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
                     return _command_find or True
 
     if not analyser.head_matched:
-        if _str and analyser.fuzzy_match:
-            headers_text = []
-            if analyser.alconna.headers and analyser.alconna.headers != [""]:
-                for i in analyser.alconna.headers:
-                    if isinstance(i, str):
-                        headers_text.append(f"{i}{analyser.alconna.command}")
-                    else:
-                        headers_text.extend((f"{i}", analyser.alconna.command))
-            elif analyser.alconna.command:
-                headers_text.append(analyser.alconna.command)
-            if isinstance(command, (TPattern, BasePattern)):
-                source = head_text
-            else:
-                source = head_text + analyser.separators.copy().pop() + str(may_command)  # type: ignore  # noqa
-            if source == analyser.alconna.command:
-                analyser.head_matched = False
-                raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
         raise ParamsUnmatched(config.lang.header_error.format(target=head_text))

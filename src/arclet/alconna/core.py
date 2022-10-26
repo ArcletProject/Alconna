@@ -1,18 +1,18 @@
 """Alconna 主体"""
 import sys
-from functools import reduce
-from typing import List, Optional, Union, Type, Callable, Tuple, overload, Iterable, Any
 from dataclasses import dataclass, field
-from .config import config, Namespace
-from .analysis.base import compile
-from .args import Args
-from .base import CommandNode, Option, Subcommand
-from .typing import TDataCollection
-from .arpamar import Arpamar
-from .exceptions import PauseTriggered
-from .analysis.analyser import TAnalyser, Analyser
+from functools import reduce
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Type, Union, overload
+
 from .action import ArgAction
+from .analysis.analyser import Analyser, TAnalyser, compile
+from .args import Args
+from .arpamar import Arpamar
+from .base import CommandNode, Option, Subcommand
+from .config import Namespace, config
+from .exceptions import PauseTriggered
 from .output import TextFormatter
+from .typing import TDataCollection
 
 T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
 
@@ -34,6 +34,7 @@ class Alconna(CommandNode):
 
     用于更加精确的命令解析
     """
+
     custom_types = {}
 
     global_analyser_type: Type["Analyser"] = Analyser
@@ -41,10 +42,10 @@ class Alconna(CommandNode):
 
     @classmethod
     def config(
-            cls,
-            *,
-            analyser_type: Optional[Type[TAnalyser]] = None,
-            formatter_type: Optional[Type[TextFormatter]] = None,
+        cls,
+        *,
+        analyser_type: Optional[Type[TAnalyser]] = None,
+        formatter_type: Optional[Type[TextFormatter]] = None,
     ):
         """
         配置 Alconna 的默认属性
@@ -63,7 +64,7 @@ class Alconna(CommandNode):
         namespace: Optional[Union[str, Namespace]] = None,
         separators: Optional[Union[str, Iterable[str]]] = None,
         analyser_type: Optional[Type[TAnalyser]] = None,
-        formatter_type: Optional[Type[TextFormatter]] = None
+        formatter_type: Optional[Type[TextFormatter]] = None,
     ):
         """
         以标准形式构造 Alconna
@@ -86,25 +87,34 @@ class Alconna(CommandNode):
             np_config = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers,)))  # type: ignore
         try:
-            self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args)), args))
+            self.command = next(
+                filter(
+                    lambda x: not isinstance(x, (list, Option, Subcommand, Args)), args
+                )
+            )
         except StopIteration:
             self.command = "" if self.headers else sys.argv[0]
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = np_config.name
-        self.options.append(Option("--help|-h", help_text=config.lang.builtin_option_help))
+        self.options.append(
+            Option("--help|-h", help_text=config.lang.builtin_option_help)
+        )
         self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
         self.formatter_type = formatter_type or self.__class__.global_formatter_type
         self.meta = meta or CommandMeta()
-        self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
-        self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
+        self.meta.raise_exception = (
+            self.meta.raise_exception or np_config.raise_exception
+        )
         super().__init__(
             f"ALCONNA",
-            reduce(lambda x, y: x + y, li) if (li := [i for i in args if isinstance(i, Args)]) else None,
+            reduce(lambda x, y: x + y, li)
+            if (li := [i for i in args if isinstance(i, Args)])
+            else None,
             action=action,
             separators=separators or np_config.separators.copy(),  # type: ignore
         )
-        self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
+        self.name = f"{self.command or self.headers[0]}"  # type: ignore
         self._hash = self._calc_hash()
         self._analyser = compile(self)
 
@@ -136,13 +146,24 @@ class Alconna(CommandNode):
         cls.custom_types = types
 
     def __repr__(self):
-        return f"{self.namespace}::{self.name}(args={self.args}, options={self.options})"
+        return (
+            f"{self.namespace}::{self.name}(args={self.args}, options={self.options})"
+        )
 
-    def add(self, name: str, *alias: str, args: Optional[Args] = None, sep: str = " ", help_: Optional[str] = None):
+    def add(
+        self,
+        name: str,
+        *alias: str,
+        args: Optional[Args] = None,
+        sep: str = " ",
+        help_: Optional[str] = None,
+    ):
         """链式注册一个 Option"""
         names = name.split(sep)
         name, requires = names[-1], names[:-1]
-        opt = Option(name, args, list(alias), separators=sep, help_text=help_, requires=requires)
+        opt = Option(
+            name, args, list(alias), separators=sep, help_text=help_, requires=requires
+        )
         self.options.append(opt)
         self._hash = self._calc_hash()
         self._analyser = compile(self)
@@ -155,13 +176,11 @@ class Alconna(CommandNode):
         ...
 
     @overload
-    def parse(
-        self, message, static=True, interrupt=True
-    ) -> Analyser:
+    def parse(self, message, static=True, interrupt=True) -> Analyser:
         ...
 
     def parse(
-            self, message: TDataCollection, static: bool = True, interrupt: bool = False
+        self, message: TDataCollection, static: bool = True, interrupt: bool = False
     ) -> Union[Analyser, Arpamar[TDataCollection]]:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         try:
@@ -179,6 +198,12 @@ class Alconna(CommandNode):
 
     def _calc_hash(self):
         return hash(
-            (self.path + str(self.args.argument.keys()) + str([i['value'] for i in self.args.argument.values()])
-             + str(self.headers), *self.options, self.meta)
+            (
+                self.path
+                + str(self.args.argument.keys())
+                + str([i["value"] for i in self.args.argument.values()])
+                + str(self.headers),
+                *self.options,
+                self.meta,
+            )
         )
