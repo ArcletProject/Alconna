@@ -353,6 +353,39 @@ def test_interrupt():
     assert ana.push("1", "a").analyse().matched
 
 
+def test_call():
+    import asyncio
+    alc22 = Alconna("core22", Args.foo[int], Args.bar[str])
+    alc22.parse("core22 123 abc")
+
+    @alc22.bind
+    def cb(foo: int, bar: str):
+        print('')
+        print('core22: ')
+        print(foo, bar)
+        return 2 * foo
+
+    assert cb.result == 246
+    alc22.parse("core22 321 abc")
+    assert cb.result == 642
+
+    alc22_1 = Alconna("core22_1", Args.foo[int], Args.bar[str])
+    res = alc22_1.parse("core22_1 123 abc")
+
+    async def cb1(foo: int, bar: str):
+        await asyncio.sleep(0.1)
+        print('')
+        print('core22_1: ')
+        print(foo, bar)
+        return 2
+
+    async def main():
+        b = await res.call(cb1)
+        assert b == 2
+
+    asyncio.run(main())
+
+
 if __name__ == "__main__":
     import pytest
 

@@ -1,3 +1,11 @@
+# Alconna 1.4.x:
+
+## Alconna 1.4.0:
+1. 改进字符串分割过程，以运行更细粒度的分隔控制
+2. 加入ArpamarExecutor，以绑定一个响应函数
+3. behaviors与formatter的配置移至`Namespace`, 原`Alconna.config`仅用于配置解析器类型
+4. `Alconna`构建时不再允许废弃的kwargs参数传入
+
 # Alconna 1.3.x:
 
 ## Alconna 1.3.2 ~ 1.3.2.1

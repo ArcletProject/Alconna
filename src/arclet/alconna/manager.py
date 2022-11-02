@@ -300,6 +300,13 @@ class CommandManager(metaclass=Singleton):
             return
         return self.__record.get(token)
 
+    def get_result(self, command: 'Alconna'):
+        res = None
+        for v in self.__record.values():
+            if v.source == command:
+                res = v
+        return res
+
     @property
     def recent_message(self) -> Optional[DataCollection[Union[str, Any]]]:
         if rct := self.__record.recent:

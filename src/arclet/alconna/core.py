@@ -1,7 +1,7 @@
 """Alconna 主体"""
 import sys
 from functools import reduce
-from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any
+from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any, Literal
 from dataclasses import dataclass, field
 from .config import config, Namespace
 from .analysis.base import compile
@@ -16,6 +16,7 @@ from .components.action import ActionHandler, ArgAction
 from .components.output import TextFormatter
 from .components.behavior import T_ABehavior
 from .components.duplication import Duplication
+from .components.executor import ArpamarExecutor, T
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
@@ -39,10 +40,10 @@ class AlconnaGroup(CommandNode):
     commands: List['Alconna']
 
     def __init__(
-            self,
-            name: str,
-            *commands: "Alconna",
-            namespace: Optional[Union[str, Namespace]] = None,
+        self,
+        name: str,
+        *commands: "Alconna",
+        namespace: Optional[Union[str, Namespace]] = None,
     ):
         if not namespace:
             self.namespace = config.default_namespace.name
@@ -148,27 +149,13 @@ class Alconna(CommandNode):
     action_list: Dict[str, Union[None, ArgAction, Dict[str, ArgAction]]]
     custom_types = {}
 
-    global_behaviors: List[T_ABehavior] = []
     global_analyser_type: Type["Analyser"] = Analyser
-    global_formatter_type: Type[TextFormatter] = TextFormatter
 
     @classmethod
-    def config(
-            cls,
-            *,
-            behaviors: Optional[List[T_ABehavior]] = None,
-            analyser_type: Optional[Type[TAnalyser]] = None,
-            formatter_type: Optional[Type[TextFormatter]] = None,
-    ):
-        """
-        配置 Alconna 的默认属性
-        """
-        if behaviors is not None:
-            cls.global_behaviors.extend(behaviors)
-        if analyser_type is not None:
-            cls.global_analyser_type = analyser_type
-        if formatter_type is not None:
-            cls.global_formatter_type = formatter_type
+    def default_analyser(cls, __t: Optional[Type[TAnalyser]] = None):
+        """配置 Alconna 的默认解析器"""
+        if __t is not None:
+            cls.global_analyser_type = __t
         return cls
 
     def __init__(
@@ -209,24 +196,26 @@ class Alconna(CommandNode):
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = np_config.name
-        self.options.extend(
-            [
-                Option("|".join(np_config.builtin_option_name['help']), help_text=config.lang.builtin_option_help),
-                Option(
-                    "|".join(np_config.builtin_option_name['shortcut']),
-                    Args["delete;O", "delete"]["name", str]["command", str, "_"],
-                    help_text=config.lang.builtin_option_shortcut
-                ),
-                Option(
-                    "|".join(np_config.builtin_option_name['completion']),
-                    help_text=config.lang.builtin_option_completion
-                )
-            ]
+        self.options.append(
+            Option("|".join(np_config.builtin_option_name['help']), help_text=config.lang.builtin_option_help),
+        )
+        self.options.append(
+            Option(
+                "|".join(np_config.builtin_option_name['shortcut']),
+                Args["delete;O", "delete"]["name", str]["command", str, "_"],
+                help_text=config.lang.builtin_option_shortcut
+            )
+        )
+        self.options.append(
+            Option(
+                "|".join(np_config.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
+            )
         )
         self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
-        self.behaviors = behaviors or self.__class__.global_behaviors.copy()
+        self.behaviors = behaviors or []
         self.behaviors.insert(0, ActionHandler())
-        self.formatter_type = formatter_type or self.__class__.global_formatter_type
+        self.behaviors.extend(np_config.behaviors)
+        self.formatter_type = formatter_type or np_config.formatter_type or TextFormatter
         self.meta = meta or CommandMeta()
         self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
         self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
@@ -239,6 +228,7 @@ class Alconna(CommandNode):
         self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
         self._hash = self._calc_hash()
         command_manager.register(self)
+        self._executors: List[ArpamarExecutor] = []
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
         """
@@ -264,6 +254,9 @@ class Alconna(CommandNode):
         if isinstance(namespace, str):
             namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.namespace = namespace.name
+        self.headers = namespace.headers.copy()
+        self.behaviors[1:] = namespace.behaviors[:]
+        self.formatter_type = namespace.formatter_type or self.formatter_type
         self.options[0] = Option(
             "|".join(namespace.builtin_option_name['help']), help_text=config.lang.builtin_option_help
         )
@@ -275,6 +268,8 @@ class Alconna(CommandNode):
         self.options[2] = Option(
             "|".join(namespace.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
         )
+        self.meta.fuzzy_match = namespace.fuzzy_match
+        self.meta.raise_exception = namespace.raise_exception
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
@@ -337,26 +332,26 @@ class Alconna(CommandNode):
 
     @overload
     def parse(
-        self, message, duplication: Type[T_Duplication], static=True, interrupt=False
-    ) -> T_Duplication:
-        ...
-
-    @overload
-    def parse(
-        self, message: TDataCollection, duplication=None, static=True, interrupt=False
+        self, message: TDataCollection
     ) -> Arpamar[TDataCollection]:
         ...
 
     @overload
     def parse(
-        self, message, duplication=None, static=True, interrupt=True
-    ) -> Analyser:
+        self, message, *, duplication: Type[T_Duplication]
+    ) -> T_Duplication:
+        ...
+
+    @overload
+    def parse(
+        self, message: TDataCollection, *, interrupt: Literal[True]
+    ) -> Analyser[TDataCollection]:
         ...
 
     def parse(
-        self, message: TDataCollection, duplication: Optional[Type[T_Duplication]] = None,
-        static: bool = True, interrupt: bool = False
-    ) -> Union[Analyser, Arpamar[TDataCollection], T_Duplication]:
+        self, message: TDataCollection, *, duplication: Optional[Type[T_Duplication]] = None,
+        interrupt: bool = False, static: bool = True
+    ) -> Union[Analyser[TDataCollection], Arpamar[TDataCollection], T_Duplication]:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         analyser = command_manager.require(self) if static else compile(self)
         analyser.process(message)
@@ -366,9 +361,13 @@ class Alconna(CommandNode):
             return analyser
         if arp.matched:
             arp = arp.execute()
-        if duplication:
-            return duplication(self).set_target(arp)
-        return arp
+        return duplication(self).set_target(arp) if duplication else arp
+
+    def bind(self, target: Callable[..., T]) -> ArpamarExecutor[T]:
+        ext = ArpamarExecutor(target)
+        ext.binding = lambda: command_manager.get_result(self)
+        self._executors.append(ext)
+        return self._executors[-1]
 
     def __truediv__(self, other):
         self.reset_namespace(other)

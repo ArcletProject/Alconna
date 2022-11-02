@@ -1,4 +1,5 @@
-from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload, Generic, Mapping
+from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload, Generic, Mapping, \
+    Callable
 from types import MappingProxyType
 from contextlib import suppress
 from nepattern import Empty
@@ -131,6 +132,10 @@ class Arpamar(Generic[TDataCollection]):
                     return self._fail(e)
         return self
 
+    def call(self, target: Callable[..., T], **additional):
+        if self.matched:
+            return target(**self.all_matched_args, **additional)
+
     def _fail(self, exc: Union[Type[BaseException], BaseException, str]):
         arp = Arpamar(self.source)
         arp.matched = False
@@ -149,12 +154,10 @@ class Arpamar(Generic[TDataCollection]):
             if part in self.components:
                 return self.components[part], ''
             if part in {"options", "subcommands"}:
-                return getattr(self, "_" + part), ''
+                return getattr(self, f"_{part}"), ''
             if part in {"main_args", "other_args"}:
                 return getattr(self, part), ''
-            if part == "args":
-                return self.all_matched_args, ''
-            return None, part
+            return (self.all_matched_args, '') if part == "args" else (None, part)
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
             raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=prefix))
@@ -171,9 +174,7 @@ class Arpamar(Generic[TDataCollection]):
                 return _c, ''
             if (_e := _s.pop(0)) in {'args', 'value'}:
                 return _c, _e
-            if _e in _c['args']:
-                return _c['args'], _e
-            return None, _e
+            return (_c['args'], _e) if _e in _c['args'] else (None, _e)
 
         if prefix == "options" or prefix in self._options:
             return _r_opt(prefix, parts, self._options)

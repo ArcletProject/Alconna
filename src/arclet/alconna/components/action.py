@@ -2,6 +2,7 @@ import inspect
 from types import LambdaType
 from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING, Union
 from nepattern import AnyOne, AllParam, type_parser
+from dataclasses import dataclass
 
 from ..args import Args
 from ..config import config
@@ -15,22 +16,17 @@ if TYPE_CHECKING:
     from ..core import Alconna
 
 
+@dataclass
 class ArgAction:
-    """
-    负责封装action的类
-    """
+    """负责封装action的类"""
     action: Callable[..., Any]
 
-    def __init__(self, action: Callable):
-        """ArgAction的构造函数"""
-        self.action = action
-
     def handle(
-            self,
-            option_dict: dict,
-            varargs: Optional[List] = None,
-            kwargs: Optional[Dict] = None,
-            raise_exception: bool = False,
+        self,
+        option_dict: dict,
+        varargs: Optional[List] = None,
+        kwargs: Optional[Dict] = None,
+        raise_exception: bool = False,
     ):
         """
         处理action
@@ -126,9 +122,10 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
 
 
 def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, source: 'Alconna'):
-    if not data['args']:
-        return "value", func.handle({}, [], {}, source.meta.raise_exception)
-    return "args", _exec_args(data['args'], func, source)
+    return (
+        ("args", _exec_args(data['args'], func, source))
+        if data['args'] else ("value", func.handle({}, [], {}, source.meta.raise_exception))
+    )
 
 
 class ActionHandler(ArpamarBehavior):

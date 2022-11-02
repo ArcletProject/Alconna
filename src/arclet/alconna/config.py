@@ -1,19 +1,25 @@
 import asyncio
 import json
-from pathlib import Path
 from contextlib import contextmanager
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import (
-    Union,
+    TYPE_CHECKING,
+    ContextManager,
     Dict,
     Final,
+    List,
     Optional,
     Set,
-    List,
     Tuple,
-    ContextManager,
+    Type,
     TypedDict,
+    Union,
 )
-from dataclasses import dataclass, field
+
+if TYPE_CHECKING:
+    from .components.behavior import T_ABehavior
+    from .components.output import TextFormatter
 
 
 class OptionNames(TypedDict):
@@ -28,7 +34,9 @@ class Namespace:
     headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = field(
         default_factory=list
     )
-    separators: Tuple[str, ...] = field(default_factory=lambda: (" ", ))
+    separators: Tuple[str, ...] = field(default_factory=lambda: (" ",))
+    behaviors: List["T_ABehavior"] = field(default_factory=list)
+    formatter_type: Optional[Type["TextFormatter"]] = field(default=None)
     fuzzy_match: bool = field(default=False)
     raise_exception: bool = field(default=False)
     enable_message_cache: bool = field(default=True)

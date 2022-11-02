@@ -66,9 +66,9 @@ class ArgsMeta(type):
 
     def __getattr__(self, name):
         class _Seminal:
-            __class_getitem__ = partial(self.__class__.__getitem__, self, key=name)
+            __getitem__ = partial(self.__class__.__getitem__, self, key=name)
 
-        return _Seminal
+        return _Seminal()
 
     def __getitem__(self, item, key: Optional[str] = None):
         if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
@@ -76,9 +76,7 @@ class ArgsMeta(type):
         if not isinstance(item, tuple):
             return self(args=[(key, item)]) if key else self(args=[(str(item), item)])
         arg = list(filter(lambda x: not isinstance(x, slice), item))
-        if key:
-            return self(args=[(key, *arg[:2])])
-        return self(args=[arg[:3]])
+        return self(args=[(key, *arg[:2])]) if key else self(args=[arg[:3]])
 
 
 class Args(metaclass=ArgsMeta):  # type: ignore
