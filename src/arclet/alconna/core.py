@@ -249,15 +249,15 @@ class Alconna(CommandNode):
     def _deprecate(self, kwargs):
         for key, value in kwargs.items():
             import warnings
-            if key == "headers":
-                warnings.warn("'headers' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.headers = value or config.namespaces[self.namespace].headers
-                if self.command == sys.argv[0]:
-                    self.command = ''
-                self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
             if key == "command":
                 warnings.warn("'command' will not support in 1.4.0 !", DeprecationWarning, 2)
                 self.command = value
+                self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
+            elif key == "headers":
+                warnings.warn("'headers' will not support in 1.4.0 !", DeprecationWarning, 2)
+                if self.command == sys.argv[0]:
+                    self.command = ''
+                self.headers = value or config.namespaces[self.namespace].headers
                 self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
             if key == "options":
                 warnings.warn("'options' will not support in 1.4.0 !", DeprecationWarning, 2)
@@ -318,16 +318,16 @@ class Alconna(CommandNode):
         if isinstance(namespace, str):
             namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.namespace = namespace.name
-        self.options[0] = Option(
+        self.options[-3] = Option(
             "|".join(namespace.builtin_option_name['help']),
             help_text=config.lang.builtin_option_help
         )
-        self.options[1] = Option(
+        self.options[-2] = Option(
             "|".join(namespace.builtin_option_name['shortcut']),
             Args["delete;O", "delete"]["name", str]["command", str, "_"],
             help_text=config.lang.builtin_option_shortcut
         )
-        self.options[2] = Option(
+        self.options[-1] = Option(
             "|".join(namespace.builtin_option_name['completion']),
             help_text=config.lang.builtin_option_completion
         )
@@ -386,7 +386,7 @@ class Alconna(CommandNode):
         names = name.split(sep)
         name, requires = names[-1], names[:-1]
         opt = Option(name, args, list(alias), separators=sep, help_text=help_, requires=requires)
-        self.options.append(opt)
+        self.options.insert(-3, opt)
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self

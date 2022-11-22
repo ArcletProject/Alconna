@@ -5,7 +5,7 @@ with open("README.rst", "r", encoding='utf-8') as fh:
 
 setup(
     name="arclet-alconna",
-    version="1.3.1",
+    version="1.3.2.2",
     author="RF-Tar-Railt",
     author_email="rf_tar_railt@qq.com",
     description="A High-performance, Generality, Humane Command Line Arguments Parser Library.",
