@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Union, List
 from nepattern import Empty
 from ..components.output import output_manager
 from ..base import Subcommand, Option
-from ..args import ArgUnit, Args
+from ..args import Unit, Args
 from ..config import config
 from ..exceptions import ParamsUnmatched
 from .parts import analyse_args
@@ -46,7 +46,7 @@ def handle_shortcut(analyser: "Analyser"):
     return analyser.export(fail=True)
 
 
-def _handle_unit(analyser: "Analyser", trigger: ArgUnit):
+def _handle_unit(analyser: "Analyser", trigger: Unit):
     if gen := trigger["field"].completion:
         comp = gen()
         if isinstance(comp, str):
@@ -102,7 +102,7 @@ def _handle_none(analyser: "Analyser", got: List[str]):
 
 
 def handle_completion(
-    analyser: "Analyser", trigger: Union[None, ArgUnit, Subcommand, str] = None
+    analyser: "Analyser", trigger: Union[None, Unit, Subcommand, str] = None
 ):
     if isinstance(trigger, dict):
         _handle_unit(analyser, trigger)

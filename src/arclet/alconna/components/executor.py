@@ -11,7 +11,7 @@ T = TypeVar("T")
 @dataclass(unsafe_hash=True)
 class ArpamarExecutor(Generic[T]):
     target: Callable[..., T]
-    binding: Optional[Callable[..., Optional['Arpamar']]] = field(default=None, repr=False)
+    binding: Callable[..., Optional['Arpamar']] = field(default=lambda: None, repr=False)
 
     @property
     def result(self) -> T:

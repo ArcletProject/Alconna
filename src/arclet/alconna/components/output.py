@@ -5,7 +5,7 @@ from nepattern import Empty, AllParam, BasePattern
 
 from .action import ArgAction
 from ..util import Singleton
-from ..args import Args, ArgUnit
+from ..args import Args, Unit
 from ..base import Option, Subcommand
 
 
@@ -190,7 +190,7 @@ class TextFormatter:
         body = self.body(trace.body)
         return header % (param, body)
 
-    def param(self, name: str, parameter: ArgUnit) -> str:
+    def param(self, name: str, parameter: Unit) -> str:
         """对单个参数的描述"""
         arg = f"[{name}" if parameter['optional'] else f"<{name}"
         if not parameter['hidden']:

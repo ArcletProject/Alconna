@@ -257,15 +257,15 @@ class Alconna(CommandNode):
         self.headers = namespace.headers.copy()
         self.behaviors[1:] = namespace.behaviors[:]
         self.formatter_type = namespace.formatter_type or self.formatter_type
-        self.options[0] = Option(
+        self.options[-3] = Option(
             "|".join(namespace.builtin_option_name['help']), help_text=config.lang.builtin_option_help
         )
-        self.options[1] = Option(
+        self.options[-2] = Option(
             "|".join(namespace.builtin_option_name['shortcut']),
             Args["delete;O", "delete"]["name", str]["command", str, "_"],
             help_text=config.lang.builtin_option_shortcut
         )
-        self.options[2] = Option(
+        self.options[-1] = Option(
             "|".join(namespace.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
         )
         self.meta.fuzzy_match = namespace.fuzzy_match
@@ -325,7 +325,7 @@ class Alconna(CommandNode):
         names = name.split(sep)
         name, requires = names[-1], names[:-1]
         opt = Option(name, args, list(alias), separators=sep, help_text=help_, requires=requires)
-        self.options.append(opt)
+        self.options.insert(-3, opt)
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
@@ -400,6 +400,6 @@ class Alconna(CommandNode):
 
     def _calc_hash(self):
         return hash(
-            (self.path + str(self.args.argument.keys()) + str([i['value'] for i in self.args.argument.values()])
+            (self.path + str([i.name for i in self.args.argument]) + str([i.value for i in self.args.argument])
              + str(self.headers), *self.options, self.meta)
         )

@@ -15,26 +15,26 @@ class DataCollection(Protocol[DataUnit]):
 
 TDataCollection = TypeVar("TDataCollection", bound=DataCollection[Union[str, Any]])
 
-
-class MultiArg(BasePattern):
-    """对可变参数的匹配"""
-    flag: str
-    array_length: Optional[int]
-
-    def __init__(self, base: BasePattern, flag: Literal['args', 'kwargs'] = 'args', length: Optional[int] = None):
-        self.flag = flag
-        self.array_length = length
-        if flag == 'args':
-            alias = f"*({base})[:{length}]" if length else f"*({base})"
-        else:
-            alias = f"**{{{base}}}[:{length}]" if length else f"**{{{base}}}"
-        super().__init__(
-            base.pattern, base.model, base.origin, base.converter, alias,
-            base.previous, base.pattern_accepts + base.type_accepts, base.validators  # type: ignore
-        )
-
-    def __repr__(self):
-        return self.alias
+# 
+# class MultiArg(BasePattern):
+#     """对可变参数的匹配"""
+#     flag: str
+#     array_length: Optional[int]
+#
+#     def __init__(self, base: BasePattern, flag: Literal['args', 'kwargs'] = 'args', length: Optional[int] = None):
+#         self.flag = flag
+#         self.array_length = length
+#         if flag == 'args':
+#             alias = f"*({base})[:{length}]" if length else f"*({base})"
+#         else:
+#             alias = f"**{{{base}}}[:{length}]" if length else f"**{{{base}}}"
+#         super().__init__(
+#             base.pattern, base.model, base.origin, base.converter, alias,
+#             base.previous, base.pattern_accepts + base.type_accepts, base.validators  # type: ignore
+#         )
+#
+#     def __repr__(self):
+#         return self.alias
 
 
 __all__ = [

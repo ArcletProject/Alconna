@@ -4,61 +4,65 @@ from functools import partial
 from copy import deepcopy
 from enum import Enum
 from contextlib import suppress
-from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict
-from dataclasses import dataclass, field
+from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Literal, TypedDict, TypeVar, Generic
+from dataclasses import dataclass, field as dc_field
 from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
 
 from .config import config
 from .exceptions import InvalidParam, NullMessage
 from .typing import MultiArg
 
-TAValue = Union[BasePattern, AllParam.__class__, type]
+_T = TypeVar("_T")
+TAValue = Union[BasePattern, AllParam.__class__, type, str]
 
 
 class ArgFlag(str, Enum):
-    """参数标记"""
-    VAR_POSITIONAL_MORE = "+"
-    VAR_KEYWORD_MORE = "++"
-    VAR_POSITIONAL = "*"
-    VAR_KEYWORD = "**"
     OPTIONAL = 'O'
     KWONLY = '@'
     HIDDEN = "H"
-    FORCE = "F"
     ANTI = "!"
 
 
 @dataclass
-class ArgField:
+class Field(Generic[_T]):
     """标识参数单元字段"""
-    default: Any = field(default=None)
-    default_factory: Callable[[], Any] = field(default=lambda: None)
-    alias: Optional[str] = field(default=None)
-    completion: Optional[Callable[[], Union[str, List[str]]]] = field(default=None)
+    default: _T = dc_field(default=None)
+    default_factory: Callable[[], _T] = dc_field(default=lambda: None)
+    alias: Optional[str] = dc_field(default=None)
+    completion: Optional[Callable[[], Union[str, List[str]]]] = dc_field(default=None)
 
     @property
     def display(self):
-        return self.alias or self.default
+        return self.alias or self.default_gen
 
     @property
-    def default_gen(self):
+    def default_gen(self) -> _T:
         return self.default if self.default is not None else self.default_factory()
 
 
-class ArgUnit(TypedDict):
-    """参数单元 """
+class Arg:
+    name: str
     value: TAValue
-    """参数值"""
-    field: ArgField
-    """默认值"""
+    field: Field
     notice: Optional[str]
-    """参数提示"""
-    optional: bool
-    """是否可选"""
-    kwonly: bool
-    """是否键值对参数"""
-    hidden: bool
-    """是否隐藏类型参数"""
+    slot: Union[int, Literal["+", "++", "*", "**"]]
+    flag: List[ArgFlag]
+
+    def __init__(
+        self,
+        name: str,
+        value: Optional[TAValue] = None,
+        field: Optional[Field] = None,
+        notice: Optional[str] = None,
+        flags: Optional[List[ArgFlag]] = None,
+        slot: Union[int, Literal["+", "++", "*", "**"]] = 1,
+    ):
+        ...
+
+    def __repr__(self):
+        return (n if (n := f"'{self.name}'") == (v := str(self.value)) else f"{n}: {v}") + (
+            f" = '{self.field.display}'" if self.field.display is not None else ""
+        )
 
 
 class ArgsMeta(type):
@@ -71,23 +75,15 @@ class ArgsMeta(type):
         return _Seminal()
 
     def __getitem__(self, item, key: Optional[str] = None):
-        if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):
-            raise InvalidParam(f"{self.__name__} 现在不支持切片; 应从 Args[a:b:c, x:y:z] 变为 Args[a,b,c][x,y,z]")
+        args = self()
         if not isinstance(item, tuple):
-            return self(args=[(key, item)]) if key else self(args=[(str(item), item)])
+            return args.add(key, value=item) if key else args.add(str(item), value=item)
         arg = list(filter(lambda x: not isinstance(x, slice), item))
         return self(args=[(key, *arg[:2])]) if key else self(args=[arg[:3]])
 
 
 class Args(metaclass=ArgsMeta):  # type: ignore
-    """
-    对命令参数的封装
-
-    Attributes:
-        argument: 存放参数内容的容器
-    """
-    extra: Literal["allow", "ignore", "reject"]
-    argument: Dict[str, ArgUnit]
+    argument: List[Arg]
     var_positional: Optional[str]
     var_keyword: Optional[str]
     keyword_only: List[str]
@@ -177,11 +173,10 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         return _args, method
 
     def __init__(
-            self,
-            args: Optional[Iterable[Sequence]] = None,
-            extra: Literal["allow", "ignore", "reject"] = "allow",
-            separators: Union[str, Iterable[str]] = " ",
-            **kwargs: TAValue
+        self,
+        *args: Arg,
+        separators: Union[str, Iterable[str]] = " ",
+        **kwargs: TAValue
     ):
         """
         构造一个Args
@@ -192,17 +187,16 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             separator: 参数分隔符
             kwargs: 其他参数
         """
-        self.extra = extra
         self.var_positional = None
         self.var_keyword = None
         self.keyword_only = []
         self.optional_count = 0
-        self.separators = (separators, ) if isinstance(separators, str) else tuple(separators)
-        self.argument = {}
+        self.separators = (separators,) if isinstance(separators, str) else tuple(separators)
+        self.argument = []
         for arg in (args or []):
             self.__check_var__(arg)
         self.argument.update({  # type: ignore
-            k: {"value": type_parser(v), "field": ArgField(), 'notice': None,
+            k: {"value": type_parser(v), "field": Field(), 'notice': None,
                 'optional': False, 'hidden': False, 'kwonly': False}
             for k, v in kwargs.items()
         })
@@ -224,7 +218,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         """设置参数的默认值"""
         for k, v in kwargs.items():
             if self.argument.get(k):
-                self.argument[k]['field'] = v if isinstance(v, ArgField) else ArgField(v)
+                self.argument[k]['field'] = v if isinstance(v, Field) else Field(v)
         return self
 
     def separate(self, *separator: str):
@@ -236,19 +230,19 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         if not val:
             raise InvalidParam(config.lang.args_name_empty)
         if len(val) > 2:
-            name, value, default = val[0], val[1], val[2] if isinstance(val[2], ArgField) else ArgField(val[2])
+            name, value, default = val[0], val[1], val[2] if isinstance(val[2], Field) else Field(val[2])
         elif len(val) > 1:
             name, value, default = (
                 val[0], val[0], val[1]
-            ) if isinstance(val[1], ArgField) else (
-                val[0], val[1], ArgField()
+            ) if isinstance(val[1], Field) else (
+                val[0], val[1], Field()
             )
         else:
-            name, value, default = val[0], val[0], ArgField()
+            name, value, default = val[0], val[0], Field()
         if not isinstance(name, str):
             raise InvalidParam(config.lang.args_name_error)
         name: str
-        default: ArgField
+        default: Field
         if not name.strip():
             raise InvalidParam(config.lang.args_name_empty)
         _value = type_parser(value, self.extra)
@@ -258,7 +252,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             default.default = Empty
         if _value is Empty:
             raise InvalidParam(config.lang.args_value_error.format(target=name))
-        slot: ArgUnit = {
+        slot: Unit = {
             'value': _value, 'field': default, 'notice': None,
             'optional': False, 'hidden': False, 'kwonly': False
         }
@@ -270,9 +264,6 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             name = name.replace(f";{res['flag']}", "")
             _limit = False
             for flag in flags.split('|'):
-                if flag == ArgFlag.FORCE and not _limit:
-                    self.__handle_force__(slot, value)
-                    _limit = True
                 if flag == ArgFlag.ANTI and not _limit:
                     if slot['value'] not in (AnyOne, AllParam):
                         slot['value'] = deepcopy(_value).reverse()  # type: ignore
@@ -309,10 +300,6 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                     slot['kwonly'] = True
         self.argument[name] = slot
 
-    @staticmethod
-    def __handle_force__(slot: ArgUnit, value):
-        slot['value'] = (BasePattern(value, alias=f"\'{value}\'") if isinstance(value, str) else BasePattern.of(value))
-
     def __len__(self):
         return len(self.argument)
 
@@ -329,7 +316,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             self.__check_var__([key, value])
         return self
 
-    def __getitem__(self, item) -> Union["Args", Tuple[TAValue, ArgField]]:
+    def __getitem__(self, item) -> Union["Args", Tuple[TAValue, Field]]:
         if isinstance(item, str) and self.argument.get(item):
             return self.argument[item]['value'], self.argument[item]['field']
         if isinstance(item, slice) or isinstance(item, tuple) and list(filter(lambda x: isinstance(x, slice), item)):

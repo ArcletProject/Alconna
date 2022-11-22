@@ -12,7 +12,7 @@ from ..manager import command_manager
 from ..exceptions import (
     NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, PauseTriggered
 )
-from ..args import Args, ArgUnit
+from ..args import Args, Unit
 from ..base import Option, Subcommand, Sentence
 from ..arpamar import Arpamar
 from ..util import split_once, split
@@ -34,7 +34,7 @@ class Analyser(Generic[T_Origin]):
     text_sign: str = 'text'
 
     alconna: 'Alconna'  # Alconna实例
-    context: Optional[Union[ArgUnit, Subcommand, Option]]
+    context: Optional[Union[Unit, Subcommand, Option]]
     current_index: int  # 当前数据的index
     # content_index: int  # 内部index
     # raw_data: List[Union[Any, StrMounter]]  # 原始数据
@@ -334,9 +334,7 @@ class Analyser(Generic[T_Origin]):
             try:
                 _res = command_manager.find_shortcut(self.popitem(move=False)[0], self.alconna)
                 self.reset()
-                if isinstance(_res, Arpamar):
-                    return _res
-                return self.process(_res).analyse()
+                return _res if isinstance(_res, Arpamar) else self.process(_res).analyse()
             except ValueError as exc:
                 if self.raise_exception:
                     raise e from exc

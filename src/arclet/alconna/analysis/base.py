@@ -2,7 +2,7 @@ from collections import namedtuple
 from typing import TYPE_CHECKING, Union, Callable, List, Any, Tuple, Dict
 import traceback
 
-from .analyser import Analyser
+from .analyser import Analyser, TAnalyser
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..typing import DataCollection, TDataCollection
 from ..base import Option, Subcommand, Sentence
@@ -49,11 +49,11 @@ def default_params_parser(analyser: "Analyser"):
             for k in opts.requires:
                 analyser.command_params.setdefault(k, Sentence(name=k))
         analyser.part_len = range(
-            len(analyser.alconna.options) + (1 if analyser.need_main_args else 0) + require_len
+            len(analyser.alconna.options) + analyser.need_main_args + require_len
         )
 
 
-def compile(alconna: "Alconna", params_parser: Callable[[Analyser], None] = default_params_parser) -> Analyser:
+def compile(alconna: "Alconna", params_parser: Callable[[TAnalyser], None] = default_params_parser) -> TAnalyser:
     _analyser = alconna.analyser_type(alconna)
     params_parser(_analyser)
     return _analyser
@@ -96,7 +96,7 @@ def analyse_args(args: Args, command: DataCollection[Union[str, Any]], raise_exc
     _analyser.raise_exception = True
     try:
         _analyser.process(command)
-        return ala(_analyser, args)
+        return ala(_analyser, args, len(args))
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

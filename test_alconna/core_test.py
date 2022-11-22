@@ -2,7 +2,7 @@ from arclet.alconna.core import AlconnaGroup
 from arclet.alconna import (
     Alconna,
     Args,
-    ArgField,
+    Field,
     Option,
     Subcommand,
     AllParam,
@@ -327,11 +327,11 @@ def test_completion():
     alc20 = (
             "core20" + Option("fool") + Option(
         "foo",
-        Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
+        Args.bar["a|b|c", Field(completion=lambda: "test completion; choose a, b or c")]
     ) + Option(
         "off",
-        Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
-    ) + Args["test", int, ArgField(1, completion=lambda: "try -1 ?")]
+        Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])]
+    ) + Args["test", int, Field(1, completion=lambda: "try -1 ?")]
     )
 
     alc20.parse("core20 --comp")
