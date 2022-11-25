@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
-from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDict, Set, FrozenSet, overload
+from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDict, Set, overload
 
 from .args import Args
 from .exceptions import InvalidParam
@@ -87,7 +87,6 @@ class CommandNode:
 
 class Option(CommandNode):
     """命令选项, 可以使用别名"""
-    aliases: FrozenSet[str]
     priority: int
 
     def __init__(
@@ -101,16 +100,15 @@ class Option(CommandNode):
             requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
             priority: int = 0
     ):
-        aliases = alias or []
+        self.aliases = alias or []
         parts = name.split(" ")
         name, rest = parts[-1], parts[:-1]
         if "|" in name:
-            aliases = name.split('|')
-            aliases.sort(key=len, reverse=True)
-            name = aliases[0]
-            aliases.extend(aliases[1:])
-        aliases.insert(0, name)
-        self.aliases = frozenset(aliases)
+            _aliases = name.split('|')
+            _aliases.sort(key=len, reverse=True)
+            name = _aliases[0]
+            self.aliases.extend(_aliases[1:])
+        self.aliases.insert(0, name)
         self.priority = priority
         super().__init__(
             " ".join(rest) + (" " if rest else "") + name, args, dest, action, separators, help_text, requires

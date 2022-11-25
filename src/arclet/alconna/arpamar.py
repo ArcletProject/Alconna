@@ -2,6 +2,7 @@ from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVa
 from types import MappingProxyType
 from contextlib import suppress
 from nepattern import Empty
+from weakref import finalize
 from .typing import TDataCollection
 from .config import config
 from .base import SubcommandResult, OptionResult
@@ -21,6 +22,11 @@ class Arpamar(Generic[TDataCollection]):
     亚帕玛尔(Arpamar), Alconna的珍藏宝书
     """
 
+    def _clr(self):
+        ks = list(self.__dict__.keys())
+        for k in ks:
+            delattr(self, k)
+
     def __init__(self, alc: "Alconna"):
         self.source: "Alconna" = alc
         self.origin: TDataCollection = ''
@@ -35,6 +41,8 @@ class Arpamar(Generic[TDataCollection]):
         self._options: Dict[str, OptionResult] = {}
         self._subcommands: Dict[str, SubcommandResult] = {}
         self._record = set()
+
+        finalize(self, self._clr)
 
     @staticmethod
     def _filter_opt(opt: OptionResult):
@@ -97,10 +105,10 @@ class Arpamar(Generic[TDataCollection]):
             subcommands: Dict[str, SubcommandResult]
     ) -> None:
         """处理 Arpamar 中的数据"""
-        self.main_args = main_args
-        self._header = header
-        self._options = options
-        self._subcommands = subcommands
+        self.main_args = main_args.copy()
+        self._header = header.copy() if isinstance(header, dict) else header
+        self._options = options.copy()
+        self._subcommands = subcommands.copy()
         for v in options.values():
             self.other_args = {**self.other_args, **v['args']}
         for k in subcommands:
@@ -118,7 +126,7 @@ class Arpamar(Generic[TDataCollection]):
 
     def execute(self, behaviors: Optional[List[T_ABehavior]] = None):
         self.source.behaviors[0].operate(self)
-        if behaviors := [*self.source.behaviors[1:], *(behaviors or [])]:
+        if behaviors := (self.source.behaviors[1:] + (behaviors or [])):
             exc_behaviors = []
             for behavior in behaviors:
                 exc_behaviors.extend(requirement_handler(behavior))
@@ -149,12 +157,10 @@ class Arpamar(Generic[TDataCollection]):
             if part in self.components:
                 return self.components[part], ''
             if part in {"options", "subcommands"}:
-                return getattr(self, "_" + part), ''
+                return getattr(self, f"_{part}"), ''
             if part in {"main_args", "other_args"}:
                 return getattr(self, part), ''
-            if part == "args":
-                return self.all_matched_args, ''
-            return None, part
+            return (self.all_matched_args, '') if part == "args" else (None, part)
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
             raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=prefix))
@@ -171,9 +177,7 @@ class Arpamar(Generic[TDataCollection]):
                 return _c, ''
             if (_e := _s.pop(0)) in {'args', 'value'}:
                 return _c, _e
-            if _e in _c['args']:
-                return _c['args'], _e
-            return None, _e
+            return (_c['args'], _e) if _e in _c['args'] else (None, _e)
 
         if prefix == "options" or prefix in self._options:
             return _r_opt(prefix, parts, self._options)

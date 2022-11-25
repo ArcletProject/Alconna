@@ -45,15 +45,16 @@ class CommandManager(metaclass=Singleton):
         self.__abandons = []
         self.__shortcuts = LruCache()
         self.__record = LruCache(config.message_max_cache)
-        weakref.finalize(self, self.__del__)
 
-    def __del__(self):
-        with contextlib.suppress(AttributeError):
+        def _del():
             self.__commands.clear()
+            self.__analysers.clear()
             self.__abandons.clear()
             self.__record.clear()
             self.__shortcuts.clear()
             Singleton.remove(self.__class__)
+
+        weakref.finalize(self, _del)
 
     def load_cache(self) -> None:
         """加载缓存"""
@@ -90,9 +91,11 @@ class CommandManager(metaclass=Singleton):
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         if not command._group:   # noqa
+            self.__analysers.pop(command, None)
             self.__analysers[command] = compile(command)  # type: ignore
         else:
             for cmd in command.commands:  # type: ignore
+                self.__analysers.pop(cmd, None)
                 self.__analysers[cmd] = compile(cmd)
         namespace = self.__commands.setdefault(command.namespace, {})
         if _cmd := namespace.get(command.name):

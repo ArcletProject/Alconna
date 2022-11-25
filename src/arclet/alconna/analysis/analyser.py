@@ -73,9 +73,18 @@ class Analyser(Generic[T_Origin]):
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
         return hash(str(data))
 
+    def _clr(self):
+        self.reset()
+        self.used_tokens.clear()
+        ks = list(self.__dict__.keys())
+        for k in ks:
+            delattr(self, k)
+
     def __init__(self, alconna: "Alconna"):
         if not hasattr(self, 'filter_out'):
             self.filter_out = []
+        self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
+        self.raw_data, self.sentences = [], []
         self.reset()
         self.used_tokens = set()
         self.origin_data = None
@@ -100,13 +109,7 @@ class Analyser(Generic[T_Origin]):
         self.__init_header__(alconna.command, alconna.headers)
         self.__init_actions__()
 
-        def _clr(a: 'Analyser'):
-            a.reset()
-            a.used_tokens.clear()
-            del a.origin_data
-            del a.alconna
-
-        finalize(self, _clr, self)
+        finalize(self, self._clr)
 
     def __handle_main_args__(self, main_args: Args, nargs: Optional[int] = None):
         nargs = nargs or len(main_args)
@@ -169,7 +172,7 @@ class Analyser(Generic[T_Origin]):
                     elements.append(h)
             if not elements:
                 if isinstance(_command_name, TPattern):
-                    self.command_header = re.compile(f"(?:{ch_text[:-1]}){_command_str}")   # noqa
+                    self.command_header = re.compile(f"(?:{ch_text[:-1]}){_command_str}")  # noqa
                 else:
                     _command_name.pattern = f"(?:{ch_text[:-1]}){_command_name.pattern}"  # type: ignore
                     _command_name.regex_pattern = re.compile(_command_name.pattern)  # type: ignore
@@ -177,7 +180,8 @@ class Analyser(Generic[T_Origin]):
             elif not ch_text:
                 self.command_header = (elements, _command_name)  # type: ignore
             else:
-                self.command_header = (elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name # type: ignore # noqa
+                self.command_header = (
+                                      elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name  # type: ignore # noqa
 
     def __init_actions__(self):
         actions = self.alconna.action_list
@@ -199,8 +203,12 @@ class Analyser(Generic[T_Origin]):
         """重置分析器"""
         self.current_index, self.content_index, self.ndata, self.temp_token = 0, 0, 0, 0
         self.is_str, self.head_matched = False, False
-        self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
-        self.raw_data, self.sentences = [], []
+        self.temporary_data.clear()
+        self.main_args.clear()
+        self.options.clear()
+        self.subcommands.clear()
+        self.raw_data.clear()
+        self.sentences.clear()
         self.origin_data, self.header, self.context = None, None, None
         self.head_pos = (0, 0)
 
@@ -307,9 +315,9 @@ class Analyser(Generic[T_Origin]):
         return self
 
     def analyse(
-        self,
-        message: Union[DataCollection[Union[str, Any]], None] = None,
-        interrupt: bool = False
+            self,
+            message: Union[DataCollection[Union[str, Any]], None] = None,
+            interrupt: bool = False
     ) -> Arpamar:
         """主体解析函数, 应针对各种情况进行解析"""
         if command_manager.is_disable(self.alconna):
@@ -333,9 +341,7 @@ class Analyser(Generic[T_Origin]):
             try:
                 _res = command_manager.find_shortcut(self.popitem(move=False)[0], self.alconna)
                 self.reset()
-                if isinstance(_res, Arpamar):
-                    return _res
-                return self.process(_res).analyse()
+                return _res if isinstance(_res, Arpamar) else self.process(_res).analyse()
             except ValueError as exc:
                 if self.raise_exception:
                     raise e from exc
