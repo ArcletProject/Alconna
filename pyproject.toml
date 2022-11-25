@@ -11,7 +11,7 @@ authors = [
 ]
 dependencies = [
     "typing-extensions~=4.4.0",
-    "nepattern>=0.3.0",
+    "nepattern>=0.3.2",
 ]
 requires-python = ">=3.8"
 readme = "README-EN.md"
@@ -43,7 +43,7 @@ repository = "https://github.com/ArcletProject/Alconna"
 [project.optional-dependencies]
 full = ["arclet-alconna-tools>=0.2.0"]
 cli = ["arclet-alconna-cli>=0.3.0"]
-graia = ["arclet-alconna-graia>=0.8.0"]
+graia = ["arclet-alconna-graia>=0.9.0"]
 all = ["arclet-alconna-cli>=0.3.0", "arclet-alconna-graia>=0.8.0", "arclet-alconna-tools>=0.2.0"]
 
 [tool.pdm]

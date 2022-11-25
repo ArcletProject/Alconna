@@ -76,6 +76,8 @@ class _DummyAnalyser(Analyser):
         namespace_config = config.default_namespace
 
     def __new__(cls, *args, **kwargs):
+        cls.temporary_data, cls.main_args, cls.options, cls.subcommands = {}, {}, {}, {}
+        cls.raw_data, cls.sentences = [], []
         cls.alconna = cls._DummyALC()  # type: ignore
         cls.command_params = {}
         cls.param_ids = set()

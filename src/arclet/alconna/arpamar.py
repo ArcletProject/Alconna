@@ -4,6 +4,7 @@ from types import MappingProxyType
 from contextlib import suppress
 from nepattern import Empty
 from .typing import TDataCollection
+from weakref import finalize
 from .config import config
 from .base import SubcommandResult, OptionResult
 from .exceptions import BehaveCancelled, OutBoundsBehave
@@ -22,6 +23,11 @@ class Arpamar(Generic[TDataCollection]):
     亚帕玛尔(Arpamar), Alconna的珍藏宝书
     """
 
+    def _clr(self):
+        ks = list(self.__dict__.keys())
+        for k in ks:
+            delattr(self, k)
+
     def __init__(self, alc: "Alconna"):
         self.source: "Alconna" = alc
         self.origin: TDataCollection = ''
@@ -36,6 +42,8 @@ class Arpamar(Generic[TDataCollection]):
         self._options: Dict[str, OptionResult] = {}
         self._subcommands: Dict[str, SubcommandResult] = {}
         self._record = set()
+
+        finalize(self, self._clr)
 
     @staticmethod
     def _filter_opt(opt: OptionResult):
@@ -98,10 +106,10 @@ class Arpamar(Generic[TDataCollection]):
             subcommands: Dict[str, SubcommandResult]
     ) -> None:
         """处理 Arpamar 中的数据"""
-        self.main_args = main_args
-        self._header = header
-        self._options = options
-        self._subcommands = subcommands
+        self.main_args = main_args.copy()
+        self._header = header.copy() if isinstance(header, dict) else header
+        self._options = options.copy()
+        self._subcommands = subcommands.copy()
         for v in options.values():
             self.other_args = {**self.other_args, **v['args']}
         for k in subcommands:
@@ -119,7 +127,7 @@ class Arpamar(Generic[TDataCollection]):
 
     def execute(self, behaviors: Optional[List[T_ABehavior]] = None):
         self.source.behaviors[0].operate(self)
-        if behaviors := [*self.source.behaviors[1:], *(behaviors or [])]:
+        if behaviors := (self.source.behaviors[1:] + (behaviors or [])):
             exc_behaviors = []
             for behavior in behaviors:
                 exc_behaviors.extend(requirement_handler(behavior))

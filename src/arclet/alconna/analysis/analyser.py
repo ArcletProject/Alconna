@@ -74,9 +74,18 @@ class Analyser(Generic[T_Origin]):
     def generate_token(data: List[Union[Any, List[str]]]) -> int:
         return hash(str(data))
 
+    def _clr(self):
+        self.reset()
+        self.used_tokens.clear()
+        ks = list(self.__dict__.keys())
+        for k in ks:
+            delattr(self, k)
+
     def __init__(self, alconna: "Alconna"):
         if not hasattr(self, 'filter_out'):
             self.filter_out = []
+        self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
+        self.raw_data, self.sentences = [], []
         self.reset()
         self.used_tokens = set()
         self.origin_data = None
@@ -102,13 +111,7 @@ class Analyser(Generic[T_Origin]):
         self.__init_header__(alconna.command, alconna.headers)
         self.__init_actions__()
 
-        def _clr(a: 'Analyser'):
-            a.reset()
-            a.used_tokens.clear()
-            del a.origin_data
-            del a.alconna
-
-        finalize(self, _clr, self)
+        finalize(self, self._clr)
 
     def __handle_main_args__(self, main_args: Args, nargs: Optional[int] = None):
         nargs = nargs or len(main_args)
@@ -203,10 +206,14 @@ class Analyser(Generic[T_Origin]):
         # self.current_index, self.content_index, self.ndata, self.temp_token = 0, 0, 0, 0
         self.current_index, self.ndata, self.temp_token = 0, 0, 0
         self.head_matched = False
-        self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
-        self.raw_data, self.sentences, self.bak_data = [], [], []
+        self.temporary_data.clear()
+        self.main_args.clear()
+        self.options.clear()
+        self.subcommands.clear()
+        self.raw_data.clear()
+        self.sentences.clear()
         self.origin_data, self.header, self.context = None, None, None
-        # self.head_pos = 0
+        self.head_pos = (0, 0)
 
     def push(self, *data: Union[str, Any]):
         for d in data:

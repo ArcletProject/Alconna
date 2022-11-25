@@ -298,7 +298,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                     if self.var_keyword or self.var_positional:
                         raise InvalidParam(config.lang.args_exclude_mutable_args)
                     slot['kwonly'] = True
-        self.argument[name] = slot
+        self.argument[name] = slot.copy()
 
     def __len__(self):
         return len(self.argument)
