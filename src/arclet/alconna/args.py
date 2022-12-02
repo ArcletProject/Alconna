@@ -286,7 +286,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             self.__check_vars__()
             del other
         elif isinstance(other, Sequence):
-            self.__getitem__(tuple(Sequence))
+            self.__getitem__(tuple(other))
         return self
 
     def __add__(self, other) -> "Args":

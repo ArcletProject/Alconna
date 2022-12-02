@@ -12,7 +12,7 @@ from ..manager import command_manager
 from ..exceptions import (
     NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, PauseTriggered
 )
-from ..args import Args
+from ..args import Args, Arg
 from ..base import Option, Subcommand, Sentence
 from ..arpamar import Arpamar
 from ..util import split_once, split
@@ -34,7 +34,7 @@ class Analyser(Generic[T_Origin]):
     text_sign: str = 'text'
 
     alconna: 'Alconna'  # Alconna实例
-    context: Optional[Union[Unit, Subcommand, Option]]
+    context: Optional[Union[Arg, Subcommand, Option]]
     current_index: int  # 当前数据的index
     # content_index: int  # 内部index
     # raw_data: List[Union[Any, StrMounter]]  # 原始数据

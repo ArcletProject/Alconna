@@ -20,7 +20,7 @@ def multi_arg_handler(
     args: Args,
     may_arg: Union[str, Any],
     key: str,
-    value: MultiArg,
+    value: MultiVar,
     default: Any,
     result_dict: Dict[str, Any],
     nargs: int
