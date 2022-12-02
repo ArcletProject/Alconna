@@ -12,7 +12,7 @@ from ..manager import command_manager
 from ..exceptions import (
     NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, PauseTriggered
 )
-from ..args import Args, Unit
+from ..args import Args
 from ..base import Option, Subcommand, Sentence
 from ..arpamar import Arpamar
 from ..util import split_once, split

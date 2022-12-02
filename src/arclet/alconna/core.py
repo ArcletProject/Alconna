@@ -248,13 +248,14 @@ class Alconna(CommandNode):
     def namespace_config(self) -> Namespace:
         return config.namespaces[self.namespace]
 
-    def reset_namespace(self, namespace: Union[Namespace, str]):
+    def reset_namespace(self, namespace: Union[Namespace, str], header: bool = True):
         """重新设置命名空间"""
         command_manager.delete(self)
         if isinstance(namespace, str):
             namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.namespace = namespace.name
-        self.headers = namespace.headers.copy()
+        if header:
+            self.headers = namespace.headers.copy()
         self.behaviors[1:] = namespace.behaviors[:]
         self.formatter_type = namespace.formatter_type or self.formatter_type
         self.options[-3] = Option(
@@ -290,7 +291,7 @@ class Alconna(CommandNode):
         cls.custom_types = types
 
     def shortcut(
-            self, short_key: str, command: Optional[TDataCollection] = None, delete: bool = False
+        self, short_key: str, command: Optional[TDataCollection] = None, delete: bool = False
     ):
         """添加快捷命令"""
         try:

@@ -5,7 +5,7 @@ from nepattern import AllParam, Empty, BasePattern
 from nepattern.util import TPattern
 
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered
-from ..typing import MultiArg
+from ..typing import MultiVar, KeyWordVar
 from ..args import Args
 from ..base import Option, Subcommand, OptionResult, SubcommandResult, Sentence
 from ..util import levenshtein_norm, split_once

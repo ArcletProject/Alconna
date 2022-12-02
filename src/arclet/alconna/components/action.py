@@ -1,6 +1,6 @@
 import inspect
 from types import LambdaType
-from typing import Optional, Dict, List, Callable, Any, Sequence, TYPE_CHECKING, Union
+from typing import Optional, Dict, List, Callable, Any, TYPE_CHECKING, Union
 from nepattern import AnyOne, AllParam, type_parser
 from dataclasses import dataclass
 
@@ -52,13 +52,7 @@ class ArgAction:
                 additional_values = self.action(*_varargs, **kwargs)
             if not additional_values:
                 return option_dict
-            if not isinstance(additional_values, Sequence):
-                option_dict['result'] = additional_values
-                return option_dict
-            for i, k in enumerate(option_dict.keys()):
-                if i == len(additional_values):
-                    break
-                option_dict[k] = additional_values[i]
+            return additional_values if isinstance(additional_values, Dict) else option_dict
         except Exception as e:
             if raise_exception:
                 raise e
@@ -76,19 +70,19 @@ class ArgAction:
         argument = [
             (name, param.annotation, param.default)
             for name, param in inspect.signature(action).parameters.items()
-            if name not in ["self", "cls", "option_dict", "exception_in_time"]
+            if name not in ["self", "cls"]
         ]
         if len(argument) != len(args.argument):
             raise InvalidParam(config.lang.action_length_error)
         if not isinstance(action, LambdaType):
-            for i, k in enumerate(args.argument):
+            for i, arg in enumerate(args.argument):
                 anno = argument[i][1]
                 if anno == inspect.Signature.empty:
                     anno = type(argument[i][2]) if argument[i][2] is not inspect.Signature.empty else str
-                value = args.argument[k]['value']
+                value = arg.value
                 if value in (AnyOne, AllParam):
                     continue
-                if value != type_parser(anno, args.extra):
+                if value != type_parser(anno):
                     raise InvalidParam(config.lang.action_args_error.format(
                         target=argument[i][0], key=k, source=value.origin  # type: ignore
                     ))
