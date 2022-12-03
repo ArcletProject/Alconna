@@ -29,7 +29,7 @@ def handle_help(analyser: "Analyser"):
 
 def handle_shortcut(analyser: "Analyser"):
     analyser.popitem()
-    opt_v = analyse_args(analyser, Args["delete;O", "delete"]["name", str]["command", str, "_"])
+    opt_v = analyse_args(analyser, Args["delete;O", "delete"]["name", str]["command", str, "_"], 3)
     try:
         msg = analyser.alconna.shortcut(
             opt_v["name"],

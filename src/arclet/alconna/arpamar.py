@@ -45,28 +45,6 @@ class Arpamar(Generic[TDataCollection]):
 
         finalize(self, self._clr)
 
-    @staticmethod
-    def _filter_opt(opt: OptionResult):
-        if args := opt['args']:
-            args = args.copy()
-            args.pop('__varargs__', None)
-            args.pop('__kwargs__', None)
-            args.pop('__kwonly__', None)
-            return args
-        return opt['value']
-
-    @staticmethod
-    def _filter_sub(sub: SubcommandResult):
-        val = {k: Arpamar._filter_opt(v) for k, v in sub['options'].items()}
-        val.update(sub['args'])
-        if val:
-            val = val.copy()
-            val.pop('__varargs__', None)
-            val.pop('__kwargs__', None)
-            val.pop('__kwonly__', None)
-            return val
-        return sub['value']
-
     @property
     def header(self):
         """返回可能解析到的命令头中的信息"""
@@ -82,11 +60,11 @@ class Arpamar(Generic[TDataCollection]):
 
     @property
     def options(self) -> Dict[str, Union[Dict[str, Any], Any]]:
-        return {k: self._filter_opt(v) for k, v in self._options.items()}
+        return {**self._options}
 
     @property
     def subcommands(self) -> Dict[str, Union[Dict[str, Any], Any]]:
-        return {k: self._filter_sub(v) for k, v in self._subcommands.items()}
+        return {**self._subcommands}
 
     @property
     def all_matched_args(self) -> Dict[str, Any]:
@@ -279,13 +257,13 @@ class Arpamar(Generic[TDataCollection]):
         else:
             attrs = [(s, getattr(self, s)) for s in ["matched", "header", "options", "subcommands"]]
             margs = self.main_args.copy()
-            margs.pop('__varargs__', None)
-            margs.pop('__kwargs__', None)
-            margs.pop('__kwonly__', None)
+            margs.pop('$varargs', None)
+            margs.pop('$kwargs', None)
+            margs.pop('$kwonly', None)
             attrs.append(("main_args", margs))
             other_args = self.other_args.copy()
-            other_args.pop('__varargs__', None)
-            other_args.pop('__kwargs__', None)
-            other_args.pop('__kwonly__', None)
+            other_args.pop('$varargs', None)
+            other_args.pop('$kwargs', None)
+            other_args.pop('$kwonly', None)
             attrs.append(("other_args", other_args))
             return ", ".join(f"{a}={v}" for a, v in attrs if v)

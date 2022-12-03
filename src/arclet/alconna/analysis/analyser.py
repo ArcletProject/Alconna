@@ -101,8 +101,8 @@ class Analyser(Generic[T_Origin]):
         self.message_cache = alconna.namespace_config.enable_message_cache
         self.param_ids = set()
         self.command_params = {}
-        self._special = {}
-        self._special.update(
+        self.special = {}
+        self.special.update(
             [(i, handle_help) for i in alconna.namespace_config.builtin_option_name['help']] +
             [(i, handle_completion) for i in alconna.namespace_config.builtin_option_name['completion']] +
             [(i, handle_shortcut) for i in alconna.namespace_config.builtin_option_name['shortcut']]
@@ -117,7 +117,7 @@ class Analyser(Generic[T_Origin]):
         nargs = nargs or len(main_args)
         if nargs > 0 and nargs > main_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = sum(a['field'] is not None for k, a in main_args.argument.items())
+        _de_count = sum(arg.field.default_gen is not None for arg in main_args.argument)
         if _de_count and _de_count == nargs:
             self.default_main_only = True
 
@@ -213,7 +213,7 @@ class Analyser(Generic[T_Origin]):
         self.raw_data.clear()
         self.sentences.clear()
         self.origin_data, self.header, self.context = None, None, None
-        self.head_pos = (0, 0)
+        # self.head_pos = (0, 0)
 
     def push(self, *data: Union[str, Any]):
         for d in data:
@@ -362,7 +362,7 @@ class Analyser(Generic[T_Origin]):
                     self.main_args = analyse_args(self, self.self_args, self.alconna.nargs)
                 elif isinstance(_param, list):
                     for opt in _param:
-                        if handler := self._special.get(opt.name):
+                        if handler := self.special.get(opt.name):
                             return handler(self)
                         _data = self.raw_data.copy()
                         try:
@@ -388,7 +388,7 @@ class Analyser(Generic[T_Origin]):
                 if rest := self.release():
                     if rest[-1] in self.alconna.namespace_config.builtin_option_name['completion']:
                         return handle_completion(self, self.context)
-                    if handler := self._special.get(rest[-1]):
+                    if handler := self.special.get(rest[-1]):
                         return handler(self)
                 if interrupt and isinstance(e1, ArgumentMissing):
                     raise PauseTriggered from e1

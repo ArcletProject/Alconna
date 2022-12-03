@@ -7,7 +7,7 @@ from arclet.alconna.analysis.base import analyse_args
 def test_kwargs_create():
     arg = Args(pak=str, upgrade=str)
     assert arg == Args.pak[str]["upgrade", str]
-    # assert analyse_args(arg, "arclet-alconna bar") == {"pak": "arclet-alconna", "upgrade": 'bar'}
+    assert analyse_args(arg, "arclet-alconna bar") == {"pak": "arclet-alconna", "upgrade": 'bar'}
 
 
 def test_magic_create():
@@ -98,10 +98,10 @@ def test_optional():
 
 def test_kwonly():
     arg14 = Args.foo[str].add("bar", value=Kw[int])
-    assert analyse_args(arg14, 'abc bar=123') == {'foo': 'abc', 'bar': 123}
+    assert analyse_args(arg14, 'abc bar=123') == {'foo': 'abc', 'bar': 123, '$kwonly': {'bar': 123}}
     assert analyse_args(arg14, 'abc 123', raise_exception=False) != {'foo': 'abc', 'bar': 123}
     arg14_1 = Args["--width;?", Kw[int], 1280]["--height;?", Kw[int], 960]
-    assert analyse_args(arg14_1, "--width=960 --height=960") == {"--width": 960, "--height": 960}
+    assert analyse_args(arg14_1, "--width=960 --height=960") == {"--width": 960, "--height": 960, '$kwonly': {'--height': 960, '--width': 960}}
 
 
 def test_pattern():

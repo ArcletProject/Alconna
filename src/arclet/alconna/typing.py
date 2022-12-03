@@ -1,5 +1,5 @@
 """Alconna 参数相关"""
-from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal
+from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Tuple, Dict
 from nepattern import BasePattern, type_parser, PatternModel
 
 DataUnit = TypeVar("DataUnit", covariant=True)
@@ -26,8 +26,8 @@ class KeyWordVar(BasePattern):
     def __init__(self, value: Union[BasePattern, Any]):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         assert isinstance(self.base, BasePattern)
-        alias = f"@{value}"
-        super().__init__(r"(.+?)", PatternModel.KEEP, str, alias=alias)
+        alias = f"@{self.base}"
+        super().__init__(r"(.+?)", PatternModel.KEEP, self.base.origin, alias=alias)
 
     def __repr__(self):
         return self.alias
@@ -50,25 +50,26 @@ class MultiVar(BasePattern):
     length: int
 
     def __init__(
-            self,
-            value: Union[BasePattern, Any],
-            flag: Union[int, Literal["+", "*"]] = 1
+        self,
+        value: Union[BasePattern, Any],
+        flag: Union[int, Literal["+", "*"]] = 1
     ):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         assert isinstance(self.base, BasePattern)
         if not isinstance(flag, int):
-            alias = f"({flag}{self.base})"
+            alias = f"({self.base}{flag})"
             self.flag = flag
             self.length = -1
         elif flag > 1:
-            alias = f"(+{self.base})[:{flag}]"
+            alias = f"({self.base}+)[:{flag}]"
             self.flag = "+"
             self.length = flag
         else:
             alias = str(self.base)
             self.flag = "+"
             self.length = 1
-        super().__init__(r"(.+?)", PatternModel.KEEP, str, alias=alias)
+        origin = Dict[str, self.base.origin] if isinstance(self.base, KeyWordVar) else Tuple[self.base.origin, ...]
+        super().__init__(r"(.+?)", PatternModel.KEEP, origin, alias=alias)
 
     def __repr__(self):
         return self.alias

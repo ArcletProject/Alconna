@@ -96,14 +96,14 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
     varargs = []
     kw_key = None
     var_key = None
-    if '__kwargs__' in result_dict:
-        kwargs, kw_key = result_dict.pop('__kwargs__')
+    if '$kwargs' in result_dict:
+        kwargs, kw_key = result_dict.pop('$kwargs')
         result_dict.pop(kw_key)
-    if '__varargs__' in result_dict:
-        varargs, var_key = result_dict.pop('__varargs__')
+    if '$varargs' in result_dict:
+        varargs, var_key = result_dict.pop('$varargs')
         result_dict.pop(var_key)
-    if '__kwonly__' in result_dict:
-        kwonly = result_dict.pop('__kwonly__')
+    if '$kwonly' in result_dict:
+        kwonly = result_dict.pop('$kwonly')
         for k in kwonly:
             result_dict.pop(k)
     addition_kwargs = {**kwonly, **kwargs}

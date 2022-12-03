@@ -47,16 +47,18 @@ class Arg:
     field: Field[_T] = dc_field(compare=False, hash=False)
     notice: Optional[str] = dc_field(compare=False, hash=False)
     flag: Set[ArgFlag] = dc_field(compare=False, hash=False)
+    separators: Tuple[str, ...] = dc_field(compare=False, hash=False)
 
     def __init__(
-            self,
-            name: str,
-            value: Optional[TAValue] = None,
-            field: Optional[Union[Field[_T], _T]] = None,
-            notice: Optional[str] = None,
-            flags: Optional[List[ArgFlag]] = None,
+        self,
+        name: str,
+        value: Optional[TAValue] = None,
+        field: Optional[Union[Field[_T], _T]] = None,
+        seps: Union[str, Iterable[str]] = " ",
+        notice: Optional[str] = None,
+        flags: Optional[List[ArgFlag]] = None,
     ):
-        if not isinstance(name, str):
+        if not isinstance(name, str) or name.startswith('$'):
             raise InvalidParam(config.lang.args_name_error)
         if not name.strip():
             raise InvalidParam(config.lang.args_name_empty)
@@ -72,6 +74,7 @@ class Arg:
         self.value = _value
         self.field = default
         self.notice = notice
+        self.separators = (seps,) if isinstance(seps, str) else tuple(seps)
         flags = flags or []
         if res := re.match(r"^.+?#(?P<notice>[^;?!/#]+)", name):
             self.notice = res["notice"]
@@ -117,7 +120,6 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     var_keyword: Optional[str]
     keyword_only: List[str]
     optional_count: int
-    separators: Tuple[str, ...]
 
     @classmethod
     def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
@@ -182,19 +184,19 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 if anno == bool:
                     anno = BasePattern(f"(?:-*no)?-*{name}", 3, bool, lambda _, x: not x.lstrip("-").startswith('no'))
                 else:
-                    _args.add(f"${name}_key", value=f"-*{name}")
+                    _args.add(f"_key_{name}", value=f"-*{name}")
                 _args.keyword_only.append(name)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")
             if param.kind == param.VAR_KEYWORD:
                 anno = MultiVar(KeyWordVar(anno), "*")
-            _args.add_argument(name, value=anno, default=de)
+            _args.add(name, value=anno, default=de)
         return _args, method
 
     def __init__(
         self,
         *args: Arg,
-        separators: Union[str, Iterable[str]] = " ",
+        separators: Optional[Union[str, Iterable[str]]] = None,
         **kwargs: TAValue
     ):
         """
@@ -206,16 +208,18 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             separator: 参数分隔符
             kwargs: 其他参数
         """
+        self._visit = set()
         self.var_positional = None
         self.var_keyword = None
         self.keyword_only = []
         self.optional_count = 0
-        self.separators = (separators,) if isinstance(separators, str) else tuple(separators)
         self.argument = list(args)
         self.argument.extend(Arg(k, type_parser(v), Field()) for k, v in kwargs.items())
         self.__check_vars__()
+        if separators is not None:
+            self.separate(*((separators,) if isinstance(separators, str) else tuple(separators)))
 
-    __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "separators", "keyword_only"
+    __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "keyword_only", "_visit"
 
     def add(self, name: str, *, value: Any, default: Any = None, flags: Optional[Iterable[ArgFlag]] = None):
         """
@@ -239,11 +243,24 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     def separate(self, *separator: str):
         """设置参数的分隔符"""
-        self.separators = separator
+        for arg in self.argument:
+            arg.separators = separator
         return self
 
     def __check_vars__(self):
+        _visit = set()
+        _tmp = []
         for arg in self.argument:
+            if arg.name not in _visit:
+                _visit.add(arg.name)
+                _tmp.append(arg)
+        self.argument.clear()
+        self.argument.extend(_tmp)
+        del _tmp
+        for arg in self.argument:
+            if arg.name in self._visit:
+                continue
+            self._visit.add(arg.name)
             _limit = False
             if ArgFlag.ANTI in arg.flag and arg.value not in (AnyOne, AllParam):
                 arg.value = deepcopy(arg.value).reverse()
@@ -270,8 +287,8 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         return len(self.argument)
 
     def __getitem__(self, item) -> Union["Args", Arg]:
-        if isinstance(item, str):
-            return next(filter(lambda x: x.name == item, self.argument), self)
+        if isinstance(item, str) and (res := next(filter(lambda x: x.name == item, self.argument), None)):
+            return res
         data = item if isinstance(item, tuple) else (item,)
         if isinstance(data[0], Arg):
             self.argument.extend(data)
@@ -282,7 +299,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     def __merge__(self, other) -> "Args":
         if isinstance(other, Args):
-            self.argument.extend(arg for arg in other.argument if arg not in self.argument)
+            self.argument.extend(other.argument)
             self.__check_vars__()
             del other
         elif isinstance(other, Sequence):

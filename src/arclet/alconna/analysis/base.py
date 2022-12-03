@@ -84,6 +84,10 @@ class _DummyAnalyser(Analyser):
         cls.default_separate = True
         cls.context = None
         cls.message_cache = False
+        cls.filter_crlf = True
+        cls.special = {}
+        for i in config.default_namespace.builtin_option_name.values():
+            cls.special.fromkeys(i, True)  # noqa
         return super().__new__(cls)
 
     def analyse(self, message=None, interrupt=False):
@@ -93,7 +97,7 @@ class _DummyAnalyser(Analyser):
 def analyse_args(args: Args, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separators = {' '}
+    _analyser.separators = (' ', )
     _analyser.need_main_args = True
     _analyser.raise_exception = True
     try:
@@ -114,7 +118,7 @@ def analyse_header(
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separators = {sep}
+    _analyser.separators = (sep, )
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.__init_header__(command_name, headers)
@@ -130,7 +134,7 @@ def analyse_header(
 def analyse_option(option: Option, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separators = {" "}
+    _analyser.separators = (" ", )
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.alconna.options.append(option)
@@ -148,7 +152,7 @@ def analyse_option(option: Option, command: DataCollection[Union[str, Any]], rai
 def analyse_subcommand(subcommand: Subcommand, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separators = {" "}
+    _analyser.separators = (" ", )
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.alconna.options.append(subcommand)

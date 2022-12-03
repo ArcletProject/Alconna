@@ -36,7 +36,7 @@ def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = T
     separates = tuple(separates)
     text = text.lstrip()
     for index, char in enumerate(text):
-        if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
+        if char in {"'", '"', "’", "“"}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
                 quotation = char
                 if index and text[index - 1] == "\\":
@@ -45,9 +45,10 @@ def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = T
                 quotation = ""
                 if index and text[index - 1] == "\\":
                     out_text += char
-        if (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
+        elif (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
             break
-        out_text += char
+        elif char != "\\":
+            out_text += char
     return out_text, text[index + 1:]
 
 
@@ -67,7 +68,7 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None, crlf: bool = T
     result = ""
     quotation = ""
     for index, char in enumerate(text):
-        if char in {"'", '"'}:
+        if char in {"'", '"', "’", "“"}:
             if not quotation:
                 quotation = char
                 if index and text[index - 1] == "\\":
