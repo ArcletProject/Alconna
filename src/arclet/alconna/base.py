@@ -2,9 +2,8 @@
 
 import re
 from dataclasses import dataclass, field
-from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDict, Set, FrozenSet, overload, Tuple
-
-from .args import Args
+from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDict, Set, overload, Tuple
+from .args import Args, Arg
 from .exceptions import InvalidParam
 from .config import config
 from .components.action import ArgAction
@@ -119,7 +118,7 @@ class Option(CommandNode):
         ...
 
     @overload
-    def __add__(self, other: Args) -> "Option":
+    def __add__(self, other: Union[Args, Arg]) -> "Option":
         ...
 
     def __add__(self, other):
@@ -128,7 +127,7 @@ class Option(CommandNode):
                 self.name, [other], self.args, self.dest, self.action,
                 self.separators, self.help_text, self.requires
             )
-        if isinstance(other, Args):
+        if isinstance(other, (Arg, Args)):
             self.args += other
             self.nargs = len(self.args)
             self._hash = self._calc_hash()
@@ -167,7 +166,7 @@ class Subcommand(CommandNode):
             self.options.append(Option(other) if isinstance(other, str) else other)
             self._hash = self._calc_hash()
             return self
-        if isinstance(other, Args):
+        if isinstance(other, (Arg, Args)):
             self.args += other
             self.nargs = len(self.args)
             self._hash = self._calc_hash()

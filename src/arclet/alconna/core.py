@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, 
 from dataclasses import dataclass, field
 from .config import config, Namespace
 from .analysis.base import compile
-from .args import Args
+from .args import Args, Arg
 from .base import CommandNode, Option, Subcommand
 from .typing import TDataCollection
 from .manager import command_manager
@@ -160,7 +160,7 @@ class Alconna(CommandNode):
 
     def __init__(
         self,
-        *args: Union[Option, Subcommand, str, T_Header, Any, Args],
+        *args: Union[Option, Subcommand, str, T_Header, Any, Args, Arg],
         action: Optional[Union[ArgAction, Callable]] = None,
         meta: Optional[CommandMeta] = None,
         namespace: Optional[Union[str, Namespace]] = None,
@@ -190,7 +190,7 @@ class Alconna(CommandNode):
             np_config = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers,)))  # type: ignore
         try:
-            self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args)), args))
+            self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
             self.command = "" if self.headers else sys.argv[0]
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
@@ -221,7 +221,7 @@ class Alconna(CommandNode):
         self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
         super().__init__(
             command_manager.sign,
-            reduce(lambda x, y: x + y, li) if (li := [i for i in args if isinstance(i, Args)]) else None,
+            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),
             action=action,
             separators=separators or np_config.separators,  # type: ignore
         )

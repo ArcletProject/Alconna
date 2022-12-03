@@ -204,20 +204,22 @@ def test_alconna_action():
 
 
 def test_alconna_synthesise():
-    # alc10 = Alconna(
-    #     Args[Arg("min",  r".*(\d+)张.*", seps="到"), Arg("max;?", r".*(\d+)张.*")],
-    #     ["发涩图", "来点涩图", "来点好康的"],
-    #     Option("从", Args["tags", MultiVar(str, 5)] / ("和", "与"), separators=""),
-    #     action=lambda x, y=6: {"min": int(x), "max": int(y)},
-    # )
-    # res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
-    # assert res.matched is True
-    # assert res.min == 3
-    # assert res.tags == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
+    alc10 = Alconna(
+        Arg("min",  r".*(\d+)张.*", seps="到"),
+        Arg("max;?", r".*(\d+)张.*"),
+        ["发涩图", "来点涩图", "来点好康的"],
+        Option("从", Args["tags", MultiVar(str, 5)] / ("和", "与"), separators=""),
+        action=lambda x, y=6: {"min": int(x), "max": int(y)},
+    )
+    res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
+    assert res.matched is True
+    assert res.min == 3
+    assert res.tags == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
 
     alc10_1 = Alconna(
         "cpp",
-        Args["match", MultiVar(int, "+")][Arg("lines", AllParam, seps="\n")]
+        Args["match", MultiVar(int, "+")],
+        Arg("lines", AllParam, seps="\n")
     )
     print("")
     print(
@@ -228,7 +230,7 @@ def test_alconna_synthesise():
         )
     )
     print((res := alc10_1.parse(msg)))
-    print("\n".join(i for i in res.query("lines")))
+    print("\n".join(res.query("lines")))
 
 
 def test_simple_override():

@@ -2,7 +2,6 @@ from typing import Union, Dict, List, Any, Optional, Type, TypeVar, Tuple, overl
 from types import MappingProxyType
 from contextlib import suppress
 from nepattern import Empty
-from weakref import finalize
 from .typing import TDataCollection
 from .config import config
 from .manager import command_manager
@@ -39,8 +38,6 @@ class Arpamar(Generic[TDataCollection]):
         self._options: Dict[str, OptionResult] = {}
         self._subcommands: Dict[str, SubcommandResult] = {}
         self._record = set()
-
-        finalize(self, self._clr)
 
     @property
     def source(self):

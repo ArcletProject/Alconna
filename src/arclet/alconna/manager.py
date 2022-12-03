@@ -48,8 +48,12 @@ class CommandManager(metaclass=Singleton):
 
         def _del():
             self.__commands.clear()
+            for ana in self.__analysers.values():
+                ana._clr()
             self.__analysers.clear()
             self.__abandons.clear()
+            for arp in self.__record.values():
+                arp._clr()
             self.__record.clear()
             self.__shortcuts.clear()
             Singleton.remove(self.__class__)

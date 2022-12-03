@@ -302,6 +302,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             self.argument.extend(other.argument)
             self.__check_vars__()
             del other
+        elif isinstance(other, Arg):
+            self.argument.append(other)
+            self.__check_vars__()
         elif isinstance(other, Sequence):
             self.__getitem__(tuple(other))
         return self
