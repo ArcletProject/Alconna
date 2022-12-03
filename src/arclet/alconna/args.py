@@ -8,7 +8,7 @@ from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequen
 from typing_extensions import get_origin
 from dataclasses import dataclass, field as dc_field
 from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
-
+from .util import _safe_dcs_args
 from .config import config
 from .exceptions import InvalidParam, NullMessage
 from .typing import MultiVar, KeyWordVar
@@ -23,7 +23,7 @@ class ArgFlag(str, Enum):
     ANTI = "!"
 
 
-@dataclass
+@dataclass(**_safe_dcs_args(slots=True))
 class Field(Generic[_T]):
     """标识参数单元字段"""
     default: _T = dc_field(default=None)
@@ -40,7 +40,7 @@ class Field(Generic[_T]):
         return self.default if self.default is not None else self.default_factory()
 
 
-@dataclass(init=False, eq=True, unsafe_hash=True)
+@dataclass(**_safe_dcs_args(init=False, eq=True, unsafe_hash=True, slots=True))
 class Arg:
     name: str = dc_field(compare=True, hash=True)
     value: TAValue = dc_field(compare=False, hash=False)
@@ -309,14 +309,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             self.__getitem__(tuple(other))
         return self
 
-    def __add__(self, other) -> "Args":
-        return self.__merge__(other)
-
-    def __iadd__(self, other) -> "Args":
-        return self.__merge__(other)
-
-    def __lshift__(self, other) -> "Args":
-        return self.__merge__(other)
+    __add__ = __merge__
+    __iadd__ = __merge__
+    __lshift__ = __merge__
 
     def __truediv__(self, other):
         self.separate(*other if isinstance(other, (list, tuple, set)) else other)

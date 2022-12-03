@@ -243,7 +243,7 @@ class Arpamar(Generic[TDataCollection]):
         if isinstance(item, str):
             return self.query(item)
         if data := self.query_with(item):
-            return data.popitem()[1]
+            return data
 
     def __getattr__(self, item):
         return self.all_matched_args.get(item)

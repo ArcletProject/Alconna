@@ -8,11 +8,8 @@ DataUnit = TypeVar("DataUnit", covariant=True)
 @runtime_checkable
 class DataCollection(Protocol[DataUnit]):
     """数据集合协议"""
-
     def __repr__(self) -> str: ...
-
     def __iter__(self) -> Iterator[DataUnit]: ...
-
     def __len__(self) -> int: ...
 
 
@@ -39,8 +36,8 @@ class _Kw:
     def __getitem__(self, item):
         return KeyWordVar(item)
 
-    def __matmul__(self, other):
-        return KeyWordVar(other)
+    __matmul__ = __getitem__
+    __rmatmul__ = __getitem__
 
 
 class MultiVar(BasePattern):

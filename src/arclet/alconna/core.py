@@ -374,9 +374,7 @@ class Alconna(CommandNode):
         self.reset_namespace(other)
         return self
 
-    def __rtruediv__(self, other):
-        self.reset_namespace(other)
-        return self
+    __rtruediv__ = __truediv__
 
     def __add__(self, other):
         command_manager.delete(self)

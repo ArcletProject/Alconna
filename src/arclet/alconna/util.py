@@ -1,4 +1,5 @@
 """杂物堆"""
+import sys
 import contextlib
 import inspect
 from functools import lru_cache
@@ -6,6 +7,12 @@ from collections import OrderedDict
 from typing import TypeVar, Optional, Any, Iterator, Hashable, Tuple, Union, Mapping
 
 R = TypeVar('R')
+
+
+def _safe_dcs_args(**kwargs):
+    if sys.version_info < (3, 10):
+        kwargs.pop('slots')
+    return kwargs
 
 
 @lru_cache(4096)
