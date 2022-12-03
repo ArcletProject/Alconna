@@ -11,7 +11,7 @@ from ..util import is_async
 from .behavior import ArpamarBehavior
 
 if TYPE_CHECKING:
-    from ..arpamar import Arpamar
+    from ..arparma import Arparma
     from ..base import SubcommandResult, OptionResult
     from ..core import Alconna
 
@@ -123,7 +123,7 @@ def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, sour
 
 
 class ActionHandler(ArpamarBehavior):
-    def operate(self, interface: "Arpamar"):
+    def operate(self, interface: "Arparma"):
         interface.clean()
         source = interface.source
 

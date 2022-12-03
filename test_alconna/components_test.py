@@ -1,4 +1,4 @@
-from arclet.alconna import Alconna, Option, Args, Subcommand, Arpamar, ArpamarBehavior, store_value
+from arclet.alconna import Alconna, Option, Args, Subcommand, Arparma, ArpamarBehavior, store_value
 from arclet.alconna.builtin import set_default
 from arclet.alconna.components.duplication import Duplication, generate_duplication
 from arclet.alconna.components.stub import ArgsStub, OptionStub, SubcommandStub
@@ -12,7 +12,7 @@ def test_behavior():
         requires = [set_default(321, option="foo")]
 
         @classmethod
-        def operate(cls, interface: "Arpamar"):
+        def operate(cls, interface: "Arparma"):
             print('\ncom: ')
             print(interface.query("options.foo.value"))
             interface.behave_fail()

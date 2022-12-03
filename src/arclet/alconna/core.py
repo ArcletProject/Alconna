@@ -9,14 +9,14 @@ from .args import Args, Arg
 from .base import CommandNode, Option, Subcommand
 from .typing import TDataCollection
 from .manager import command_manager
-from .arpamar import Arpamar
+from .arparma import Arparma
 from .exceptions import PauseTriggered
 from .analysis.analyser import TAnalyser, Analyser
 from .components.action import ActionHandler, ArgAction
 from .components.output import TextFormatter
 from .components.behavior import T_ABehavior
 from .components.duplication import Duplication
-from .components.executor import ArpamarExecutor, T
+from .components.executor import ArparmaExecutor, T
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
@@ -107,7 +107,7 @@ class AlconnaGroup(CommandNode):
     def __or__(self, other):
         return self.__union__(other)
 
-    def parse(self, message: TDataCollection) -> Optional[Arpamar[TDataCollection]]:
+    def parse(self, message: TDataCollection) -> Optional[Arparma[TDataCollection]]:
         res = None
         for command in self.commands:
             if (res := command.parse(message)).matched:
@@ -117,9 +117,7 @@ class AlconnaGroup(CommandNode):
 
 class Alconna(CommandNode):
     """
-    亚尔康娜 (Alconna), Cesloi 的妹妹
-
-    用于更加精确的命令解析
+    更加精确的命令解析
 
     Examples:
 
@@ -228,7 +226,7 @@ class Alconna(CommandNode):
         self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
         self._hash = self._calc_hash()
         command_manager.register(self)
-        self._executors: List[ArpamarExecutor] = []
+        self._executors: List[ArparmaExecutor] = []
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
         """
@@ -334,7 +332,7 @@ class Alconna(CommandNode):
     @overload
     def parse(
         self, message: TDataCollection
-    ) -> Arpamar[TDataCollection]:
+    ) -> Arparma[TDataCollection]:
         ...
 
     @overload
@@ -352,20 +350,20 @@ class Alconna(CommandNode):
     def parse(
         self, message: TDataCollection, *, duplication: Optional[Type[T_Duplication]] = None,
         interrupt: bool = False, static: bool = True
-    ) -> Union[Analyser[TDataCollection], Arpamar[TDataCollection], T_Duplication]:
+    ) -> Union[Analyser[TDataCollection], Arparma[TDataCollection], T_Duplication]:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         analyser = command_manager.require(self) if static else compile(self)
         analyser.process(message)
         try:
-            arp: Arpamar[TDataCollection] = analyser.analyse(interrupt=interrupt)
+            arp: Arparma[TDataCollection] = analyser.analyse(interrupt=interrupt)
         except PauseTriggered:
             return analyser
         if arp.matched:
             arp = arp.execute()
         return duplication(self).set_target(arp) if duplication else arp
 
-    def bind(self, target: Callable[..., T]) -> ArpamarExecutor[T]:
-        ext = ArpamarExecutor(target)
+    def bind(self, target: Callable[..., T]) -> ArparmaExecutor[T]:
+        ext = ArparmaExecutor(target)
         ext.binding = lambda: command_manager.get_result(self)
         self._executors.append(ext)
         return self._executors[-1]

@@ -14,7 +14,7 @@ from .config import config, Namespace
 if TYPE_CHECKING:
     from .analysis.analyser import Analyser
     from .core import Alconna, AlconnaGroup, CommandMeta
-    from .arpamar import Arpamar
+    from .arparma import Arparma
 
 
 class CommandManager(metaclass=Singleton):
@@ -31,8 +31,8 @@ class CommandManager(metaclass=Singleton):
     __commands: Dict[str, Dict[str, Union['Alconna', 'AlconnaGroup']]]
     __analysers: Dict['Alconna', 'Analyser']
     __abandons: List["Alconna"]
-    __record: LruCache[int, "Arpamar"]
-    __shortcuts: LruCache[str, Union['Arpamar', DataCollection[Union[str, Any]]]]
+    __record: LruCache[int, "Arparma"]
+    __shortcuts: LruCache[str, Union['Arparma', DataCollection[Union[str, Any]]]]
 
     def __init__(self):
         self.cache_path = f"{__file__.replace('manager.py', '')}manager_cache.db"
@@ -155,16 +155,16 @@ class CommandManager(metaclass=Singleton):
             self,
             target: Union["Alconna", str],
             shortcut: str,
-            source: Union["Arpamar", DataCollection[Union[str, Any]]]
+            source: Union["Arparma", DataCollection[Union[str, Any]]]
     ) -> None:
         """添加快捷命令"""
-        from .arpamar import Arpamar
+        from .arparma import Arparma
         namespace, name = self._command_part(target if isinstance(target, str) else target.path)
         try:
             _ = self.__commands[namespace][name]
         except KeyError as e:
             raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
-        if isinstance(source, Arpamar) and source.matched or not isinstance(source, Arpamar):
+        if isinstance(source, Arparma) and source.matched or not isinstance(source, Arparma):
             self.__shortcuts.set(f"{namespace}.{name}::{shortcut}", source)
         else:
             raise ValueError(config.lang.manager_incorrect_shortcut.format(target=f"{shortcut}"))
@@ -227,7 +227,7 @@ class CommandManager(metaclass=Singleton):
 
     def broadcast(
         self, message: TDataCollection, namespace: Union[str, Namespace] = ''
-    ) -> Optional['Arpamar[TDataCollection]']:
+    ) -> Optional['Arparma[TDataCollection]']:
         """将一段命令广播给当前空间内的所有命令"""
         for cmd in self.get_commands(namespace):
             if (res := cmd.parse(message)) and res.matched:
@@ -298,11 +298,11 @@ class CommandManager(metaclass=Singleton):
         if cmd := self.get_command(f"{command_parts[0]}.{command_parts[1]}"):
             return cmd.get_help()
 
-    def record(self, token: int, message: DataCollection[Union[str, Any]], result: "Arpamar"):
+    def record(self, token: int, message: DataCollection[Union[str, Any]], result: "Arparma"):
         result.origin = message
         self.__record.set(token, result)
 
-    def get_record(self, token: int) -> Optional["Arpamar"]:
+    def get_record(self, token: int) -> Optional["Arparma"]:
         if not token:
             return
         return self.__record.get(token)

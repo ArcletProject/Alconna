@@ -3,15 +3,15 @@ from dataclasses import dataclass, field
 
 from ..exceptions import ExecuteFailed
 if TYPE_CHECKING:
-    from ..arpamar import Arpamar
+    from ..arparma import Arparma
 
 T = TypeVar("T")
 
 
 @dataclass(unsafe_hash=True)
-class ArpamarExecutor(Generic[T]):
+class ArparmaExecutor(Generic[T]):
     target: Callable[..., T]
-    binding: Callable[..., Optional['Arpamar']] = field(default=lambda: None, repr=False)
+    binding: Callable[..., Optional['Arparma']] = field(default=lambda: None, repr=False)
 
     @property
     def result(self) -> T:

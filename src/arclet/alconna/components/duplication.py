@@ -6,24 +6,24 @@ from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Op
 
 if TYPE_CHECKING:
     from ..core import Alconna
-    from ..arpamar import Arpamar
+    from ..arparma import Arparma
 
 
 class Duplication:
     """
     用以更方便的检查、调用解析结果的类。
     """
-    __target: 'Arpamar'
+    __target: 'Arparma'
 
     @property
-    def origin(self) -> "Arpamar":
+    def origin(self) -> "Arparma":
         return self.__target
 
     @property
     def header(self):
         return self.__target.header
 
-    def set_target(self, target: 'Arpamar'):
+    def set_target(self, target: 'Arparma'):
         self.__target = target
         if self.__stubs__.get("main_args"):
             getattr(self, self.__stubs__["main_args"]).set_result(target.main_args)  # type: ignore

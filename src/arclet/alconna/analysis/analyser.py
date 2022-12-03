@@ -13,7 +13,7 @@ from ..exceptions import (
 )
 from ..args import Args, Arg
 from ..base import Option, Subcommand, Sentence
-from ..arpamar import Arpamar
+from ..arparma import Arparma
 from ..util import split_once, split
 from ..typing import DataCollection
 from ..config import config
@@ -310,7 +310,7 @@ class Analyser(Generic[T_Origin]):
             self,
             message: Union[DataCollection[Union[str, Any]], None] = None,
             interrupt: bool = False
-    ) -> Arpamar:
+    ) -> Arparma:
         """主体解析函数, 应针对各种情况进行解析"""
         if command_manager.is_disable(self.alconna):
             return self.export(fail=True)
@@ -332,7 +332,7 @@ class Analyser(Generic[T_Origin]):
             try:
                 _res = command_manager.find_shortcut(self.popitem(move=False)[0], self.alconna)
                 self.reset()
-                return _res if isinstance(_res, Arpamar) else self.process(_res).analyse()
+                return _res if isinstance(_res, Arparma) else self.process(_res).analyse()
             except ValueError as exc:
                 if self.raise_exception:
                     raise e from exc
@@ -416,9 +416,9 @@ class Analyser(Generic[T_Origin]):
     def converter(command: str) -> T_Origin:
         return command  # type: ignore
 
-    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar[T_Origin]:
+    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arparma[T_Origin]:
         """创建arpamar, 其一定是一次解析的最后部分"""
-        result = Arpamar(self.alconna.path)
+        result = Arparma(self.alconna.path)
         result.head_matched = self.head_matched
         result.matched = not fail
         if fail:

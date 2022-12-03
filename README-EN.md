@@ -49,7 +49,7 @@ cmd = Alconna(
     ]
 )
 
-result = cmd.parse("/pip install cesloi --upgrade") # This method returns an 'Arpamar' class instance.
+result = cmd.parse("/pip install cesloi --upgrade") # This method returns an 'Arparma' class instance.
 print(result.query('install'))  # Or result.install
 ```
 

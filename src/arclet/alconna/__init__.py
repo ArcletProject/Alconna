@@ -9,7 +9,7 @@ from .base import CommandNode, Option, Subcommand
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .analysis.base import compile, analyse
 from .core import Alconna, AlconnaGroup, CommandMeta
-from .arpamar import Arpamar
+from .arparma import Arparma
 from .manager import command_manager
 from .config import config, load_lang_file, namespace, Namespace
 

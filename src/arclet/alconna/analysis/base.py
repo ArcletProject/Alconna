@@ -10,7 +10,7 @@ from ..args import Args
 from ..config import config
 
 if TYPE_CHECKING:
-    from ..arpamar import Arpamar
+    from ..arparma import Arparma
     from ..core import Alconna
 
 
@@ -59,7 +59,7 @@ def compile(alconna: "Alconna", params_parser: Callable[[TAnalyser], None] = def
     return _analyser
 
 
-def analyse(alconna: "Alconna", command: TDataCollection) -> "Arpamar[TDataCollection]":
+def analyse(alconna: "Alconna", command: TDataCollection) -> "Arparma[TDataCollection]":
     return compile(alconna).process(command).analyse().execute()
 
 

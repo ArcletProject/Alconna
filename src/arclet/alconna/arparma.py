@@ -14,9 +14,9 @@ T = TypeVar('T')
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
-class Arpamar(Generic[TDataCollection]):
+class Arparma(Generic[TDataCollection]):
     """
-    亚帕玛尔(Arpamar), Alconna的珍藏宝书
+    承载解析结果与操作数据的接口类
     """
 
     def _clr(self):
@@ -81,7 +81,7 @@ class Arpamar(Generic[TDataCollection]):
             options: Dict[str, OptionResult],
             subcommands: Dict[str, SubcommandResult]
     ) -> None:
-        """处理 Arpamar 中的数据"""
+        """处理 Arparma 中的数据"""
         self.main_args = main_args.copy()
         self._header = header.copy() if isinstance(header, dict) else header
         self._options = options.copy()
@@ -121,7 +121,7 @@ class Arpamar(Generic[TDataCollection]):
             return target(**self.all_matched_args, **additional)
 
     def _fail(self, exc: Union[Type[BaseException], BaseException, str]):
-        arp = Arpamar(self._source)
+        arp = Arparma(self._source)
         arp.matched = False
         arp.head_matched = True
         arp.error_info = exc
@@ -137,9 +137,7 @@ class Arpamar(Generic[TDataCollection]):
                 return self.other_args, part
             if part in self.components:
                 return self.components[part], ''
-            if part in {"options", "subcommands"}:
-                return getattr(self, f"_{part}"), ''
-            if part in {"main_args", "other_args"}:
+            if part in {"options", "subcommands", "main_args", "other_args"}:
                 return getattr(self, part), ''
             return (self.all_matched_args, '') if part == "args" else (None, part)
         prefix = parts.pop(0)  # parts[0]
@@ -177,7 +175,7 @@ class Arpamar(Generic[TDataCollection]):
                 raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{prefix}.{end}"))
             if end == "options" or end in _cache['options']:
                 return _r_opt(end, parts, _cache['options'])
-        return None, prefix
+        return (self.main_args, parts[1]) if prefix == "$main" else (None, prefix)
 
     @overload
     def query(self, path: str) -> Union[Mapping[str, Any], Any, None]:

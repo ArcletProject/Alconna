@@ -28,7 +28,7 @@ store_false = store_value(False)
 
 if TYPE_CHECKING:
     from arclet.alconna import alconna_version
-    from arclet.alconna.arpamar import Arpamar
+    from arclet.alconna.arparma import Arparma
 
 
     def version(value: Optional[tuple]):
@@ -55,7 +55,7 @@ def set_default(
     """
 
     class _SetDefault(ArpamarBehavior):
-        def operate(self, interface: "Arpamar"):
+        def operate(self, interface: "Arparma"):
             if not option and not subcommand:
                 raise BehaveCancelled
             if arg:
