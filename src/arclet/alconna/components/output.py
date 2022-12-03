@@ -207,10 +207,13 @@ class TextFormatter:
 
     def parameters(self, args: Args) -> str:
         """参数列表的描述"""
-        if len(args.separators) == 1:
-            res = args.separators[0].join(self.param(arg) for arg in args.argument)
-        else:
-            res = " ".join(self.param(arg) for arg in args.argument) + " splitBy:" + "/".join(args.separators)
+        res = ""
+        for arg in args.argument:
+            if len(arg.separators) == 1:
+                sep = ' ' if arg.separators[0] == ' ' else f' {arg.separators[0]!r} '
+            else:
+                sep = f"[{'|'.join(arg.separators)!r}]"
+            res += self.param(arg) + sep
         notice = [(arg.name, arg.notice) for arg in args.argument if arg.notice]
         return f"{res}\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice) if notice else res
 

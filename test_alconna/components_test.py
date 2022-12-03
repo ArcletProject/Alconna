@@ -47,10 +47,8 @@ def test_duplication():
 
     com4 = Alconna(
         "comp4", Args["foo", int],
-        options=[
-            Option("--bar", Args["bar", str]),
-            Subcommand("sub", options=[Option("--sub1", Args["baz", str])])
-        ]
+        Option("--bar", Args["bar", str]),
+        Subcommand("sub", options=[Option("--sub1", Args["baz", str])])
     )
     res = com4.parse("comp4 123 --bar abc sub --sub1 xyz")
     assert res.matched is True

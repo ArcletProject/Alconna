@@ -3,11 +3,13 @@ from arclet.alconna.util import split_once, split, LruCache
 
 
 def test_split_once():
-    """测试单次分割函数, 能以引号扩起空格"""
+    """测试单次分割函数, 能以引号扩起空格, 并允许保留引号"""
     text1 = "rrr b bbbb"
     text2 = "\'rrr b\' bbbb"
+    text3 = "\\\'rrr b\\\' bbbb"
     assert split_once(text1, ' ') == ('rrr', 'b bbbb')
-    assert split_once(text2, ' ') == ("'rrr b'", 'bbbb')
+    assert split_once(text2, ' ') == ("rrr b", 'bbbb')
+    assert split_once(text3, ' ') == ("'rrr b'", 'bbbb')
 
 
 def test_split():

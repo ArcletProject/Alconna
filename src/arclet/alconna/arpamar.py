@@ -1,18 +1,15 @@
-from typing import Union, Dict, List, Any, Optional, TYPE_CHECKING, Type, TypeVar, Tuple, overload, Generic, Mapping, \
-    Callable
+from typing import Union, Dict, List, Any, Optional, Type, TypeVar, Tuple, overload, Generic, Mapping, Callable
 from types import MappingProxyType
 from contextlib import suppress
 from nepattern import Empty
-from .typing import TDataCollection
 from weakref import finalize
+from .typing import TDataCollection
 from .config import config
+from .manager import command_manager
 from .base import SubcommandResult, OptionResult
 from .exceptions import BehaveCancelled, OutBoundsBehave
 from .components.behavior import T_ABehavior, requirement_handler
 from .components.duplication import Duplication, generate_duplication
-
-if TYPE_CHECKING:
-    from .core import Alconna
 
 T = TypeVar('T')
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
@@ -28,8 +25,8 @@ class Arpamar(Generic[TDataCollection]):
         for k in ks:
             delattr(self, k)
 
-    def __init__(self, alc: "Alconna"):
-        self.source: "Alconna" = alc
+    def __init__(self, source: str):
+        self._source = source
         self.origin: TDataCollection = ''
         self.matched: bool = False
         self.head_matched: bool = False
@@ -44,6 +41,10 @@ class Arpamar(Generic[TDataCollection]):
         self._record = set()
 
         finalize(self, self._clr)
+
+    @property
+    def source(self):
+        return command_manager.get_command(self._source)
 
     @property
     def header(self):
@@ -123,7 +124,7 @@ class Arpamar(Generic[TDataCollection]):
             return target(**self.all_matched_args, **additional)
 
     def _fail(self, exc: Union[Type[BaseException], BaseException, str]):
-        arp = Arpamar(self.source)
+        arp = Arpamar(self._source)
         arp.matched = False
         arp.head_matched = True
         arp.error_info = exc

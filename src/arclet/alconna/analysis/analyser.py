@@ -365,13 +365,16 @@ class Analyser(Generic[T_Origin]):
                         if handler := self.special.get(opt.name):
                             return handler(self)
                         _data = self.raw_data.copy()
+                        _index = self.current_index
                         try:
                             opt_n, opt_v = analyse_option(self, opt)
                             self.options[opt_n] = opt_v
+                            _data.clear()
                             break
                         except Exception as e:
                             exc = e
                             self.raw_data = _data
+                            self.current_index = _index
                             continue
                     else:
                         raise exc  # type: ignore  # noqa
@@ -424,7 +427,7 @@ class Analyser(Generic[T_Origin]):
 
     def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar[T_Origin]:
         """创建arpamar, 其一定是一次解析的最后部分"""
-        result = Arpamar(self.alconna)
+        result = Arpamar(self.alconna.path)
         result.head_matched = self.head_matched
         result.matched = not fail
         if fail:

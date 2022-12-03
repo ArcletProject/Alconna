@@ -290,12 +290,14 @@ def analyse_subcommand(analyser: 'Analyser', param: Subcommand) -> Tuple[str, Su
         elif isinstance(_param, List):
             for p in _param:
                 _data = analyser.raw_data.copy()
+                _index = analyser.current_index
                 try:
                     res['options'].setdefault(*analyse_option(analyser, p))
                     break
                 except Exception as e:
                     exc = e
                     analyser.raw_data = _data
+                    analyser.current_index = _index
                     continue
             else:
                 raise exc  # type: ignore  # noqa
