@@ -12,6 +12,7 @@
 8. 修复可能存在的内存泄漏问题
 9. 原先的 ArgFlag `'H','O','A'` 变回 `'/','?','!'`
 10. Args.separators 移除，分割任务转移给 Arg.separators
+11. `set_default` 现在可以传入 factory 参数， 并且必须传入关键字参数
 
 # Alconna 1.3.x:
 
