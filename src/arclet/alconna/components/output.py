@@ -209,6 +209,8 @@ class TextFormatter:
         """参数列表的描述"""
         res = ""
         for arg in args.argument:
+            if arg.name.startswith('_key_'):
+                continue
             if len(arg.separators) == 1:
                 sep = ' ' if arg.separators[0] == ' ' else f' {arg.separators[0]!r} '
             else:
