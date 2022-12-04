@@ -79,9 +79,9 @@ class Arg:
         if res := re.match(r"^.+?#(?P<notice>[^;?!/#]+)", name):
             self.notice = res["notice"]
             self.name = name.replace(f"#{res['notice']}", "")
-        if res := re.match(r"^.+?;(?P<flag>[?!/]+)", name):
+        if res := re.match(r"^.+?;(?P<flag>[?!/]+)", self.name):
             flags.extend(ArgFlag(c) for c in res["flag"])
-            self.name = name.replace(f";{res['flag']}", "")
+            self.name = self.name.replace(f";{res['flag']}", "")
         self.flag = set(flags)
 
     def __repr__(self):

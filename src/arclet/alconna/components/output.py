@@ -198,7 +198,7 @@ class TextFormatter:
             if parameter.value is AllParam:
                 return f"<...{name}>"
             if not isinstance(parameter.value, BasePattern) or parameter.value.pattern != name:
-                arg += f"{parameter.value}"
+                arg += f":{parameter.value}"
             if parameter.field.display is Empty:
                 arg += " = None"
             elif parameter.field.display is not None:

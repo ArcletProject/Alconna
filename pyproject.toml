@@ -4,7 +4,7 @@ build-backend = "pdm.pep517.api"
 
 [project]
 name = "arclet-alconna"
-version = "1.4.0"
+version = "1.4.1"
 description = "A High-performance, Generality, Humane Command Line Arguments Parser Library."
 authors = [
     {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},

@@ -325,13 +325,13 @@ def test_help():
 def test_hide_annotation():
     alc18 = Alconna("core18", Args["foo", int])
     print(alc18.get_help())
-    alc18_1 = Alconna("core18_1", Args["foo;H", int])
+    alc18_1 = Alconna("core18_1", Args["foo;/", int])
     print(alc18_1.get_help())
 
 
 def test_args_notice():
-    alc19 = Alconna("core19", Args["foo#A TEST;O", int]) + Option(
-        "bar", Args["baz#ANOTHER TEST;K", str]
+    alc19 = Alconna("core19", Args["foo#A TEST;?", int]) + Option(
+        "bar", Args["baz#ANOTHER TEST", KeyWordVar(str)]
     )
     print("")
     print(alc19.get_help())
