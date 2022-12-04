@@ -1,5 +1,9 @@
 # Alconna 1.4.x:
 
+## Alconna 1.4.2:
+1. 修复可变参数匹配的bug
+2. 修复Args.from_callable的bug
+
 ## Alconna 1.4.1:
 1. 修改 help text 的 bug
 2. 修改 Arg 提取 notice 的 bug

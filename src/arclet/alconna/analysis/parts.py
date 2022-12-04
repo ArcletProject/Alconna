@@ -67,9 +67,9 @@ def multi_arg_handler(
     if not kw and not args.var_keyword or kw and not args.var_positional:
         _loop = _m_rest_all_param_count - (_m_rest_arg - (value.flag == "+"))
     elif not kw:
-        _loop = _m_rest_all_param_count - (_m_rest_arg - (value.flag == "+") - (args[args.var_keyword].flag == "+"))
+        _loop = _m_rest_all_param_count - (_m_rest_arg - (args[args.var_keyword].value.flag == "*"))
     else:
-        _loop = _m_rest_all_param_count - (_m_rest_arg - (value.flag == "+") + (args[args.var_positional].flag == "+"))
+        _loop = _m_rest_all_param_count - (_m_rest_arg - (args[args.var_positional].value.flag == "*"))
     if value.length > 0:
         _loop = min(_loop, value.length)
     if kw:
