@@ -1,5 +1,9 @@
 # Alconna 1.4.x:
 
+## Alconna 1.4.1:
+1. 修改 help text 的 bug
+2. 修改 Arg 提取 notice 的 bug
+
 ## Alconna 1.4.0:
 1. 改进字符串分割过程，以运行更细粒度的分隔控制
 2. 加入ArparmaExecutor，以绑定一个响应函数
