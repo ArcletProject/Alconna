@@ -30,7 +30,7 @@ class Arparma(Generic[TDataCollection]):
         self.matched: bool = False
         self.head_matched: bool = False
         self.error_data: List[Union[str, Any]] = []
-        self.error_info: Union[str, BaseException, Type[BaseException]] = 'None'
+        self.error_info: Union[str, BaseException, Type[BaseException]] = ''
         self.other_args: Dict[str, Any] = {}
         self.main_args: Dict[str, Any] = {}
         self._header: Optional[Dict[str, Any]] = None
@@ -137,7 +137,7 @@ class Arparma(Generic[TDataCollection]):
             if part in self.components:
                 return self.components[part], ''
             if part in {"options", "subcommands", "main_args", "other_args"}:
-                return getattr(self, part), ''
+                return getattr(self, part, {}), ''
             return (self.all_matched_args, '') if part == "args" else (None, part)
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
@@ -247,10 +247,10 @@ class Arparma(Generic[TDataCollection]):
 
     def __repr__(self):
         if self.error_info:
-            attrs = ((s, getattr(self, s)) for s in ["matched", "head_matched", "error_data", "error_info"])
+            attrs = ((s, getattr(self, s, None)) for s in ["matched", "head_matched", "error_data", "error_info"])
             return ", ".join(f"{a}={v}" for a, v in attrs if v is not None)
         else:
-            attrs = [(s, getattr(self, s)) for s in ["matched", "header", "options", "subcommands"]]
+            attrs = [(s, getattr(self, s, None)) for s in ["matched", "header", "options", "subcommands"]]
             margs = self.main_args.copy()
             margs.pop('$varargs', None)
             margs.pop('$kwargs', None)
