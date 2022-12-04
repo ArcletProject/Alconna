@@ -201,7 +201,7 @@ def analyse_unmatch_params(
         if isinstance(_p, list):
             res = []
             for _o in _p:
-                _may_param = split_once(text, tuple(_o.separators))[0]
+                _may_param = split_once(text, _o.separators)[0]
                 if _may_param in _o.aliases or any(map(lambda x: _may_param.startswith(x), _o.aliases)):
                     res.append(_o)
                     continue
@@ -210,7 +210,7 @@ def analyse_unmatch_params(
             if res:
                 return res
         else:
-            if (_may_param := split_once(text, tuple(_p.separators))[0]) == _p.name:
+            if (_may_param := split_once(text, _p.separators)[0]) == _p.name:
                 return _p
             if is_fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=_p.name))
@@ -333,10 +333,8 @@ def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
                     return _head_find.groupdict() or True
         if isinstance(command, tuple):
             if not _str and not isclass(head_text) and (
-                    (isinstance(command[0], list) and head_text in command[0]) or
-                    (isinstance(command[0], tuple) and head_text in command[0][0]) or
-                    (isinstance(command[0], list) and head_text.__class__ in command[0]) or
-                    (isinstance(command[0], tuple) and head_text.__class__ in command[0][0])
+                (isinstance(command[0], list) and (head_text in command[0] or type(head_text) in command[0])) or
+                (isinstance(command[0], tuple) and (head_text in command[0][0] or type(head_text) in command[0][0]))
             ):
                 if isinstance(command[1], TPattern):
                     if _m_str and (_command_find := command[1].fullmatch(may_command)):
@@ -375,7 +373,7 @@ def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
             if isinstance(command, (TPattern, BasePattern)):
                 source = head_text
             else:
-                source = head_text + analyser.separators.copy().pop() + str(may_command)  # type: ignore  # noqa
+                source = head_text + analyser.separators[0] + str(may_command)
             if source == analyser.alconna.command:
                 analyser.head_matched = False
                 raise ParamsUnmatched(config.lang.header_error.format(target=head_text))

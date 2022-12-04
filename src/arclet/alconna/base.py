@@ -22,12 +22,12 @@ class CommandNode:
     requires: Union[Sequence[str], Set[str]]
 
     def __init__(
-            self, name: str, args: Union[Args, str, None] = None,
-            dest: Optional[str] = None,
-            action: Optional[Union[ArgAction, Callable]] = None,
-            separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
-            help_text: Optional[str] = None,
-            requires: Optional[Union[str, Sequence[str], Set[str]]] = None
+        self, name: str, args: Union[Args, str, None] = None,
+        dest: Optional[str] = None,
+        action: Optional[Union[ArgAction, Callable]] = None,
+        separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
+        help_text: Optional[str] = None,
+        requires: Optional[Union[str, Sequence[str], Set[str]]] = None
     ):
         """
         初始化命令节点
@@ -89,15 +89,15 @@ class Option(CommandNode):
     priority: int
 
     def __init__(
-            self,
-            name: str, args: Union[Args, str, None] = None,
-            alias: Optional[List[str]] = None,
-            dest: Optional[str] = None,
-            action: Optional[Union[ArgAction, Callable]] = None,
-            separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
-            help_text: Optional[str] = None,
-            requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
-            priority: int = 0
+        self,
+        name: str, args: Union[Args, str, None] = None,
+        alias: Optional[List[str]] = None,
+        dest: Optional[str] = None,
+        action: Optional[Union[ArgAction, Callable]] = None,
+        separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
+        help_text: Optional[str] = None,
+        requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
+        priority: int = 0
     ):
         self.aliases = alias or []
         parts = name.split(" ")
@@ -148,13 +148,13 @@ class Subcommand(CommandNode):
     sub_part_len: range
 
     def __init__(
-            self,
-            name: str, options: Optional[List[Option]] = None, args: Union[Args, str, None] = None,
-            dest: Optional[str] = None,
-            action: Optional[Union[ArgAction, Callable]] = None,
-            separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
-            help_text: Optional[str] = None,
-            requires: Optional[Union[str, Sequence[str], Set[str]]] = None
+        self,
+        name: str, options: Optional[List[Option]] = None, args: Union[Args, str, None] = None,
+        dest: Optional[str] = None,
+        action: Optional[Union[ArgAction, Callable]] = None,
+        separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
+        help_text: Optional[str] = None,
+        requires: Optional[Union[str, Sequence[str], Set[str]]] = None
     ):
         self.options = options or []
         super().__init__(name, args, dest, action, separators, help_text, requires)
@@ -183,7 +183,7 @@ class Subcommand(CommandNode):
 @dataclass
 class Sentence:
     name: str
-    separators: Set[str] = field(default_factory=lambda: {' '})
+    separators: Tuple[str, ...] = field(default=(' ',))
 
 
 class OptionResult(TypedDict):

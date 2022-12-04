@@ -1,6 +1,5 @@
 import asyncio
 import json
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
@@ -53,6 +52,34 @@ class Namespace:
 
     def __hash__(self):
         return hash(self.name)
+
+
+class namespace(ContextManager[Namespace]):
+    """
+    新建一个命名空间配置并暂时作为默认命名空间
+
+    Example:
+        with namespace("xxx") as np:
+            np.headers = [aaa]
+            alc = Alconna(...)
+            alc.headers == [aaa]
+    """
+    def __init__(self, name: Union[Namespace, str]):
+        self.np = Namespace(name) if isinstance(name, str) else name
+        self.name = self.np.name if isinstance(name, Namespace) else name
+        self.old = config.default_namespace
+        config.default_namespace = self.np
+
+    def __enter__(self) -> Namespace:
+        return self.np
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type or exc_val or exc_tb:
+            return False
+        config.default_namespace = self.old
+        config.namespaces[self.name] = self.np
+        del self.old
+        del self.np
 
 
 class _LangConfig:
@@ -140,26 +167,6 @@ class _AlconnaConfig:
     def set_loop(cls, loop: asyncio.AbstractEventLoop) -> None:
         """设置事件循环"""
         cls.loop = loop
-
-
-@contextmanager
-def namespace(name: Union[Namespace, str]) -> ContextManager[Namespace]:
-    """
-    新建一个命名空间配置并暂时作为默认命名空间
-
-    Example:
-        with namespace("xxx") as np:
-            np.headers = [aaa]
-            alc = Alconna(...)
-            alc.headers == [aaa]
-    """
-    np = Namespace(name) if isinstance(name, str) else name
-    name = np.name if isinstance(name, Namespace) else name
-    old = config.default_namespace
-    config.default_namespace = np
-    yield np
-    config.default_namespace = old
-    config.namespaces[name] = np
 
 
 config = _AlconnaConfig()
