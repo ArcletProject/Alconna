@@ -38,7 +38,7 @@ pip install --upgrade arclet-alconna[all]
 
 文档链接: [👉指路](https://arcletproject.github.io/docs/alconna/tutorial)
 
-相关文档: [📚文档](https://graiax.cn/guide/alconna.html#alconna)
+相关文档: [📚文档](https://graiax.cn/guide/message_parser/alconna.html)
 
 ## 简单使用
 
@@ -65,7 +65,7 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## 特点
 
-* 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`; 测试脚本: [benchmark](benchmark.py) 
+* 高效. 在 i5-10210U 处理器上, 性能大约为 `71000~289000 msg/s`; 测试脚本: [benchmark](benchmark.py) 
 * 精简、多样的构造方法
 * 强大的类型解析与转换功能
 * 可传入同步与异步的 action 函数
@@ -97,9 +97,9 @@ read.parse(["read", Path("test_fire.py")])
 
 模糊匹配示范:
 ```python
-from arclet.alconna import Alconna
+from arclet.alconna import Alconna, CommandMeta
 
-alc = Alconna('!test_fuzzy', "foo:str", is_fuzzy_match=True)
+alc = Alconna('!test_fuzzy', "foo:str", meta=CommandMeta(fuzzy_match=True))
 alc.parse("！test_fuzy foo bar")
 
 '''

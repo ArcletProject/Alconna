@@ -1,22 +1,22 @@
 """Alconna 主体"""
-import re
 import sys
 from functools import reduce
-from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any
+from typing import List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any, Literal
 from dataclasses import dataclass, field
 from .config import config, Namespace
 from .analysis.base import compile
-from .args import Args
+from .args import Args, Arg
 from .base import CommandNode, Option, Subcommand
 from .typing import TDataCollection
 from .manager import command_manager
-from .arpamar import Arpamar
+from .arparma import Arparma
 from .exceptions import PauseTriggered
 from .analysis.analyser import TAnalyser, Analyser
 from .components.action import ActionHandler, ArgAction
 from .components.output import TextFormatter
 from .components.behavior import T_ABehavior
 from .components.duplication import Duplication
+from .components.executor import ArparmaExecutor, T
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
@@ -40,10 +40,10 @@ class AlconnaGroup(CommandNode):
     commands: List['Alconna']
 
     def __init__(
-            self,
-            name: str,
-            *commands: "Alconna",
-            namespace: Optional[Union[str, Namespace]] = None,
+        self,
+        name: str,
+        *commands: "Alconna",
+        namespace: Optional[Union[str, Namespace]] = None,
     ):
         if not namespace:
             self.namespace = config.default_namespace.name
@@ -65,8 +65,26 @@ class AlconnaGroup(CommandNode):
         return self
 
     @property
+    def namespace_config(self) -> Namespace:
+        return config.namespaces[self.namespace]
+
+    @property
     def path(self) -> str:
         return f"{self.namespace}::{self.name.replace(command_manager.sign, '')}"
+
+    @property
+    def options(self):
+        res = []
+        for cmd in self.commands:
+            res.extend(cmd.options[:-3])
+        return res
+
+    @property
+    def behaviors(self) -> List[T_ABehavior]:
+        res = []
+        for cmd in self.commands:
+            res.extend(cmd.behaviors[1:])
+        return res
 
     def get_help(self) -> str:
         """返回该命令的帮助信息"""
@@ -107,19 +125,17 @@ class AlconnaGroup(CommandNode):
     def __or__(self, other):
         return self.__union__(other)
 
-    def parse(self, message: TDataCollection) -> Optional[Arpamar[TDataCollection]]:
-        res = None
+    def parse(self, message: TDataCollection) -> Arparma[TDataCollection]:
+        res = Arparma(self.name, message)
         for command in self.commands:
             if (res := command.parse(message)).matched:
                 return res
-        return res
+        return res._fail("Not Matched Any Command")
 
 
 class Alconna(CommandNode):
     """
-    亚尔康娜 (Alconna), Cesloi 的妹妹
-
-    用于更加精确的命令解析
+    更加精确的命令解析
 
     Examples:
 
@@ -146,43 +162,27 @@ class Alconna(CommandNode):
     namespace: str
     meta: CommandMeta
     behaviors: List[T_ABehavior]
-    action_list: Dict[str, Union[None, ArgAction, Dict[str, ArgAction]]]
     custom_types = {}
 
-    global_behaviors: List[T_ABehavior] = []
     global_analyser_type: Type["Analyser"] = Analyser
-    global_formatter_type: Type[TextFormatter] = TextFormatter
 
     @classmethod
-    def config(
-            cls,
-            *,
-            behaviors: Optional[List[T_ABehavior]] = None,
-            analyser_type: Optional[Type[TAnalyser]] = None,
-            formatter_type: Optional[Type[TextFormatter]] = None,
-    ):
-        """
-        配置 Alconna 的默认属性
-        """
-        if behaviors is not None:
-            cls.global_behaviors.extend(behaviors)
-        if analyser_type is not None:
-            cls.global_analyser_type = analyser_type
-        if formatter_type is not None:
-            cls.global_formatter_type = formatter_type
+    def default_analyser(cls, __t: Optional[Type[TAnalyser]] = None):
+        """配置 Alconna 的默认解析器"""
+        if __t is not None:
+            cls.global_analyser_type = __t
         return cls
 
     def __init__(
         self,
-        *args: Union[Option, Subcommand, str, T_Header, Any, Args],
+        *args: Union[Option, Subcommand, str, T_Header, Any, Args, Arg],
         action: Optional[Union[ArgAction, Callable]] = None,
         meta: Optional[CommandMeta] = None,
         namespace: Optional[Union[str, Namespace]] = None,
         separators: Optional[Union[str, Iterable[str]]] = None,
         analyser_type: Optional[Type[TAnalyser]] = None,
         behaviors: Optional[List[T_ABehavior]] = None,
-        formatter_type: Optional[Type[TextFormatter]] = None,
-        **kwargs
+        formatter_type: Optional[Type[TextFormatter]] = None
     ):
         """
         以标准形式构造 Alconna
@@ -205,98 +205,49 @@ class Alconna(CommandNode):
             np_config = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers,)))  # type: ignore
         try:
-            self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args)), args))
+            self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
             self.command = "" if self.headers else sys.argv[0]
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = np_config.name
-        self.options.extend(
-            [
-                Option(
-                    "|".join(np_config.builtin_option_name['help']),
-                    help_text=config.lang.builtin_option_help
-                ),
-                Option(
-                    "|".join(np_config.builtin_option_name['shortcut']),
-                    Args["delete;O", "delete"]["name", str]["command", str, "_"],
-                    help_text=config.lang.builtin_option_shortcut
-                ),
-                Option(
-                    "|".join(np_config.builtin_option_name['completion']),
-                    help_text=config.lang.builtin_option_completion
-                )
-            ]
+        self.options.append(
+            Option("|".join(np_config.builtin_option_name['help']), help_text=config.lang.builtin_option_help),
+        )
+        self.options.append(
+            Option(
+                "|".join(np_config.builtin_option_name['shortcut']),
+                Args["delete;O", "delete"]["name", str]["command", str, "_"],
+                help_text=config.lang.builtin_option_shortcut
+            )
+        )
+        self.options.append(
+            Option(
+                "|".join(np_config.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
+            )
         )
         self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
-        self.behaviors = behaviors or self.__class__.global_behaviors.copy()
-        self.behaviors.insert(0, ActionHandler())
-        self.formatter_type = formatter_type or self.__class__.global_formatter_type
+        self.formatter_type = formatter_type or np_config.formatter_type or TextFormatter
         self.meta = meta or CommandMeta()
         self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
         self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
         super().__init__(
             command_manager.sign,
-            reduce(lambda x, y: x + y, li) if (li := [i for i in args if isinstance(i, Args)]) else None,
+            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
             action=action,
-            separators=separators or np_config.separators.copy(),  # type: ignore
+            separators=separators or np_config.separators,  # type: ignore
         )
+        self.behaviors = behaviors or []
+        self.behaviors.insert(0, ActionHandler(self))
+        self.behaviors.extend(np_config.behaviors)
         self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
-        self._deprecate(kwargs)
         self._hash = self._calc_hash()
         command_manager.register(self)
-
-    def _deprecate(self, kwargs):
-        for key, value in kwargs.items():
-            import warnings
-            if key == "command":
-                warnings.warn("'command' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.command = value
-                self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
-            elif key == "headers":
-                warnings.warn("'headers' will not support in 1.4.0 !", DeprecationWarning, 2)
-                if self.command == sys.argv[0]:
-                    self.command = ''
-                self.headers = value or config.namespaces[self.namespace].headers
-                self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")
-            if key == "options":
-                warnings.warn("'options' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.options = value
-                self.options.extend(
-                    [
-                        Option(
-                            "|".join(self.namespace_config.builtin_option_name['help']),
-                            help_text=config.lang.builtin_option_help
-                        ),
-                        Option(
-                            "|".join(self.namespace_config.builtin_option_name['shortcut']),
-                            Args["delete;O", "delete"]["name", str]["command", str, "_"],
-                            help_text=config.lang.builtin_option_shortcut
-                        ),
-                        Option(
-                            "|".join(self.namespace_config.builtin_option_name['completion']),
-                            help_text=config.lang.builtin_option_completion
-                        )
-                    ]
-                )
-            if key == "main_args":
-                warnings.warn("'main_args' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.args = value if isinstance(value, Args) else Args.from_string_list(
-                    [re.split("[:=]", p) for p in re.split(r"\s*,\s*", value)], {}
-                )
-            if key == "help_text":
-                warnings.warn("'help_text' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.meta.description = str(value)
-            if key == "raise_exception":
-                warnings.warn("'raise_exception' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.meta.raise_exception = bool(value)
-            if key == "is_fuzzy_match":
-                warnings.warn("'is_fuzzy_match' will not support in 1.4.0 !", DeprecationWarning, 2)
-                self.meta.fuzzy_match = bool(value)
+        self._executors: List[ArparmaExecutor] = []
 
     def __union__(self, other: Union["Alconna", AlconnaGroup]) -> AlconnaGroup:
         """
-        合并两个 重名的Alconna 实例
+        合并两个 重名的 Alconna 实例
         """
         if self.path != other.path:
             raise ValueError("两个命令的命令名称不一致")
@@ -312,15 +263,18 @@ class Alconna(CommandNode):
     def namespace_config(self) -> Namespace:
         return config.namespaces[self.namespace]
 
-    def reset_namespace(self, namespace: Union[Namespace, str]):
+    def reset_namespace(self, namespace: Union[Namespace, str], header: bool = True):
         """重新设置命名空间"""
         command_manager.delete(self)
         if isinstance(namespace, str):
             namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.namespace = namespace.name
+        if header:
+            self.headers = namespace.headers.copy()
+        self.behaviors[1:] = namespace.behaviors[:]
+        self.formatter_type = namespace.formatter_type or self.formatter_type
         self.options[-3] = Option(
-            "|".join(namespace.builtin_option_name['help']),
-            help_text=config.lang.builtin_option_help
+            "|".join(namespace.builtin_option_name['help']), help_text=config.lang.builtin_option_help
         )
         self.options[-2] = Option(
             "|".join(namespace.builtin_option_name['shortcut']),
@@ -328,9 +282,10 @@ class Alconna(CommandNode):
             help_text=config.lang.builtin_option_shortcut
         )
         self.options[-1] = Option(
-            "|".join(namespace.builtin_option_name['completion']),
-            help_text=config.lang.builtin_option_completion
+            "|".join(namespace.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
         )
+        self.meta.fuzzy_match = namespace.fuzzy_match
+        self.meta.raise_exception = namespace.raise_exception
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
@@ -338,7 +293,7 @@ class Alconna(CommandNode):
     def reset_behaviors(self, behaviors: List[T_ABehavior]):
         """重新设置解析行为器"""
         self.behaviors = behaviors
-        self.behaviors.insert(0, ActionHandler())
+        self.behaviors.insert(0, ActionHandler(self))
         return self
 
     def get_help(self) -> str:
@@ -351,7 +306,7 @@ class Alconna(CommandNode):
         cls.custom_types = types
 
     def shortcut(
-            self, short_key: str, command: Optional[TDataCollection] = None, delete: bool = False
+        self, short_key: str, command: Optional[TDataCollection] = None, delete: bool = False
     ):
         """添加快捷命令"""
         try:
@@ -387,52 +342,56 @@ class Alconna(CommandNode):
         name, requires = names[-1], names[:-1]
         opt = Option(name, args, list(alias), separators=sep, help_text=help_, requires=requires)
         self.options.insert(-3, opt)
+        self.behaviors[0] = ActionHandler(self)
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
 
     @overload
     def parse(
-        self, message, duplication: Type[T_Duplication], static=True, interrupt=False
+        self, message: TDataCollection
+    ) -> Arparma[TDataCollection]:
+        ...
+
+    @overload
+    def parse(
+        self, message, *, duplication: Type[T_Duplication]
     ) -> T_Duplication:
         ...
 
     @overload
     def parse(
-        self, message: TDataCollection, duplication=None, static=True, interrupt=False
-    ) -> Arpamar[TDataCollection]:
-        ...
-
-    @overload
-    def parse(
-        self, message, duplication=None, static=True, interrupt=True
-    ) -> Analyser:
+        self, message: TDataCollection, *, interrupt: Literal[True]
+    ) -> Analyser[TDataCollection]:
         ...
 
     def parse(
-            self, message: TDataCollection, duplication: Optional[Type[T_Duplication]] = None,
-            static: bool = True, interrupt: bool = False
-    ) -> Union[Analyser, Arpamar[TDataCollection], T_Duplication]:
+        self, message: TDataCollection, *, duplication: Optional[Type[T_Duplication]] = None,
+        interrupt: bool = False, static: bool = True
+    ) -> Union[Analyser[TDataCollection], Arparma[TDataCollection], T_Duplication]:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         analyser = command_manager.require(self) if static else compile(self)
         analyser.process(message)
         try:
-            arp: Arpamar[TDataCollection] = analyser.analyse(interrupt=interrupt)
+            arp: Arparma[TDataCollection] = analyser.analyse(interrupt=interrupt)
         except PauseTriggered:
             return analyser
         if arp.matched:
+            self.behaviors[0].operate(arp)
             arp = arp.execute()
-        if duplication:
-            return duplication(self).set_target(arp)
-        return arp
+        return duplication(self).set_target(arp) if duplication else arp
+
+    def bind(self, target: Callable[..., T]) -> ArparmaExecutor[T]:
+        ext = ArparmaExecutor(target)
+        ext.binding = lambda: command_manager.get_result(self)
+        self._executors.append(ext)
+        return self._executors[-1]
 
     def __truediv__(self, other):
         self.reset_namespace(other)
         return self
 
-    def __rtruediv__(self, other):
-        self.reset_namespace(other)
-        return self
+    __rtruediv__ = __truediv__
 
     def __add__(self, other):
         command_manager.delete(self)
@@ -446,6 +405,7 @@ class Alconna(CommandNode):
         elif isinstance(other, str):
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
+        self.behaviors[0] = ActionHandler(self)
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
@@ -457,6 +417,6 @@ class Alconna(CommandNode):
 
     def _calc_hash(self):
         return hash(
-            (self.path + str(self.args.argument.keys()) + str([i['value'] for i in self.args.argument.values()])
+            (self.path + str([i.name for i in self.args.argument]) + str([i.value for i in self.args.argument])
              + str(self.headers), *self.options, self.meta)
         )

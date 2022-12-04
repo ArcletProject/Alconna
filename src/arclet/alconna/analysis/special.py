@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Union, List
 from nepattern import Empty
 from ..components.output import output_manager
 from ..base import Subcommand, Option
-from ..args import ArgUnit, Args
+from ..args import Arg, Args
 from ..config import config
 from ..exceptions import ParamsUnmatched
 from .parts import analyse_args
@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 
 def handle_help(analyser: "Analyser"):
-    analyser.current_index, analyser.content_index = analyser.head_pos
     _help_param = [
-        str(i) for i in analyser.release() if i not in analyser.alconna.namespace_config.builtin_option_name['help']
+        str(i) for i in analyser.release(recover=True, move_head=True)
+        if i not in analyser.alconna.namespace_config.builtin_option_name['help']
     ]
 
     def _get_help():
@@ -29,7 +29,7 @@ def handle_help(analyser: "Analyser"):
 
 def handle_shortcut(analyser: "Analyser"):
     analyser.popitem()
-    opt_v = analyse_args(analyser, Args["delete;O", "delete"]["name", str]["command", str, "_"])
+    opt_v = analyse_args(analyser, Args["delete;?", "delete"]["name", str]["command", str, "_"], 3)
     try:
         msg = analyser.alconna.shortcut(
             opt_v["name"],
@@ -46,8 +46,8 @@ def handle_shortcut(analyser: "Analyser"):
     return analyser.export(fail=True)
 
 
-def _handle_unit(analyser: "Analyser", trigger: ArgUnit):
-    if gen := trigger["field"].completion:
+def _handle_unit(analyser: "Analyser", trigger: Arg):
+    if gen := trigger.field.completion:
         comp = gen()
         if isinstance(comp, str):
             return output_manager.get(analyser.alconna.name, lambda: gen()).handle(
@@ -58,8 +58,8 @@ def _handle_unit(analyser: "Analyser", trigger: ArgUnit):
         return output_manager.get(
             analyser.alconna.name, lambda: f"{config.lang.common_completion_arg}\n- {o}"
         ).handle(raise_exception=analyser.raise_exception)
-    default = trigger["field"].default_gen
-    o = f"{trigger['value']}{'' if default is None else f' default:({None if default is Empty else default})'}"
+    default = trigger.field.default_gen
+    o = f"{trigger.value}{'' if default is None else f' default:({None if default is Empty else default})'}"
     return output_manager.get(
         analyser.alconna.name, lambda: f"{config.lang.common_completion_arg}\n{o}"
     ).handle(raise_exception=analyser.raise_exception)
@@ -82,13 +82,13 @@ def _handle_sentence(analyser: "Analyser"):
 def _handle_none(analyser: "Analyser", got: List[str]):
     res: List[str] = []
     if not analyser.main_args and analyser.self_args.argument:
-        unit = list(analyser.self_args.argument.values())[0]
-        if gen := unit["field"].completion:
+        unit = analyser.self_args.argument[0]
+        if gen := unit.field.completion:
             res.append(comp if isinstance(comp := gen(), str) else "\n- ".join(comp))
         else:
-            default = unit["field"].default_gen
+            default = unit.field.default_gen
             res.append(
-                f"{unit['value']}{'' if default is None else f' ({None if default is Empty else default})'}"
+                f"{unit.value}{'' if default is None else f' ({None if default is Empty else default})'}"
             )
     for opt in filter(
         lambda x: x.name not in analyser.alconna.namespace_config.builtin_option_name['completion'],
@@ -102,9 +102,9 @@ def _handle_none(analyser: "Analyser", got: List[str]):
 
 
 def handle_completion(
-    analyser: "Analyser", trigger: Union[None, ArgUnit, Subcommand, str] = None
+    analyser: "Analyser", trigger: Union[None, Args, Subcommand, str] = None
 ):
-    if isinstance(trigger, dict):
+    if isinstance(trigger, Arg):
         _handle_unit(analyser, trigger)
     elif isinstance(trigger, Subcommand):
         output_manager.get(
@@ -129,7 +129,7 @@ def handle_completion(
         ).handle(raise_exception=analyser.raise_exception)
     else:
         got = [*analyser.options.keys(), *analyser.subcommands.keys(), *analyser.sentences]
-        target = analyser.release(recover=True)[-2]
+        target = analyser.release(recover=True)[-1]
         if _res := list(filter(lambda x: target in x and target != x, analyser.command_params)):
             out = [i for i in _res if i not in got]
             output_manager.get(

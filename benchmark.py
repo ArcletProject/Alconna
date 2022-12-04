@@ -23,9 +23,9 @@ class At:
 config.default_namespace.enable_message_cache = True
 
 alc = Alconna(
-    headers=["."],
-    command="test",
-    main_args=Args["bar", AnyOne]
+    ["."],
+    "test",
+    Args["bar", AnyOne]
 )
 compile_alc = compile(alc)
 print(alc)
@@ -39,23 +39,19 @@ if __name__ == "__main__":
         st = time.time()
         compile_alc.process(msg)
         compile_alc.analyse()
-        ed = time.time()
-        sec += ed - st
+        sec += time.time() - st
     print(f"Alconna: {count / sec:.2f}msg/s")
 
     print("RUN 2:")
-    li = []
+    li = 0.0
 
-    pst = time.time()
     for _ in range(count):
         st = time.thread_time_ns()
         compile_alc.process(msg)
         compile_alc.analyse()
-        ed = time.thread_time_ns()
-        li.append(ed - st)
-    led = time.time()
+        li += (time.thread_time_ns() - st)
 
-    print(f"Alconna: {sum(li) / count} ns per loop with {count} loops")
+    print(f"Alconna: {li / count} ns per loop with {count} loops")
 
     command_manager.records.clear()
 

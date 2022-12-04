@@ -1,13 +1,15 @@
 from arclet.alconna.typing import DataCollection
-from arclet.alconna.util import split_once, split, LruCache
+from arclet.alconna.util import split_once, split, LruCache, Singleton
 
 
 def test_split_once():
-    """测试单次分割函数, 能以引号扩起空格"""
+    """测试单次分割函数, 能以引号扩起空格, 并允许保留引号"""
     text1 = "rrr b bbbb"
     text2 = "\'rrr b\' bbbb"
+    text3 = "\\\'rrr b\\\' bbbb"
     assert split_once(text1, ' ') == ('rrr', 'b bbbb')
-    assert split_once(text2, ' ') == ("'rrr b'", 'bbbb')
+    assert split_once(text2, ' ') == ("rrr b", 'bbbb')
+    assert split_once(text3, ' ') == ("'rrr b'", 'bbbb')
 
 
 def test_split():
@@ -43,6 +45,17 @@ def test_collection():
     assert isinstance({"a": 1}, DataCollection)
     assert isinstance([123, 456, 7.0, {"a": 1}], DataCollection)
     assert issubclass(list, DataCollection)
+
+
+def test_singleton():
+    """测试单例， 使用metaclass"""
+    class Test(metaclass=Singleton):
+        a: int
+
+    t = Test()
+    t.a = 1
+    t1 = Test()
+    assert t1.a == 1
 
 
 if __name__ == '__main__':

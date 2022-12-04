@@ -21,10 +21,6 @@ def test_config():
         print(command_manager.all_command_help())
 
 
-def test_alconna_config():
-    Alconna.config()
-
-
 def test_namespace():
     config.default_namespace.headers = [...]
 
@@ -35,6 +31,7 @@ def test_namespace():
         np.headers = [...]
 
     config.default_namespace.headers = []
+
 
 if __name__ == '__main__':
     import pytest

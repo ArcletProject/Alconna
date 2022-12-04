@@ -2,11 +2,14 @@ from arclet.alconna.core import AlconnaGroup
 from arclet.alconna import (
     Alconna,
     Args,
-    ArgField,
+    Field,
     Option,
     Subcommand,
     AllParam,
     CommandMeta,
+    MultiVar,
+    KeyWordVar,
+    Arg
 )
 from nepattern import IP, URL
 
@@ -202,20 +205,32 @@ def test_alconna_action():
 
 def test_alconna_synthesise():
     alc10 = Alconna(
-        Args["min", r".*(\d+)张.*"]["max;O", r".*(\d+)张.*"] / "到",
+        Arg("min",  r".*(\d+)张.*", seps="到"),
+        Arg("max;?", r".*(\d+)张.*"),
         ["发涩图", "来点涩图", "来点好康的"],
-        Option("从", Args["tags;5", str] / ("和", "与"), separators=""),
-        action=lambda x, y=6: (int(x), int(y)),
+        Option("从", Args["tags", MultiVar(str, 5)] / ("和", "与"), separators=""),
+        action=lambda x, y=6: {"min": int(x), "max": int(y)},
     )
     res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
     assert res.matched is True
     assert res.min == 3
     assert res.tags == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
 
-    alc10_1 = Alconna("yiyu", Args["value;SH", str] / ";")
+    alc10_1 = Alconna(
+        "cpp",
+        Args["match", MultiVar(int, "+")],
+        Arg("lines", AllParam, seps="\n")
+    )
     print("")
-    print(msg := "yiyu 嘿嘿\n12345 4 6\nfsdg")
-    print(" ".join(alc10_1.parse(msg).query("value")))
+    print(
+        msg := (
+            "cpp 1 2\n"
+            "#include <iostream>\n"
+            "..."
+        )
+    )
+    print((res := alc10_1.parse(msg)))
+    print("\n".join(res.query("lines")))
 
 
 def test_simple_override():
@@ -276,7 +291,7 @@ def test_alconna_group():
 
 
 def test_fuzzy():
-    alc15 = Alconna(["!core15"], main_args="foo:str", meta=CommandMeta(fuzzy_match=True))
+    alc15 = Alconna("!core15", Args["foo", str], meta=CommandMeta(fuzzy_match=True))
     assert alc15.parse("core15 foo bar").matched is False
 
 
@@ -299,10 +314,9 @@ def test_help():
     alc17.parse("core17 --help foo")
     alc17_1 = Alconna(
         "core17_1",
-        options=[
-            Option("foo bar abc baz", Args["qux", int]),
-            Option("foo qux bar", Args["baz", str]),
-        ],
+        Option("foo bar abc baz", Args["qux", int]),
+        Option("foo qux bar", Args["baz", str]),
+
     )
     alc17_1.parse("core17_1 --help")
     alc17_1.parse("core17_1 --help aaa")
@@ -325,13 +339,13 @@ def test_args_notice():
 
 def test_completion():
     alc20 = (
-        "core20" + Option("fool") + Option(
-            "foo",
-            Args.bar["a|b|c", ArgField(completion=lambda: "test completion; choose a, b or c")]
-        ) + Option(
-            "off",
-            Args.baz["aaa|aab|abc", ArgField(completion=lambda: ["aaa", "aab", "abc"])]
-        ) + Args["test", int, ArgField(1, completion=lambda: "try -1 ?")]
+            "core20" + Option("fool") + Option(
+        "foo",
+        Args.bar["a|b|c", Field(completion=lambda: "test completion; choose a, b or c")]
+    ) + Option(
+        "off",
+        Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])]
+    ) + Args["test", int, Field(1, completion=lambda: "try -1 ?")]
     )
 
     alc20.parse("core20 --comp")
@@ -351,6 +365,39 @@ def test_interrupt():
     print("\n", ana := alc21.parse("core21", interrupt=True))
 
     assert ana.push("1", "a").analyse().matched
+
+
+def test_call():
+    import asyncio
+    alc22 = Alconna("core22", Args.foo[int], Args.bar[str])
+    alc22.parse("core22 123 abc")
+
+    @alc22.bind
+    def cb(foo: int, bar: str):
+        print('')
+        print('core22: ')
+        print(foo, bar)
+        return 2 * foo
+
+    assert cb.result == 246
+    alc22.parse("core22 321 abc")
+    assert cb.result == 642
+
+    alc22_1 = Alconna("core22_1", Args.foo[int], Args.bar[str])
+    res = alc22_1.parse("core22_1 123 abc")
+
+    async def cb1(foo: int, bar: str):
+        await asyncio.sleep(0.1)
+        print('')
+        print('core22_1: ')
+        print(foo, bar)
+        return 2
+
+    async def main():
+        b = await res.call(cb1)
+        assert b == 2
+
+    asyncio.run(main())
 
 
 if __name__ == "__main__":

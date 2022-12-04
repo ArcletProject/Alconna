@@ -1,6 +1,5 @@
 import re
 import traceback
-from weakref import finalize
 from copy import copy
 from typing import (
     Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable, ClassVar
@@ -12,11 +11,11 @@ from ..manager import command_manager
 from ..exceptions import (
     NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, PauseTriggered
 )
-from ..args import Args, ArgUnit
-from ..base import Option, Subcommand, Sentence, StrMounter
-from ..arpamar import Arpamar
+from ..args import Args, Arg
+from ..base import Option, Subcommand, Sentence
+from ..arparma import Arparma
 from ..util import split_once, split
-from ..typing import DataCollection
+from ..typing import DataCollection, TDataCollection
 from ..config import config
 from ..components.output import output_manager
 from .parts import analyse_args, analyse_option, analyse_subcommand, analyse_header, analyse_unmatch_params
@@ -25,20 +24,19 @@ from .special import handle_help, handle_shortcut, handle_completion
 if TYPE_CHECKING:
     from ..core import Alconna
 
-T_Origin = TypeVar('T_Origin')
 
-
-class Analyser(Generic[T_Origin]):
+class Analyser(Generic[TDataCollection]):
     """ Alconna使用的分析器基类, 实现了一些通用的方法 """
     preprocessors: Dict[str, Callable[..., Any]] = {}
     text_sign: str = 'text'
 
     alconna: 'Alconna'  # Alconna实例
-    context: Optional[Union[ArgUnit, Subcommand, Option]]
+    context: Optional[Union[Arg, Subcommand, Option]]
     current_index: int  # 当前数据的index
-    content_index: int  # 内部index
-    is_str: bool  # 是否是字符串
-    raw_data: List[Union[Any, StrMounter]]  # 原始数据
+    # content_index: int  # 内部index
+    # raw_data: List[Union[Any, StrMounter]]  # 原始数据
+    bak_data: List[Union[str, Any]]
+    raw_data: List[Union[str, Any]]
     ndata: int  # 原始数据的长度
     command_params: Dict[str, Union[Sentence, List[Option], Subcommand]]
     param_ids: Set[str]
@@ -47,7 +45,7 @@ class Analyser(Generic[T_Origin]):
         Union[TPattern, BasePattern], List[Tuple[Any, TPattern]],
         Tuple[Union[Tuple[List[Any], TPattern], List[Any]], Union[TPattern, BasePattern]],
     ]
-    separators: Set[str]  # 分隔符
+    separators: Tuple[str, ...]  # 分隔符
     raise_exception: bool  # 是否抛出异常
     options: Dict[str, Any]  # 存放解析到的所有选项
     subcommands: Dict[str, Any]  # 存放解析到的所有子命令
@@ -55,13 +53,12 @@ class Analyser(Generic[T_Origin]):
     header: Optional[Union[Dict[str, Any], bool]]  # 命令头部
     need_main_args: bool  # 是否需要主参数
     head_matched: bool  # 是否匹配了命令头部
-    head_pos: Tuple[int, int]
+    # head_pos: int
     part_len: range  # 分段长度
     default_main_only: bool  # 默认只有主参数
     self_args: Args  # 自身参数
     filter_out: ClassVar[List[str]]  # 元素黑名单
     temporary_data: Dict[str, Any]  # 临时数据
-    origin_data: T_Origin  # 原始数据
     temp_token: int  # 临时token
     used_tokens: Set[int]  # 已使用的token
     sentences: List[str]  # 存放解析到的所有句子
@@ -82,12 +79,9 @@ class Analyser(Generic[T_Origin]):
 
     def __init__(self, alconna: "Alconna"):
         if not hasattr(self, 'filter_out'):
-            self.filter_out = []
-        self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
-        self.raw_data, self.sentences = [], []
+            self.filter_out = []  # type: ignore
         self.reset()
         self.used_tokens = set()
-        self.origin_data = None
         self.alconna = alconna
         self.self_args = alconna.args
         self.separators = alconna.separators
@@ -95,27 +89,25 @@ class Analyser(Generic[T_Origin]):
         self.need_main_args = False
         self.default_main_only = False
         self.default_separate = True
+        self.filter_crlf = not self.alconna.meta.keep_crlf
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.message_cache = alconna.namespace_config.enable_message_cache
         self.param_ids = set()
         self.command_params = {}
-        self._special = {}
-        self._special.update(
+        self.special = {}
+        self.special.update(
             [(i, handle_help) for i in alconna.namespace_config.builtin_option_name['help']] +
             [(i, handle_completion) for i in alconna.namespace_config.builtin_option_name['completion']] +
             [(i, handle_shortcut) for i in alconna.namespace_config.builtin_option_name['shortcut']]
         )
         self.__handle_main_args__(alconna.args, alconna.nargs)
         self.__init_header__(alconna.command, alconna.headers)
-        self.__init_actions__()
-
-        finalize(self, self._clr)
 
     def __handle_main_args__(self, main_args: Args, nargs: Optional[int] = None):
         nargs = nargs or len(main_args)
         if nargs > 0 and nargs > main_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = sum(a['field'] is not None for k, a in main_args.argument.items())
+        _de_count = sum(arg.field.default_gen is not None for arg in main_args.argument)
         if _de_count and _de_count == nargs:
             self.default_main_only = True
 
@@ -183,123 +175,104 @@ class Analyser(Generic[T_Origin]):
                 self.command_header = (
                                       elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name  # type: ignore # noqa
 
-    def __init_actions__(self):
-        actions = self.alconna.action_list
-        actions['main'] = self.alconna.action
-        for opt in self.alconna.options:
-            if isinstance(opt, Option) and opt.action:
-                actions['options'][opt.dest] = opt.action
-            if isinstance(opt, Subcommand):
-                if opt.action:
-                    actions['subcommands'][opt.dest] = opt.action
-                for option in opt.options:
-                    if option.action:
-                        actions['subcommands'][f"{opt.dest}.{option.dest}"] = option.action
-
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.alconna.path}>"
 
     def reset(self):
         """重置分析器"""
-        self.current_index, self.content_index, self.ndata, self.temp_token = 0, 0, 0, 0
-        self.is_str, self.head_matched = False, False
-        self.temporary_data.clear()
-        self.main_args.clear()
-        self.options.clear()
-        self.subcommands.clear()
-        self.raw_data.clear()
-        self.sentences.clear()
-        self.origin_data, self.header, self.context = None, None, None
-        self.head_pos = (0, 0)
+        # self.current_index, self.content_index, self.ndata, self.temp_token = 0, 0, 0, 0
+        self.current_index, self.ndata, self.temp_token = 0, 0, 0
+        self.head_matched = False
+        self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
+        self.raw_data, self.sentences = [], []
+        self.header, self.context = None, None
+        # self.head_pos = (0, 0)
 
     def push(self, *data: Union[str, Any]):
         for d in data:
             if not d:
                 continue
-            if isinstance(d, str) and isinstance(self.raw_data[-1], StrMounter):
-                if self.current_index == self.ndata:
+            if isinstance(d, str) and isinstance(self.raw_data[-1], str):
+                if self.current_index >= self.ndata:
                     self.current_index -= 1
-                    self.content_index = len(self.raw_data[-1]) - 1
-                self.raw_data[-1].append(d)
+                self.raw_data[-1] += f"{self.separators[0]}{d}"
             else:
-                self.raw_data.append(StrMounter([d]) if isinstance(d, str) else d)
+                self.raw_data.append(d)
                 self.ndata += 1
+        self.bak_data = self.raw_data.copy()
         return self
 
-    def popitem(self, separate: Optional[Set[str]] = None, move: bool = True) -> Tuple[Union[str, Any], bool]:
+    def popitem(self, separate: Optional[Tuple[str, ...]] = None, move: bool = True) -> Tuple[Union[str, Any], bool]:
         """获取解析需要的下个数据"""
+        if self.temporary_data.get('sep'):
+            del self.temporary_data['sep']
         if self.current_index == self.ndata:
             return "", True
+        separate = separate or self.separators
         _current_data = self.raw_data[self.current_index]
-        if isinstance(_current_data, StrMounter):
-            _rest_text: str = ""
-            _text = _current_data[self.content_index]
-            if separate and not self.separators.issuperset(separate):
-                _text, _rest_text = split_once(_text, tuple(separate))
+        if isinstance(_current_data, str):
+            _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)
             if move:
-                self.content_index += 1
                 if _rest_text:
-                    _current_data[self.content_index - 1] = _text
-                    _current_data.insert(self.content_index, _rest_text)
-            if len(_current_data) == self.content_index:
-                self.current_index += 1
-                self.content_index = 0
+                    self.temporary_data['sep'] = separate
+                    self.raw_data[self.current_index] = _rest_text
+                else:
+                    self.current_index += 1
             return _text, True
         if move:
             self.current_index += 1
         return _current_data, False
 
-    def pushback(self, data: Union[str, Any], replace=False):
+    def pushback(self, data: Union[str, Any], replace: bool = False):
         """把 pop的数据放回 (实际只是‘指针’移动)"""
-        if not data:
+        if data in ("", None):
+            return
+        if sep := self.temporary_data.get('sep'):
+            _current_data = self.raw_data[self.current_index]
+            self.raw_data[self.current_index] = f"{data}{sep[0]}{_current_data}"
             return
         if self.current_index >= 1:
             self.current_index -= 1
-        _current_data = self.raw_data[self.current_index]
-        if isinstance(_current_data, StrMounter):
-            if self.content_index == 0:
-                self.content_index = len(_current_data) - 1
-            else:
-                self.content_index -= 1
         if replace:
-            if isinstance(data, str):
-                _current_data[self.content_index] = data
-            else:
-                self.raw_data[self.current_index] = data
+            self.raw_data[self.current_index] = data
 
-    def release(self, separate: Optional[Set[str]] = None, recover: bool = False) -> List[Union[str, Any]]:
+    def release(
+        self,
+        separate: Optional[Tuple[str, ...]] = None,
+        recover: bool = False,
+        move_head: bool = True
+    ) -> List[Union[str, Any]]:
         _result = []
-        is_cur = False
-        for _data in self.raw_data[0 if recover else self.current_index:]:
-            if isinstance(_data, StrMounter):
-                for s in _data[0 if is_cur or recover else self.content_index:]:
-                    if separate and not self.separators.issuperset(separate):
-                        _result.extend(split(s, tuple(separate)))
-                    else:
-                        _result.append(s)
-                    is_cur = True
+        if recover:
+            data = self.bak_data
+            if move_head:
+                _d, self.raw_data = self.raw_data.copy(), data.copy()
+                analyse_header(self)
+                data, self.raw_data = self.raw_data, _d
+        else:
+            data = self.raw_data[self.current_index:]
+        for _data in data:
+            if isinstance(_data, str):
+                _result.extend(split(_data, separate))
             else:
                 _result.append(_data)
         return _result
 
     def process(self, data: DataCollection[Union[str, Any]]) -> 'Analyser':
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
-        self.origin_data = data
+        self.temporary_data["origin"] = data
         if isinstance(data, str):
-            self.is_str = True
             data = [data]
-        i, exc = 0, None
-        keep_crlf = not self.alconna.meta.keep_crlf
-        raw_data = self.raw_data
+        i, exc, raw_data = 0, None, self.raw_data
         for unit in data:
             if (uname := unit.__class__.__name__) in self.filter_out:
                 continue
             if (proc := self.preprocessors.get(uname)) and (res := proc(unit)):
                 unit = res
             if text := getattr(unit, self.text_sign, unit if isinstance(unit, str) else None):
-                if not (res := split(text.strip(), tuple(self.separators), keep_crlf)):
+                if not (res := text.strip()):
                     continue
-                raw_data.append(StrMounter(res))
+                raw_data.append(res)
             else:
                 raw_data.append(unit)
             i += 1
@@ -310,15 +283,16 @@ class Analyser(Generic[T_Origin]):
             self.temporary_data["fail"] = exp
         else:
             self.ndata = i
+            self.bak_data = raw_data.copy()
             if self.message_cache:
                 self.temp_token = self.generate_token(raw_data)
         return self
 
     def analyse(
-            self,
-            message: Union[DataCollection[Union[str, Any]], None] = None,
-            interrupt: bool = False
-    ) -> Arpamar:
+        self,
+        message: Union[DataCollection[Union[str, Any]], None] = None,
+        interrupt: bool = False
+    ) -> Arparma:
         """主体解析函数, 应针对各种情况进行解析"""
         if command_manager.is_disable(self.alconna):
             return self.export(fail=True)
@@ -334,14 +308,13 @@ class Analyser(Generic[T_Origin]):
             return res
         try:
             self.header = analyse_header(self)
-            self.head_pos = self.current_index, self.content_index
+            # self.head_pos = self.current_index
         except ParamsUnmatched as e:
             self.current_index = 0
-            self.content_index = 0
             try:
                 _res = command_manager.find_shortcut(self.popitem(move=False)[0], self.alconna)
                 self.reset()
-                return _res if isinstance(_res, Arpamar) else self.process(_res).analyse()
+                return _res if isinstance(_res, Arparma) else self.process(_res).analyse()
             except ValueError as exc:
                 if self.raise_exception:
                     raise e from exc
@@ -359,19 +332,22 @@ class Analyser(Generic[T_Origin]):
                     )
                 )
                 if (not _param or _param is Ellipsis) and not self.main_args:
-                    self.main_args = analyse_args(self, self.self_args)
+                    self.main_args = analyse_args(self, self.self_args, self.alconna.nargs)
                 elif isinstance(_param, list):
                     for opt in _param:
-                        if handler := self._special.get(opt.name):
+                        if handler := self.special.get(opt.name):
                             return handler(self)
-                        _current_index, _content_index = self.current_index, self.content_index
+                        _data = self.raw_data.copy()
+                        _index = self.current_index
                         try:
                             opt_n, opt_v = analyse_option(self, opt)
                             self.options[opt_n] = opt_v
+                            _data.clear()
                             break
                         except Exception as e:
                             exc = e
-                            self.current_index, self.content_index = _current_index, _content_index
+                            self.raw_data = _data
+                            self.current_index = _index
                             continue
                     else:
                         raise exc  # type: ignore  # noqa
@@ -387,8 +363,8 @@ class Analyser(Generic[T_Origin]):
             except (ParamsUnmatched, ArgumentMissing) as e1:
                 if rest := self.release():
                     if rest[-1] in self.alconna.namespace_config.builtin_option_name['completion']:
-                        return handle_completion(self, self.context)
-                    if handler := self._special.get(rest[-1]):
+                        return handle_completion(self, self.context)  # type: ignore
+                    if handler := self.special.get(rest[-1]):
                         return handler(self)
                 if interrupt and isinstance(e1, ArgumentMissing):
                     raise PauseTriggered from e1
@@ -400,7 +376,7 @@ class Analyser(Generic[T_Origin]):
 
         # 防止主参数的默认值被忽略
         if self.default_main_only and not self.main_args:
-            self.main_args = analyse_args(self, self.self_args)
+            self.main_args = analyse_args(self, self.self_args, self.alconna.nargs)
 
         if self.current_index == self.ndata and (not self.need_main_args or self.main_args):
             return self.export()
@@ -419,12 +395,12 @@ class Analyser(Generic[T_Origin]):
         return self.export(fail=True, exception=exc)
 
     @staticmethod
-    def converter(command: str) -> T_Origin:
+    def converter(command: str) -> TDataCollection:
         return command  # type: ignore
 
-    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arpamar[T_Origin]:
+    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arparma[TDataCollection]:
         """创建arpamar, 其一定是一次解析的最后部分"""
-        result = Arpamar(self.alconna)
+        result = Arparma(self.alconna.path, self.temporary_data.pop("origin", "None"))
         result.head_matched = self.head_matched
         result.matched = not fail
         if fail:
@@ -433,10 +409,10 @@ class Analyser(Generic[T_Origin]):
         else:
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
             if self.message_cache:
-                command_manager.record(self.temp_token, self.origin_data, result)  # type: ignore
+                command_manager.record(self.temp_token, result)  
                 self.used_tokens.add(self.temp_token)
         self.reset()
-        return result
+        return result  # type: ignore
 
 
 TAnalyser = TypeVar("TAnalyser", bound=Analyser)

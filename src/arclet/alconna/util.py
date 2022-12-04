@@ -1,4 +1,5 @@
 """杂物堆"""
+import sys
 import contextlib
 import inspect
 from functools import lru_cache
@@ -6,6 +7,12 @@ from collections import OrderedDict
 from typing import TypeVar, Optional, Any, Iterator, Hashable, Tuple, Union, Mapping
 
 R = TypeVar('R')
+
+
+def _safe_dcs_args(**kwargs):
+    if sys.version_info < (3, 10):
+        kwargs.pop('slots')
+    return kwargs
 
 
 @lru_cache(4096)
@@ -30,11 +37,13 @@ class Singleton(type):
 @lru_cache(4096)
 def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = True):
     """单次分隔字符串"""
+    index = 0
     out_text = ""
     quotation = ""
     separates = tuple(separates)
+    text = text.lstrip()
     for index, char in enumerate(text):
-        if char in {"'", '"'}:  # 遇到引号括起来的部分跳过分隔
+        if char in {"'", '"', "’", "“"}:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
                 quotation = char
                 if index and text[index - 1] == "\\":
@@ -43,10 +52,11 @@ def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = T
                 quotation = ""
                 if index and text[index - 1] == "\\":
                     out_text += char
-        if (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
+        elif (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
             break
-        out_text += char
-    return out_text, text[len(out_text) + 1:]
+        elif char != "\\":
+            out_text += char
+    return out_text, text[index + 1:]
 
 
 @lru_cache(4096)
@@ -65,7 +75,7 @@ def split(text: str, separates: Optional[Tuple[str, ...]] = None, crlf: bool = T
     result = ""
     quotation = ""
     for index, char in enumerate(text):
-        if char in {"'", '"'}:
+        if char in {"'", '"', "’", "“"}:
             if not quotation:
                 quotation = char
                 if index and text[index - 1] == "\\":

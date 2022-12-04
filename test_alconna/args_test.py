@@ -1,6 +1,6 @@
 from typing import Union
 from nepattern import BasePattern, PatternModel, Bind
-from arclet.alconna import Args
+from arclet.alconna import Args, Arg, Field, Nargs, Kw
 from arclet.alconna.analysis.base import analyse_args
 
 
@@ -15,10 +15,8 @@ def test_magic_create():
     assert len(arg1) == 3
     arg1 = arg1 << Args.perm[str, ...] + ["month", int]
     assert len(arg1) == 5
-    arg1["foo"] = ["bar", ...]
-    assert len(arg1) == 6
     arg11: Args = Args.baz[int]
-    arg11.add_argument("foo", value=int, default=1)
+    arg11.add("foo", value=int, default=1)
     assert len(arg11) == 2
 
 
@@ -58,14 +56,14 @@ def test_object():
 
 
 def test_multi():
-    arg8 = Args().add_argument("multi", value=str, flags="S")
+    arg8 = Args().add("multi", value=Nargs(str, "+"))
     assert analyse_args(arg8, "a b c d").get('multi') == ("a", "b", "c", "d")
-    arg8_1 = Args().add_argument("kwargs", value=str, flags="W")
+    arg8_1 = Args().add("kwargs", value=Nargs(Kw @ str, "+"))
     assert analyse_args(arg8_1, "a=b c=d").get('kwargs') == {"a": "b", "c": "d"}
 
 
 def test_anti():
-    arg9 = Args().add_argument("anti", value=r"(.+?)/(.+?)\.py", flags="A")
+    arg9 = Args().add("anti", value=r"(.+?)/(.+?)\.py", flags="!")
     assert analyse_args(arg9, "a/b.mp3") == {"anti": "a/b.mp3"}
     assert analyse_args(arg9, "a/b.py", raise_exception=False) != {"anti": "a/b.py"}
 
@@ -92,29 +90,23 @@ def test_union():
     assert analyse_args(arg11_2, "1.2") == analyse_args(arg11_1, "1.2")
 
 
-def test_force():
-    arg12 = Args.foo[str].add_argument("bar", value=bool, flags="F")
-    assert analyse_args(arg12, ['123', True]) == {'bar': True, 'foo': '123'}
-    assert analyse_args(arg12, ['123', 'True'], raise_exception=False) != {'bar': True, 'foo': '123'}
-
-
 def test_optional():
-    arg13 = Args.foo[str].add_argument("bar", value=int, flags="O")
+    arg13 = Args.foo[str].add("bar", value=int, flags="?")
     assert analyse_args(arg13, 'abc 123') == {'foo': 'abc', 'bar': 123}
     assert analyse_args(arg13, 'abc') == {'foo': 'abc'}
 
 
 def test_kwonly():
-    arg14 = Args.foo[str].add_argument("bar", value=int, flags="K")
-    assert analyse_args(arg14, 'abc bar=123') == {'foo': 'abc', 'bar': 123}
+    arg14 = Args.foo[str].add("bar", value=Kw[int])
+    assert analyse_args(arg14, 'abc bar=123') == {'foo': 'abc', 'bar': 123, '$kwonly': {'bar': 123}}
     assert analyse_args(arg14, 'abc 123', raise_exception=False) != {'foo': 'abc', 'bar': 123}
-    arg14_1 = Args["--width;OK", int, 1280]["--height;OK", int, 960]
-    assert analyse_args(arg14_1, "--width=960 --height=960") == {"--width": 960, "--height": 960}
+    arg14_1 = Args["--width;?", Kw[int], 1280]["--height;?", Kw[int], 960]
+    assert analyse_args(arg14_1, "--width=960 --height=960") == {"--width": 960, "--height": 960, '$kwonly': {'--height': 960, '--width': 960}}
 
 
 def test_pattern():
     test_type = BasePattern("(.+?).py", PatternModel.REGEX_CONVERT, list, lambda _, x: x.split("/"), "test")
-    arg15 = Args().add_argument("bar", value=test_type)
+    arg15 = Args().add("bar", value=test_type)
     assert analyse_args(arg15, 'abc.py') == {'bar': ['abc']}
     assert analyse_args(arg15, 'abc/def.py') == {'bar': ['abc', 'def']}
     assert analyse_args(arg15, 'abc/def.mp3', raise_exception=False) != {'bar': ['abc', 'def']}

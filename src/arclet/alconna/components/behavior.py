@@ -1,10 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from functools import lru_cache
-from typing import TYPE_CHECKING, Union, List, Type
+from typing import TYPE_CHECKING, Union, List, Type, Callable
 from inspect import isclass
 
 if TYPE_CHECKING:
-    from ..arpamar import Arpamar
+    from ..arparma import Arparma
 
 
 class ArpamarBehavior(metaclass=ABCMeta):
@@ -14,22 +14,21 @@ class ArpamarBehavior(metaclass=ABCMeta):
 
     requires: List[Union[Type['ArpamarBehavior'], 'ArpamarBehavior']]
 
-    @abstractmethod
-    def operate(self, interface: "Arpamar"):
-        """
-        该方法可以是 `staticmethod`, `classmethod` 亦或是普通的方法/函数.
-        """
-        ...
+    if TYPE_CHECKING:
+        operate: Callable[["Arparma"], None]
+    else:
+        @abstractmethod
+        def operate(self, interface: "Arparma"):
+            ...
 
 
 T_ABehavior = Union[Type['ArpamarBehavior'], 'ArpamarBehavior']
 
 
-@lru_cache(None)
+@lru_cache(4096)
 def requirement_handler(behavior: T_ABehavior) -> "List[T_ABehavior]":
     unbound_mixin = getattr(behavior, "requires", [])
     result: "List[T_ABehavior]" = []
-
     for i in unbound_mixin:
         if (isclass(i) and issubclass(i, ArpamarBehavior)) or isinstance(i, ArpamarBehavior):
             result.extend(requirement_handler(i))

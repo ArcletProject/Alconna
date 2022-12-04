@@ -21,7 +21,7 @@ class UnexpectedElement(Exception):
     """给出的消息含有不期望的元素"""
 
 
-class DuplicateCommand(Exception):
+class ExecuteFailed(Exception):
     """命令重复"""
 
 

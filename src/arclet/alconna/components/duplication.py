@@ -1,29 +1,29 @@
-from typing import TYPE_CHECKING, cast, Optional
+from typing import TYPE_CHECKING, cast, Optional, Union
 from inspect import isclass
 
 from ..config import config
 from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Option
 
 if TYPE_CHECKING:
-    from ..core import Alconna
-    from ..arpamar import Arpamar
+    from ..core import Alconna, AlconnaGroup
+    from ..arparma import Arparma
 
 
 class Duplication:
     """
     用以更方便的检查、调用解析结果的类。
     """
-    __target: 'Arpamar'
+    __target: 'Arparma'
 
     @property
-    def origin(self) -> "Arpamar":
+    def origin(self) -> "Arparma":
         return self.__target
 
     @property
     def header(self):
         return self.__target.header
 
-    def set_target(self, target: 'Arpamar'):
+    def set_target(self, target: 'Arparma'):
         self.__target = target
         if self.__stubs__.get("main_args"):
             getattr(self, self.__stubs__["main_args"]).set_result(target.main_args)  # type: ignore
@@ -42,20 +42,20 @@ class Duplication:
                     setattr(self, key, target.header[key])
         return self
 
-    def __init__(self, alconna: 'Alconna'):
+    def __init__(self, target: Union['Alconna', 'AlconnaGroup']):
         self.__stubs__ = {"options": [], "subcommands": [], "other_args": []}
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):
                 if value == ArgsStub:
-                    setattr(self, key, ArgsStub(alconna.args))
+                    setattr(self, key, ArgsStub(target.args))
                     self.__stubs__["main_args"] = key  # type: ignore
                 elif value == SubcommandStub:
-                    for subcommand in filter(lambda x: isinstance(x, Subcommand), alconna.options):
+                    for subcommand in filter(lambda x: isinstance(x, Subcommand), target.options):
                         if subcommand.dest == key:
                             setattr(self, key, SubcommandStub(subcommand))  # type: ignore
                             self.__stubs__["subcommands"].append(key)
                 elif value == OptionStub:
-                    for option in filter(lambda x: isinstance(x, Option), alconna.options):
+                    for option in filter(lambda x: isinstance(x, Option), target.options):
                         if option.dest == key:
                             setattr(self, key, OptionStub(option))  # type: ignore
                             self.__stubs__["options"].append(key)

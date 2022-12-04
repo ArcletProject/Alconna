@@ -1,3 +1,19 @@
+# Alconna 1.4.x:
+
+## Alconna 1.4.0:
+1. 改进字符串分割过程，以运行更细粒度的分隔控制
+2. 加入ArparmaExecutor，以绑定一个响应函数
+3. behaviors与formatter的配置移至`Namespace`, 原`Alconna.config`仅用于配置解析器类型
+4. `Alconna`构建时不再允许废弃的kwargs参数传入
+5. 'Arpamar' -> 'Arparma'
+6. 改进 Args 构建， 加入 Arg 类 替代原先的 ArgUnit，并保留参数名后缀传入
+7. 可变参数与键值参数需要通过 `alconna.typing.MultiVar` 与 `alconna.typing.KeyWordVar` 显式声明，
+并提供 `alconna.typing.Kw` 来进行缩写 (如 `Kw @ int`)
+8. 修复可能存在的内存泄漏问题
+9. 原先的 ArgFlag `'H','O','A'` 变回 `'/','?','!'`
+10. Args.separators 移除，分割任务转移给 Arg.separators
+11. `set_default` 现在可以传入 factory 参数， 并且必须传入关键字参数
+
 # Alconna 1.3.x:
 
 ## Alconna 1.3.3

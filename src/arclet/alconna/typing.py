@@ -1,6 +1,6 @@
 """Alconna 参数相关"""
-from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Optional
-from nepattern import BasePattern
+from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Tuple, Dict
+from nepattern import BasePattern, type_parser, PatternModel
 
 DataUnit = TypeVar("DataUnit", covariant=True)
 
@@ -16,27 +16,65 @@ class DataCollection(Protocol[DataUnit]):
 TDataCollection = TypeVar("TDataCollection", bound=DataCollection[Union[str, Any]])
 
 
-class MultiArg(BasePattern):
-    """对可变参数的匹配"""
-    flag: str
-    array_length: Optional[int]
+class KeyWordVar(BasePattern):
+    """对具名参数的包装"""
+    base: BasePattern
 
-    def __init__(self, base: BasePattern, flag: Literal['args', 'kwargs'] = 'args', length: Optional[int] = None):
-        self.flag = flag
-        self.array_length = length
-        if flag == 'args':
-            alias = f"*({base})[:{length}]" if length else f"*({base})"
-        else:
-            alias = f"**{{{base}}}[:{length}]" if length else f"**{{{base}}}"
-        super().__init__(
-            base.pattern, base.model, base.origin, base.converter, alias,
-            base.previous, base.pattern_accepts + base.type_accepts, base.validators  # type: ignore
-        )
+    def __init__(self, value: Union[BasePattern, Any]):
+        self.base = value if isinstance(value, BasePattern) else type_parser(value)
+        assert isinstance(self.base, BasePattern)
+        alias = f"@{self.base}"
+        super().__init__(r"(.+?)", PatternModel.KEEP, self.base.origin, alias=alias)
 
     def __repr__(self):
         return self.alias
 
 
+class _Kw:
+    __slots__ = ()
+
+    def __getitem__(self, item):
+        return KeyWordVar(item)
+
+    __matmul__ = __getitem__
+    __rmatmul__ = __getitem__
+
+
+class MultiVar(BasePattern):
+    """对可变参数的包装"""
+    base: BasePattern
+    flag: Literal["+", "*"]
+    length: int
+
+    def __init__(
+        self,
+        value: Union[BasePattern, Any],
+        flag: Union[int, Literal["+", "*"]] = 1
+    ):
+        self.base = value if isinstance(value, BasePattern) else type_parser(value)
+        assert isinstance(self.base, BasePattern)
+        if not isinstance(flag, int):
+            alias = f"({self.base}{flag})"
+            self.flag = flag
+            self.length = -1
+        elif flag > 1:
+            alias = f"({self.base}+)[:{flag}]"
+            self.flag = "+"
+            self.length = flag
+        else:
+            alias = str(self.base)
+            self.flag = "+"
+            self.length = 1
+        origin = Dict[str, self.base.origin] if isinstance(self.base, KeyWordVar) else Tuple[self.base.origin, ...]
+        super().__init__(r"(.+?)", PatternModel.KEEP, origin, alias=alias)
+
+    def __repr__(self):
+        return self.alias
+
+
+Nargs = MultiVar
+Kw = _Kw()
+
 __all__ = [
-    "DataCollection", "TDataCollection", "MultiArg"
+    "DataCollection", "TDataCollection", "MultiVar", "Nargs", "Kw", "KeyWordVar"
 ]

@@ -2,7 +2,7 @@ from collections import namedtuple
 from typing import TYPE_CHECKING, Union, Callable, List, Any, Tuple, Dict
 import traceback
 
-from .analyser import Analyser
+from .analyser import Analyser, TAnalyser
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..typing import DataCollection, TDataCollection
 from ..base import Option, Subcommand, Sentence
@@ -10,7 +10,7 @@ from ..args import Args
 from ..config import config
 
 if TYPE_CHECKING:
-    from ..arpamar import Arpamar
+    from ..arparma import Arparma
     from ..core import Alconna
 
 
@@ -41,7 +41,7 @@ def default_params_parser(analyser: "Analyser"):
                         opts.sub_params.setdefault(k, Sentence(name=k))
                 analyser.param_ids.update(sub_opts.aliases)
             opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0) + sub_require_len)
-        if not analyser.separators.issuperset(opts.separators):
+        if not set(analyser.separators).issuperset(opts.separators):
             analyser.default_separate &= False
         if opts.requires:
             analyser.param_ids.update(opts.requires)
@@ -49,17 +49,17 @@ def default_params_parser(analyser: "Analyser"):
             for k in opts.requires:
                 analyser.command_params.setdefault(k, Sentence(name=k))
         analyser.part_len = range(
-            len(analyser.alconna.options) + (1 if analyser.need_main_args else 0) + require_len
+            len(analyser.alconna.options) + analyser.need_main_args + require_len
         )
 
 
-def compile(alconna: "Alconna", params_parser: Callable[[Analyser], None] = default_params_parser) -> Analyser:
+def compile(alconna: "Alconna", params_parser: Callable[[TAnalyser], None] = default_params_parser) -> TAnalyser:
     _analyser = alconna.analyser_type(alconna)
     params_parser(_analyser)
     return _analyser
 
 
-def analyse(alconna: "Alconna", command: TDataCollection) -> "Arpamar[TDataCollection]":
+def analyse(alconna: "Alconna", command: TDataCollection) -> "Arparma[TDataCollection]":
     return compile(alconna).process(command).analyse().execute()
 
 
@@ -76,14 +76,16 @@ class _DummyAnalyser(Analyser):
         namespace_config = config.default_namespace
 
     def __new__(cls, *args, **kwargs):
-        cls.temporary_data, cls.main_args, cls.options, cls.subcommands = {}, {}, {}, {}
-        cls.raw_data, cls.sentences = [], []
         cls.alconna = cls._DummyALC()  # type: ignore
         cls.command_params = {}
         cls.param_ids = set()
         cls.default_separate = True
         cls.context = None
         cls.message_cache = False
+        cls.filter_crlf = True
+        cls.special = {}
+        for i in config.default_namespace.builtin_option_name.values():
+            cls.special.fromkeys(i, True)  # noqa
         return super().__new__(cls)
 
     def analyse(self, message=None, interrupt=False):
@@ -93,12 +95,12 @@ class _DummyAnalyser(Analyser):
 def analyse_args(args: Args, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separators = {' '}
+    _analyser.separators = (' ', )
     _analyser.need_main_args = True
     _analyser.raise_exception = True
     try:
         _analyser.process(command)
-        return ala(_analyser, args)
+        return ala(_analyser, args, len(args))
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -114,7 +116,7 @@ def analyse_header(
 ):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separators = {sep}
+    _analyser.separators = (sep, )
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.__init_header__(command_name, headers)
@@ -130,7 +132,7 @@ def analyse_header(
 def analyse_option(option: Option, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separators = {" "}
+    _analyser.separators = (" ", )
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.alconna.options.append(option)
@@ -148,7 +150,7 @@ def analyse_option(option: Option, command: DataCollection[Union[str, Any]], rai
 def analyse_subcommand(subcommand: Subcommand, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.separators = {" "}
+    _analyser.separators = (" ", )
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.alconna.options.append(subcommand)

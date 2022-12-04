@@ -34,7 +34,7 @@ $ pip install --upgrade arclet-alconna[all]
 
 Official Document : [👉Link](https://arcletproject.github.io/docs/alconna/tutorial)
 
-Relevant Document : [📚Docs](https://graiax.cn/guide/alconna.html#alconna)
+Relevant Document : [📚Docs](https://graiax.cn/guide/message_parser/alconna.html)
 
 ## A Simple Example
 
@@ -43,13 +43,11 @@ from arclet.alconna import Alconna, Option, Subcommand, Args
 
 cmd = Alconna(
     "/pip",
-    options=[
-        Subcommand("install", [Option("-u|--upgrade")], Args.pak_name[str]),
-        Option("list"),
-    ]
+    Subcommand("install", [Option("-u|--upgrade")], Args.pak_name[str]),
+    Option("list")
 )
 
-result = cmd.parse("/pip install cesloi --upgrade") # This method returns an 'Arpamar' class instance.
+result = cmd.parse("/pip install cesloi --upgrade") # This method returns an 'Arparma' class instance.
 print(result.query('install'))  # Or result.install
 ```
 
@@ -64,7 +62,7 @@ QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## Features
 
-* High Performance. On i5-10210U, performance is about `41000~101000 msg/s`; test script: [benchmark](benchmark.py) 
+* High Performance. On i5-10210U, performance is about `71000~289000 msg/s`; test script: [benchmark](benchmark.py) 
 * Simple and Flexible Constructor 
 * Powerful Automatic Type Parse and Conversion
 * Support Synchronous and Asynchronous Actions
@@ -98,8 +96,9 @@ read.parse(["read", Path("test_fire.py")])
 Example of FuzzyMatch:
 
 ```python
-from arclet.alconna import Alconna
-alc = Alconna('!test_fuzzy', "foo:str", is_fuzzy_match=True)
+from arclet.alconna import Alconna, CommandMeta
+
+alc = Alconna('!test_fuzzy', "foo:str", meta=CommandMeta(fuzzy_match=True))
 alc.parse("！test_fuzy foo bar")
 
 '''

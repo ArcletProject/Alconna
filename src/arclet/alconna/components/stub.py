@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from nepattern import BasePattern, AllParam
 
 from ..args import Args
-from ..base import Option, Subcommand, OptionResult, SubcommandResult
+from ..base import Option, Subcommand, OptionResult, SubcommandResult  # type: ignore
 from ..config import config
 
 T = TypeVar('T')
@@ -45,14 +45,15 @@ class ArgsStub(BaseStub[Args]):
     def __init__(self, args: Args):
         self._origin = args
         self._value = {}
-        for key, value in args.argument.items():
-            if value['value'] is AllParam:
+        for arg in args.argument:
+            key = arg.name
+            if arg.value is AllParam:
                 self.__annotations__[key] = Any
-            elif isinstance(value['value'], BasePattern):
-                self.__annotations__[key] = value['value'].origin
+            elif isinstance(arg.value, BasePattern):
+                self.__annotations__[key] = arg.value.origin
             else:
-                self.__annotations__[key] = value['value']
-            setattr(self, key, value['field'].default_gen)
+                self.__annotations__[key] = arg.value
+            setattr(self, key, arg.field.default_gen)
         self.available = False
 
     def set_result(self, result: Dict[str, Any]):

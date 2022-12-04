@@ -1,11 +1,11 @@
 from weakref import finalize
-from typing import Dict, Callable, Union, Coroutine, Any, Optional, List, TYPE_CHECKING, Set
+from typing import Dict, Callable, Union, Coroutine, Any, Optional, List, TYPE_CHECKING, Tuple
 from dataclasses import dataclass
 from nepattern import Empty, AllParam, BasePattern
 
 from .action import ArgAction
 from ..util import Singleton
-from ..args import Args, ArgUnit
+from ..args import Args, Arg
 from ..base import Option, Subcommand
 
 
@@ -101,7 +101,7 @@ def resolve_requires(options: List[Union[Option, Subcommand]]):
 class Trace:
     head: Dict[str, Any]
     args: Args
-    separators: Set[str]
+    separators: Tuple[str, ...]
     body: List[Union[Option, Subcommand]]
 
     def union(self, other: 'Trace'):
@@ -152,7 +152,7 @@ class TextFormatter:
             _cache = resolve_requires(trace.body)
             _parts = []
             for text in end:
-                if text in _cache:
+                if isinstance(_cache, dict) and text in _cache:
                     _cache = _cache[text]
                     _parts.append(text)
                 if not _parts:
@@ -190,41 +190,41 @@ class TextFormatter:
         body = self.body(trace.body)
         return header % (param, body)
 
-    def param(self, name: str, parameter: ArgUnit) -> str:
+    def param(self, parameter: Arg) -> str:
         """对单个参数的描述"""
-        arg = f"[{name}" if parameter['optional'] else f"<{name}"
-        if not parameter['hidden']:
-            if parameter['value'] is AllParam:
+        name = parameter.name
+        arg = f"[{name}" if parameter.optional else f"<{name}"
+        if not parameter.hidden:
+            if parameter.value is AllParam:
                 return f"<...{name}>"
-            if not isinstance(parameter['value'], BasePattern) or parameter['value'].pattern != name:
-                arg += f"{'@' if parameter['kwonly'] else ':'}{parameter['value']}"
-            if parameter['field'].display is Empty:
+            if not isinstance(parameter.value, BasePattern) or parameter.value.pattern != name:
+                arg += f"{parameter.value}"
+            if parameter.field.display is Empty:
                 arg += " = None"
-            elif parameter['field'].display is not None:
-                arg += f" = {parameter['field'].display} "
-        return f"{arg}]" if parameter['optional'] else f"{arg}>"
+            elif parameter.field.display is not None:
+                arg += f" = {parameter.field.display} "
+        return f"{arg}]" if parameter.optional else f"{arg}>"
 
     def parameters(self, args: Args) -> str:
         """参数列表的描述"""
-        param_texts = [self.param(k, param) for k, param in args.argument.items()]
-        if len(args.separators) == 1:
-            separator = tuple(args.separators)[0]
-            res = separator.join(param_texts)
-        else:
-            res = " ".join(param_texts) + " splitBy:" + "/".join(args.separators)
-        notice = [(k, param['notice']) for k, param in args.argument.items() if param['notice']]
-        if not notice:
-            return res
-        return f"{res}\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice)
+        res = ""
+        for arg in args.argument:
+            if len(arg.separators) == 1:
+                sep = ' ' if arg.separators[0] == ' ' else f' {arg.separators[0]!r} '
+            else:
+                sep = f"[{'|'.join(arg.separators)!r}]"
+            res += self.param(arg) + sep
+        notice = [(arg.name, arg.notice) for arg in args.argument if arg.notice]
+        return f"{res}\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice) if notice else res
 
-    def header(self, root: Dict[str, Any], separators: Set[str]) -> str:
+    def header(self, root: Dict[str, Any], separators: Tuple[str, ...]) -> str:
         """头部节点的描述"""
         help_string = f"\n{desc}" if (desc := root.get('description')) else ""
         usage = f"\n用法:\n{usage}" if (usage := root.get('usage')) else ""
         example = f"\n使用示例:\n{example}" if (example := root.get('example')) else ""
         headers = f"[{''.join(map(str, headers))}]" if (headers := root.get('header', [])) != [] else ""
         cmd = f"{headers}{root.get('name', '')}"
-        command_string = cmd or (root['name'] + tuple(separators)[0])
+        command_string = cmd or (root['name'] + separators[0])
         return f"{command_string} %s{help_string}{usage}\n%s{example}"
 
     def part(self, node: Union[Subcommand, Option]) -> str:
