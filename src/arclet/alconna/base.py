@@ -19,7 +19,7 @@ class CommandNode:
     separators: Tuple[str, ...]
     action: Optional[ArgAction]
     help_text: str
-    requires: Union[Sequence[str], Set[str]]
+    requires: List[str]
 
     def __init__(
         self, name: str, args: Union[Args, str, None] = None,
@@ -27,7 +27,7 @@ class CommandNode:
         action: Optional[Union[ArgAction, Callable]] = None,
         separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
         help_text: Optional[str] = None,
-        requires: Optional[Union[str, Sequence[str], Set[str]]] = None
+        requires: Optional[Union[str, List[str], Tuple[str, ...], Set[str]]] = None
     ):
         """
         初始化命令节点
@@ -45,7 +45,7 @@ class CommandNode:
             raise InvalidParam(config.lang.node_name_error)
         _parts = name.split(" ")
         self.name = _parts[-1]
-        self.requires = (requires if isinstance(requires, (list, tuple, set)) else (requires,)) \
+        self.requires = (list(requires) if isinstance(requires, (list, tuple, set)) else [requires]) \
             if requires else _parts[:-1]
         self.args = (args if isinstance(args, Args) else Args.from_string_list(
             [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
@@ -96,7 +96,7 @@ class Option(CommandNode):
         action: Optional[Union[ArgAction, Callable]] = None,
         separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
         help_text: Optional[str] = None,
-        requires: Optional[Union[str, Sequence[str], Set[str]]] = None,
+        requires: Optional[Union[str, List[str], Tuple[str, ...], Set[str]]] = None,
         priority: int = 0
     ):
         self.aliases = alias or []
@@ -154,7 +154,7 @@ class Subcommand(CommandNode):
         action: Optional[Union[ArgAction, Callable]] = None,
         separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
         help_text: Optional[str] = None,
-        requires: Optional[Union[str, Sequence[str], Set[str]]] = None
+        requires: Optional[Union[str, List[str], Tuple[str, ...], Set[str]]] = None,
     ):
         self.options = options or []
         super().__init__(name, args, dest, action, separators, help_text, requires)

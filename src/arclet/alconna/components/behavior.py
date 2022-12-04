@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from functools import lru_cache
-from typing import TYPE_CHECKING, Union, List, Type
+from typing import TYPE_CHECKING, Union, List, Type, Callable
 from inspect import isclass
 
 if TYPE_CHECKING:
@@ -14,9 +14,12 @@ class ArpamarBehavior(metaclass=ABCMeta):
 
     requires: List[Union[Type['ArpamarBehavior'], 'ArpamarBehavior']]
 
-    @abstractmethod
-    def operate(self, interface: "Arparma"):
-        ...
+    if TYPE_CHECKING:
+        operate: Callable[["Arparma"], None]
+    else:
+        @abstractmethod
+        def operate(self, interface: "Arparma"):
+            ...
 
 
 T_ABehavior = Union[Type['ArpamarBehavior'], 'ArpamarBehavior']

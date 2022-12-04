@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from nepattern import BasePattern, AllParam
 
 from ..args import Args
-from ..base import Option, Subcommand, OptionResult, SubcommandResult
+from ..base import Option, Subcommand, OptionResult, SubcommandResult  # type: ignore
 from ..config import config
 
 T = TypeVar('T')

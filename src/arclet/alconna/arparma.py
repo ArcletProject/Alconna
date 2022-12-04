@@ -24,17 +24,16 @@ class Arparma(Generic[TDataCollection]):
         for k in ks:
             delattr(self, k)
 
-    def __init__(self, source: str):
+    def __init__(self, source: str, origin: TDataCollection):
         self._source = source
-        self.origin: TDataCollection = ''
+        self.origin: TDataCollection = origin
         self.matched: bool = False
         self.head_matched: bool = False
         self.error_data: List[Union[str, Any]] = []
-        self.error_info: Optional[Union[str, BaseException]] = None
+        self.error_info: Union[str, BaseException, Type[BaseException]] = 'None'
         self.other_args: Dict[str, Any] = {}
         self.main_args: Dict[str, Any] = {}
-
-        self._header: Optional[Union[Dict[str, Any], bool]] = None
+        self._header: Optional[Dict[str, Any]] = None
         self._options: Dict[str, OptionResult] = {}
         self._subcommands: Dict[str, SubcommandResult] = {}
         self._record = set()
@@ -46,7 +45,7 @@ class Arparma(Generic[TDataCollection]):
     @property
     def header(self):
         """返回可能解析到的命令头中的信息"""
-        return self._header or self.head_matched
+        return self._header or {}
 
     @property
     def non_component(self) -> bool:
@@ -83,7 +82,7 @@ class Arparma(Generic[TDataCollection]):
     ) -> None:
         """处理 Arparma 中的数据"""
         self.main_args = main_args.copy()
-        self._header = header.copy() if isinstance(header, dict) else header
+        self._header = header.copy() if isinstance(header, dict) else {}
         self._options = options.copy()
         self._subcommands = subcommands.copy()
         for v in options.values():
@@ -102,7 +101,6 @@ class Arparma(Generic[TDataCollection]):
         raise OutBoundsBehave
 
     def execute(self, behaviors: Optional[List[T_ABehavior]] = None):
-        self.source.behaviors[0].operate(self)
         if behaviors := (self.source.behaviors[1:] + (behaviors or [])):
             exc_behaviors = []
             for behavior in behaviors:
@@ -119,9 +117,10 @@ class Arparma(Generic[TDataCollection]):
     def call(self, target: Callable[..., T], **additional):
         if self.matched:
             return target(**self.all_matched_args, **additional)
+        raise RuntimeError
 
     def _fail(self, exc: Union[Type[BaseException], BaseException, str]):
-        arp = Arparma(self._source)
+        arp = Arparma(self._source, self.origin)
         arp.matched = False
         arp.head_matched = True
         arp.error_info = exc
@@ -204,7 +203,7 @@ class Arparma(Generic[TDataCollection]):
             self._record.add(path)
             cache[endpoint] = value
         elif isinstance(value, dict):
-            cache.update(value)
+            cache.update(value)  # type: ignore
             self._record.update([f"{path}.{k}" for k in value])
 
     def query_with(self, arg_type: Type[T], path: Optional[str] = None, default: Optional[T] = None) -> Optional[T]:

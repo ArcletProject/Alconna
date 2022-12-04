@@ -15,7 +15,7 @@ from ..args import Args, Arg
 from ..base import Option, Subcommand, Sentence
 from ..arparma import Arparma
 from ..util import split_once, split
-from ..typing import DataCollection
+from ..typing import DataCollection, TDataCollection
 from ..config import config
 from ..components.output import output_manager
 from .parts import analyse_args, analyse_option, analyse_subcommand, analyse_header, analyse_unmatch_params
@@ -24,10 +24,8 @@ from .special import handle_help, handle_shortcut, handle_completion
 if TYPE_CHECKING:
     from ..core import Alconna
 
-T_Origin = TypeVar('T_Origin')
 
-
-class Analyser(Generic[T_Origin]):
+class Analyser(Generic[TDataCollection]):
     """ Alconna使用的分析器基类, 实现了一些通用的方法 """
     preprocessors: Dict[str, Callable[..., Any]] = {}
     text_sign: str = 'text'
@@ -61,7 +59,6 @@ class Analyser(Generic[T_Origin]):
     self_args: Args  # 自身参数
     filter_out: ClassVar[List[str]]  # 元素黑名单
     temporary_data: Dict[str, Any]  # 临时数据
-    origin_data: T_Origin  # 原始数据
     temp_token: int  # 临时token
     used_tokens: Set[int]  # 已使用的token
     sentences: List[str]  # 存放解析到的所有句子
@@ -82,10 +79,9 @@ class Analyser(Generic[T_Origin]):
 
     def __init__(self, alconna: "Alconna"):
         if not hasattr(self, 'filter_out'):
-            self.filter_out = []
+            self.filter_out = []  # type: ignore
         self.reset()
         self.used_tokens = set()
-        self.origin_data = None
         self.alconna = alconna
         self.self_args = alconna.args
         self.separators = alconna.separators
@@ -106,7 +102,6 @@ class Analyser(Generic[T_Origin]):
         )
         self.__handle_main_args__(alconna.args, alconna.nargs)
         self.__init_header__(alconna.command, alconna.headers)
-        self.__init_actions__()
 
     def __handle_main_args__(self, main_args: Args, nargs: Optional[int] = None):
         nargs = nargs or len(main_args)
@@ -180,19 +175,6 @@ class Analyser(Generic[T_Origin]):
                 self.command_header = (
                                       elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name  # type: ignore # noqa
 
-    def __init_actions__(self):
-        actions = self.alconna.action_list
-        actions['main'] = self.alconna.action
-        for opt in self.alconna.options:
-            if isinstance(opt, Option) and opt.action:
-                actions['options'][opt.dest] = opt.action
-            if isinstance(opt, Subcommand):
-                if opt.action:
-                    actions['subcommands'][opt.dest] = opt.action
-                for option in opt.options:
-                    if option.action:
-                        actions['subcommands'][f"{opt.dest}.{option.dest}"] = option.action
-
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.alconna.path}>"
 
@@ -203,7 +185,7 @@ class Analyser(Generic[T_Origin]):
         self.head_matched = False
         self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
         self.raw_data, self.sentences = [], []
-        self.origin_data, self.header, self.context = None, None, None
+        self.header, self.context = None, None
         # self.head_pos = (0, 0)
 
     def push(self, *data: Union[str, Any]):
@@ -278,7 +260,7 @@ class Analyser(Generic[T_Origin]):
 
     def process(self, data: DataCollection[Union[str, Any]]) -> 'Analyser':
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
-        self.origin_data = data
+        self.temporary_data["origin"] = data
         if isinstance(data, str):
             data = [data]
         i, exc, raw_data = 0, None, self.raw_data
@@ -307,9 +289,9 @@ class Analyser(Generic[T_Origin]):
         return self
 
     def analyse(
-            self,
-            message: Union[DataCollection[Union[str, Any]], None] = None,
-            interrupt: bool = False
+        self,
+        message: Union[DataCollection[Union[str, Any]], None] = None,
+        interrupt: bool = False
     ) -> Arparma:
         """主体解析函数, 应针对各种情况进行解析"""
         if command_manager.is_disable(self.alconna):
@@ -381,7 +363,7 @@ class Analyser(Generic[T_Origin]):
             except (ParamsUnmatched, ArgumentMissing) as e1:
                 if rest := self.release():
                     if rest[-1] in self.alconna.namespace_config.builtin_option_name['completion']:
-                        return handle_completion(self, self.context)
+                        return handle_completion(self, self.context)  # type: ignore
                     if handler := self.special.get(rest[-1]):
                         return handler(self)
                 if interrupt and isinstance(e1, ArgumentMissing):
@@ -413,12 +395,12 @@ class Analyser(Generic[T_Origin]):
         return self.export(fail=True, exception=exc)
 
     @staticmethod
-    def converter(command: str) -> T_Origin:
+    def converter(command: str) -> TDataCollection:
         return command  # type: ignore
 
-    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arparma[T_Origin]:
+    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arparma[TDataCollection]:
         """创建arpamar, 其一定是一次解析的最后部分"""
-        result = Arparma(self.alconna.path)
+        result = Arparma(self.alconna.path, self.temporary_data.pop("origin", "None"))
         result.head_matched = self.head_matched
         result.matched = not fail
         if fail:
@@ -427,10 +409,10 @@ class Analyser(Generic[T_Origin]):
         else:
             result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
             if self.message_cache:
-                command_manager.record(self.temp_token, self.origin_data, result)  # type: ignore
+                command_manager.record(self.temp_token, result)  
                 self.used_tokens.add(self.temp_token)
         self.reset()
-        return result
+        return result  # type: ignore
 
 
 TAnalyser = TypeVar("TAnalyser", bound=Analyser)

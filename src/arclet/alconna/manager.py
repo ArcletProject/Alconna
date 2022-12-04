@@ -95,7 +95,7 @@ class CommandManager(metaclass=Singleton):
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         if not command._group:   # noqa
-            self.__analysers.pop(command, None)
+            self.__analysers.pop(command, None)  # type: ignore
             self.__analysers[command] = compile(command)  # type: ignore
         else:
             for cmd in command.commands:  # type: ignore
@@ -208,11 +208,11 @@ class CommandManager(metaclass=Singleton):
             )
         self.__abandons.append(command)
 
-    def get_command(self, command: str) -> Union["Alconna", "AlconnaGroup", None]:
+    def get_command(self, command: str) -> Union["Alconna", "AlconnaGroup"]:
         """获取命令"""
         namespace, name = self._command_part(command)
         if namespace not in self.__commands or name not in self.__commands[namespace]:
-            return None
+            raise ValueError(command)
         return self.__commands[namespace][name]
 
     def get_commands(self, namespace: Union[str, Namespace] = '') -> List[Union["Alconna", "AlconnaGroup"]]:
@@ -234,14 +234,14 @@ class CommandManager(metaclass=Singleton):
                 return res
 
     def all_command_help(
-            self,
-            show_index: bool = False,
-            namespace: Optional[Union[str, Namespace]] = None,
-            header: Optional[str] = None,
-            pages: Optional[str] = None,
-            footer: Optional[str] = None,
-            max_length: int = -1,
-            page: int = 1
+        self,
+        show_index: bool = False,
+        namespace: Optional[Union[str, Namespace]] = None,
+        header: Optional[str] = None,
+        pages: Optional[str] = None,
+        footer: Optional[str] = None,
+        max_length: int = -1,
+        page: int = 1
     ) -> str:
         """
         获取所有命令的帮助信息
@@ -257,7 +257,7 @@ class CommandManager(metaclass=Singleton):
         """
         pages = pages or config.lang.manager_help_pages
         cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
-
+        header = header or config.lang.manager_help_header
         if max_length < 1:
             command_string = "\n".join(
                 f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
@@ -283,7 +283,6 @@ class CommandManager(metaclass=Singleton):
         help_names = set()
         for i in cmds:
             help_names.update(i.namespace_config.builtin_option_name['help'])
-        header = header or config.lang.manager_help_header
         footer = footer or config.lang.manager_help_footer.format(help="|".join(help_names))
         return f"{header}\n{command_string}\n{footer}"
 
@@ -298,8 +297,7 @@ class CommandManager(metaclass=Singleton):
         if cmd := self.get_command(f"{command_parts[0]}.{command_parts[1]}"):
             return cmd.get_help()
 
-    def record(self, token: int, message: DataCollection[Union[str, Any]], result: "Arparma"):
-        result.origin = message
+    def record(self, token: int, result: "Arparma"):
         self.__record.set(token, result)
 
     def get_record(self, token: int) -> Optional["Arparma"]:
@@ -320,7 +318,7 @@ class CommandManager(metaclass=Singleton):
             return rct.origin
 
     @property
-    def last_using(self) -> Optional["Alconna"]:
+    def last_using(self):
         if rct := self.__record.recent:
             return rct.source
 

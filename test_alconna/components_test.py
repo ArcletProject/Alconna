@@ -9,7 +9,7 @@ def test_behavior():
 
     @com.behaviors.append
     class Test(ArpamarBehavior):
-        requires = [set_default(321, option="foo")]
+        requires = [set_default(value=321, option="foo")]
 
         @classmethod
         def operate(cls, interface: "Arparma"):
@@ -24,8 +24,8 @@ def test_set_defualt():
     com1 = Alconna("comp1") + \
            Option("--foo", action=store_value(123)) + \
            Option("bar", Args["baz", int, 234])
-    com1.behaviors.append(set_default(321, option="bar", arg="baz"))
-    com1.behaviors.append(set_default(423, option="foo"))
+    com1.behaviors.append(set_default(value=321, option="bar", arg="baz"))
+    com1.behaviors.append(set_default(factory=lambda: 423, option="foo"))
     assert com1.parse("comp1").query("foo.value") == 423
     assert com1.parse("comp1").query("baz") == 321
     assert com1.parse("comp1 bar").query("foo.value") == 423

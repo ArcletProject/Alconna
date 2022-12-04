@@ -152,7 +152,7 @@ class TextFormatter:
             _cache = resolve_requires(trace.body)
             _parts = []
             for text in end:
-                if text in _cache:
+                if isinstance(_cache, dict) and text in _cache:
                     _cache = _cache[text]
                     _parts.append(text)
                 if not _parts:

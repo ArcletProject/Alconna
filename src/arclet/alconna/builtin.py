@@ -45,31 +45,34 @@ if TYPE_CHECKING:
 
 @overload
 def set_default(
+    *,
     value: Any,
     arg: Optional[str] = None,
     option: Optional[str] = None,
     subcommand: Optional[str] = None,
-):
+) -> ArpamarBehavior:
     ...
 
 
 @overload
 def set_default(
+    *,
     factory: Callable[..., Any],
     arg: Optional[str] = None,
     option: Optional[str] = None,
     subcommand: Optional[str] = None,
-):
+) -> ArpamarBehavior:
     ...
 
 
 def set_default(
+    *,
     value: Any = MISSING,
     factory: Callable[..., Any] = MISSING,
     arg: Optional[str] = None,
     option: Optional[str] = None,
     subcommand: Optional[str] = None,
-):
+) -> ArpamarBehavior:
     """
     设置一个选项的默认值, 在无该选项时会被设置
 

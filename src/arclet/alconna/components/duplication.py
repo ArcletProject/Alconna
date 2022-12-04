@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING, cast, Optional
+from typing import TYPE_CHECKING, cast, Optional, Union
 from inspect import isclass
 
 from ..config import config
 from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Option
 
 if TYPE_CHECKING:
-    from ..core import Alconna
+    from ..core import Alconna, AlconnaGroup
     from ..arparma import Arparma
 
 
@@ -42,20 +42,20 @@ class Duplication:
                     setattr(self, key, target.header[key])
         return self
 
-    def __init__(self, alconna: 'Alconna'):
+    def __init__(self, target: Union['Alconna', 'AlconnaGroup']):
         self.__stubs__ = {"options": [], "subcommands": [], "other_args": []}
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):
                 if value == ArgsStub:
-                    setattr(self, key, ArgsStub(alconna.args))
+                    setattr(self, key, ArgsStub(target.args))
                     self.__stubs__["main_args"] = key  # type: ignore
                 elif value == SubcommandStub:
-                    for subcommand in filter(lambda x: isinstance(x, Subcommand), alconna.options):
+                    for subcommand in filter(lambda x: isinstance(x, Subcommand), target.options):
                         if subcommand.dest == key:
                             setattr(self, key, SubcommandStub(subcommand))  # type: ignore
                             self.__stubs__["subcommands"].append(key)
                 elif value == OptionStub:
-                    for option in filter(lambda x: isinstance(x, Option), alconna.options):
+                    for option in filter(lambda x: isinstance(x, Option), target.options):
                         if option.dest == key:
                             setattr(self, key, OptionStub(option))  # type: ignore
                             self.__stubs__["options"].append(key)

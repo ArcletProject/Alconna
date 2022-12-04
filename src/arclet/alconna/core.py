@@ -1,7 +1,7 @@
 """Alconna 主体"""
 import sys
 from functools import reduce
-from typing import Dict, List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any, Literal
+from typing import List, Optional, Union, Type, Callable, Tuple, TypeVar, overload, Iterable, Any, Literal
 from dataclasses import dataclass, field
 from .config import config, Namespace
 from .analysis.base import compile
@@ -65,8 +65,26 @@ class AlconnaGroup(CommandNode):
         return self
 
     @property
+    def namespace_config(self) -> Namespace:
+        return config.namespaces[self.namespace]
+
+    @property
     def path(self) -> str:
         return f"{self.namespace}::{self.name.replace(command_manager.sign, '')}"
+
+    @property
+    def options(self):
+        res = []
+        for cmd in self.commands:
+            res.extend(cmd.options[:-3])
+        return res
+
+    @property
+    def behaviors(self) -> List[T_ABehavior]:
+        res = []
+        for cmd in self.commands:
+            res.extend(cmd.behaviors[1:])
+        return res
 
     def get_help(self) -> str:
         """返回该命令的帮助信息"""
@@ -107,12 +125,12 @@ class AlconnaGroup(CommandNode):
     def __or__(self, other):
         return self.__union__(other)
 
-    def parse(self, message: TDataCollection) -> Optional[Arparma[TDataCollection]]:
-        res = None
+    def parse(self, message: TDataCollection) -> Arparma[TDataCollection]:
+        res = Arparma(self.name, message)
         for command in self.commands:
             if (res := command.parse(message)).matched:
                 return res
-        return res
+        return res._fail("Not Matched Any Command")
 
 
 class Alconna(CommandNode):
@@ -144,7 +162,6 @@ class Alconna(CommandNode):
     namespace: str
     meta: CommandMeta
     behaviors: List[T_ABehavior]
-    action_list: Dict[str, Union[None, ArgAction, Dict[str, ArgAction]]]
     custom_types = {}
 
     global_analyser_type: Type["Analyser"] = Analyser
@@ -210,19 +227,19 @@ class Alconna(CommandNode):
             )
         )
         self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
-        self.behaviors = behaviors or []
-        self.behaviors.insert(0, ActionHandler())
-        self.behaviors.extend(np_config.behaviors)
         self.formatter_type = formatter_type or np_config.formatter_type or TextFormatter
         self.meta = meta or CommandMeta()
         self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
         self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
         super().__init__(
             command_manager.sign,
-            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),
+            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
             action=action,
             separators=separators or np_config.separators,  # type: ignore
         )
+        self.behaviors = behaviors or []
+        self.behaviors.insert(0, ActionHandler(self))
+        self.behaviors.extend(np_config.behaviors)
         self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
         self._hash = self._calc_hash()
         command_manager.register(self)
@@ -276,7 +293,7 @@ class Alconna(CommandNode):
     def reset_behaviors(self, behaviors: List[T_ABehavior]):
         """重新设置解析行为器"""
         self.behaviors = behaviors
-        self.behaviors.insert(0, ActionHandler())
+        self.behaviors.insert(0, ActionHandler(self))
         return self
 
     def get_help(self) -> str:
@@ -325,6 +342,7 @@ class Alconna(CommandNode):
         name, requires = names[-1], names[:-1]
         opt = Option(name, args, list(alias), separators=sep, help_text=help_, requires=requires)
         self.options.insert(-3, opt)
+        self.behaviors[0] = ActionHandler(self)
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
@@ -359,6 +377,7 @@ class Alconna(CommandNode):
         except PauseTriggered:
             return analyser
         if arp.matched:
+            self.behaviors[0].operate(arp)
             arp = arp.execute()
         return duplication(self).set_target(arp) if duplication else arp
 
@@ -386,6 +405,7 @@ class Alconna(CommandNode):
         elif isinstance(other, str):
             _part = other.split("/")
             self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
+        self.behaviors[0] = ActionHandler(self)
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self

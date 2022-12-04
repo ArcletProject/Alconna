@@ -221,7 +221,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "keyword_only", "_visit"
 
-    def add(self, name: str, *, value: Any, default: Any = None, flags: Optional[Iterable[ArgFlag]] = None):
+    def add(self, name: str, *, value: Any, default: Any = None, flags: Optional[List[ArgFlag]] = None):
         """
         添加一个参数
         """

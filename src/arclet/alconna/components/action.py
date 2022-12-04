@@ -89,7 +89,7 @@ class ArgAction:
         return ArgAction(action)
 
 
-def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
+def _exec_args(args: Dict[str, Any], func: ArgAction, raise_exc: bool):
     result_dict = args.copy()
     kwargs = {}
     kwonly = {}
@@ -107,7 +107,7 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
         for k in kwonly:
             result_dict.pop(k)
     addition_kwargs = {**kwonly, **kwargs}
-    res = func.handle(result_dict, varargs, addition_kwargs, source.meta.raise_exception)
+    res = func.handle(result_dict, varargs, addition_kwargs, raise_exc)
     if kw_key:
         res[kw_key] = kwargs
     if var_key:
@@ -115,27 +115,37 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, source: 'Alconna'):
     return res
 
 
-def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, source: 'Alconna'):
+def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, raise_exc: bool):
     return (
-        ("args", _exec_args(data['args'], func, source))
-        if data['args'] else ("value", func.handle({}, [], {}, source.meta.raise_exception))
+        ("args", _exec_args(data['args'], func, raise_exc))
+        if data['args'] else ("value", func.handle({}, [], {}, raise_exc))
     )
 
 
 class ActionHandler(ArpamarBehavior):
+    
+    def __init__(self, source: "Alconna"):
+        self.main_action = source.action
+        self.options = {}
+        for opt in source.options:
+            if opt.action:
+                self.options[opt.dest] = opt.action
+            if hasattr(opt, "options"):
+                for option in opt.options:  # type: ignore
+                    if option.action:
+                        self.options[f"{opt.dest}.{option.dest}"] = option.action
+
     def operate(self, interface: "Arparma"):
         interface.clean()
         source = interface.source
 
-        if action := source.action_list['main']:
-            interface.update("main_args", _exec_args(interface.main_args, action, source))
+        if action := self.main_action:
+            interface.update("main_args", _exec_args(interface.main_args, action, source.meta.raise_exception))
 
-        for path, action in source.action_list['options'].items():
+        for path, action in self.options.items():
             if d := interface.query(path, None):
-                end, value = _exec(d, action, source)
+                end, value = _exec(
+                    d, action, source.meta.raise_exception  # type: ignore
+                )
                 interface.update(f"{path}.{end}", value)  # type: ignore
 
-        for path, action in source.action_list['subcommands'].items():
-            if d := interface.query(path, None):
-                end, value = _exec(d, action, source)
-                interface.update(f"{path}.{end}", value)  # type: ignore
