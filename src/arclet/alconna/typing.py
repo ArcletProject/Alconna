@@ -20,10 +20,11 @@ class KeyWordVar(BasePattern):
     """对具名参数的包装"""
     base: BasePattern
 
-    def __init__(self, value: Union[BasePattern, Any]):
+    def __init__(self, value: Union[BasePattern, Any], sep: str = '='):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
+        self.sep = sep
         assert isinstance(self.base, BasePattern)
-        alias = f"@{self.base}"
+        alias = f"@{sep}{self.base}"
         super().__init__(r"(.+?)", PatternModel.KEEP, self.base.origin, alias=alias)
 
     def __repr__(self):

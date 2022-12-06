@@ -184,7 +184,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 if anno == bool:
                     anno = BasePattern(f"(?:-*no)?-*{name}", 3, bool, lambda _, x: not x.lstrip("-").startswith('no'))
                 else:
-                    _args.add(f"_key_{name}", value=f"-*{name}")
+                    anno = KeyWordVar(anno, sep=' ')
                 _args.keyword_only.append(name)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")
@@ -248,16 +248,13 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         return self
 
     def __check_vars__(self):
-        _visit = set()
         _tmp = []
+        _visit = set()
         for arg in self.argument:
-            if arg.name not in _visit:
-                _visit.add(arg.name)
-                _tmp.append(arg)
-        self.argument.clear()
-        self.argument.extend(_tmp)
-        del _tmp
-        for arg in self.argument:
+            if arg.name in _visit:
+                continue
+            _tmp.append(arg)
+            _visit.add(arg.name)
             if arg.name in self._visit:
                 continue
             self._visit.add(arg.name)
@@ -278,10 +275,17 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 if self.var_keyword or self.var_positional:
                     raise InvalidParam(config.lang.args_exclude_mutable_args)
                 self.keyword_only.append(arg.name)
+                if arg.value.sep in arg.separators:
+                    _tmp.insert(-1, Arg(f"_key_{arg.name}", value=f"-*{arg.name}"))
+                    _tmp[-1].value = arg.value.base
             if ArgFlag.OPTIONAL in arg.flag:
                 if self.var_keyword or self.var_positional:
                     raise InvalidParam(config.lang.args_exclude_mutable_args)
                 self.optional_count += 1
+        self.argument.clear()
+        self.argument.extend(_tmp)
+        del _tmp
+        del _visit
 
     def __len__(self):
         return len(self.argument)

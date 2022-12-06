@@ -8,7 +8,7 @@ from ..args import Args
 from ..config import config
 from ..exceptions import InvalidParam
 from ..util import is_async
-from .behavior import ArpamarBehavior
+from .behavior import ArparmaBehavior
 
 if TYPE_CHECKING:
     from ..arparma import Arparma
@@ -122,7 +122,7 @@ def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, rais
     )
 
 
-class ActionHandler(ArpamarBehavior):
+class ActionHandler(ArparmaBehavior):
     
     def __init__(self, source: "Alconna"):
         self.main_action = source.action

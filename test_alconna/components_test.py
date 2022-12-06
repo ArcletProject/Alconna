@@ -1,4 +1,4 @@
-from arclet.alconna import Alconna, Option, Args, Subcommand, Arparma, ArpamarBehavior, store_value
+from arclet.alconna import Alconna, Option, Args, Subcommand, Arparma, ArparmaBehavior, store_value
 from arclet.alconna.builtin import set_default
 from arclet.alconna.components.duplication import Duplication, generate_duplication
 from arclet.alconna.components.stub import ArgsStub, OptionStub, SubcommandStub
@@ -8,7 +8,7 @@ def test_behavior():
     com = Alconna("comp", Args["bar", int]) + Option("foo")
 
     @com.behaviors.append
-    class Test(ArpamarBehavior):
+    class Test(ArparmaBehavior):
         requires = [set_default(value=321, option="foo")]
 
         @classmethod

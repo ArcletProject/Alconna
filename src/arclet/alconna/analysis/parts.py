@@ -25,7 +25,7 @@ def _handle_keyword(
         optional: bool,
         key: Optional[str] = None,
 ):
-    if _kwarg := re.match(r'^([^=]+)=(.*?)$', may_arg):
+    if _kwarg := re.match(fr'^([^{value.sep}]+){value.sep}(.*?)$', may_arg):
         key = key or _kwarg[1]
         if (_key := _kwarg[1]) != key:
             analyser.pushback(may_arg)

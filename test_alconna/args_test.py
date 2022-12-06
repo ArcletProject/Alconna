@@ -1,6 +1,6 @@
 from typing import Union
 from nepattern import BasePattern, PatternModel, Bind
-from arclet.alconna import Args, Arg, Field, Nargs, Kw
+from arclet.alconna import Args, ArgFlag, Nargs, Kw, KeyWordVar
 from arclet.alconna.analysis.base import analyse_args
 
 
@@ -63,7 +63,7 @@ def test_multi():
 
 
 def test_anti():
-    arg9 = Args().add("anti", value=r"(.+?)/(.+?)\.py", flags="!")
+    arg9 = Args().add("anti", value=r"(.+?)/(.+?)\.py", flags=[ArgFlag.ANTI])
     assert analyse_args(arg9, "a/b.mp3") == {"anti": "a/b.mp3"}
     assert analyse_args(arg9, "a/b.py", raise_exception=False) != {"anti": "a/b.py"}
 
@@ -102,6 +102,8 @@ def test_kwonly():
     assert analyse_args(arg14, 'abc 123', raise_exception=False) != {'foo': 'abc', 'bar': 123}
     arg14_1 = Args["--width;?", Kw[int], 1280]["--height;?", Kw[int], 960]
     assert analyse_args(arg14_1, "--width=960 --height=960") == {"--width": 960, "--height": 960, '$kwonly': {'--height': 960, '--width': 960}}
+    arg14_2 = Args.foo[str]["bar", KeyWordVar(int, " ")]["baz", KeyWordVar(bool, ":")]
+    assert analyse_args(arg14_2, "abc -bar 123 baz:false") == {'$kwonly': {'bar': 123, 'baz': False}, 'bar': 123, 'baz': False, 'foo': 'abc'}
 
 
 def test_pattern():
