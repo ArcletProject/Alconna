@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Union, List
+from __future__ import annotations
+
+from typing import TYPE_CHECKING 
 from nepattern import Empty
 from ..components.output import output_manager
 from ..base import Subcommand, Option
@@ -11,7 +13,7 @@ if TYPE_CHECKING:
     from .analyser import Analyser
 
 
-def handle_help(analyser: "Analyser"):
+def handle_help(analyser: Analyser):
     _help_param = [
         str(i) for i in analyser.release(recover=True, move_head=True)
         if i not in analyser.alconna.namespace_config.builtin_option_name['help']
@@ -27,7 +29,7 @@ def handle_help(analyser: "Analyser"):
     return analyser.export(fail=True)
 
 
-def handle_shortcut(analyser: "Analyser"):
+def handle_shortcut(analyser: Analyser):
     analyser.popitem()
     opt_v = analyse_args(analyser, Args["delete;?", "delete"]["name", str]["command", str, "_"], 3)
     try:
@@ -46,7 +48,7 @@ def handle_shortcut(analyser: "Analyser"):
     return analyser.export(fail=True)
 
 
-def _handle_unit(analyser: "Analyser", trigger: Arg):
+def _handle_unit(analyser: Analyser, trigger: Arg):
     if gen := trigger.field.completion:
         comp = gen()
         if isinstance(comp, str):
@@ -65,8 +67,8 @@ def _handle_unit(analyser: "Analyser", trigger: Arg):
     ).handle(raise_exception=analyser.raise_exception)
 
 
-def _handle_sentence(analyser: "Analyser"):
-    res: List[str] = []
+def _handle_sentence(analyser: Analyser):
+    res: list[str] = []
     s_len = len(stc := analyser.sentences)
     for opt in filter(
         lambda x: len(x.requires) >= s_len and x.requires[s_len - 1] == stc[-1],
@@ -79,8 +81,8 @@ def _handle_sentence(analyser: "Analyser"):
     return res
 
 
-def _handle_none(analyser: "Analyser", got: List[str]):
-    res: List[str] = []
+def _handle_none(analyser: Analyser, got: list[str]):
+    res: list[str] = []
     if not analyser.main_args and analyser.self_args.argument:
         unit = analyser.self_args.argument[0]
         if gen := unit.field.completion:
@@ -101,9 +103,7 @@ def _handle_none(analyser: "Analyser", got: List[str]):
     return res
 
 
-def handle_completion(
-    analyser: "Analyser", trigger: Union[None, Args, Subcommand, str] = None
-):
+def handle_completion(analyser: Analyser, trigger: None | Args | Subcommand | str = None):
     if isinstance(trigger, Arg):
         _handle_unit(analyser, trigger)
     elif isinstance(trigger, Subcommand):
@@ -117,9 +117,7 @@ def handle_completion(
         if not res:
             return analyser.export(
                 fail=True,
-                exception=ParamsUnmatched(
-                    config.lang.analyser_param_unmatched.format(target=trigger)
-                ),
+                exception=ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=trigger)),
             )
         out = [i for i in res if i not in (*analyser.options.keys(), *analyser.subcommands.keys(), *analyser.sentences)]
         output_manager.get(
@@ -137,11 +135,7 @@ def handle_completion(
                 lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(out or _res),
             ).handle(raise_exception=analyser.raise_exception)
         else:
-            res = (
-                _handle_sentence(analyser)
-                if analyser.sentences
-                else _handle_none(analyser, got)
-            )
+            res = _handle_sentence(analyser) if analyser.sentences else _handle_none(analyser, got)
             output_manager.get(
                 analyser.alconna.name,
                 lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(set(res)),

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import re
 from inspect import isclass
-from typing import Iterable, Union, List, Any, Dict, Tuple, TYPE_CHECKING, Optional
+from typing import Iterable, List, Any, TYPE_CHECKING 
 from nepattern import AllParam, Empty, BasePattern
 from nepattern.util import TPattern
 
@@ -16,14 +18,14 @@ if TYPE_CHECKING:
 
 
 def _handle_keyword(
-        analyser: 'Analyser',
-        value: KeyWordVar,
-        may_arg: Any,
-        seps: Tuple[str, ...],
-        result_dict: Dict[str, Any],
-        default_val: Any,
-        optional: bool,
-        key: Optional[str] = None,
+    analyser: Analyser,
+    value: KeyWordVar,
+    may_arg: Any,
+    seps: tuple[str, ...],
+    result_dict: dict[str, Any],
+    default_val: Any,
+    optional: bool,
+    key: str | None = None,
 ):
     if _kwarg := re.match(fr'^([^{value.sep}]+){value.sep}(.*?)$', may_arg):
         key = key or _kwarg[1]
@@ -51,10 +53,10 @@ def _handle_keyword(
 
 
 def multi_arg_handler(
-    analyser: 'Analyser',
+    analyser: Analyser,
     args: Args,
     arg: Arg,
-    result_dict: Dict[str, Any],
+    result_dict: dict[str, Any],
     nargs: int
 ):
     seps = arg.separators
@@ -99,7 +101,7 @@ def multi_arg_handler(
             _m_arg, _m_str = analyser.popitem(seps)
             if not _m_arg:
                 continue
-            if _m_str and (_m_arg in analyser.param_ids or re.match(r'^([^=]+)=\s?$', _m_arg)):
+            if _m_str and (_m_arg in analyser.param_ids or re.match(fr'^(.+)=\s?$', _m_arg)):
                 analyser.pushback(_m_arg)
                 for _ in range(min(len(result), _m_rest_arg - 1)):
                     analyser.pushback(result.pop(-1))
@@ -115,7 +117,7 @@ def multi_arg_handler(
         result_dict[key] = tuple(result)
 
 
-def analyse_args(analyser: 'Analyser', args: Args, nargs: int) -> Dict[str, Any]:
+def analyse_args(analyser: Analyser, args: Args, nargs: int) -> dict[str, Any]:
     """
     分析 Args 部分
 
@@ -127,24 +129,20 @@ def analyse_args(analyser: 'Analyser', args: Args, nargs: int) -> Dict[str, Any]
     Returns:
         Dict: 解析结果
     """
-    result: Dict[str, Any] = {}
+    result: dict[str, Any] = {}
     for arg in args.argument:
         analyser.context = arg
-        key = arg.name
-        value = arg.value
-        default_val = arg.field.default_gen
-        optional = arg.optional
+        key, value, default_val, optional = arg.name, arg.value, arg.field.default_gen, arg.optional
         seps = arg.separators
         may_arg, _str = analyser.popitem(seps)
         if may_arg in analyser.special:
             raise CompletionTriggered(arg)
         if not may_arg or (_str and may_arg in analyser.param_ids):
             analyser.pushback(may_arg)
-            if default_val is None:
-                if optional:
-                    continue
+            if default_val is not None:
+                result[key] = None if default_val is Empty else default_val
+            elif not optional:
                 raise ArgumentMissing(config.lang.args_missing.format(key=key))
-            result[key] = None if default_val is Empty else default_val
             continue
         if isinstance(value, BasePattern):
             if value.__class__ is MultiVar:
@@ -169,12 +167,12 @@ def analyse_args(analyser: 'Analyser', args: Args, nargs: int) -> Dict[str, Any]
             return result
         elif may_arg == value:
             result[key] = may_arg
-        elif default_val is None:
-            if optional:
-                continue
+        elif default_val is not None:
+            result[key] = None if default_val is Empty else default_val
+        elif not optional:
             raise ParamsUnmatched(config.lang.args_error.format(target=may_arg))
         else:
-            result[key] = None if default_val is Empty else default_val
+            continue
     if args.var_keyword:
         kwargs = result[args.var_keyword]
         if not isinstance(kwargs, dict):
@@ -193,9 +191,9 @@ def analyse_args(analyser: 'Analyser', args: Args, nargs: int) -> Dict[str, Any]
 
 
 def analyse_unmatch_params(
-        params: Iterable[Union[List[Option], Sentence, Subcommand]],
-        text: str,
-        is_fuzzy_match: bool = False
+    params: Iterable[list[Option] | Sentence | Subcommand],
+    text: str,
+    is_fuzzy_match: bool = False
 ):
     for _p in params:
         if isinstance(_p, list):
@@ -216,7 +214,7 @@ def analyse_unmatch_params(
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=_p.name))
 
 
-def analyse_option(analyser: 'Analyser', param: Option) -> Tuple[str, OptionResult]:
+def analyse_option(analyser: Analyser, param: Option) -> tuple[str, OptionResult]:
     """
     分析 Option 部分
 
@@ -249,7 +247,7 @@ def analyse_option(analyser: 'Analyser', param: Option) -> Tuple[str, OptionResu
     return name, res
 
 
-def analyse_subcommand(analyser: 'Analyser', param: Subcommand) -> Tuple[str, SubcommandResult]:
+def analyse_subcommand(analyser: Analyser, param: Subcommand) -> tuple[str, SubcommandResult]:
     """
     分析 Subcommand 部分
 
@@ -307,7 +305,7 @@ def analyse_subcommand(analyser: 'Analyser', param: Subcommand) -> Tuple[str, Su
     return name, res
 
 
-def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
+def analyse_header(analyser: Analyser) -> dict[str, Any] | bool | None:
     """
     分析命令头部
 
@@ -321,7 +319,7 @@ def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
     if isinstance(command, TPattern) and _str and (_head_find := command.fullmatch(head_text)):
         analyser.head_matched = True
         return _head_find.groupdict() or True
-    elif isinstance(command, BasePattern) and (_head_find := command.validate(head_text, Empty).value):
+    elif isinstance(command, BasePattern) and (_head_find := command(head_text, Empty).value):
         analyser.head_matched = True
         return _head_find or True
     else:
@@ -340,7 +338,7 @@ def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
                     if _m_str and (_command_find := command[1].fullmatch(may_command)):
                         analyser.head_matched = True
                         return _command_find.groupdict() or True
-                elif _command_find := command[1].validate(may_command, Empty).value:
+                elif _command_find := command[1](may_command, Empty).value:
                     analyser.head_matched = True
                     return _command_find or True
             elif _str and isinstance(command[0], tuple) and isinstance(command[0][1], TPattern):
@@ -354,7 +352,7 @@ def analyse_header(analyser: 'Analyser') -> Union[Dict[str, Any], bool, None]:
                         analyser.head_matched = True
                         return _command_find.groupdict() or True
                 elif isinstance(command[1], BasePattern) and (_head_find := command[0][1].fullmatch(head_text)) and (
-                        _command_find := command[1].validate(may_command, Empty).value
+                        _command_find := command[1](may_command, Empty).value
                 ):
                     analyser.head_matched = True
                     return _command_find or True

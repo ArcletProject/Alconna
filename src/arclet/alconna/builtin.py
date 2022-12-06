@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Optional, Any, Callable, overload, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, overload 
 
 from .components.action import ArgAction
 from .components.behavior import ArparmaBehavior
@@ -38,7 +40,7 @@ if TYPE_CHECKING:
     from arclet.alconna.arparma import Arparma
 
 
-    def version(value: Optional[tuple]):
+    def version(value: tuple | None):
         """返回一个以元组形式存储的版本信息"""
         return _StoreValue(value) if value else _StoreValue(alconna_version)
 
@@ -48,10 +50,10 @@ class _SetDefault(ArparmaBehavior):
     def __init__(
         self,
         default: Any = MISSING,
-        default_factory: Union[Callable, _MISSING_TYPE] = MISSING,
-        arg: Optional[str] = None,
-        option: Optional[str] = None,
-        subcommand: Optional[str] = None
+        default_factory: Callable | _MISSING_TYPE = MISSING,
+        arg: str | None = None,
+        option: str | None = None,
+        subcommand: str | None = None
     ):
         self._default = default
         self._default_factory = default_factory
@@ -63,7 +65,7 @@ class _SetDefault(ArparmaBehavior):
     def default(self):
         return self._default if self._default is not MISSING else self._default_factory()
 
-    def operate(self, interface: "Arparma"):
+    def operate(self, interface: Arparma):
         if not self.opt and not self.sub:
             raise BehaveCancelled
         if self.arg:
@@ -90,9 +92,9 @@ class _SetDefault(ArparmaBehavior):
 def set_default(
     *,
     value: Any,
-    arg: Optional[str] = None,
-    option: Optional[str] = None,
-    subcommand: Optional[str] = None,
+    arg: str | None = None,
+    option: str | None = None,
+    subcommand: str | None = None,
 ) -> _SetDefault:
     ...
 
@@ -101,9 +103,9 @@ def set_default(
 def set_default(
     *,
     factory: Callable[..., Any],
-    arg: Optional[str] = None,
-    option: Optional[str] = None,
-    subcommand: Optional[str] = None,
+    arg: str | None = None,
+    option: str | None = None,
+    subcommand: str | None = None,
 ) -> _SetDefault:
     ...
 
@@ -112,9 +114,9 @@ def set_default(
     *,
     value: Any = MISSING,
     factory: Callable[..., Any] = MISSING,
-    arg: Optional[str] = None,
-    option: Optional[str] = None,
-    subcommand: Optional[str] = None,
+    arg: str | None = None,
+    option: str | None = None,
+    subcommand: str | None = None,
 ) -> _SetDefault:
     """
     设置一个选项的默认值, 在无该选项时会被设置

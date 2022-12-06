@@ -1,4 +1,6 @@
-from typing import Callable, TypeVar, Generic, Optional, TYPE_CHECKING
+from __future__ import annotations
+
+from typing import Callable, TypeVar, Generic, TYPE_CHECKING
 from dataclasses import dataclass, field
 
 from ..exceptions import ExecuteFailed
@@ -11,7 +13,7 @@ T = TypeVar("T")
 @dataclass(unsafe_hash=True)
 class ArparmaExecutor(Generic[T]):
     target: Callable[..., T]
-    binding: Callable[..., Optional['Arparma']] = field(default=lambda: None, repr=False)
+    binding: Callable[..., Arparma | None] = field(default=lambda: None, repr=False)
 
     @property
     def result(self) -> T:

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import inspect
 from types import LambdaType
-from typing import Optional, Dict, List, Callable, Any, TYPE_CHECKING, Union
+from typing import Dict, Callable, Any, TYPE_CHECKING 
 from nepattern import AnyOne, AllParam, type_parser
 from dataclasses import dataclass
 
@@ -24,8 +26,8 @@ class ArgAction:
     def handle(
         self,
         option_dict: dict,
-        varargs: Optional[List] = None,
-        kwargs: Optional[Dict] = None,
+        varargs: list | None = None,
+        kwargs: dict | None = None,
         raise_exception: bool = False,
     ):
         """
@@ -59,7 +61,7 @@ class ArgAction:
         return option_dict
 
     @staticmethod
-    def __validator__(action: Union[Callable, "ArgAction", None], args: "Args"):
+    def __validator__(action: Callable | ArgAction | None, args: Args):
         if not action:
             return None
         if isinstance(action, ArgAction):
@@ -89,7 +91,7 @@ class ArgAction:
         return ArgAction(action)
 
 
-def _exec_args(args: Dict[str, Any], func: ArgAction, raise_exc: bool):
+def _exec_args(args: dict[str, Any], func: ArgAction, raise_exc: bool):
     result_dict = args.copy()
     kwargs = {}
     kwonly = {}
@@ -115,7 +117,7 @@ def _exec_args(args: Dict[str, Any], func: ArgAction, raise_exc: bool):
     return res
 
 
-def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, raise_exc: bool):
+def _exec(data: OptionResult | SubcommandResult, func: ArgAction, raise_exc: bool):
     return (
         ("args", _exec_args(data['args'], func, raise_exc))
         if data['args'] else ("value", func.handle({}, [], {}, raise_exc))
@@ -124,7 +126,7 @@ def _exec(data: Union['OptionResult', 'SubcommandResult'], func: ArgAction, rais
 
 class ActionHandler(ArparmaBehavior):
     
-    def __init__(self, source: "Alconna"):
+    def __init__(self, source: Alconna):
         self.main_action = source.action
         self.options = {}
         for opt in source.options:
@@ -135,7 +137,7 @@ class ActionHandler(ArparmaBehavior):
                     if option.action:
                         self.options[f"{opt.dest}.{option.dest}"] = option.action
 
-    def operate(self, interface: "Arparma"):
+    def operate(self, interface: Arparma):
         interface.clean()
         source = interface.source
 

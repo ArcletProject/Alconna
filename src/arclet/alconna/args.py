@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import re
 import inspect
 from functools import partial
 from copy import deepcopy
 from enum import Enum
 from contextlib import suppress
-from typing import Union, Tuple, Dict, Iterable, Callable, Any, Optional, Sequence, List, Set, TypeVar, Generic
+from typing import Union, Iterable, Callable, Any, Sequence, TypeVar, Generic
 from typing_extensions import get_origin
 from dataclasses import dataclass, field as dc_field
 from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
@@ -28,8 +30,8 @@ class Field(Generic[_T]):
     """标识参数单元字段"""
     default: _T = dc_field(default=None)
     default_factory: Callable[[], _T] = dc_field(default=lambda: None)
-    alias: Optional[str] = dc_field(default=None)
-    completion: Optional[Callable[[], Union[str, List[str]]]] = dc_field(default=None)
+    alias: str | None = dc_field(default=None)
+    completion: Callable[[], str | list[str]] | None = dc_field(default=None)
 
     @property
     def display(self):
@@ -45,18 +47,18 @@ class Arg:
     name: str = dc_field(compare=True, hash=True)
     value: TAValue = dc_field(compare=False, hash=False)
     field: Field[_T] = dc_field(compare=False, hash=False)
-    notice: Optional[str] = dc_field(compare=False, hash=False)
-    flag: Set[ArgFlag] = dc_field(compare=False, hash=False)
-    separators: Tuple[str, ...] = dc_field(compare=False, hash=False)
+    notice: str | None = dc_field(compare=False, hash=False)
+    flag: set[ArgFlag] = dc_field(compare=False, hash=False)
+    separators: tuple[str, ...] = dc_field(compare=False, hash=False)
 
     def __init__(
         self,
         name: str,
-        value: Optional[TAValue] = None,
-        field: Optional[Union[Field[_T], _T]] = None,
-        seps: Union[str, Iterable[str]] = " ",
-        notice: Optional[str] = None,
-        flags: Optional[List[ArgFlag]] = None,
+        value: TAValue | None = None,
+        field: Field[_T] | _T | None = None,
+        seps: str | Iterable[str] = " ",
+        notice: str | None = None,
+        flags: list[ArgFlag] | None = None,
     ):
         if not isinstance(name, str) or name.startswith('$'):
             raise InvalidParam(config.lang.args_name_error)
@@ -107,7 +109,7 @@ class ArgsMeta(type):
 
         return _Seminal()
 
-    def __getitem__(self, item, key: Optional[str] = None):
+    def __getitem__(self, item, key: str | None = None):
         data = item if isinstance(item, tuple) else (item,)
         if isinstance(data[0], Arg):
             return self(*data)
@@ -115,14 +117,14 @@ class ArgsMeta(type):
 
 
 class Args(metaclass=ArgsMeta):  # type: ignore
-    argument: List[Arg]
-    var_positional: Optional[str]
-    var_keyword: Optional[str]
-    keyword_only: List[str]
+    argument: list[Arg]
+    var_positional: str | None
+    var_keyword: str | None
+    keyword_only: list[str]
     optional_count: int
 
     @classmethod
-    def from_string_list(cls, args: List[List[str]], custom_types: Dict) -> "Args":
+    def from_string_list(cls, args: list[list[str]], custom_types: dict) -> Args:
         """
         从处理好的字符串列表中生成Args
 
@@ -196,7 +198,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     def __init__(
         self,
         *args: Arg,
-        separators: Optional[Union[str, Iterable[str]]] = None,
+        separators: str | Iterable[str] | None = None,
         **kwargs: TAValue
     ):
         """
@@ -221,7 +223,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "keyword_only", "_visit"
 
-    def add(self, name: str, *, value: Any, default: Any = None, flags: Optional[List[ArgFlag]] = None):
+    def add(self, name: str, *, value: Any, default: Any = None, flags: list[ArgFlag] | None = None):
         """
         添加一个参数
         """
@@ -290,7 +292,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     def __len__(self):
         return len(self.argument)
 
-    def __getitem__(self, item) -> Union["Args", Arg]:
+    def __getitem__(self, item) -> Args | Arg:
         if isinstance(item, str) and (res := next(filter(lambda x: x.name == item, self.argument), None)):
             return res
         data = item if isinstance(item, tuple) else (item,)
@@ -301,7 +303,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.__check_vars__()
         return self
 
-    def __merge__(self, other) -> "Args":
+    def __merge__(self, other) -> Args:
         if isinstance(other, Args):
             self.argument.extend(other.argument)
             self.__check_vars__()

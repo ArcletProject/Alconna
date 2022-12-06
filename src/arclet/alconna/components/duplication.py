@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, cast, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast 
 from inspect import isclass
 
 from ..config import config
@@ -13,17 +15,17 @@ class Duplication:
     """
     用以更方便的检查、调用解析结果的类。
     """
-    __target: 'Arparma'
+    __target: Arparma
 
     @property
-    def origin(self) -> "Arparma":
+    def origin(self) -> Arparma:
         return self.__target
 
     @property
     def header(self):
         return self.__target.header
 
-    def set_target(self, target: 'Arparma'):
+    def set_target(self, target: Arparma):
         self.__target = target
         if self.__stubs__.get("main_args"):
             getattr(self, self.__stubs__["main_args"]).set_result(target.main_args)  # type: ignore
@@ -42,7 +44,7 @@ class Duplication:
                     setattr(self, key, target.header[key])
         return self
 
-    def __init__(self, target: Union['Alconna', 'AlconnaGroup']):
+    def __init__(self, target: Alconna | AlconnaGroup):
         self.__stubs__ = {"options": [], "subcommands": [], "other_args": []}
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):
@@ -67,14 +69,14 @@ class Duplication:
     def __repr__(self):
         return f'<{self.__class__.__name__} with {self.__stubs__}>'
 
-    def option(self, name: str) -> Optional[OptionStub]:
+    def option(self, name: str) -> OptionStub | None:
         return cast(OptionStub, getattr(self, name, None))
 
-    def subcommand(self, name: str) -> Optional[SubcommandStub]:
+    def subcommand(self, name: str) -> SubcommandStub | None:
         return cast(SubcommandStub, getattr(self, name, None))
 
 
-def generate_duplication(command: "Alconna") -> Duplication:
+def generate_duplication(command: Alconna) -> Duplication:
     """
     依据给定的命令生成一个解析结果的检查类。
     """

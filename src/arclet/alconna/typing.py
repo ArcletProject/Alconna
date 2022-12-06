@@ -1,4 +1,6 @@
 """Alconna 参数相关"""
+from __future__ import annotations
+
 from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Tuple, Dict
 from nepattern import BasePattern, type_parser, PatternModel
 
@@ -20,7 +22,7 @@ class KeyWordVar(BasePattern):
     """对具名参数的包装"""
     base: BasePattern
 
-    def __init__(self, value: Union[BasePattern, Any], sep: str = '='):
+    def __init__(self, value: BasePattern | Any, sep: str = '='):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         self.sep = sep
         assert isinstance(self.base, BasePattern)
@@ -49,8 +51,8 @@ class MultiVar(BasePattern):
 
     def __init__(
         self,
-        value: Union[BasePattern, Any],
-        flag: Union[int, Literal["+", "*"]] = 1
+        value: BasePattern | Any,
+        flag: int | Literal["+", "*"] = 1
     ):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         assert isinstance(self.base, BasePattern)

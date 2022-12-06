@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import json
 from dataclasses import dataclass, field
@@ -5,15 +7,15 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     ContextManager,
-    Dict,
+    
     Final,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Type,
+    
+    
+    
+    
+    
     TypedDict,
-    Union,
+    
 )
 
 if TYPE_CHECKING:
@@ -22,20 +24,18 @@ if TYPE_CHECKING:
 
 
 class OptionNames(TypedDict):
-    help: Set[str]
-    shortcut: Set[str]
-    completion: Set[str]
+    help: set[str]
+    shortcut: set[str]
+    completion: set[str]
 
 
 @dataclass
 class Namespace:
     name: str
-    headers: Union[List[Union[str, object]], List[Tuple[object, str]]] = field(
-        default_factory=list
-    )
-    separators: Tuple[str, ...] = field(default_factory=lambda: (" ",))
-    behaviors: List["T_ABehavior"] = field(default_factory=list)
-    formatter_type: Optional[Type["TextFormatter"]] = field(default=None)
+    headers: list[str | object] | list[tuple[object, str]] = field(default_factory=list)
+    separators: tuple[str, ...] = field(default_factory=lambda: (" ",))
+    behaviors: list[T_ABehavior] = field(default_factory=list)
+    formatter_type: type[TextFormatter] | None = field(default=None)
     fuzzy_match: bool = field(default=False)
     raise_exception: bool = field(default=False)
     enable_message_cache: bool = field(default=True)
@@ -64,7 +64,7 @@ class namespace(ContextManager[Namespace]):
             alc = Alconna(...)
             alc.headers == [aaa]
     """
-    def __init__(self, name: Union[Namespace, str]):
+    def __init__(self, name: Namespace | str):
         self.np = Namespace(name) if isinstance(name, str) else name
         self.name = self.np.name if isinstance(name, Namespace) else name
         self.old = config.default_namespace
@@ -88,7 +88,7 @@ class _LangConfig:
 
     def __init__(self):
         self.__file = json.load(self.path.open("r", encoding="utf-8"))
-        self.__config: Dict[str, str] = self.__file[self.__file["$default"]]
+        self.__config: dict[str, str] = self.__file[self.__file["$default"]]
 
     @property
     def types(self):
@@ -107,7 +107,7 @@ class _LangConfig:
             return
         raise ValueError(self.__config["lang.type_error"].format(target=name))
 
-    def reload(self, path: Union[str, Path], lang_type: Optional[str] = None):
+    def reload(self, path: str | Path, lang_type: str | None = None):
         if isinstance(path, str):
             path = Path(path)
         content = json.load(path.open("r", encoding="utf-8"))
@@ -142,7 +142,7 @@ class _AlconnaConfig:
     message_max_cache: int = 100
     fuzzy_threshold: float = 0.6
     _default_namespace = "Alconna"
-    namespaces: Dict[str, Namespace] = {
+    namespaces: dict[str, Namespace] = {
         _default_namespace: Namespace(_default_namespace)
     }
 
@@ -151,7 +151,7 @@ class _AlconnaConfig:
         return self.namespaces[self._default_namespace]
 
     @default_namespace.setter
-    def default_namespace(self, np: Union[str, Namespace]):
+    def default_namespace(self, np: str | Namespace):
         if isinstance(np, str):
             if np not in self.namespaces:
                 old = self.namespaces.pop(self._default_namespace)

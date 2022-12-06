@@ -1,4 +1,6 @@
-from typing import Union, Dict, List, Any, Optional, Type, TypeVar, Tuple, overload, Generic, Mapping, Callable
+from __future__ import annotations
+
+from typing import Any, TypeVar, overload, Generic, Mapping, Callable
 from types import MappingProxyType
 from contextlib import suppress
 from nepattern import Empty
@@ -29,13 +31,13 @@ class Arparma(Generic[TDataCollection]):
         self.origin: TDataCollection = origin
         self.matched: bool = False
         self.head_matched: bool = False
-        self.error_data: List[Union[str, Any]] = []
-        self.error_info: Union[str, BaseException, Type[BaseException]] = ''
-        self.other_args: Dict[str, Any] = {}
-        self.main_args: Dict[str, Any] = {}
-        self._header: Optional[Dict[str, Any]] = None
-        self._options: Dict[str, OptionResult] = {}
-        self._subcommands: Dict[str, SubcommandResult] = {}
+        self.error_data: list[str | Any] = []
+        self.error_info: str | BaseException | type[BaseException] = ''
+        self.other_args: dict[str, Any] = {}
+        self.main_args: dict[str, Any] = {}
+        self._header: dict[str, Any] | None = None
+        self._options: dict[str, OptionResult] = {}
+        self._subcommands: dict[str, SubcommandResult] = {}
         self._record = set()
 
     @property
@@ -52,33 +54,33 @@ class Arparma(Generic[TDataCollection]):
         return not self._subcommands and not self._options
 
     @property
-    def components(self) -> Dict[str, Union[OptionResult, SubcommandResult]]:
+    def components(self) -> dict[str, OptionResult | SubcommandResult]:
         return {**self._options, **self._subcommands}
 
     @property
-    def options(self) -> Dict[str, Union[Dict[str, Any], Any]]:
+    def options(self) -> dict[str, dict[str, Any] | Any]:
         return {**self._options}
 
     @property
-    def subcommands(self) -> Dict[str, Union[Dict[str, Any], Any]]:
+    def subcommands(self) -> dict[str, dict[str, Any] | Any]:
         return {**self._subcommands}
 
     @property
-    def all_matched_args(self) -> Dict[str, Any]:
+    def all_matched_args(self) -> dict[str, Any]:
         """返回 Alconna 中所有 Args 解析到的值"""
         return {**self.main_args, **self.other_args}
 
-    def get_duplication(self, dup: Optional[Type[T_Duplication]] = None) -> T_Duplication:
+    def get_duplication(self, dup: type[T_Duplication] | None = None) -> T_Duplication:
         if dup:
             return dup(self.source).set_target(self)
         return generate_duplication(self.source).set_target(self)  # type: ignore
 
     def encapsulate_result(
             self,
-            header: Union[Dict[str, Any], bool, None],
-            main_args: Dict[str, Any],
-            options: Dict[str, OptionResult],
-            subcommands: Dict[str, SubcommandResult]
+            header: dict[str, Any] | bool | None,
+            main_args: dict[str, Any],
+            options: dict[str, OptionResult],
+            subcommands: dict[str, SubcommandResult]
     ) -> None:
         """处理 Arparma 中的数据"""
         self.main_args = main_args.copy()
@@ -100,7 +102,7 @@ class Arparma(Generic[TDataCollection]):
     def behave_fail(self):
         raise OutBoundsBehave
 
-    def execute(self, behaviors: Optional[List[T_ABehavior]] = None):
+    def execute(self, behaviors: list[T_ABehavior] | None = None):
         if behaviors := (self.source.behaviors[1:] + (behaviors or [])):
             exc_behaviors = []
             for behavior in behaviors:
@@ -119,14 +121,14 @@ class Arparma(Generic[TDataCollection]):
             return target(**self.all_matched_args, **additional)
         raise RuntimeError
 
-    def _fail(self, exc: Union[Type[BaseException], BaseException, str]):
+    def _fail(self, exc: type[BaseException] | BaseException | str):
         arp = Arparma(self._source, self.origin)
         arp.matched = False
         arp.head_matched = True
         arp.error_info = exc
         return arp
 
-    def __require__(self, parts: List[str]) -> Tuple[Union[Dict[str, Any], OptionResult, SubcommandResult, None], str]:
+    def __require__(self, parts: list[str]) -> tuple[dict[str, Any] | OptionResult | SubcommandResult | None, str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
         if len(parts) == 1:
             part = parts[0]
@@ -143,7 +145,7 @@ class Arparma(Generic[TDataCollection]):
         if prefix in {"options", "subcommands"} and prefix in self.components:
             raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=prefix))
 
-        def _r_opt(_p: str, _s: List[str], _opts: Dict[str, OptionResult]):
+        def _r_opt(_p: str, _s: list[str], _opts: dict[str, OptionResult]):
             if _p == "options":
                 if not _s:
                     _c = _opts
@@ -177,14 +179,14 @@ class Arparma(Generic[TDataCollection]):
         return (self.main_args, parts[1]) if prefix == "$main" else (None, prefix)
 
     @overload
-    def query(self, path: str) -> Union[Mapping[str, Any], Any, None]:
+    def query(self, path: str) -> Mapping[str, Any] | Any | None:
         ...
 
     @overload
-    def query(self, path: str, default: T) -> Union[T, Mapping[str, Any], Any]:
+    def query(self, path: str, default: T) -> T | Mapping[str, Any] | Any:
         ...
 
-    def query(self, path: str, default: Optional[T] = None) -> Union[Any, Mapping[str, Any], T, None]:
+    def query(self, path: str, default: T | None = None) -> Any | Mapping[str, Any] | T | None:
         """根据path查询值"""
         cache, endpoint = self.__require__(path.split('.'))
         if cache is None:
@@ -206,7 +208,7 @@ class Arparma(Generic[TDataCollection]):
             cache.update(value)  # type: ignore
             self._record.update([f"{path}.{k}" for k in value])
 
-    def query_with(self, arg_type: Type[T], path: Optional[str] = None, default: Optional[T] = None) -> Optional[T]:
+    def query_with(self, arg_type: type[T], path: str | None = None, default: T | None = None) -> T | None:
         """根据类型查询参数"""
         if path:
             return res if isinstance(res := self.query(path, Empty), arg_type) else default
@@ -229,14 +231,14 @@ class Arparma(Generic[TDataCollection]):
             cache.pop(parts[-1], None)
 
     @overload
-    def __getitem__(self, item: Type[T]) -> Optional[T]:
+    def __getitem__(self, item: type[T]) -> T | None:
         ...
 
     @overload
     def __getitem__(self, item: str) -> Any:
         ...
 
-    def __getitem__(self, item: Union[str, Type[T]]) -> Union[T, Any, None]:
+    def __getitem__(self, item: str | type[T]) -> T | Any | None:
         if isinstance(item, str):
             return self.query(item)
         if data := self.query_with(item):

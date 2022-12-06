@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from inspect import isclass
-from typing import Dict, Any, List, TypeVar, Union, Type, Generic
+from typing import Any, TypeVar, Generic
 from abc import ABCMeta, abstractmethod
 from nepattern import BasePattern, AllParam
 
@@ -40,7 +42,7 @@ class ArgsStub(BaseStub[Args]):
     """
     参数存根
     """
-    _value: Dict[str, Any]
+    _value: dict[str, Any]
 
     def __init__(self, args: Args):
         self._origin = args
@@ -56,7 +58,7 @@ class ArgsStub(BaseStub[Args]):
             setattr(self, key, arg.field.default_gen)
         self.available = False
 
-    def set_result(self, result: Dict[str, Any]):
+    def set_result(self, result: dict[str, Any]):
         if result:
             self._value = result
             self.available = True
@@ -65,7 +67,7 @@ class ArgsStub(BaseStub[Args]):
     def first_arg(self) -> Any:
         return self.__getitem__(0)
 
-    def get(self, item: Union[str, Type[T]], default=None) -> Union[T, Any]:
+    def get(self, item: str | type[T], default=None) -> T | Any:
         if isinstance(item, str):
             return self._value.get(item, default)
         for k, v in self.__annotations__.items():
@@ -107,7 +109,7 @@ class OptionStub(BaseStub[Option]):
     """
     args: ArgsStub
     dest: str
-    aliases: List[str]
+    aliases: list[str]
     name: str
 
     def __init__(self, option: Option):
@@ -119,7 +121,7 @@ class OptionStub(BaseStub[Option]):
         self.available = False
         self._value = None
 
-    def set_result(self, result: Union[OptionResult, None]):
+    def set_result(self, result: OptionResult | None):
         if result:
             self._value = result['value']
             self.args.set_result(result['args'])
@@ -132,7 +134,7 @@ class SubcommandStub(BaseStub[Subcommand]):
     """
     args: ArgsStub
     dest: str
-    options: List[OptionStub]
+    options: list[OptionStub]
     name: str
 
     def __init__(self, subcommand: Subcommand):
