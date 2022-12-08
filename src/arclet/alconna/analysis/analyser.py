@@ -178,7 +178,7 @@ class Analyser(Generic[TDataCollection]):
         self.current_index, self.ndata, self.temp_token = 0, 0, 0
         self.head_matched = False
         self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
-        self.raw_data, self.sentences = [], []
+        self.raw_data, self.bak_data, self.sentences = [], [], []
         self.header, self.context = None, None
         # self.head_pos = (0, 0)
 

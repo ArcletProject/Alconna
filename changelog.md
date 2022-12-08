@@ -1,5 +1,10 @@
 # Alconna 1.4.x:
 
+## Alconna 1.4.3:
+1. KeyWordVar 现在可以指定 sep
+2. MultiVar 现在默认格式是 "+"
+3. 修复bugs
+
 ## Alconna 1.4.2 ~ 1.4.2.1:
 1. 修复可变参数匹配的bug
 2. 修复Args.from_callable的bug
