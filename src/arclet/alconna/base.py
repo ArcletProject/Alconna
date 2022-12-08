@@ -1,8 +1,9 @@
 """Alconna 的基础内容相关"""
+from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Union, Dict, Callable, Any, Optional, Sequence, List, TypedDict, Set, overload, Tuple
+from typing import Callable, Any, Sequence, List, TypedDict, overload 
 from .args import Args, Arg
 from .exceptions import InvalidParam
 from .config import config
@@ -16,18 +17,18 @@ class CommandNode:
     name: str
     dest: str
     args: Args
-    separators: Tuple[str, ...]
-    action: Optional[ArgAction]
+    separators: tuple[str, ...]
+    action: ArgAction | None
     help_text: str
-    requires: List[str]
+    requires: list[str]
 
     def __init__(
-        self, name: str, args: Union[Args, str, None] = None,
-        dest: Optional[str] = None,
-        action: Optional[Union[ArgAction, Callable]] = None,
-        separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
-        help_text: Optional[str] = None,
-        requires: Optional[Union[str, List[str], Tuple[str, ...], Set[str]]] = None
+        self, name: str, args: Args | str | None = None,
+        dest: str | None = None,
+        action: ArgAction | Callable | None = None,
+        separators: str | Sequence[str] | set[str] | None = None,
+        help_text: str | None = None,
+        requires: str | list[str] | tuple[str, ...] | set[str] | None = None
     ):
         """
         初始化命令节点
@@ -90,13 +91,13 @@ class Option(CommandNode):
 
     def __init__(
         self,
-        name: str, args: Union[Args, str, None] = None,
-        alias: Optional[List[str]] = None,
-        dest: Optional[str] = None,
-        action: Optional[Union[ArgAction, Callable]] = None,
-        separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
-        help_text: Optional[str] = None,
-        requires: Optional[Union[str, List[str], Tuple[str, ...], Set[str]]] = None,
+        name: str, args: Args | str | None = None,
+        alias: list[str] | None = None,
+        dest: str | None = None,
+        action: ArgAction | Callable | None = None,
+        separators: str | Sequence[str] | set[str] | None = None,
+        help_text: str | None = None,
+        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
         priority: int = 0
     ):
         self.aliases = alias or []
@@ -114,11 +115,11 @@ class Option(CommandNode):
         )
 
     @overload
-    def __add__(self, other: "Option") -> "Subcommand":
+    def __add__(self, other: Option) -> Subcommand:
         ...
 
     @overload
-    def __add__(self, other: Union[Args, Arg]) -> "Option":
+    def __add__(self, other: Args | Arg) -> Option:
         ...
 
     def __add__(self, other):
@@ -143,18 +144,18 @@ class Option(CommandNode):
 
 class Subcommand(CommandNode):
     """子命令, 次于主命令, 可解析 SubOption"""
-    options: List[Option]
-    sub_params: Dict[str, Union[List[Option], 'Sentence']]
+    options: list[Option]
+    sub_params: dict[str, list[Option] | Sentence]
     sub_part_len: range
 
     def __init__(
         self,
-        name: str, options: Optional[List[Option]] = None, args: Union[Args, str, None] = None,
-        dest: Optional[str] = None,
-        action: Optional[Union[ArgAction, Callable]] = None,
-        separators: Optional[Union[str, Sequence[str], Set[str]]] = None,
-        help_text: Optional[str] = None,
-        requires: Optional[Union[str, List[str], Tuple[str, ...], Set[str]]] = None,
+        name: str, options: list[Option] | None = None, args: Args | str | None = None,
+        dest: str | None = None,
+        action: ArgAction | Callable | None = None,
+        separators: str | Sequence[str] | set[str] | None = None,
+        help_text: str | None = None,
+        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
     ):
         self.options = options or []
         super().__init__(name, args, dest, action, separators, help_text, requires)
@@ -183,25 +184,21 @@ class Subcommand(CommandNode):
 @dataclass
 class Sentence:
     name: str
-    separators: Tuple[str, ...] = field(default=(' ',))
+    separators: tuple[str, ...] = field(default=(' ',))
 
 
 class OptionResult(TypedDict):
     value: Any
-    args: Dict[str, Any]
+    args: dict[str, Any]
 
 
 class SubcommandResult(TypedDict):
     value: Any
-    args: Dict[str, Any]
-    options: Dict[str, OptionResult]
+    args: dict[str, Any]
+    options: dict[str, OptionResult]
 
-
-class StrMounter(List[str]):
-    pass
 
 
 __all__ = [
-    "CommandNode", "Option", "Subcommand", "OptionResult", "SubcommandResult", "Sentence",
-    "StrMounter"
+    "CommandNode", "Option", "Subcommand", "OptionResult", "SubcommandResult", "Sentence"
 ]

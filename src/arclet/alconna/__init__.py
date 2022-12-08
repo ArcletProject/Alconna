@@ -14,7 +14,7 @@ from .manager import command_manager
 from .config import config, load_lang_file, namespace, Namespace
 
 from .builtin import store_value, set_default
-from .components.behavior import ArpamarBehavior
+from .components.behavior import ArparmaBehavior
 from .components.output import output_manager, TextFormatter
 from .components.duplication import Duplication
 from .components.stub import ArgsStub, OptionStub, SubcommandStub

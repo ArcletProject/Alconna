@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from weakref import finalize
-from typing import Dict, Callable, Union, Coroutine, Any, Optional, List, TYPE_CHECKING, Tuple
+from typing import Callable, Coroutine, Any, TYPE_CHECKING 
 from dataclasses import dataclass
 from nepattern import Empty, AllParam, BasePattern
 
@@ -23,16 +25,16 @@ class OutputAction(ArgAction):
 
 class OutputActionManager(metaclass=Singleton):
     """帮助信息"""
-    cache: Dict[str, Callable]
-    outputs: Dict[str, OutputAction]
-    send_action: Callable[[str], Union[Any, Coroutine]]
+    cache: dict[str, Callable]
+    outputs: dict[str, OutputAction]
+    send_action: Callable[[str], Any | Coroutine]
 
     def __init__(self):
         self.cache = {}
         self.outputs = {}
         self.send_action = lambda x: print(x)
 
-        def _clr(mgr: 'OutputActionManager'):
+        def _clr(mgr: OutputActionManager):
             mgr.cache.clear()
             mgr.outputs.clear()
             Singleton.remove(mgr.__class__)
@@ -51,7 +53,7 @@ class OutputActionManager(metaclass=Singleton):
             del self.cache[command]
         return self.outputs[command]
 
-    def set_action(self, action: Callable[[str], Any], command: Optional[str] = None):
+    def set_action(self, action: Callable[[str], Any], command: str | None = None):
         """修改help_send_action"""
         if command is None:
             self.send_action = action
@@ -68,8 +70,8 @@ if TYPE_CHECKING:
     from ..core import Alconna, AlconnaGroup
 
 
-def resolve_requires(options: List[Union[Option, Subcommand]]):
-    reqs: Dict[str, Union[dict, Union[Option, Subcommand]]] = {}
+def resolve_requires(options: list[Option | Subcommand]):
+    reqs: dict[str, dict | Option | Subcommand] = {}
 
     def _u(target, source):
         for k in source:
@@ -99,12 +101,12 @@ def resolve_requires(options: List[Union[Option, Subcommand]]):
 
 @dataclass
 class Trace:
-    head: Dict[str, Any]
+    head: dict[str, Any]
     args: Args
-    separators: Tuple[str, ...]
-    body: List[Union[Option, Subcommand]]
+    separators: tuple[str, ...]
+    body: list[Option | Subcommand]
 
-    def union(self, other: 'Trace'):
+    def union(self, other: Trace):
         self.head['header'] = list({*self.head['header'], *other.head['header']})
         self.body = list({*self.body, *other.body})
 
@@ -116,11 +118,11 @@ class TextFormatter:
     该格式化器负责将传入的命令节点字典解析并生成帮助文档字符串
     """
 
-    def __init__(self, base: Union['Alconna', 'AlconnaGroup']):
+    def __init__(self, base: Alconna | AlconnaGroup):
         self.data = []
         self.ignore_names = set()
 
-        def _handle(command: 'Alconna'):
+        def _handle(command: Alconna):
             self.ignore_names.update(command.namespace_config.builtin_option_name['help'])
             self.ignore_names.update(command.namespace_config.builtin_option_name['shortcut'])
             self.ignore_names.update(command.namespace_config.builtin_option_name['completion'])
@@ -141,7 +143,7 @@ class TextFormatter:
             else:
                 self.data.append(_handle(cmd))  # type: ignore
 
-    def format_node(self, end: Optional[list] = None):
+    def format_node(self, end: list | None = None):
         """
         格式化命令节点
         """
@@ -219,7 +221,7 @@ class TextFormatter:
         notice = [(arg.name, arg.notice) for arg in args.argument if arg.notice]
         return f"{res}\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice) if notice else res
 
-    def header(self, root: Dict[str, Any], separators: Tuple[str, ...]) -> str:
+    def header(self, root: dict[str, Any], separators: tuple[str, ...]) -> str:
         """头部节点的描述"""
         help_string = f"\n{desc}" if (desc := root.get('description')) else ""
         usage = f"\n用法:\n{usage}" if (usage := root.get('usage')) else ""
@@ -229,7 +231,7 @@ class TextFormatter:
         command_string = cmd or (root['name'] + separators[0])
         return f"{command_string} %s{help_string}{usage}\n%s{example}"
 
-    def part(self, node: Union[Subcommand, Option]) -> str:
+    def part(self, node: Subcommand | Option) -> str:
         """每个子节点的描述"""
         if isinstance(node, Subcommand):
             name = " ".join(node.requires) + (' ' if node.requires else '') + node.name
@@ -251,7 +253,7 @@ class TextFormatter:
         else:
             raise TypeError(f"{node} is not a valid node")
 
-    def body(self, parts: List[Union[Option, Subcommand]]) -> str:
+    def body(self, parts: list[Option | Subcommand]) -> str:
         """子节点列表的描述"""
         option_string = "".join(
             self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)

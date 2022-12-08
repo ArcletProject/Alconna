@@ -1,7 +1,9 @@
-from typing import TYPE_CHECKING, Optional, Any, Callable, overload
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, overload 
 
 from .components.action import ArgAction
-from .components.behavior import ArpamarBehavior
+from .components.behavior import ArparmaBehavior
 from .exceptions import BehaveCancelled
 
 __all__ = ["set_default", "store_value", "version", "store_true", "store_false"]
@@ -38,19 +40,62 @@ if TYPE_CHECKING:
     from arclet.alconna.arparma import Arparma
 
 
-    def version(value: Optional[tuple]):
+    def version(value: tuple | None):
         """返回一个以元组形式存储的版本信息"""
         return _StoreValue(value) if value else _StoreValue(alconna_version)
+
+
+class _SetDefault(ArparmaBehavior):
+
+    def __init__(
+        self,
+        default: Any = MISSING,
+        default_factory: Callable | _MISSING_TYPE = MISSING,
+        arg: str | None = None,
+        option: str | None = None,
+        subcommand: str | None = None
+    ):
+        self._default = default
+        self._default_factory = default_factory
+        self.arg = arg
+        self.opt = option
+        self.sub = subcommand
+
+    @property
+    def default(self):
+        return self._default if self._default is not MISSING else self._default_factory()
+
+    def operate(self, interface: Arparma):
+        if not self.opt and not self.sub:
+            raise BehaveCancelled
+        if self.arg:
+            interface.update("other_args", {self.arg: self.default})
+        if self.opt and self.sub is None and not interface.query(f"options.{self.opt}"):
+            interface.update(
+                f"options.{self.opt}",
+                {"value": None, "args": {self.arg: self.default}} if self.arg else {"value": self.default, "args": {}}
+            )
+        if self.sub and self.opt is None and not interface.query(f"subcommands.{self.sub}"):
+            interface.update(
+                f"subcommands.{self.sub}",
+                {"value": None, "args": {self.arg: self.default}, "options": {}}
+                if self.arg else {"value": self.default, "args": {}, "options": {}}
+            )
+        if self.opt and self.sub and not interface.query(f"{self.sub}.options.{self.opt}"):
+            interface.update(
+                f"{self.sub}.options.{self.opt}",
+                {"value": None, "args": {self.arg: self.default}} if self.arg else {"value": self.default, "args": {}}
+            )
 
 
 @overload
 def set_default(
     *,
     value: Any,
-    arg: Optional[str] = None,
-    option: Optional[str] = None,
-    subcommand: Optional[str] = None,
-) -> ArpamarBehavior:
+    arg: str | None = None,
+    option: str | None = None,
+    subcommand: str | None = None,
+) -> _SetDefault:
     ...
 
 
@@ -58,10 +103,10 @@ def set_default(
 def set_default(
     *,
     factory: Callable[..., Any],
-    arg: Optional[str] = None,
-    option: Optional[str] = None,
-    subcommand: Optional[str] = None,
-) -> ArpamarBehavior:
+    arg: str | None = None,
+    option: str | None = None,
+    subcommand: str | None = None,
+) -> _SetDefault:
     ...
 
 
@@ -69,10 +114,10 @@ def set_default(
     *,
     value: Any = MISSING,
     factory: Callable[..., Any] = MISSING,
-    arg: Optional[str] = None,
-    option: Optional[str] = None,
-    subcommand: Optional[str] = None,
-) -> ArpamarBehavior:
+    arg: str | None = None,
+    option: str | None = None,
+    subcommand: str | None = None,
+) -> _SetDefault:
     """
     设置一个选项的默认值, 在无该选项时会被设置
 
@@ -88,36 +133,4 @@ def set_default(
     if value is not MISSING and factory is not MISSING:
         raise ValueError('cannot specify both value and factory')
 
-    class _SetDefault(ArpamarBehavior):
-
-        def __init__(self, default, default_factory):
-            self._default = default
-            self._default_factory = default_factory
-
-        @property
-        def default(self):
-            return self._default if self._default is not MISSING else self._default_factory()
-
-        def operate(self, interface: "Arparma"):
-            if not option and not subcommand:
-                raise BehaveCancelled
-            if arg:
-                interface.update("other_args", {arg: self.default})
-            if option and subcommand is None and not interface.query(f"options.{option}"):
-                interface.update(
-                    f"options.{option}",
-                    {"value": None, "args": {arg: self.default}} if arg else {"value": self.default, "args": {}}
-                )
-            if subcommand and option is None and not interface.query(f"subcommands.{subcommand}"):
-                interface.update(
-                    f"subcommands.{subcommand}",
-                    {"value": None, "args": {arg: self.default}, "options": {}}
-                    if arg else {"value": self.default, "args": {}, "options": {}}
-                )
-            if option and subcommand and not interface.query(f"{subcommand}.options.{option}"):
-                interface.update(
-                    f"{subcommand}.options.{option}",
-                    {"value": None, "args": {arg: self.default}} if arg else {"value": self.default, "args": {}}
-                )
-
-    return _SetDefault(value, factory)
+    return _SetDefault(value, factory, arg, option, subcommand)

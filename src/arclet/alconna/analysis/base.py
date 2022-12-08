@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections import namedtuple
-from typing import TYPE_CHECKING, Union, Callable, List, Any, Tuple, Dict
+from typing import TYPE_CHECKING, Callable, Any 
 import traceback
 
 from .analyser import Analyser, TAnalyser
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
     from ..core import Alconna
 
 
-def _compile_opts(option: Option, data: Dict[str, Union[Sentence, List[Option]]]):
+def _compile_opts(option: Option, data: dict[str, Sentence | list[Option]]):
     for alias in option.aliases:
         if (li := data.get(alias)) and isinstance(li, list):
             li.append(option)  # type: ignore
@@ -23,7 +25,7 @@ def _compile_opts(option: Option, data: Dict[str, Union[Sentence, List[Option]]]
             data[alias] = [option]
 
 
-def default_params_parser(analyser: "Analyser"):
+def default_params_parser(analyser: Analyser):
     require_len = 0
     for opts in analyser.alconna.options:
         if isinstance(opts, Option):
@@ -53,13 +55,13 @@ def default_params_parser(analyser: "Analyser"):
         )
 
 
-def compile(alconna: "Alconna", params_parser: Callable[[TAnalyser], None] = default_params_parser) -> TAnalyser:
+def compile(alconna: Alconna, params_parser: Callable[[TAnalyser], None] = default_params_parser) -> TAnalyser:
     _analyser = alconna.analyser_type(alconna)
     params_parser(_analyser)
     return _analyser
 
 
-def analyse(alconna: "Alconna", command: TDataCollection) -> "Arparma[TDataCollection]":
+def analyse(alconna: Alconna, command: TDataCollection) -> Arparma[TDataCollection]:
     return compile(alconna).process(command).analyse().execute()
 
 
@@ -92,7 +94,7 @@ class _DummyAnalyser(Analyser):
         pass
 
 
-def analyse_args(args: Args, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
+def analyse_args(args: Args, command: DataCollection[str | Any], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = (' ', )
@@ -108,9 +110,9 @@ def analyse_args(args: Args, command: DataCollection[Union[str, Any]], raise_exc
 
 
 def analyse_header(
-        headers: Union[List[Union[str, Any]], List[Tuple[Any, str]]],
+        headers: list[str | Any] | list[tuple[Any, str]],
         command_name: str,
-        command: DataCollection[Union[str, Any]],
+        command: DataCollection[str | Any],
         sep: str = " ",
         raise_exception: bool = True
 ):
@@ -129,7 +131,7 @@ def analyse_header(
         return
 
 
-def analyse_option(option: Option, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
+def analyse_option(option: Option, command: DataCollection[str | Any], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = (" ", )
@@ -147,7 +149,7 @@ def analyse_option(option: Option, command: DataCollection[Union[str, Any]], rai
         return
 
 
-def analyse_subcommand(subcommand: Subcommand, command: DataCollection[Union[str, Any]], raise_exception: bool = True):
+def analyse_subcommand(subcommand: Subcommand, command: DataCollection[str | Any], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.separators = (" ", )

@@ -1,10 +1,12 @@
 """杂物堆"""
+from __future__ import annotations
+
 import sys
 import contextlib
 import inspect
 from functools import lru_cache
 from collections import OrderedDict
-from typing import TypeVar, Optional, Any, Iterator, Hashable, Tuple, Union, Mapping
+from typing import TypeVar, Any, Iterator, Hashable, Mapping
 
 R = TypeVar('R')
 
@@ -35,7 +37,7 @@ class Singleton(type):
 
 
 @lru_cache(4096)
-def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = True):
+def split_once(text: str, separates: str | tuple[str, ...], crlf: bool = True):
     """单次分隔字符串"""
     index = 0
     out_text = ""
@@ -60,7 +62,7 @@ def split_once(text: str, separates: Union[str, Tuple[str, ...]], crlf: bool = T
 
 
 @lru_cache(4096)
-def split(text: str, separates: Optional[Tuple[str, ...]] = None, crlf: bool = True):
+def split(text: str, separates: tuple[str, ...] | None = None, crlf: bool = True):
     """尊重引号与转义的字符串切分
 
     Args:
@@ -122,7 +124,7 @@ class LruCache(Mapping[_K, _V]):
         self.cache = OrderedDict()
         self.__size = 0
 
-    def get(self, key: _K, default: Optional[_T] = None) -> Union[_V, _T]:
+    def get(self, key: _K, default: _T | None = None) -> _V | _T:
         if key in self.cache:
             self.cache.move_to_end(key)
             return self.cache[key]
@@ -167,7 +169,7 @@ class LruCache(Mapping[_K, _V]):
         return repr(self.cache)
 
     @property
-    def recent(self) -> Optional[_V]:
+    def recent(self) -> _V | None:
         with contextlib.suppress(KeyError):
             return self.cache[list(self.cache.keys())[-1]]
         return None
@@ -178,7 +180,7 @@ class LruCache(Mapping[_K, _V]):
     def values(self):
         return self.cache.values()
 
-    def items(self, size: int = -1) -> Iterator[Tuple[_K, _V]]:
+    def items(self, size: int = -1) -> Iterator[tuple[_K, _V]]:
         if size > 0:
             with contextlib.suppress(IndexError):
                 return iter(list(self.cache.items())[:-size-1:-1])

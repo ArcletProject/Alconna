@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import re
 import traceback
 from copy import copy
 from typing import (
-    Dict, Union, List, Optional, TYPE_CHECKING, Tuple, Any, Generic, TypeVar, Set, Callable, ClassVar
+    TYPE_CHECKING, Any, Generic, TypeVar, Callable, ClassVar
 )
 from nepattern import pattern_map, type_parser, BasePattern
 from nepattern.util import TPattern
@@ -27,47 +29,43 @@ if TYPE_CHECKING:
 
 class Analyser(Generic[TDataCollection]):
     """ Alconna使用的分析器基类, 实现了一些通用的方法 """
-    preprocessors: Dict[str, Callable[..., Any]] = {}
+    preprocessors: dict[str, Callable[..., Any]] = {}
     text_sign: str = 'text'
-
-    alconna: 'Alconna'  # Alconna实例
-    context: Optional[Union[Arg, Subcommand, Option]]
+    alconna: Alconna  # Alconna实例
+    context: Arg | Subcommand | Option | None
     current_index: int  # 当前数据的index
-    # content_index: int  # 内部index
-    # raw_data: List[Union[Any, StrMounter]]  # 原始数据
-    bak_data: List[Union[str, Any]]
-    raw_data: List[Union[str, Any]]
+    bak_data: list[str | Any]
+    raw_data: list[str | Any]
     ndata: int  # 原始数据的长度
-    command_params: Dict[str, Union[Sentence, List[Option], Subcommand]]
-    param_ids: Set[str]
+    command_params: dict[str, Sentence | list[Option] | Subcommand]
+    param_ids: set[str]
     # 命令头部
-    command_header: Union[
-        Union[TPattern, BasePattern], List[Tuple[Any, TPattern]],
-        Tuple[Union[Tuple[List[Any], TPattern], List[Any]], Union[TPattern, BasePattern]],
-    ]
-    separators: Tuple[str, ...]  # 分隔符
+    command_header: (
+        TPattern | BasePattern | list[tuple[Any, TPattern]] |
+        tuple[tuple[list[Any], TPattern] | list[Any], TPattern | BasePattern]
+    )
+    separators: tuple[str, ...]  # 分隔符
     raise_exception: bool  # 是否抛出异常
-    options: Dict[str, Any]  # 存放解析到的所有选项
-    subcommands: Dict[str, Any]  # 存放解析到的所有子命令
-    main_args: Dict[str, Any]  # 主参数
-    header: Optional[Union[Dict[str, Any], bool]]  # 命令头部
+    options: dict[str, Any]  # 存放解析到的所有选项
+    subcommands: dict[str, Any]  # 存放解析到的所有子命令
+    main_args: dict[str, Any]  # 主参数
+    header: dict[str, Any] | bool | None  # 命令头部
     need_main_args: bool  # 是否需要主参数
     head_matched: bool  # 是否匹配了命令头部
-    # head_pos: int
     part_len: range  # 分段长度
     default_main_only: bool  # 默认只有主参数
     self_args: Args  # 自身参数
-    filter_out: ClassVar[List[str]]  # 元素黑名单
-    temporary_data: Dict[str, Any]  # 临时数据
+    filter_out: ClassVar[list[str]]  # 元素黑名单
+    temporary_data: dict[str, Any]  # 临时数据
     temp_token: int  # 临时token
-    used_tokens: Set[int]  # 已使用的token
-    sentences: List[str]  # 存放解析到的所有句子
+    used_tokens: set[int]  # 已使用的token
+    sentences: list[str]  # 存放解析到的所有句子
     default_separate: bool
     message_cache: bool
     fuzzy_match: bool
 
     @staticmethod
-    def generate_token(data: List[Union[Any, List[str]]]) -> int:
+    def generate_token(data: list[Any | list[str]]) -> int:
         return hash(str(data))
 
     def _clr(self):
@@ -77,7 +75,7 @@ class Analyser(Generic[TDataCollection]):
         for k in ks:
             delattr(self, k)
 
-    def __init__(self, alconna: "Alconna"):
+    def __init__(self, alconna: Alconna):
         if not hasattr(self, 'filter_out'):
             self.filter_out = []  # type: ignore
         self.reset()
@@ -103,7 +101,7 @@ class Analyser(Generic[TDataCollection]):
         self.__handle_main_args__(alconna.args, alconna.nargs)
         self.__init_header__(alconna.command, alconna.headers)
 
-    def __handle_main_args__(self, main_args: Args, nargs: Optional[int] = None):
+    def __handle_main_args__(self, main_args: Args, nargs: int | None = None):
         nargs = nargs or len(main_args)
         if nargs > 0 and nargs > main_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
@@ -132,27 +130,24 @@ class Analyser(Generic[TDataCollection]):
                     parts[i] = f"(?P<{_parts[0]}>.+?)"
                 else:
                     parts[i] = (
-                        f"(?P<{_parts[0]}>"
-                        f"{pattern_map[_parts[1]].pattern if _parts[1] in pattern_map else _parts[1]})"
+                        f"(?P<{_parts[0]}>{pattern_map[_parts[1]].pattern if _parts[1] in pattern_map else _parts[1]})"
                     )
         return "".join(parts)
 
     def __init_header__(
-            self,
-            command_name: Union[str, type, BasePattern],
-            headers: Union[List[Union[str, Any]], List[Tuple[Any, str]]]
+        self, command_name: str | type | BasePattern, headers: list[str | Any] | list[tuple[Any, str]]
     ):
         if isinstance(command_name, str):
             command_name = self.__handle_bracket__(command_name)
 
-        _command_name, _command_str = (
+        _cmd_name, _cmd_str = (
             (re.compile(command_name), command_name) if isinstance(command_name, str) else
             (copy(type_parser(command_name)), str(command_name))
         )
         if not headers:
-            self.command_header = _command_name  # type: ignore
+            self.command_header = _cmd_name  # type: ignore
         elif isinstance(headers[0], tuple):
-            mixins = [(h[0], re.compile(re.escape(h[1]) + _command_str)) for h in headers]  # type: ignore
+            mixins = [(h[0], re.compile(re.escape(h[1]) + _cmd_str)) for h in headers]  # type: ignore
             self.command_header = mixins
         else:
             elements = []
@@ -163,17 +158,16 @@ class Analyser(Generic[TDataCollection]):
                 else:
                     elements.append(h)
             if not elements:
-                if isinstance(_command_name, TPattern):
-                    self.command_header = re.compile(f"(?:{ch_text[:-1]}){_command_str}")  # noqa
+                if isinstance(_cmd_name, TPattern):
+                    self.command_header = re.compile(f"(?:{ch_text[:-1]}){_cmd_str}")  # noqa
                 else:
-                    _command_name.pattern = f"(?:{ch_text[:-1]}){_command_name.pattern}"  # type: ignore
-                    _command_name.regex_pattern = re.compile(_command_name.pattern)  # type: ignore
-                    self.command_header = _command_name  # type: ignore
+                    _cmd_name.pattern = f"(?:{ch_text[:-1]}){_cmd_name.pattern}"  # type: ignore
+                    _cmd_name.regex_pattern = re.compile(_cmd_name.pattern)  # type: ignore
+                    self.command_header = _cmd_name  # type: ignore
             elif not ch_text:
-                self.command_header = (elements, _command_name)  # type: ignore
+                self.command_header = (elements, _cmd_name)  # type: ignore
             else:
-                self.command_header = (
-                                      elements, re.compile(f"(?:{ch_text[:-1]})")), _command_name  # type: ignore # noqa
+                self.command_header = (elements, re.compile(f"(?:{ch_text[:-1]})")), _cmd_name  # type: ignore # noqa
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.alconna.path}>"
@@ -184,11 +178,11 @@ class Analyser(Generic[TDataCollection]):
         self.current_index, self.ndata, self.temp_token = 0, 0, 0
         self.head_matched = False
         self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
-        self.raw_data, self.sentences = [], []
+        self.raw_data, self.bak_data, self.sentences = [], [], []
         self.header, self.context = None, None
         # self.head_pos = (0, 0)
 
-    def push(self, *data: Union[str, Any]):
+    def push(self, *data: str | Any):
         for d in data:
             if not d:
                 continue
@@ -202,7 +196,7 @@ class Analyser(Generic[TDataCollection]):
         self.bak_data = self.raw_data.copy()
         return self
 
-    def popitem(self, separate: Optional[Tuple[str, ...]] = None, move: bool = True) -> Tuple[Union[str, Any], bool]:
+    def popitem(self, separate: tuple[str, ...] | None = None, move: bool = True) -> tuple[str | Any, bool]:
         """获取解析需要的下个数据"""
         if self.temporary_data.get('sep'):
             del self.temporary_data['sep']
@@ -223,7 +217,7 @@ class Analyser(Generic[TDataCollection]):
             self.current_index += 1
         return _current_data, False
 
-    def pushback(self, data: Union[str, Any], replace: bool = False):
+    def pushback(self, data: str | Any, replace: bool = False):
         """把 pop的数据放回 (实际只是‘指针’移动)"""
         if data in ("", None):
             return
@@ -237,11 +231,8 @@ class Analyser(Generic[TDataCollection]):
             self.raw_data[self.current_index] = data
 
     def release(
-        self,
-        separate: Optional[Tuple[str, ...]] = None,
-        recover: bool = False,
-        move_head: bool = True
-    ) -> List[Union[str, Any]]:
+        self, separate: tuple[str, ...] | None = None, recover: bool = False, move_head: bool = True
+    ) -> list[str | Any]:
         _result = []
         if recover:
             data = self.bak_data
@@ -258,7 +249,7 @@ class Analyser(Generic[TDataCollection]):
                 _result.append(_data)
         return _result
 
-    def process(self, data: DataCollection[Union[str, Any]]) -> 'Analyser':
+    def process(self, data: DataCollection[str | Any]) -> Analyser:
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
         self.temporary_data["origin"] = data
         if isinstance(data, str):
@@ -288,11 +279,7 @@ class Analyser(Generic[TDataCollection]):
                 self.temp_token = self.generate_token(raw_data)
         return self
 
-    def analyse(
-        self,
-        message: Union[DataCollection[Union[str, Any]], None] = None,
-        interrupt: bool = False
-    ) -> Arparma:
+    def analyse(self, message: DataCollection[str | Any] | None = None, interrupt: bool = False) -> Arparma:
         """主体解析函数, 应针对各种情况进行解析"""
         if command_manager.is_disable(self.alconna):
             return self.export(fail=True)
@@ -398,7 +385,7 @@ class Analyser(Generic[TDataCollection]):
     def converter(command: str) -> TDataCollection:
         return command  # type: ignore
 
-    def export(self, exception: Optional[BaseException] = None, fail: bool = False) -> Arparma[TDataCollection]:
+    def export(self, exception: BaseException | None = None, fail: bool = False) -> Arparma[TDataCollection]:
         """创建arpamar, 其一定是一次解析的最后部分"""
         result = Arparma(self.alconna.path, self.temporary_data.pop("origin", "None"))
         result.head_matched = self.head_matched
