@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Callable, Any, Sequence, List, TypedDict, overload 
+from typing import Callable, Any, Sequence, TypedDict, overload
+from typing_extensions import Self
+
 from .args import Args, Arg
 from .exceptions import InvalidParam
 from .config import config
@@ -23,12 +25,12 @@ class CommandNode:
     requires: list[str]
 
     def __init__(
-        self, name: str, args: Args | str | None = None,
-        dest: str | None = None,
-        action: ArgAction | Callable | None = None,
-        separators: str | Sequence[str] | set[str] | None = None,
-        help_text: str | None = None,
-        requires: str | list[str] | tuple[str, ...] | set[str] | None = None
+            self, name: str, args: Args | str | None = None,
+            dest: str | None = None,
+            action: ArgAction | Callable | None = None,
+            separators: str | Sequence[str] | set[str] | None = None,
+            help_text: str | None = None,
+            requires: str | list[str] | tuple[str, ...] | set[str] | None = None
     ):
         """
         初始化命令节点
@@ -52,11 +54,11 @@ class CommandNode:
             [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
         )) if args else Args()
         self.action = ArgAction.__validator__(action, self.args)
-        self.separators = (' ', ) if separators is None else (
-            (separators, ) if isinstance(separators, str) else tuple(separators)
+        self.separators = (' ',) if separators is None else (
+            (separators,) if isinstance(separators, str) else tuple(separators)
         )
         self.nargs = len(self.args.argument)
-        self.is_compact = self.separators == ('', )
+        self.is_compact = self.separators == ('',)
         self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name).lstrip('-')
         self.help_text = help_text or self.dest
         self._hash = self._calc_hash()
@@ -65,7 +67,7 @@ class CommandNode:
     nargs: int
     _hash: int
 
-    def separate(self, *separator: str):
+    def separate(self, *separator: str) -> Self:
         self.separators = separator
         self._hash = self._calc_hash()
         return self
@@ -90,15 +92,15 @@ class Option(CommandNode):
     priority: int
 
     def __init__(
-        self,
-        name: str, args: Args | str | None = None,
-        alias: list[str] | None = None,
-        dest: str | None = None,
-        action: ArgAction | Callable | None = None,
-        separators: str | Sequence[str] | set[str] | None = None,
-        help_text: str | None = None,
-        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
-        priority: int = 0
+            self,
+            name: str, args: Args | str | None = None,
+            alias: list[str] | None = None,
+            dest: str | None = None,
+            action: ArgAction | Callable | None = None,
+            separators: str | Sequence[str] | set[str] | None = None,
+            help_text: str | None = None,
+            requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
+            priority: int = 0
     ):
         self.aliases = alias or []
         parts = name.split(" ")
@@ -122,7 +124,7 @@ class Option(CommandNode):
     def __add__(self, other: Args | Arg) -> Option:
         ...
 
-    def __add__(self, other):
+    def __add__(self, other) -> Self | Subcommand:
         if isinstance(other, Option):
             return Subcommand(
                 self.name, [other], self.args, self.dest, self.action,
@@ -149,20 +151,20 @@ class Subcommand(CommandNode):
     sub_part_len: range
 
     def __init__(
-        self,
-        name: str, options: list[Option] | None = None, args: Args | str | None = None,
-        dest: str | None = None,
-        action: ArgAction | Callable | None = None,
-        separators: str | Sequence[str] | set[str] | None = None,
-        help_text: str | None = None,
-        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
+            self,
+            name: str, options: list[Option] | None = None, args: Args | str | None = None,
+            dest: str | None = None,
+            action: ArgAction | Callable | None = None,
+            separators: str | Sequence[str] | set[str] | None = None,
+            help_text: str | None = None,
+            requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
     ):
         self.options = options or []
         super().__init__(name, args, dest, action, separators, help_text, requires)
         self.sub_params = {}
         self.sub_part_len = range(self.nargs)
 
-    def __add__(self, other):
+    def __add__(self, other) -> Self:
         if isinstance(other, (Option, str)):
             self.options.append(Option(other) if isinstance(other, str) else other)
             self._hash = self._calc_hash()
@@ -196,7 +198,6 @@ class SubcommandResult(TypedDict):
     value: Any
     args: dict[str, Any]
     options: dict[str, OptionResult]
-
 
 
 __all__ = [

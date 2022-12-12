@@ -7,10 +7,10 @@ from copy import deepcopy
 from enum import Enum
 from contextlib import suppress
 from typing import Union, Iterable, Callable, Any, Sequence, TypeVar, Generic
-from typing_extensions import get_origin
+from typing_extensions import get_origin, Self
 from dataclasses import dataclass, field as dc_field
 from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
-from .util import _safe_dcs_args
+from .util import _safe_dcs_args, get_signature
 from .config import config
 from .exceptions import InvalidParam, NullMessage
 from .typing import MultiVar, KeyWordVar
@@ -166,10 +166,9 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             >>> Args.from_callable(test)
 
         """
-        sig = inspect.signature(target)
         _args = cls()
         method = False
-        for param in sig.parameters.values():
+        for param in get_signature(target):
             name = param.name
             if name in ["self", "cls"]:
                 method = True
@@ -223,7 +222,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "keyword_only", "_visit"
 
-    def add(self, name: str, *, value: Any, default: Any = None, flags: list[ArgFlag] | None = None):
+    def add(self, name: str, *, value: Any, default: Any = None, flags: list[ArgFlag] | None = None) -> Self:
         """
         添加一个参数
         """
@@ -233,7 +232,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.__check_vars__()
         return self
 
-    def default(self, **kwargs):
+    def default(self, **kwargs) -> Self:
         """设置参数的默认值"""
         for arg in self.argument:
             if v := (kwargs.get(arg.name)):
@@ -243,7 +242,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                     arg.field.default = v
         return self
 
-    def separate(self, *separator: str):
+    def separate(self, *separator: str) -> Self:
         """设置参数的分隔符"""
         for arg in self.argument:
             arg.separators = separator
@@ -292,7 +291,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     def __len__(self):
         return len(self.argument)
 
-    def __getitem__(self, item) -> Args | Arg:
+    def __getitem__(self, item) -> Self | Arg:
         if isinstance(item, str) and (res := next(filter(lambda x: x.name == item, self.argument), None)):
             return res
         data = item if isinstance(item, tuple) else (item,)
@@ -303,7 +302,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         self.__check_vars__()
         return self
 
-    def __merge__(self, other) -> Args:
+    def __merge__(self, other) -> Self:
         if isinstance(other, Args):
             self.argument.extend(other.argument)
             self.__check_vars__()
@@ -319,7 +318,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     __iadd__ = __merge__
     __lshift__ = __merge__
 
-    def __truediv__(self, other):
+    def __truediv__(self, other) -> Self:
         self.separate(*other if isinstance(other, (list, tuple, set)) else other)
         return self
 

@@ -6,9 +6,14 @@ import contextlib
 import inspect
 from functools import lru_cache
 from collections import OrderedDict
-from typing import TypeVar, Any, Iterator, Hashable, Mapping
+from typing import TypeVar, Any, Iterator, Hashable, Mapping, Callable
 
 R = TypeVar('R')
+
+
+@lru_cache(4096)
+def get_signature(target: Callable):
+    return inspect.signature(target).parameters.values()
 
 
 def _safe_dcs_args(**kwargs):
@@ -183,5 +188,5 @@ class LruCache(Mapping[_K, _V]):
     def items(self, size: int = -1) -> Iterator[tuple[_K, _V]]:
         if size > 0:
             with contextlib.suppress(IndexError):
-                return iter(list(self.cache.items())[:-size-1:-1])
+                return iter(list(self.cache.items())[:-size - 1:-1])
         return iter(self.cache.items())

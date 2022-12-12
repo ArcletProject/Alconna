@@ -383,8 +383,8 @@ def test_call():
     alc22.parse("core22 321 abc")
     assert cb.result == 642
 
-    alc22_1 = Alconna("core22_1", Args.foo[int], Args.bar[str])
-    res = alc22_1.parse("core22_1 123 abc")
+    alc22_1 = Alconna("core22_1", Args.foo[int], Args.bar[str], Args.baz[bool])
+    res = alc22_1.parse("core22_1 123 abc false")
 
     async def cb1(foo: int, bar: str):
         await asyncio.sleep(0.1)

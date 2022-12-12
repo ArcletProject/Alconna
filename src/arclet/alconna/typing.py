@@ -52,7 +52,7 @@ class MultiVar(BasePattern):
     def __init__(
         self,
         value: BasePattern | Any,
-        flag: int | Literal["+", "*"] = 1
+        flag: int | Literal["+", "*"] = "+"
     ):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         assert isinstance(self.base, BasePattern)

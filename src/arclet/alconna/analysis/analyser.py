@@ -3,9 +3,9 @@ from __future__ import annotations
 import re
 import traceback
 from copy import copy
-from typing import (
-    TYPE_CHECKING, Any, Generic, TypeVar, Callable, ClassVar
-)
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, Callable, ClassVar
+from typing_extensions import Self
+
 from nepattern import pattern_map, type_parser, BasePattern
 from nepattern.util import TPattern
 
@@ -77,7 +77,7 @@ class Analyser(Generic[TDataCollection]):
 
     def __init__(self, alconna: Alconna):
         if not hasattr(self, 'filter_out'):
-            self.filter_out = []  # type: ignore
+            self.filter_out = []  # noqa
         self.reset()
         self.used_tokens = set()
         self.alconna = alconna
@@ -182,7 +182,7 @@ class Analyser(Generic[TDataCollection]):
         self.header, self.context = None, None
         # self.head_pos = (0, 0)
 
-    def push(self, *data: str | Any):
+    def push(self, *data: str | Any) -> Self:
         for d in data:
             if not d:
                 continue
@@ -249,7 +249,7 @@ class Analyser(Generic[TDataCollection]):
                 _result.append(_data)
         return _result
 
-    def process(self, data: DataCollection[str | Any]) -> Analyser:
+    def process(self, data: DataCollection[str | Any]) -> Self:
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
         self.temporary_data["origin"] = data
         if isinstance(data, str):

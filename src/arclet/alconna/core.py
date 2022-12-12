@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 from functools import reduce
 from typing import List, Union, Callable, Tuple, TypeVar, overload, Iterable, Any, Literal
+from typing_extensions import Self
 from dataclasses import dataclass, field
 from .config import config, Namespace
 from .analysis.base import compile
@@ -60,7 +61,7 @@ class AlconnaGroup(CommandNode):
         self.name.replace(command_manager.sign, '')
         self.__handler_help_text__()
 
-    def __handler_help_text__(self):
+    def __handler_help_text__(self) -> Self:
         self.meta.description = "\n"
         for command in self.commands:
             self.meta.description += f" * {command.name} : {command.meta.description}\n"
@@ -92,12 +93,12 @@ class AlconnaGroup(CommandNode):
         """返回该命令的帮助信息"""
         return self.commands[0].formatter_type(self).format_node()
 
-    def append(self, *commands: Alconna):
+    def append(self, *commands: Alconna) -> Self:
         self.commands += list(commands)
         self.__handler_help_text__()
         return self
 
-    def __union__(self, other: AlconnaGroup | Alconna):
+    def __union__(self, other: AlconnaGroup | Alconna) -> Self:
         if isinstance(other, AlconnaGroup):
             self.commands += other.commands
             self.__handler_help_text__()
@@ -105,7 +106,7 @@ class AlconnaGroup(CommandNode):
             self.commands.append(other)
         return self
 
-    def reset_namespace(self, namespace: str | Namespace):
+    def reset_namespace(self, namespace: str | Namespace) -> Self:
         """重新设置命名空间"""
         command_manager.delete(self)
         if isinstance(namespace, str):
@@ -265,7 +266,7 @@ class Alconna(CommandNode):
     def namespace_config(self) -> Namespace:
         return config.namespaces[self.namespace]
 
-    def reset_namespace(self, namespace: Namespace | str, header: bool = True):
+    def reset_namespace(self, namespace: Namespace | str, header: bool = True) -> Self:
         """重新设置命名空间"""
         command_manager.delete(self)
         if isinstance(namespace, str):
@@ -292,7 +293,7 @@ class Alconna(CommandNode):
         command_manager.register(self)
         return self
 
-    def reset_behaviors(self, behaviors: list[T_ABehavior]):
+    def reset_behaviors(self, behaviors: list[T_ABehavior]) -> Self:
         """重新设置解析行为器"""
         self.behaviors = behaviors
         self.behaviors.insert(0, ActionHandler(self))
@@ -337,7 +338,7 @@ class Alconna(CommandNode):
     def __repr__(self):
         return f"{self.namespace}::{self.name}(args={self.args}, options={self.options})"
 
-    def add(self, name: str, *alias: str, args: Args | None = None, sep: str = " ", help_: str | None = None):
+    def add(self, name: str, *alias: str, args: Args | None = None, sep: str = " ", help_: str | None = None) -> Self:
         """链式注册一个 Option"""
         command_manager.delete(self)
         names = name.split(sep)
@@ -362,11 +363,13 @@ class Alconna(CommandNode):
         ...
 
     def parse(
-        self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None,
-        interrupt: bool = False, static: bool = True
+        self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None, interrupt: bool = False
     ) -> Analyser[TDataCollection] | Arparma[TDataCollection] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
-        analyser = command_manager.require(self) if static else compile(self)
+        try:
+            analyser = command_manager.require(self)
+        except ValueError:
+            analyser = compile(self)
         analyser.process(message)
         try:
             arp: Arparma[TDataCollection] = analyser.analyse(interrupt=interrupt)
@@ -383,13 +386,13 @@ class Alconna(CommandNode):
         self._executors.append(ext)
         return self._executors[-1]
 
-    def __truediv__(self, other):
+    def __truediv__(self, other) -> Self:
         self.reset_namespace(other)
         return self
 
     __rtruediv__ = __truediv__
 
-    def __add__(self, other):
+    def __add__(self, other) -> Self:
         command_manager.delete(self)
         if isinstance(other, CommandMeta):
             self.meta = other
@@ -406,7 +409,7 @@ class Alconna(CommandNode):
         command_manager.register(self)
         return self
 
-    def __or__(self, other):
+    def __or__(self, other) -> Self | AlconnaGroup:
         if isinstance(other, Alconna):
             return AlconnaGroup(self.name, self, other, namespace=self.namespace)
         return self

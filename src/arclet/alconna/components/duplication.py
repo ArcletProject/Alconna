@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast 
 from inspect import isclass
+from typing_extensions import Self
 
 from ..config import config
 from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Option
@@ -25,7 +26,7 @@ class Duplication:
     def header(self):
         return self.__target.header
 
-    def set_target(self, target: Arparma):
+    def set_target(self, target: Arparma) -> Self:
         self.__target = target
         if self.__stubs__.get("main_args"):
             getattr(self, self.__stubs__["main_args"]).set_result(target.main_args)  # type: ignore

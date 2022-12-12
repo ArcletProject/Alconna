@@ -23,6 +23,6 @@ class ArparmaExecutor(Generic[T]):
         if not arp or not arp.matched:
             raise ExecuteFailed('Unmatched')
         try:
-            return self.target(**arp.all_matched_args)
+            return arp.call(self.target)
         except Exception as e:
             raise ExecuteFailed(e) from e

@@ -28,9 +28,9 @@ T_ABehavior = Union[Type['ArparmaBehavior'], 'ArparmaBehavior']
 
 
 @lru_cache(4096)
-def requirement_handler(behavior: T_ABehavior) -> List[T_ABehavior]:
+def requirement_handler(behavior: T_ABehavior) -> list[T_ABehavior]:
     unbound_mixin = getattr(behavior, "requires", [])
-    result: List[T_ABehavior] = []
+    result: list[T_ABehavior] = []
     for i in unbound_mixin:
         if (isclass(i) and issubclass(i, ArparmaBehavior)) or isinstance(i, ArparmaBehavior):
             result.extend(requirement_handler(i))

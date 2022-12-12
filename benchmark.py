@@ -36,10 +36,10 @@ if __name__ == "__main__":
 
     sec = 0.0
     for _ in range(count):
-        st = time.time()
+        st = time.perf_counter()
         compile_alc.process(msg)
         compile_alc.analyse()
-        sec += time.time() - st
+        sec += time.perf_counter() - st
     print(f"Alconna: {count / sec:.2f}msg/s")
 
     print("RUN 2:")

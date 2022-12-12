@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import inspect
 from types import LambdaType
 from typing import Dict, Callable, Any, TYPE_CHECKING 
-from nepattern import AnyOne, AllParam, type_parser
+from nepattern import AnyOne, AllParam
 from dataclasses import dataclass
 
 from ..args import Args
@@ -69,24 +68,16 @@ class ArgAction:
         if len(args.argument) == 0:
             args.__merge__(args.from_callable(action)[0])
             return ArgAction(action)
-        argument = [
-            (name, param.annotation, param.default)
-            for name, param in inspect.signature(action).parameters.items()
-            if name not in ["self", "cls"]
-        ]
-        if len(argument) != len(args.argument):
+        target_args, _ = Args.from_callable(action)
+        if len(target_args.argument) != len(args.argument):
             raise InvalidParam(config.lang.action_length_error)
         if not isinstance(action, LambdaType):
-            for i, arg in enumerate(args.argument):
-                anno = argument[i][1]
-                if anno == inspect.Signature.empty:
-                    anno = type(argument[i][2]) if argument[i][2] is not inspect.Signature.empty else str
-                value = arg.value
-                if value in (AnyOne, AllParam):
+            for tgt, slf in zip(target_args.argument, args.argument):
+                if tgt.value in (AnyOne, AllParam):
                     continue
-                if value != type_parser(anno):
+                if tgt.value != slf.value:
                     raise InvalidParam(config.lang.action_args_error.format(
-                        target=argument[i][0], key=k, source=value.origin  # type: ignore
+                        target=tgt.value.origin, key=tgt.name, source=slf.value.origin
                     ))
         return ArgAction(action)
 
@@ -150,4 +141,3 @@ class ActionHandler(ArparmaBehavior):
                     d, action, source.meta.raise_exception  # type: ignore
                 )
                 interface.update(f"{path}.{end}", value)  # type: ignore
-

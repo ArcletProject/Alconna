@@ -3,7 +3,10 @@ from __future__ import annotations
 from typing import Any, TypeVar, overload, Generic, Mapping, Callable
 from types import MappingProxyType
 from contextlib import suppress
+from typing_extensions import Self
+
 from nepattern import Empty
+from .util import get_signature
 from .typing import TDataCollection
 from .config import config
 from .manager import command_manager
@@ -102,7 +105,7 @@ class Arparma(Generic[TDataCollection]):
     def behave_fail(self):
         raise OutBoundsBehave
 
-    def execute(self, behaviors: list[T_ABehavior] | None = None):
+    def execute(self, behaviors: list[T_ABehavior] | None = None) -> Self:
         if behaviors := (self.source.behaviors[1:] + (behaviors or [])):
             exc_behaviors = []
             for behavior in behaviors:
@@ -118,7 +121,8 @@ class Arparma(Generic[TDataCollection]):
 
     def call(self, target: Callable[..., T], **additional):
         if self.matched:
-            return target(**self.all_matched_args, **additional)
+            names = tuple(p.name for p in get_signature(target))
+            return target(**{k: v for k, v in {**self.all_matched_args, **additional}.items() if k in names})
         raise RuntimeError
 
     def _fail(self, exc: type[BaseException] | BaseException | str):
