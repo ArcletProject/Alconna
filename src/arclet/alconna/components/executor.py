@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-@dataclass(unsafe_hash=True)
+@dataclass(init=True, unsafe_hash=True)
 class ArparmaExecutor(Generic[T]):
     target: Callable[..., T]
     binding: Callable[..., Arparma | None] = field(default=lambda: None, repr=False)

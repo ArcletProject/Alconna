@@ -387,8 +387,7 @@ class Alconna(CommandNode):
         return self._executors[-1]
 
     def __truediv__(self, other) -> Self:
-        self.reset_namespace(other)
-        return self
+        return self.reset_namespace(other)
 
     __rtruediv__ = __truediv__
 
@@ -416,6 +415,5 @@ class Alconna(CommandNode):
 
     def _calc_hash(self):
         return hash(
-            (self.path + str([i.name for i in self.args.argument]) + str([i.value for i in self.args.argument])
-             + str(self.headers), *self.options, self.meta)
+            (self.path + str(self.headers), self.meta, *self.options, *self.args.argument)
         )

@@ -42,7 +42,7 @@ def test_alconna_multi_match():
     )
     assert len(alc1.options) == 6
     print("")
-    print(repr(alc1.get_help()))
+    print("Help Repr:", repr(alc1.get_help()))
     res1 = alc1.parse(["/core1 -u", 123, "test Test -u AAA -n 222 127.0.0.1"])
     assert res1.matched is True
     assert res1.query("num.count") == 222
@@ -339,13 +339,17 @@ def test_args_notice():
 
 def test_completion():
     alc20 = (
-            "core20" + Option("fool") + Option(
-        "foo",
-        Args.bar["a|b|c", Field(completion=lambda: "test completion; choose a, b or c")]
-    ) + Option(
-        "off",
-        Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])]
-    ) + Args["test", int, Field(1, completion=lambda: "try -1 ?")]
+        "core20" +
+        Option("fool") +
+        Option(
+            "foo",
+            Args.bar["a|b|c", Field(completion=lambda: "test completion; choose a, b or c")]
+        ) +
+        Option(
+            "off",
+            Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])]
+        ) +
+        Args["test", int, Field(1, completion=lambda: "try -1 ?")]
     )
 
     alc20.parse("core20 --comp")
@@ -361,8 +365,8 @@ def test_completion():
 
 def test_interrupt():
     alc21 = Alconna("core21", Args.foo[int], Args.bar[str])
-    print("\n", alc21.parse("core21"))
-    print("\n", ana := alc21.parse("core21", interrupt=True))
+    print("\n", "no interrupt [failed]:", alc21.parse("core21"))
+    print("\n", "interrupt [pending]:", ana := alc21.parse("core21", interrupt=True))
 
     assert ana.push("1", "a").analyse().matched
 

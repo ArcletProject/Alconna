@@ -305,7 +305,7 @@ def analyse_subcommand(analyser: Analyser, param: Subcommand) -> tuple[str, Subc
     return name, res
 
 
-def analyse_header(analyser: Analyser) -> dict[str, Any] | bool | None:
+def analyse_header(analyser: Analyser) -> dict[str, str] | bool | None:
     """
     分析命令头部
 
@@ -319,9 +319,9 @@ def analyse_header(analyser: Analyser) -> dict[str, Any] | bool | None:
     if isinstance(command, TPattern) and _str and (_head_find := command.fullmatch(head_text)):
         analyser.head_matched = True
         return _head_find.groupdict() or True
-    elif isinstance(command, BasePattern) and (_head_find := command(head_text, Empty).value):
+    elif isinstance(command, BasePattern) and command(head_text, Empty).success:
         analyser.head_matched = True
-        return _head_find or True
+        return True
     else:
         may_command, _m_str = analyser.popitem()
         if isinstance(command, List) and _m_str and not _str:
@@ -338,9 +338,9 @@ def analyse_header(analyser: Analyser) -> dict[str, Any] | bool | None:
                     if _m_str and (_command_find := command[1].fullmatch(may_command)):
                         analyser.head_matched = True
                         return _command_find.groupdict() or True
-                elif _command_find := command[1](may_command, Empty).value:
+                elif command[1](may_command, Empty).success:
                     analyser.head_matched = True
-                    return _command_find or True
+                    return True
             elif _str and isinstance(command[0], tuple) and isinstance(command[0][1], TPattern):
                 if _m_str:
                     pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
@@ -351,11 +351,11 @@ def analyse_header(analyser: Analyser) -> dict[str, Any] | bool | None:
                     elif _command_find := pat.fullmatch(head_text + may_command):
                         analyser.head_matched = True
                         return _command_find.groupdict() or True
-                elif isinstance(command[1], BasePattern) and (_head_find := command[0][1].fullmatch(head_text)) and (
-                        _command_find := command[1](may_command, Empty).value
+                elif isinstance(command[1], BasePattern) and (
+                    (_head_find := command[0][1].fullmatch(head_text)) and command[1](may_command, Empty).success
                 ):
                     analyser.head_matched = True
-                    return _command_find or True
+                    return _head_find.groupdict() or True
 
     if not analyser.head_matched:
         if _str and analyser.fuzzy_match:

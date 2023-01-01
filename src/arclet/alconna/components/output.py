@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from weakref import finalize
-from typing import Callable, Coroutine, Any, TYPE_CHECKING 
-from dataclasses import dataclass
+from typing import Callable, Any, TYPE_CHECKING
+from dataclasses import dataclass, field
 from nepattern import Empty, AllParam, BasePattern
 
 from .action import ArgAction
@@ -11,29 +11,22 @@ from ..args import Args, Arg
 from ..base import Option, Subcommand
 
 
+@dataclass(init=True, unsafe_hash=True)
 class OutputAction(ArgAction):
-    output_text_call: Callable[[], str]
-
-    def __init__(self, send_action, out_call, command=None):
-        super().__init__(send_action)
-        self.output_text_call = out_call
-        self.command = command
+    generator: Callable[[], str]
 
     def handle(self, option_dict=None, varargs=None, kwargs=None, raise_exception=False):
-        return super().handle({"help": self.output_text_call()}, varargs, kwargs, raise_exception)
+        return super().handle({"help": self.generator()}, varargs, kwargs, raise_exception)
 
 
+@dataclass
 class OutputActionManager(metaclass=Singleton):
     """帮助信息"""
-    cache: dict[str, Callable]
-    outputs: dict[str, OutputAction]
-    send_action: Callable[[str], Any | Coroutine]
+    cache: dict[str, Callable] = field(default_factory=dict)
+    outputs: dict[str, OutputAction] = field(default_factory=dict)
+    send_action: Callable[[str], Any] = field(default=lambda x: print(x))
 
-    def __init__(self):
-        self.cache = {}
-        self.outputs = {}
-        self.send_action = lambda x: print(x)
-
+    def __post_init__(self):
         def _clr(mgr: OutputActionManager):
             mgr.cache.clear()
             mgr.outputs.clear()
@@ -41,21 +34,34 @@ class OutputActionManager(metaclass=Singleton):
 
         finalize(self, _clr, self)
 
-    def get(self, command: str, output_call: Callable[[], str]) -> OutputAction:
-        """获取发送帮助信息的 action"""
-        if command not in self.outputs:
-            self.outputs[command] = OutputAction(self.send_action, output_call, command)
-        else:
-            self.outputs[command].output_text_call = output_call
+    def send(self, command: str | None = None, generator: Callable[[], str] | None = None, raise_exception=False):
+        """发送帮助信息"""
+        if action := self.get(command):
+            if generator:
+                action.generator = generator
+            return action.handle(raise_exception=raise_exception)
+        if generator:
+            return self.set(generator, command).handle(raise_exception=raise_exception)
+        raise KeyError(f"Command {command} not found")
 
-        if command in self.cache:
-            self.outputs[command].action = self.cache[command]
-            del self.cache[command]
+    def get(self, command: str | None = None) -> OutputAction | None:
+        """获取帮助信息"""
+        return self.outputs.get(command or "$global")
+
+    def set(self, generator: Callable[[], str], command: str | None = None) -> OutputAction:
+        """设置帮助信息"""
+        command = command or "$global"
+        if command in self.outputs:
+            self.outputs[command].generator = generator
+        elif command in self.cache:
+            self.outputs[command] = OutputAction(self.cache.pop(command), generator)
+        else:
+            self.outputs[command] = OutputAction(self.send_action, generator)
         return self.outputs[command]
 
     def set_action(self, action: Callable[[str], Any], command: str | None = None):
         """修改help_send_action"""
-        if command is None:
+        if command is None or command == "$global":
             self.send_action = action
         elif cmd := self.outputs.get(command):
             cmd.action = action
@@ -64,7 +70,6 @@ class OutputActionManager(metaclass=Singleton):
 
 
 output_manager = OutputActionManager()
-
 
 if TYPE_CHECKING:
     from ..core import Alconna, AlconnaGroup

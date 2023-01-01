@@ -29,7 +29,7 @@ class OptionNames(TypedDict):
     completion: set[str]
 
 
-@dataclass
+@dataclass(init=True, repr=True)
 class Namespace:
     name: str
     headers: list[str | object] | list[tuple[object, str]] = field(default_factory=list)

@@ -45,7 +45,7 @@ class Field(Generic[_T]):
 @dataclass(**_safe_dcs_args(init=False, eq=True, unsafe_hash=True, slots=True))
 class Arg:
     name: str = dc_field(compare=True, hash=True)
-    value: TAValue = dc_field(compare=False, hash=False)
+    value: TAValue = dc_field(compare=False, hash=True)
     field: Field[_T] = dc_field(compare=False, hash=False)
     notice: str | None = dc_field(compare=False, hash=False)
     flag: set[ArgFlag] = dc_field(compare=False, hash=False)

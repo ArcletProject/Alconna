@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Callable, Any, Sequence, TypedDict, overload
+from typing import Callable, Any, Sequence, TypedDict, overload, Iterable
 from typing_extensions import Self
 
 from .args import Args, Arg
@@ -25,12 +25,11 @@ class CommandNode:
     requires: list[str]
 
     def __init__(
-            self, name: str, args: Args | str | None = None,
-            dest: str | None = None,
-            action: ArgAction | Callable | None = None,
-            separators: str | Sequence[str] | set[str] | None = None,
-            help_text: str | None = None,
-            requires: str | list[str] | tuple[str, ...] | set[str] | None = None
+        self, name: str, args: Args | str | None = None,
+        dest: str | None = None, action: ArgAction | Callable | None = None,
+        separators: str | Sequence[str] | set[str] | None = None,
+        help_text: str | None = None,
+        requires: str | list[str] | tuple[str, ...] | set[str] | None = None
     ):
         """
         初始化命令节点
@@ -48,8 +47,8 @@ class CommandNode:
             raise InvalidParam(config.lang.node_name_error)
         _parts = name.split(" ")
         self.name = _parts[-1]
-        self.requires = (list(requires) if isinstance(requires, (list, tuple, set)) else [requires]) \
-            if requires else _parts[:-1]
+        self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []
+        self.requires.extend(_parts[:-1])
         self.args = (args if isinstance(args, Args) else Args.from_string_list(
             [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
         )) if args else Args()
@@ -92,28 +91,26 @@ class Option(CommandNode):
     priority: int
 
     def __init__(
-            self,
-            name: str, args: Args | str | None = None,
-            alias: list[str] | None = None,
-            dest: str | None = None,
-            action: ArgAction | Callable | None = None,
-            separators: str | Sequence[str] | set[str] | None = None,
-            help_text: str | None = None,
-            requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
-            priority: int = 0
+        self,
+        name: str, args: Args | str | None = None, alias: Iterable[str] | None = None,
+        dest: str | None = None, action: ArgAction | Callable | None = None,
+        separators: str | Sequence[str] | set[str] | None = None,
+        help_text: str | None = None,
+        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
+        priority: int = 0
     ):
-        self.aliases = alias or []
-        parts = name.split(" ")
-        name, rest = parts[-1], parts[:-1]
-        if "|" in name:
-            _aliases = name.split('|')
+        self.aliases: list[str] = list(alias or [])
+        _name = name.split(" ")[-1]
+        if "|" in _name:
+            _aliases = _name.split('|')
             _aliases.sort(key=len, reverse=True)
-            name = _aliases[0]
+            name = name.replace(_name, _aliases[0])
+            _name = _aliases[0]
             self.aliases.extend(_aliases[1:])
-        self.aliases.insert(0, name)
+        self.aliases.insert(0, _name)
         self.priority = priority
         super().__init__(
-            " ".join(rest) + (" " if rest else "") + name, args, dest, action, separators, help_text, requires
+            name, args, dest, action, separators, help_text, requires
         )
 
     @overload
@@ -151,13 +148,12 @@ class Subcommand(CommandNode):
     sub_part_len: range
 
     def __init__(
-            self,
-            name: str, options: list[Option] | None = None, args: Args | str | None = None,
-            dest: str | None = None,
-            action: ArgAction | Callable | None = None,
-            separators: str | Sequence[str] | set[str] | None = None,
-            help_text: str | None = None,
-            requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
+        self,
+        name: str, options: list[Option] | None = None, args: Args | str | None = None,
+        dest: str | None = None, action: ArgAction | Callable | None = None,
+        separators: str | Sequence[str] | set[str] | None = None,
+        help_text: str | None = None,
+        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
     ):
         self.options = options or []
         super().__init__(name, args, dest, action, separators, help_text, requires)
@@ -183,7 +179,7 @@ class Subcommand(CommandNode):
         raise TypeError(f"unsupported operand type(s) for +: '{other.__class__.__name__}' and 'Subcommand'")
 
 
-@dataclass
+@dataclass(frozen=True, eq=True)
 class Sentence:
     name: str
     separators: tuple[str, ...] = field(default=(' ',))

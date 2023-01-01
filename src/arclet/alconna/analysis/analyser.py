@@ -41,7 +41,7 @@ class Analyser(Generic[TDataCollection]):
     param_ids: set[str]
     # 命令头部
     command_header: (
-        TPattern | BasePattern | list[tuple[Any, TPattern]] |
+        BasePattern | TPattern | list[tuple[Any, TPattern]] |
         tuple[tuple[list[Any], TPattern] | list[Any], TPattern | BasePattern]
     )
     separators: tuple[str, ...]  # 分隔符
@@ -49,7 +49,7 @@ class Analyser(Generic[TDataCollection]):
     options: dict[str, Any]  # 存放解析到的所有选项
     subcommands: dict[str, Any]  # 存放解析到的所有子命令
     main_args: dict[str, Any]  # 主参数
-    header: dict[str, Any] | bool | None  # 命令头部
+    header: dict[str, str] | bool | None  # 命令头部
     need_main_args: bool  # 是否需要主参数
     head_matched: bool  # 是否匹配了命令头部
     part_len: range  # 分段长度
@@ -307,7 +307,7 @@ class Analyser(Generic[TDataCollection]):
                     raise e from exc
                 return self.export(fail=True, exception=e)
         except FuzzyMatchSuccess as Fuzzy:
-            output_manager.get(self.alconna.name, lambda: str(Fuzzy)).handle(raise_exception=self.raise_exception)
+            output_manager.send(self.alconna.name, lambda: str(Fuzzy), self.raise_exception)
             return self.export(fail=True)
 
         for _ in self.part_len:
@@ -343,7 +343,7 @@ class Analyser(Generic[TDataCollection]):
                 elif isinstance(_param, Sentence):
                     self.sentences.append(self.popitem()[0])
             except FuzzyMatchSuccess as e:
-                output_manager.get(self.alconna.name, lambda: str(e)).handle(raise_exception=self.raise_exception)
+                output_manager.send(self.alconna.name, lambda: str(e), self.raise_exception)
                 return self.export(fail=True)
             except CompletionTriggered as comp:
                 return handle_completion(self, comp.args[0])
@@ -387,9 +387,7 @@ class Analyser(Generic[TDataCollection]):
 
     def export(self, exception: BaseException | None = None, fail: bool = False) -> Arparma[TDataCollection]:
         """创建arpamar, 其一定是一次解析的最后部分"""
-        result = Arparma(self.alconna.path, self.temporary_data.pop("origin", "None"))
-        result.head_matched = self.head_matched
-        result.matched = not fail
+        result = Arparma(self.alconna.path, self.temporary_data.pop("origin", "None"), not fail, self.head_matched)
         if fail:
             result.error_info = repr(exception or traceback.format_exc(limit=1))
             result.error_data = self.release()

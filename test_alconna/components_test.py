@@ -59,7 +59,7 @@ def test_duplication():
     assert duplication.bar.available is True
     assert duplication.bar.args.bar == 'abc'
     assert duplication.sub.available is True
-    assert duplication.sub.option("sub1").args.first_arg == 'xyz'
+    assert duplication.sub.option("sub1").args.first == 'xyz'
     duplication1 = com4.parse("comp4 123 --bar abc sub --sub1 xyz", duplication=Demo1)
     assert isinstance(duplication1, Demo1)
     assert isinstance(duplication1.foo, int)

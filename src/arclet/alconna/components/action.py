@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from ..core import Alconna
 
 
-@dataclass
+@dataclass(init=True, unsafe_hash=True)
 class ArgAction:
     """负责封装action的类"""
     action: Callable[..., Any]

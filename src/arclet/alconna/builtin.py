@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, overload 
 
 from .components.action import ArgAction
@@ -45,45 +46,41 @@ if TYPE_CHECKING:
         return _StoreValue(value) if value else _StoreValue(alconna_version)
 
 
+@dataclass(init=True, eq=True, frozen=True)
 class _SetDefault(ArparmaBehavior):
-
-    def __init__(
-        self,
-        default: Any = MISSING,
-        default_factory: Callable | _MISSING_TYPE = MISSING,
-        arg: str | None = None,
-        option: str | None = None,
-        subcommand: str | None = None
-    ):
-        self._default = default
-        self._default_factory = default_factory
-        self.arg = arg
-        self.opt = option
-        self.sub = subcommand
+    _default: Any = field(default=MISSING)
+    _default_factory: Callable | _MISSING_TYPE = field(default=MISSING)
+    arg: str | None = field(default=None)
+    option: str | None = field(default=None)
+    subcommand: str | None = field(default=None)
 
     @property
     def default(self):
-        return self._default if self._default is not MISSING else self._default_factory()
+        if self._default is not MISSING:
+            return self._default
+        if callable(self._default_factory):
+            return self._default_factory()
+        raise BehaveCancelled('cannot specify both value and factory')
 
     def operate(self, interface: Arparma):
-        if not self.opt and not self.sub:
+        if not self.option and not self.subcommand:
             raise BehaveCancelled
         if self.arg:
             interface.update("other_args", {self.arg: self.default})
-        if self.opt and self.sub is None and not interface.query(f"options.{self.opt}"):
+        if self.option and self.subcommand is None and not interface.query(f"options.{self.option}"):
             interface.update(
-                f"options.{self.opt}",
+                f"options.{self.option}",
                 {"value": None, "args": {self.arg: self.default}} if self.arg else {"value": self.default, "args": {}}
             )
-        if self.sub and self.opt is None and not interface.query(f"subcommands.{self.sub}"):
+        if self.subcommand and self.option is None and not interface.query(f"subcommands.{self.subcommand}"):
             interface.update(
-                f"subcommands.{self.sub}",
+                f"subcommands.{self.subcommand}",
                 {"value": None, "args": {self.arg: self.default}, "options": {}}
                 if self.arg else {"value": self.default, "args": {}, "options": {}}
             )
-        if self.opt and self.sub and not interface.query(f"{self.sub}.options.{self.opt}"):
+        if self.option and self.subcommand and not interface.query(f"{self.subcommand}.options.{self.option}"):
             interface.update(
-                f"{self.sub}.options.{self.opt}",
+                f"{self.subcommand}.options.{self.option}",
                 {"value": None, "args": {self.arg: self.default}} if self.arg else {"value": self.default, "args": {}}
             )
 
