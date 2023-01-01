@@ -23,3 +23,5 @@ alconna_version = (1, 5, 0)
 
 if TYPE_CHECKING:
     from .builtin import version
+
+Arpamar = Arparma

@@ -11,7 +11,7 @@ authors = [
 ]
 dependencies = [
     "typing-extensions~=4.4.0",
-    "nepattern>=0.3.2",
+    "nepattern>=0.4.2",
 ]
 requires-python = ">=3.8"
 readme = "README-EN.md"
@@ -54,7 +54,7 @@ includes = ["src/arclet"]
 [tool.pdm.dev-dependencies]
 dev = [
     "pytest~=7.2.0",
-    "coverage~=6.5.0",
+    "coverage~=7.0.1",
     "pydeps~=1.11.0",
     "fix-future-annotations>=0.4.0",
 ]

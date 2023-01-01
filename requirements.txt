@@ -1,2 +1,2 @@
 typing_extensions~=4.4.0
-nepattern>=0.3.2
+nepattern>=0.4.2

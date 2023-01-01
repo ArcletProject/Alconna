@@ -9,7 +9,7 @@ from contextlib import suppress
 from typing import Union, Iterable, Callable, Any, Sequence, TypeVar, Generic
 from typing_extensions import get_origin, Self
 from dataclasses import dataclass, field as dc_field
-from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionArg, type_parser, pattern_map
+from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionPattern, type_parser, pattern_map
 from .util import _safe_dcs_args, get_signature
 from .config import config
 from .exceptions import InvalidParam, NullMessage
@@ -67,9 +67,9 @@ class Arg:
         self.name = name
         _value = type_parser(value or name)
         default = field if isinstance(field, Field) else Field(field)
-        if isinstance(_value, UnionArg) and _value.optional:
+        if isinstance(_value, UnionPattern) and _value.optional:
             default.default = Empty if default.default is None else default.default
-        if default.default in ("...", Ellipsis):
+        if default.default == "...":
             default.default = Empty
         if _value is Empty:
             raise InvalidParam(config.lang.args_value_error.format(target=name))
@@ -124,7 +124,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     optional_count: int
 
     @classmethod
-    def from_string_list(cls, args: list[list[str]], custom_types: dict) -> Args:
+    def from_string_list(cls, args: list[list[str]], custom_types: dict[str, type]) -> Args:
         """
         从处理好的字符串列表中生成Args
 
@@ -136,22 +136,23 @@ class Args(metaclass=ArgsMeta):  # type: ignore
             if (_le := len(arg)) == 0:
                 raise NullMessage
             default = arg[2].strip(" ") if _le > 2 else None
-            value = AllParam if arg[0].startswith("...") else (
-                AnyOne if arg[0].startswith("..") else (arg[1].strip(" ") if _le > 1 else arg[0].lstrip(".-"))
+            name = arg[0].strip(" ")
+            value = AllParam if name.startswith("...") else (
+                AnyOne if name.startswith("..") else (arg[1].strip(" ") if _le > 1 else name.lstrip(".-"))
             )
-            name = arg[0].replace("...", "").replace("..", "")
+            name = name.replace("...", "").replace("..", "")
+            _multi, _kw, _slice = "", False, -1
             if value not in (AllParam, AnyOne):
-                if custom_types and custom_types.get(value) and not inspect.isclass(custom_types[value]):
-                    raise InvalidParam(config.lang.common_custom_type_error.format(target=custom_types[value]))
+                if mat := re.match(r"^(?P<name>.+?)(?P<multi>[+*]+)(\[)?(?P<slice>\d*)(])?$", value):
+                    value = mat["name"]
+                    _multi = mat["multi"][0]
+                    _kw = len(mat["multi"]) > 1
+                    _slice = int(mat["slice"] or -1)
                 with suppress(NameError, ValueError, TypeError):
-                    if pattern_map.get(value, None):
-                        value = pattern_map[value]
-                        if default:
-                            default = (get_origin(value.origin) or value.origin)(default)
-                    else:
-                        value = eval(value, custom_types)  # type: ignore
-                        if default:
-                            default = value(default)
+                    value = pattern_map.get(value, None) or type_parser(eval(value, custom_types))  # type: ignore
+                    default = (get_origin(value.origin) or value.origin)(default) if default else default
+                if _multi:
+                    value = MultiVar(KeyWordVar(value) if _kw else value, _slice if _slice > 1 else _multi)
             _args.add(name, value=value, default=default)
         return _args
 
