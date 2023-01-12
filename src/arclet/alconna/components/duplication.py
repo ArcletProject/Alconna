@@ -29,10 +29,10 @@ class Duplication:
             getattr(self, self.__stubs__["main_args"]).set_result(target.main_args.copy())  # type: ignore
         for key in self.__stubs__["options"]:
             if key in target.options:
-                getattr(self, key).set_result(target._options[key].copy())  # noqa
+                getattr(self, key).set_result(target.options[key])  # noqa
         for key in self.__stubs__["subcommands"]:
             if key in target.subcommands:
-                getattr(self, key).set_result(target._subcommands[key].copy())  # noqa
+                getattr(self, key).set_result(target.subcommands[key])  # noqa
         for key in target.all_matched_args:
             if key in self.__stubs__['other_args']:
                 setattr(self, key, target.all_matched_args[key])

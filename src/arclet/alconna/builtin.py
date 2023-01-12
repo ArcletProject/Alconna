@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable, overload
 from .components.action import ArgAction
 from .components.behavior import ArparmaBehavior
 from .exceptions import BehaveCancelled
+from .model import OptionResult, SubcommandResult
 
 __all__ = ["set_default", "store_value", "version", "store_true", "store_false"]
 
@@ -23,7 +24,7 @@ class _StoreValue(ArgAction):
     def __init__(self, value: Any):
         super().__init__(lambda: value)
 
-    def handle(self, option_dict, varargs=None, kwargs=None, raise_exception=False):
+    def handle(self, params, varargs=None, kwargs=None, raise_exc=False):
         return self.action()
 
 
@@ -46,7 +47,7 @@ if TYPE_CHECKING:
         return _StoreValue(value) if value else _StoreValue(alconna_version)
 
 
-@dataclass(init=True, eq=True, frozen=True)
+@dataclass(init=True, eq=True)
 class _SetDefault(ArparmaBehavior):
     _default: Any = field(default=MISSING)
     _default_factory: Callable | _MISSING_TYPE = field(default=MISSING)
@@ -65,24 +66,32 @@ class _SetDefault(ArparmaBehavior):
     def operate(self, interface: Arparma):
         if not self.option and not self.subcommand:
             raise BehaveCancelled
-        if self.arg:
-            interface.update("other_args", {self.arg: self.default})
-        if self.option and self.subcommand is None and not interface.query(f"options.{self.option}"):
-            interface.update(
-                f"options.{self.option}",
-                {"value": None, "args": {self.arg: self.default}} if self.arg else {"value": self.default, "args": {}}
-            )
-        if self.subcommand and self.option is None and not interface.query(f"subcommands.{self.subcommand}"):
-            interface.update(
-                f"subcommands.{self.subcommand}",
-                {"value": None, "args": {self.arg: self.default}, "options": {}}
-                if self.arg else {"value": self.default, "args": {}, "options": {}}
-            )
-        if self.option and self.subcommand and not interface.query(f"{self.subcommand}.options.{self.option}"):
-            interface.update(
-                f"{self.subcommand}.options.{self.option}",
-                {"value": None, "args": {self.arg: self.default}} if self.arg else {"value": self.default, "args": {}}
-            )
+        if self.arg and self.arg in interface.other_args:
+            self.update(interface, f"other_args.{self.arg}", self.default)
+        if self.option and self.subcommand is None:
+            if not interface.query(f"options.{self.option}"):
+                self.update(
+                    interface, f"options.{self.option}",
+                    OptionResult(None, {self.arg: self.default}) if self.arg else OptionResult(self.default)
+                )
+            elif self.arg and not interface.query(f"options.{self.option}.{self.arg}"):
+                self.update(interface, f"options.{self.option}.{self.arg}", self.default)
+        if self.subcommand and self.option is None:
+            if not interface.query(f"subcommands.{self.subcommand}"):
+                self.update(
+                    interface, f"subcommands.{self.subcommand}",
+                    SubcommandResult(None, {self.arg: self.default}) if self.arg else SubcommandResult(self.default)
+                )
+            elif self.arg and not interface.query(f"subcommands.{self.subcommand}.{self.arg}"):
+                self.update(interface, f"subcommands.{self.subcommand}.{self.arg}", self.default)
+        if self.option and self.subcommand:
+            if not interface.query(f"subcommands.{self.subcommand}.options.{self.option}"):
+                self.update(
+                    interface, f"subcommands.{self.subcommand}.options.{self.option}",
+                    OptionResult(None, {self.arg: self.default}) if self.arg else OptionResult(self.default)
+                )
+            elif self.arg and not interface.query(f"subcommands.{self.subcommand}.options.{self.option}.{self.arg}"):
+                self.update(interface, f"subcommands.{self.subcommand}.options.{self.option}.{self.arg}", self.default)
 
 
 @overload

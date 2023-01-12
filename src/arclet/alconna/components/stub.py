@@ -7,7 +7,8 @@ from dataclasses import dataclass, field
 from nepattern import BasePattern, AllParam, AnyOne
 
 from ..args import Args
-from ..base import Option, Subcommand, OptionResult, SubcommandResult  # type: ignore
+from ..base import Option, Subcommand
+from ..model import OptionResult, SubcommandResult
 from ..config import config
 
 T = TypeVar('T')
@@ -58,7 +59,7 @@ class ArgsStub(BaseStub[Args]):
 
     def set_result(self, result: dict[str, Any]):
         if result:
-            self._value = result
+            self._value = result.copy()
             self.available = True
 
     @property
@@ -117,8 +118,8 @@ class OptionStub(BaseStub[Option]):
 
     def set_result(self, result: OptionResult | None):
         if result:
-            self._value = result['value']
-            self.args.set_result(result['args'])
+            self._value = result.value
+            self.args.set_result(result.args)
             self.available = True
 
 
@@ -139,10 +140,10 @@ class SubcommandStub(BaseStub[Subcommand]):
         self.options = [OptionStub(opt) for opt in self._origin.options]
 
     def set_result(self, result: SubcommandResult):
-        self._value = result['value']
-        self.args.set_result(result['args'])
+        self._value = result.value
+        self.args.set_result(result.args)
         for option in self.options:
-            option.set_result(result['options'].get(option.dest, None))
+            option.set_result(result.options.get(option.dest, None))
         self.available = True
 
     def option(self, name: str) -> OptionStub:

@@ -4,6 +4,7 @@ from weakref import finalize
 from typing import Callable, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from nepattern import Empty, AllParam, BasePattern
+from contextlib import contextmanager
 
 from .action import ArgAction
 from ..util import Singleton
@@ -14,9 +15,10 @@ from ..base import Option, Subcommand
 @dataclass(init=True, unsafe_hash=True)
 class OutputAction(ArgAction):
     generator: Callable[[], str]
+    cache: dict[str, str] = field(default_factory=dict, hash=False, init=False)
 
-    def handle(self, option_dict=None, varargs=None, kwargs=None, raise_exception=False):
-        return super().handle({"help": self.generator()}, varargs, kwargs, raise_exception)
+    def handle(self, params=None, varargs=None, kwargs=None, raise_exc=False):
+        return super().handle({"help": self.generator()}, varargs, kwargs, raise_exc)
 
 
 @dataclass
@@ -35,21 +37,21 @@ class OutputActionManager(metaclass=Singleton):
         finalize(self, _clr, self)
 
     def send(self, command: str | None = None, generator: Callable[[], str] | None = None, raise_exception=False):
-        """发送帮助信息"""
+        """调用指定的输出行为"""
         if action := self.get(command):
             if generator:
                 action.generator = generator
-            return action.handle(raise_exception=raise_exception)
+            return action.cache.update(action.handle(raise_exc=raise_exception))
         if generator:
-            return self.set(generator, command).handle(raise_exception=raise_exception)
+            return action.cache.update(self.set(generator, command).handle(raise_exc=raise_exception))
         raise KeyError(f"Command {command} not found")
 
     def get(self, command: str | None = None) -> OutputAction | None:
-        """获取帮助信息"""
+        """获取指定的输出行为"""
         return self.outputs.get(command or "$global")
 
     def set(self, generator: Callable[[], str], command: str | None = None) -> OutputAction:
-        """设置帮助信息"""
+        """设置指定的输出行为"""
         command = command or "$global"
         if command in self.outputs:
             self.outputs[command].generator = generator
@@ -60,13 +62,22 @@ class OutputActionManager(metaclass=Singleton):
         return self.outputs[command]
 
     def set_action(self, action: Callable[[str], Any], command: str | None = None):
-        """修改help_send_action"""
+        """修改输出行为"""
         if command is None or command == "$global":
             self.send_action = action
         elif cmd := self.outputs.get(command):
             cmd.action = action
         else:
             self.cache[command] = action
+
+    @contextmanager
+    def capture(self, command: str | None = None):
+        """捕获输出"""
+        command = command or "$global"
+        if not (action := self.outputs.get(command)):
+            raise KeyError(f"Command {command} not found")
+        yield action.cache
+        action.cache.clear()
 
 
 output_manager = OutputActionManager()

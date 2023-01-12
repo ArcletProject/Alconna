@@ -11,7 +11,7 @@ from .util import get_signature
 from .typing import TDataCollection
 from .config import config
 from .manager import command_manager
-from .base import SubcommandResult, OptionResult
+from .model import SubcommandResult, OptionResult, HeadResult
 from .exceptions import BehaveCancelled, OutBoundsBehave
 from .components.behavior import T_ABehavior, requirement_handler
 from .components.duplication import Duplication, generate_duplication
@@ -28,15 +28,13 @@ class Arparma(Generic[TDataCollection]):
     _source: str
     origin: TDataCollection
     matched: bool = field(default=False)
-    head_matched: bool = field(default=False)
+    header_match: HeadResult = field(default=HeadResult())
     error_data: list[str | Any] = field(default_factory=list)
     error_info: str | BaseException | type[BaseException] = field(default='')
-    other_args: dict[str, Any] = field(default_factory=dict)
     main_args: dict[str, Any] = field(default_factory=dict)
-    _header: dict[str, str] = field(default_factory=dict)
-    _options: dict[str, OptionResult] = field(default_factory=dict)
-    _subcommands: dict[str, SubcommandResult] = field(default_factory=dict)
-    _record: set[str] = field(default_factory=set)
+    other_args: dict[str, Any] = field(default_factory=dict)
+    options: dict[str, OptionResult] = field(default_factory=dict)
+    subcommands: dict[str, SubcommandResult] = field(default_factory=dict)
 
     def _clr(self):
         ks = list(self.__dict__.keys())
@@ -50,23 +48,23 @@ class Arparma(Generic[TDataCollection]):
     @property
     def header(self) -> dict[str, str]:
         """返回可能解析到的命令头中的信息"""
-        return self._header or {}
+        return self.header_match.groups
+
+    @property
+    def header_matched(self):
+        return self.header_match.matched
+
+    @property
+    def header_result(self):
+        return self.header_match.result
 
     @property
     def non_component(self) -> bool:
-        return not self._subcommands and not self._options
+        return not self.subcommands and not self.options
 
     @property
     def components(self) -> dict[str, OptionResult | SubcommandResult]:
-        return {**self._options, **self._subcommands}
-
-    @property
-    def options(self) -> dict[str, dict[str, Any] | Any]:
-        return {**self._options}
-
-    @property
-    def subcommands(self) -> dict[str, dict[str, Any] | Any]:
-        return {**self._subcommands}
+        return {**self.options, **self.subcommands}
 
     @property
     def all_matched_args(self) -> dict[str, Any]:
@@ -78,24 +76,22 @@ class Arparma(Generic[TDataCollection]):
 
     def encapsulate_result(
         self,
-        header: dict[str, str] | bool | None,
         main_args: dict[str, Any],
         options: dict[str, OptionResult],
         subcommands: dict[str, SubcommandResult]
     ) -> None:
         """处理 Arparma 中的数据"""
         self.main_args = main_args.copy()
-        self._header = header.copy() if isinstance(header, dict) else {}
-        self._options = options.copy()
-        self._subcommands = subcommands.copy()
+        self.options = options.copy()
+        self.subcommands = subcommands.copy()
         for v in options.values():
-            self.other_args = {**self.other_args, **v['args']}
+            self.other_args = {**self.other_args, **v.args}
         for k in subcommands:
             v = subcommands[k]
-            self.other_args = {**self.other_args, **v['args']}
-            if sub_opts := v['options']:
+            self.other_args = {**self.other_args, **v.args}
+            if sub_opts := v.options:
                 for vv in sub_opts.values():
-                    self.other_args = {**self.other_args, **vv['args']}
+                    self.other_args = {**self.other_args, **vv.args}
 
     @staticmethod
     def behave_cancel():
@@ -126,18 +122,15 @@ class Arparma(Generic[TDataCollection]):
         raise RuntimeError
 
     def _fail(self, exc: type[BaseException] | BaseException | str):
-        return Arparma(self._source, self.origin, matched=False, head_matched=True, error_info=exc)
+        return Arparma(self._source, self.origin, matched=False, error_info=exc)
 
     def __require__(self, parts: list[str]) -> tuple[dict[str, Any] | OptionResult | SubcommandResult | None, str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
         if len(parts) == 1:
             part = parts[0]
-            if part in self.main_args:
-                return self.main_args, part
-            if part in self.other_args:
-                return self.other_args, part
-            if part in self.components:
-                return self.components[part], ''
+            for src in (self.main_args, self.other_args, self.options, self.subcommands):
+                if part in src:
+                    return src, part
             if part in {"options", "subcommands", "main_args", "other_args"}:
                 return getattr(self, part, {}), ''
             return (self.all_matched_args, '') if part == "args" else (None, part)
@@ -147,36 +140,39 @@ class Arparma(Generic[TDataCollection]):
 
         def _handle_opt(_pf: str, _parts: list[str], _opts: dict[str, OptionResult]):
             if _pf == "options":
-                if not _parts:
-                    __src = _opts
-                elif not (__src := _opts.get(__p := _parts.pop(0))):
-                    return _opts, __p
-            else:
-                __src = _opts[_pf]
-            if not _parts:  # options.foo
-                return __src, ''
-            if (_end := _parts.pop(0)) in {'args', 'value'}:
+                _pf = _parts.pop(0)
+            if not _parts:  # options.foo or foo
+                return _opts, _pf
+            elif not (__src := _opts.get(_pf)):  # options.foo.bar or foo.bar
+                return _opts, _pf
+            if _end := _parts.pop(0) == "value":
                 return __src, _end
-            return (__src['args'], _end) if _end in __src['args'] else (None, _end)
+            if _end == 'args':
+                return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
+            return __src.args, _end
 
-        if prefix == "options" or prefix in self._options:
-            return _handle_opt(prefix, parts, self._options)
-        if prefix == "subcommands" or prefix in self._subcommands:
-            if prefix == "subcommands" and not (_src := self._subcommands.get(_prefix := parts.pop(0))):
-                return self._subcommands, _prefix
-            else:
-                _src = self._subcommands[prefix]
-            if not parts:
-                return _src, ''
-            if (end := parts.pop(0)) in {"args", "value"}:
+        if prefix == "options" or prefix in self.options:
+            return _handle_opt(prefix, parts, self.options)
+        if prefix == "subcommands" or prefix in self.subcommands:
+            if prefix == "subcommands":
+                prefix = parts.pop(0)
+            if not parts: # subcommands.foo or foo
+                return self.subcommands, prefix
+            elif not (_src := self.subcommands.get(prefix)):  # subcommands.foo.bar or foo.bar
+                return self.subcommands, prefix
+            if (end := parts.pop(0)) == "value":
                 return _src, end
-            if end in _src['args']:
-                return _src['args'], end
-            if end == "options" and end in _src['options']:
+            if end == 'args':
+                return (_src.args, parts.pop(0)) if parts else (_src, end)
+            if end == "options" and (end in _src.options or not parts):
                 raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{prefix}.{end}"))
-            if end == "options" or end in _src['options']:
-                return _handle_opt(end, parts, _src['options'])
-        return (self.main_args, parts[1]) if prefix == "$main" else (None, prefix)
+            if end == "options" or end in _src.options:
+                return _handle_opt(end, parts, _src.options)
+            return _src.args, end
+        prefix = prefix.replace("$main", "main_args").replace("$other", "other_args")
+        if prefix in {"main_args", "other_args"}:
+            return getattr(self, prefix, {}), parts.pop(0)
+        return None, prefix
 
     @overload
     def query(self, path: str) -> Mapping[str, Any] | Any | None:
@@ -193,18 +189,18 @@ class Arparma(Generic[TDataCollection]):
             return default
         return source.get(endpoint, default) if endpoint else MappingProxyType(source)
 
-    def update(self, path: str, value: Any):
-        """根据path更新值"""
-        parts = path.split('.')
-        source, endpoint = self.__require__(parts)
-        if source is None:
-            return
-        if endpoint:
-            self._record.add(path)
-            source[endpoint] = value
-        elif isinstance(value, dict):
-            source.update(value)  # type: ignore
-            self._record.update([f"{path}.{k}" for k in value])
+    # def update(self, path: str, value: Any):
+    #     """根据path更新值"""
+    #     parts = path.split('.')
+    #     source, endpoint = self.__require__(parts)
+    #     if source is None:
+    #         return
+    #     if endpoint:
+    #         self._record.add(path)
+    #         source[endpoint] = value
+    #     elif isinstance(value, dict):
+    #         source.update(value)  # type: ignore
+    #         self._record.update([f"{path}.{k}" for k in value])
 
     def query_with(self, arg_type: type[T], path: str | None = None, default: T | None = None) -> T | None:
         """根据类型查询参数"""
@@ -218,15 +214,15 @@ class Arparma(Generic[TDataCollection]):
         """查询路径是否存在"""
         return self.query(path, Empty) != Empty
 
-    def clean(self):
-        if not self._record:
-            return
-        for path in self._record:
-            parts = path.split('.')
-            source, _ = self.__require__(parts[:-1])
-            if not source:
-                return
-            source.pop(parts[-1], None)
+    # def clean(self):
+    #     if not self._record:
+    #         return
+    #     for path in self._record:
+    #         parts = path.split('.')
+    #         source, _ = self.__require__(parts[:-1])
+    #         if not source:
+    #             return
+    #         source.pop(parts[-1], None)
 
     @overload
     def __getitem__(self, item: type[T]) -> T | None:

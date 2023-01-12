@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
-from typing import Callable, Any, Sequence, TypedDict, overload, Iterable
+from typing import Callable, Sequence, overload, Iterable
 from typing_extensions import Self
 
 from .args import Args, Arg
@@ -144,8 +143,6 @@ class Option(CommandNode):
 class Subcommand(CommandNode):
     """子命令, 次于主命令, 可解析 SubOption"""
     options: list[Option]
-    sub_params: dict[str, list[Option] | Sentence]
-    sub_part_len: range
 
     def __init__(
         self,
@@ -157,8 +154,6 @@ class Subcommand(CommandNode):
     ):
         self.options = options or []
         super().__init__(name, args, dest, action, separators, help_text, requires)
-        self.sub_params = {}
-        self.sub_part_len = range(self.nargs)
 
     def __add__(self, other) -> Self:
         if isinstance(other, (Option, str)):
@@ -179,23 +174,7 @@ class Subcommand(CommandNode):
         raise TypeError(f"unsupported operand type(s) for +: '{other.__class__.__name__}' and 'Subcommand'")
 
 
-@dataclass(frozen=True, eq=True)
-class Sentence:
-    name: str
-    separators: tuple[str, ...] = field(default=(' ',))
 
 
-class OptionResult(TypedDict):
-    value: Any
-    args: dict[str, Any]
 
-
-class SubcommandResult(TypedDict):
-    value: Any
-    args: dict[str, Any]
-    options: dict[str, OptionResult]
-
-
-__all__ = [
-    "CommandNode", "Option", "Subcommand", "OptionResult", "SubcommandResult", "Sentence"
-]
+__all__ = ["CommandNode", "Option", "Subcommand"]

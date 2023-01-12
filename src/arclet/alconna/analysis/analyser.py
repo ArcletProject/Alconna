@@ -14,7 +14,8 @@ from ..exceptions import (
     NullMessage, ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, PauseTriggered
 )
 from ..args import Args, Arg
-from ..base import Option, Subcommand, Sentence
+from ..base import Option, Subcommand
+from ..model import Sentence, HeadResult, OptionResult, SubcommandResult
 from ..arparma import Arparma
 from ..util import split_once, split
 from ..typing import DataCollection, TDataCollection
@@ -38,6 +39,7 @@ class Analyser(Generic[TDataCollection]):
     raw_data: list[str | Any]
     ndata: int  # 原始数据的长度
     command_params: dict[str, Sentence | list[Option] | Subcommand]
+    subcommand_params: dict[str, dict[str, Sentence | list[Option]]]
     param_ids: set[str]
     # 命令头部
     command_header: (
@@ -46,13 +48,13 @@ class Analyser(Generic[TDataCollection]):
     )
     separators: tuple[str, ...]  # 分隔符
     raise_exception: bool  # 是否抛出异常
-    options: dict[str, Any]  # 存放解析到的所有选项
-    subcommands: dict[str, Any]  # 存放解析到的所有子命令
+    options: dict[str, OptionResult]  # 存放解析到的所有选项
+    subcommands: dict[str, SubcommandResult]  # 存放解析到的所有子命令
     main_args: dict[str, Any]  # 主参数
-    header: dict[str, str] | bool | None  # 命令头部
+    header: HeadResult
     need_main_args: bool  # 是否需要主参数
-    head_matched: bool  # 是否匹配了命令头部
     part_len: range  # 分段长度
+    sub_part_lens: dict[str, range]
     default_main_only: bool  # 默认只有主参数
     self_args: Args  # 自身参数
     filter_out: ClassVar[list[str]]  # 元素黑名单
@@ -84,14 +86,14 @@ class Analyser(Generic[TDataCollection]):
         self.self_args = alconna.args
         self.separators = alconna.separators
         self.raise_exception = alconna.meta.raise_exception
-        self.need_main_args = False
-        self.default_main_only = False
+        self.need_main_args, self.default_main_only = False, False
         self.default_separate = True
         self.filter_crlf = not self.alconna.meta.keep_crlf
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.message_cache = alconna.namespace_config.enable_message_cache
         self.param_ids = set()
-        self.command_params = {}
+        self.command_params, self.subcommand_params, self.sub_part_lens = {}, {}, {}
+        self.part_len = range(0)
         self.special = {}
         self.special.update(
             [(i, handle_help) for i in alconna.namespace_config.builtin_option_name['help']] +
@@ -116,22 +118,21 @@ class Analyser(Generic[TDataCollection]):
         for i, part in enumerate(parts):
             if not part:
                 continue
-            if res := re.match(r"\{(.*?)}", part):
-                if not res[1]:
+            if part.startswith('{') and part.endswith('}'):
+                res = part[1:-1].split(':')
+                if not res:
                     parts[i] = ".+?"
                     continue
-                if len(_parts := res[1].split(":")) == 1:
-                    parts[i] = f"(?P<{_parts[0]}>.+?)"
-                elif not _parts[0] and not _parts[1]:
+                if len(res) == 1:
+                    parts[i] = f"(?P<{res[0]}>.+?)"
+                elif not res[1] and not res[0]:
                     parts[i] = ".+?"
-                elif not _parts[0]:
-                    parts[i] = f"{pattern_map[_parts[1]].pattern if _parts[1] in pattern_map else _parts[1]}"
-                elif not _parts[1]:
-                    parts[i] = f"(?P<{_parts[0]}>.+?)"
+                elif not res[1]:
+                    parts[i] = f"(?P<{res[0]}>.+?)"
+                elif not res[0]:
+                    parts[i] = f"{pattern_map[res[1]].pattern if res[1] in pattern_map else res[1]}"
                 else:
-                    parts[i] = (
-                        f"(?P<{_parts[0]}>{pattern_map[_parts[1]].pattern if _parts[1] in pattern_map else _parts[1]})"
-                    )
+                    parts[i] = f"(?P<{res[0]}>{pattern_map[res[1]].pattern if res[1] in pattern_map else res[1]})"
         return "".join(parts)
 
     def __init_header__(
@@ -176,10 +177,10 @@ class Analyser(Generic[TDataCollection]):
         """重置分析器"""
         # self.current_index, self.content_index, self.ndata, self.temp_token = 0, 0, 0, 0
         self.current_index, self.ndata, self.temp_token = 0, 0, 0
-        self.head_matched = False
+        # self.head_matched = False
         self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
         self.raw_data, self.bak_data, self.sentences = [], [], []
-        self.header, self.context = None, None
+        self.header, self.context = HeadResult(), None
         # self.head_pos = (0, 0)
 
     def push(self, *data: str | Any) -> Self:
@@ -387,12 +388,12 @@ class Analyser(Generic[TDataCollection]):
 
     def export(self, exception: BaseException | None = None, fail: bool = False) -> Arparma[TDataCollection]:
         """创建arpamar, 其一定是一次解析的最后部分"""
-        result = Arparma(self.alconna.path, self.temporary_data.pop("origin", "None"), not fail, self.head_matched)
+        result = Arparma(self.alconna.path, self.temporary_data.pop("origin", "None"), not fail, self.header)
         if fail:
             result.error_info = repr(exception or traceback.format_exc(limit=1))
             result.error_data = self.release()
         else:
-            result.encapsulate_result(self.header, self.main_args, self.options, self.subcommands)
+            result.encapsulate_result(self.main_args, self.options, self.subcommands)
             if self.message_cache:
                 command_manager.record(self.temp_token, result)  
                 self.used_tokens.add(self.temp_token)

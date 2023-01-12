@@ -7,7 +7,8 @@ import traceback
 from .analyser import Analyser, TAnalyser
 from .parts import analyse_args as ala, analyse_header as alh, analyse_option as alo, analyse_subcommand as als
 from ..typing import DataCollection, TDataCollection
-from ..base import Option, Subcommand, Sentence
+from ..base import Option, Subcommand
+from ..model import Sentence
 from ..args import Args
 from ..config import config
 
@@ -33,16 +34,17 @@ def default_params_parser(analyser: Analyser):
             analyser.param_ids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
             sub_require_len = 0
-            analyser.command_params[opts.name] = opts
+            analyser.command_params[opts.dest] = opts
             analyser.param_ids.add(opts.name)
+            sub_params = analyser.subcommand_params.setdefault(opts.dest, {})
             for sub_opts in opts.options:
-                _compile_opts(sub_opts, opts.sub_params)
+                _compile_opts(sub_opts, sub_params)
                 if sub_opts.requires:
                     sub_require_len = max(len(sub_opts.requires), sub_require_len)
                     for k in sub_opts.requires:
-                        opts.sub_params.setdefault(k, Sentence(name=k))
+                        sub_params.setdefault(k, Sentence(name=k))
                 analyser.param_ids.update(sub_opts.aliases)
-            opts.sub_part_len = range(len(opts.options) + (1 if opts.nargs else 0) + sub_require_len)
+            analyser.sub_part_lens[opts.dest] = range(len(opts.options) + bool(opts.nargs) + sub_require_len)
         if not set(analyser.separators).issuperset(opts.separators):
             analyser.default_separate &= False
         if opts.requires:
@@ -79,7 +81,7 @@ class _DummyAnalyser(Analyser):
 
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore
-        cls.command_params = {}
+        cls.command_params, cls.subcommand_params, cls.sub_part_lens = {}, {}, {}
         cls.param_ids = set()
         cls.default_separate = True
         cls.context = None

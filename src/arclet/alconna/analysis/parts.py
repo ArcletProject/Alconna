@@ -9,7 +9,8 @@ from nepattern.util import TPattern
 from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered
 from ..typing import MultiVar, KeyWordVar
 from ..args import Args, Arg
-from ..base import Option, Subcommand, OptionResult, SubcommandResult, Sentence
+from ..base import Option, Subcommand
+from ..model import OptionResult, SubcommandResult, Sentence, HeadResult
 from ..util import levenshtein_norm, split_once
 from ..config import config
 
@@ -239,12 +240,9 @@ def analyse_option(analyser: Analyser, param: Option) -> tuple[str, OptionResult
         if name not in param.aliases:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.dest
-    res: OptionResult = {"value": None, "args": {}}
     if param.nargs == 0:
-        res['value'] = Ellipsis
-    else:
-        res['args'] = analyse_args(analyser, param.args, param.nargs)
-    return name, res
+        return name, OptionResult()
+    return name, OptionResult(None, analyse_args(analyser, param.args, param.nargs))
 
 
 def analyse_subcommand(analyser: Analyser, param: Subcommand) -> tuple[str, SubcommandResult]:
@@ -269,28 +267,29 @@ def analyse_subcommand(analyser: Analyser, param: Subcommand) -> tuple[str, Subc
         if name != param.name:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.dest
-    res: SubcommandResult = {"value": None, "args": {}, 'options': {}}
-    if param.sub_part_len.stop == 0:
-        res['value'] = Ellipsis
+    res = SubcommandResult()
+    if analyser.sub_part_lens[name].stop == 0:
         return name, res
 
     args = False
-    for _ in param.sub_part_len:
+    for _ in analyser.sub_part_lens[name]:
         _text, _str = analyser.popitem(param.separators, move=False)
         if _text in analyser.alconna.namespace_config.builtin_option_name['completion']:
             raise CompletionTriggered(param)
-        _param = _param if (_param := (param.sub_params.get(_text) if _str and _text else Ellipsis)) else (
-            analyse_unmatch_params(param.sub_params.values(), _text, analyser.fuzzy_match)
+        _param = _param if (_param := (analyser.subcommand_params[name].get(_text) if _str and _text else Ellipsis)) \
+            else (
+            analyse_unmatch_params(analyser.subcommand_params[name].values(), _text, analyser.fuzzy_match)
         )
         if (not _param or _param is Ellipsis) and not args:
-            res['args'] = analyse_args(analyser, param.args, param.nargs)
+            res.value = None
+            res.args = analyse_args(analyser, param.args, param.nargs)
             args = True
         elif isinstance(_param, List):
             for p in _param:
                 _data = analyser.raw_data.copy()
                 _index = analyser.current_index
                 try:
-                    res['options'].setdefault(*analyse_option(analyser, p))
+                    res.options.setdefault(*analyse_option(analyser, p))
                     break
                 except Exception as e:
                     exc = e
@@ -305,7 +304,7 @@ def analyse_subcommand(analyser: Analyser, param: Subcommand) -> tuple[str, Subc
     return name, res
 
 
-def analyse_header(analyser: Analyser) -> dict[str, str] | bool | None:
+def analyse_header(analyser: Analyser) -> HeadResult:
     """
     分析命令头部
 
@@ -316,67 +315,58 @@ def analyse_header(analyser: Analyser) -> dict[str, str] | bool | None:
     """
     command = analyser.command_header
     head_text, _str = analyser.popitem()
-    if isinstance(command, TPattern) and _str and (_head_find := command.fullmatch(head_text)):
-        analyser.head_matched = True
-        return _head_find.groupdict() or True
-    elif isinstance(command, BasePattern) and command(head_text, Empty).success:
-        analyser.head_matched = True
-        return True
+    if isinstance(command, TPattern) and _str and (mat := command.fullmatch(head_text)):
+        return HeadResult(head_text, head_text, True, mat.groupdict())
+    elif isinstance(command, BasePattern) and (val := command(head_text, Empty)).success:
+        return HeadResult(head_text, val.value, True)
     else:
         may_command, _m_str = analyser.popitem()
         if isinstance(command, List) and _m_str and not _str:
             for _command in command:
-                if (_head_find := _command[1].fullmatch(may_command)) and head_text == _command[0]:
-                    analyser.head_matched = True
-                    return _head_find.groupdict() or True
+                if (mat := _command[1].fullmatch(may_command)) and head_text == _command[0]:
+                    return HeadResult((head_text, may_command), (head_text, may_command), True, mat.groupdict())
         if isinstance(command, tuple):
             if not _str and not isclass(head_text) and (
                 (isinstance(command[0], list) and (head_text in command[0] or type(head_text) in command[0])) or
                 (isinstance(command[0], tuple) and (head_text in command[0][0] or type(head_text) in command[0][0]))
             ):
                 if isinstance(command[1], TPattern):
-                    if _m_str and (_command_find := command[1].fullmatch(may_command)):
-                        analyser.head_matched = True
-                        return _command_find.groupdict() or True
-                elif command[1](may_command, Empty).success:
-                    analyser.head_matched = True
-                    return True
+                    if _m_str and (mat := command[1].fullmatch(may_command)):
+                        return HeadResult((head_text, may_command), (head_text, may_command), True, mat.groupdict())
+                elif (val := command[1](may_command, Empty)).success:
+                    return HeadResult((head_text, may_command), (head_text, val.value), True)
             elif _str and isinstance(command[0], tuple) and isinstance(command[0][1], TPattern):
                 if _m_str:
                     pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
-                    if _head_find := pat.fullmatch(head_text):
+                    if mat := pat.fullmatch(head_text):
                         analyser.pushback(may_command)
-                        analyser.head_matched = True
-                        return _head_find.groupdict() or True
-                    elif _command_find := pat.fullmatch(head_text + may_command):
-                        analyser.head_matched = True
-                        return _command_find.groupdict() or True
+                        return HeadResult(head_text, head_text, True, mat.groupdict())
+                    elif mat := pat.fullmatch(head_text + may_command):
+                        return HeadResult(head_text + may_command, head_text + may_command, True, mat.groupdict())
                 elif isinstance(command[1], BasePattern) and (
-                    (_head_find := command[0][1].fullmatch(head_text)) and command[1](may_command, Empty).success
+                    (mat := command[0][1].fullmatch(head_text)) and (val := command[1](may_command, Empty)).success
                 ):
-                    analyser.head_matched = True
-                    return _head_find.groupdict() or True
+                    return HeadResult(head_text + may_command, (head_text, val.value), True, mat.groupdict())
 
-    if not analyser.head_matched:
-        if _str and analyser.fuzzy_match:
-            headers_text = []
-            if analyser.alconna.headers and analyser.alconna.headers != [""]:
-                for i in analyser.alconna.headers:
-                    if isinstance(i, str):
-                        headers_text.append(f"{i}{analyser.alconna.command}")
-                    else:
-                        headers_text.extend((f"{i}", analyser.alconna.command))
-            elif analyser.alconna.command:
-                headers_text.append(analyser.alconna.command)
-            if isinstance(command, (TPattern, BasePattern)):
-                source = head_text
-            else:
-                source = head_text + analyser.separators[0] + str(may_command)
-            if source == analyser.alconna.command:
-                analyser.head_matched = False
-                raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
-            for ht in headers_text:
-                if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
-                    analyser.head_matched = True
-                    raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(target=source, source=ht))
-        raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
+    if _str and analyser.fuzzy_match:
+        headers_text = []
+        if analyser.alconna.headers and analyser.alconna.headers != [""]:
+            for i in analyser.alconna.headers:
+                if isinstance(i, str):
+                    headers_text.append(f"{i}{analyser.alconna.command}")
+                else:
+                    headers_text.extend((f"{i}", analyser.alconna.command))
+        elif analyser.alconna.command:
+            headers_text.append(analyser.alconna.command)
+        if isinstance(command, (TPattern, BasePattern)):
+            source = head_text
+        else:
+            source = head_text + analyser.separators[0] + str(may_command)
+        if source == analyser.alconna.command:
+            analyser.head_matched = False
+            raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
+        for ht in headers_text:
+            if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
+                analyser.head_matched = True
+                raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(target=source, source=ht))
+    raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
