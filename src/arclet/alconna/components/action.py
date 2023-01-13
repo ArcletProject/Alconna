@@ -107,8 +107,8 @@ def _exec(data: OptionResult | SubcommandResult, func: ArgAction, raise_exc: boo
 @dataclass
 class ActionHandler(ArparmaBehavior):
     source: InitVar[Alconna]
-    main_action: ArgAction | None = field(init=False)
-    options: dict[str, ArgAction] = field(init=False)
+    main_action: ArgAction | None = field(init=False, default=None)
+    options: dict[str, ArgAction] = field(init=False, default_factory=dict)
 
     def __post_init__(self, source: Alconna):
         self.main_action = source.action

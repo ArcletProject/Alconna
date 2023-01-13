@@ -44,7 +44,7 @@ if TYPE_CHECKING:
         return _StoreValue(value) if value else _StoreValue(alconna_version)
 
 
-@dataclass(init=True, eq=True)
+@dataclass(init=True, eq=True, unsafe_hash=True)
 class _SetDefault(ArparmaBehavior):
     _default: Any = field(default=MISSING)
     _default_factory: Callable | _MISSING_TYPE = field(default=MISSING)
@@ -63,7 +63,7 @@ class _SetDefault(ArparmaBehavior):
     def operate(self, interface: Arparma):
         if not self.option and not self.subcommand:
             raise BehaveCancelled
-        if self.arg and self.arg in interface.other_args:
+        if self.arg and self.arg not in interface.other_args:
             self.update(interface, f"other_args.{self.arg}", self.default)
         if self.option and self.subcommand is None:
             if not interface.query(f"options.{self.option}"):

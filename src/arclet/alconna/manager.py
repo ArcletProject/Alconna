@@ -300,6 +300,9 @@ class CommandManager(metaclass=Singleton):
             return
         return self.__record.get(token)
 
+    def get_token(self, result: Arparma) -> int:
+        return next((token for token, res in self.__record.items() if res == result), 0)
+
     def get_result(self, command: Alconna):
         res = None
         for v in self.__record.values():

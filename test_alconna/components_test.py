@@ -21,17 +21,31 @@ def test_behavior():
 
 
 def test_set_defualt():
-    com1 = Alconna("comp1") + \
-           Option("--foo", action=store_value(123)) + \
-           Option("bar", Args["baz", int, 234])
+    com1 = Alconna(
+        "comp1",
+        Option("--foo", action=store_value(123)),
+        Option("bar", Args["baz;?", int]["qux", float, 1.0])
+    )
     com1.behaviors.append(set_default(value=321, option="bar", arg="baz"))
     com1.behaviors.append(set_default(factory=lambda: 423, option="foo"))
-    assert com1.parse("comp1").query("foo.value") == 423
-    assert com1.parse("comp1").query("baz") == 321
-    assert com1.parse("comp1 bar").query("foo.value") == 423
-    assert com1.parse("comp1 bar").query("bar.baz") == 234
-    assert com1.parse("comp1 --foo").query("foo.value") == 123
-    assert com1.parse("comp1 --foo").query("bar.baz") == 321
+
+    res1 = com1.parse("comp1")
+    assert res1.query("foo.value") == 423
+    assert res1.query("baz") == 321
+
+    res2 = com1.parse("comp1 bar")
+    assert res2.query("foo.value") == 423
+    assert res2.query("bar.baz") == 321
+    assert res2.query("bar.qux") == 1.0
+
+    res3 = com1.parse("comp1 --foo")
+    assert res3.query("foo.value") == 123
+    assert res3.query("bar.baz") == 321
+
+    res4 = com1.parse("comp1 bar 234 2.0")
+    assert res4.query("foo.value") == 423
+    assert res4.query("bar.baz") == 234
+    assert res4.query("bar.qux") == 2.0
 
 
 def test_duplication():

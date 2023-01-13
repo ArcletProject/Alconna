@@ -17,7 +17,7 @@ from .exceptions import PauseTriggered
 from .analysis.analyser import TAnalyser, Analyser
 from .components.action import ActionHandler, ArgAction
 from .components.output import TextFormatter
-from .components.behavior import T_ABehavior
+from .components.behavior import ArparmaBehavior
 from .components.duplication import Duplication
 from .components.executor import ArparmaExecutor, T
 
@@ -83,7 +83,7 @@ class AlconnaGroup(CommandNode):
         return res
 
     @property
-    def behaviors(self) -> list[T_ABehavior]:
+    def behaviors(self) -> list[ArparmaBehavior]:
         res = []
         for cmd in self.commands:
             res.extend(cmd.behaviors[1:])
@@ -164,7 +164,7 @@ class Alconna(CommandNode):
     formatter_type: type[TextFormatter]
     namespace: str
     meta: CommandMeta
-    behaviors: list[T_ABehavior]
+    behaviors: list[ArparmaBehavior]
     custom_types = {}
 
     global_analyser_type: type[Analyser] = Analyser
@@ -184,7 +184,7 @@ class Alconna(CommandNode):
         namespace: str | Namespace | None = None,
         separators: str | Iterable[str] | None = None,
         analyser_type: type[TAnalyser] | None = None,
-        behaviors: list[T_ABehavior] | None = None,
+        behaviors: list[ArparmaBehavior] | None = None,
         formatter_type: type[TextFormatter] | None = None
     ):
         """
@@ -293,10 +293,9 @@ class Alconna(CommandNode):
         command_manager.register(self)
         return self
 
-    def reset_behaviors(self, behaviors: list[T_ABehavior]) -> Self:
+    def reset_behaviors(self, behaviors: list[ArparmaBehavior]) -> Self:
         """重新设置解析行为器"""
-        self.behaviors = behaviors
-        self.behaviors.insert(0, ActionHandler(self))
+        self.behaviors[1:] = behaviors
         return self
 
     def get_help(self) -> str:

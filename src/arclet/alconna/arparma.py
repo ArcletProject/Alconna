@@ -13,28 +13,28 @@ from .config import config
 from .manager import command_manager
 from .model import SubcommandResult, OptionResult, HeadResult
 from .exceptions import BehaveCancelled, OutBoundsBehave
-from .components.behavior import T_ABehavior, requirement_handler
+from .components.behavior import ArparmaBehavior, requirement_handler
 from .components.duplication import Duplication, generate_duplication
 
 T = TypeVar('T')
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
-@dataclass
+@dataclass(eq=True)
 class Arparma(Generic[TDataCollection]):
     """
     承载解析结果与操作数据的接口类
     """
-    _source: str
-    origin: TDataCollection
-    matched: bool = field(default=False)
-    header_match: HeadResult = field(default=HeadResult())
-    error_data: list[str | Any] = field(default_factory=list)
-    error_info: str | BaseException | type[BaseException] = field(default='')
-    main_args: dict[str, Any] = field(default_factory=dict)
-    other_args: dict[str, Any] = field(default_factory=dict)
-    options: dict[str, OptionResult] = field(default_factory=dict)
-    subcommands: dict[str, SubcommandResult] = field(default_factory=dict)
+    _source: str = field(compare=True)
+    origin: TDataCollection = field(compare=True)
+    matched: bool = field(default=False, compare=True)
+    header_match: HeadResult = field(default=HeadResult(), compare=True)
+    error_data: list[str | Any] = field(default_factory=list, compare=False)
+    error_info: str | BaseException | type[BaseException] = field(default='', compare=False)
+    main_args: dict[str, Any] = field(default_factory=dict, compare=True)
+    other_args: dict[str, Any] = field(default_factory=dict, compare=True)
+    options: dict[str, OptionResult] = field(default_factory=dict, compare=True)
+    subcommands: dict[str, SubcommandResult] = field(default_factory=dict, compare=True)
 
     def _clr(self):
         ks = list(self.__dict__.keys())
@@ -71,6 +71,10 @@ class Arparma(Generic[TDataCollection]):
         """返回 Alconna 中所有 Args 解析到的值"""
         return {**self.main_args, **self.other_args}
 
+    @property
+    def token(self) -> int:
+        return command_manager.get_token(self)
+
     def get_duplication(self, dup: type[T_Duplication] | None = None) -> T_Duplication:
         return (dup(self.source) if dup else generate_duplication(self.source)).set_target(self)  # type: ignore
 
@@ -101,7 +105,7 @@ class Arparma(Generic[TDataCollection]):
     def behave_fail():
         raise OutBoundsBehave
 
-    def execute(self, behaviors: list[T_ABehavior] | None = None) -> Self:
+    def execute(self, behaviors: list[ArparmaBehavior] | None = None) -> Self:
         if behaviors := (self.source.behaviors[1:] + (behaviors or [])):
             exc_behaviors = []
             for behavior in behaviors:
@@ -113,9 +117,7 @@ class Arparma(Generic[TDataCollection]):
                 except BehaveCancelled:
                     continue
                 except OutBoundsBehave as e:
-                    [b.record.clear() for b in exc_behaviors]
                     return self._fail(e)
-            [b.record.clear() for b in exc_behaviors]
         return self
 
     def call(self, target: Callable[..., T], **additional):
@@ -148,7 +150,7 @@ class Arparma(Generic[TDataCollection]):
                 return _opts, _pf
             elif not (__src := _opts.get(_pf)):  # options.foo.bar or foo.bar
                 return _opts, _pf
-            if _end := _parts.pop(0) == "value":
+            if (_end := _parts.pop(0)) == "value":
                 return __src, _end
             if _end == 'args':
                 return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
