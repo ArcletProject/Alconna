@@ -1,3 +1,13 @@
+# Alconna 1.5.0:
+1. 加入 `HeadResult`, 表示头部匹配的结果
+2. `Arparma.header_match` 现在返回 `HeadResult` 类型
+3. `Arparma.update` 移动到 `ArparmaBehavior.update`
+4. `Arparma.query` 现在不一定返回 `Mapping` 类型
+5. 新增 `output_manager.set` 方法以新增输出行为
+6. 修改 `output_manager.get` 方法从构建输出行为到只获取输出行为
+7. 新增 `output_manager.capture` 上下文管理器以提供输出捕获功能
+8. `set_default` 可以细化至更新 `subcmd.opt.args.arg` 的值
+
 # Alconna 1.4.x:
 
 ## Alconna 1.4.3:

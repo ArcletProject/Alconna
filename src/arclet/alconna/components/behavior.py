@@ -15,10 +15,7 @@ class ArparmaBehavior(metaclass=ABCMeta):
     """
     解析结果行为器的基类, 对应一个对解析结果的操作行为
     """
-
     record: dict[int, dict[str, tuple[Any, Any]]] = field(default_factory=dict, init=False, repr=False, hash=False)
-    """record: dict[token, dict[path, (past, current)]]"""
-
     requires: list[ArparmaBehavior] = field(init=False, hash=False, repr=False)
     def before_operate(self, interface: Arparma):
         if not self.record:

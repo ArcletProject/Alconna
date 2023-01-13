@@ -60,6 +60,10 @@ dev = [
     "viztracer>=0.15.6",
 ]
 
+[tool.pdm.scripts]
+test = "python entry_test.py"
+benchmark = "python benchmark.py"
+
 [tool.pylint.BASIC]
 class-const-naming-style = "any"
 
