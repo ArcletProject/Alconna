@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import Any, TypeVar, overload, Generic, Mapping, Callable
 from types import MappingProxyType
 from contextlib import suppress
@@ -108,11 +108,14 @@ class Arparma(Generic[TDataCollection]):
                 exc_behaviors.extend(requirement_handler(behavior))
             for b in exc_behaviors:
                 try:
-                    b.operate(self)  # type: ignore
+                    b.before_operate(self)
+                    b.operate(self)
                 except BehaveCancelled:
                     continue
                 except OutBoundsBehave as e:
+                    [b.record.clear() for b in exc_behaviors]
                     return self._fail(e)
+            [b.record.clear() for b in exc_behaviors]
         return self
 
     def call(self, target: Callable[..., T], **additional):
@@ -122,7 +125,7 @@ class Arparma(Generic[TDataCollection]):
         raise RuntimeError
 
     def _fail(self, exc: type[BaseException] | BaseException | str):
-        return Arparma(self._source, self.origin, matched=False, error_info=exc)
+        return Arparma(self._source, self.origin, False, self.header_match, error_info=exc)
 
     def __require__(self, parts: list[str]) -> tuple[dict[str, Any] | OptionResult | SubcommandResult | None, str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
@@ -187,20 +190,11 @@ class Arparma(Generic[TDataCollection]):
         source, endpoint = self.__require__(path.split('.'))
         if source is None:
             return default
+        if isinstance(source, (OptionResult, SubcommandResult)):
+            if not endpoint:
+                return source
+            source = asdict(source)
         return source.get(endpoint, default) if endpoint else MappingProxyType(source)
-
-    # def update(self, path: str, value: Any):
-    #     """根据path更新值"""
-    #     parts = path.split('.')
-    #     source, endpoint = self.__require__(parts)
-    #     if source is None:
-    #         return
-    #     if endpoint:
-    #         self._record.add(path)
-    #         source[endpoint] = value
-    #     elif isinstance(value, dict):
-    #         source.update(value)  # type: ignore
-    #         self._record.update([f"{path}.{k}" for k in value])
 
     def query_with(self, arg_type: type[T], path: str | None = None, default: T | None = None) -> T | None:
         """根据类型查询参数"""
@@ -214,22 +208,8 @@ class Arparma(Generic[TDataCollection]):
         """查询路径是否存在"""
         return self.query(path, Empty) != Empty
 
-    # def clean(self):
-    #     if not self._record:
-    #         return
-    #     for path in self._record:
-    #         parts = path.split('.')
-    #         source, _ = self.__require__(parts[:-1])
-    #         if not source:
-    #             return
-    #         source.pop(parts[-1], None)
-
     @overload
     def __getitem__(self, item: type[T]) -> T | None:
-        ...
-
-    @overload
-    def __getitem__(self, item: str) -> Any:
         ...
 
     def __getitem__(self, item: str | type[T]) -> T | Any | None:
@@ -243,18 +223,12 @@ class Arparma(Generic[TDataCollection]):
 
     def __repr__(self):
         if self.error_info:
-            attrs = ((s, getattr(self, s, None)) for s in ["matched", "head_matched", "error_data", "error_info"])
-            return ", ".join(f"{a}={v}" for a, v in attrs if v is not None)
+            attrs = ((s, getattr(self, s, None)) for s in ("matched", "header_match", "error_data", "error_info"))
+            return ", ".join([f"{a}={v}" for a, v in attrs if v is not None])
         else:
-            attrs = [(s, getattr(self, s, None)) for s in ["matched", "header", "options", "subcommands"]]
-            margs = self.main_args.copy()
-            margs.pop('$varargs', None)
-            margs.pop('$kwargs', None)
-            margs.pop('$kwonly', None)
+            attrs = [(s, getattr(self, s, None)) for s in ("matched", "header_match", "options", "subcommands")]
+            margs = {k: v for k, v in self.main_args.items() if k not in ('$varargs', '$kwargs', '$kwonly')}
             attrs.append(("main_args", margs))
-            other_args = self.other_args.copy()
-            other_args.pop('$varargs', None)
-            other_args.pop('$kwargs', None)
-            other_args.pop('$kwonly', None)
+            other_args = {k: v for k, v in self.other_args.items() if k not in ('$varargs', '$kwargs', '$kwonly')}
             attrs.append(("other_args", other_args))
-            return ", ".join(f"{a}={v}" for a, v in attrs if v)
+            return ", ".join([f"{a}={v}" for a, v in attrs if v])

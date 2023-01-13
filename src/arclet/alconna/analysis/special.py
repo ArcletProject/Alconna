@@ -97,11 +97,11 @@ def handle_completion(analyser: Analyser, trigger: None | Args | Subcommand | st
     elif isinstance(trigger, Subcommand):
         output_manager.send(
             analyser.alconna.name,
-            lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(trigger.sub_params),
+            lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(analyser.sub_params[trigger.dest]),
             analyser.raise_exception
         )
     elif isinstance(trigger, str):
-        res = list(filter(lambda x: trigger in x, analyser.command_params))
+        res = list(filter(lambda x: trigger in x, analyser.main_params))
         if not res:
             return analyser.export(
                 fail=True,
@@ -116,7 +116,7 @@ def handle_completion(analyser: Analyser, trigger: None | Args | Subcommand | st
     else:
         got = [*analyser.options.keys(), *analyser.subcommands.keys(), *analyser.sentences]
         target = analyser.release(recover=True)[-1]
-        if _res := list(filter(lambda x: target in x and target != x, analyser.command_params)):
+        if _res := list(filter(lambda x: target in x and target != x, analyser.main_params)):
             out = [i for i in _res if i not in got]
             output_manager.send(
                 analyser.alconna.name,

@@ -328,7 +328,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
 
     def __repr__(self):
         return (
-            f"Args({', '.join(f'{arg}' for arg in self.argument if not arg.name.startswith('_key_'))})"
+            f"Args({', '.join([f'{arg}' for arg in self.argument if not arg.name.startswith('_key_')])})"
             if self.argument else "Empty"
         )
 

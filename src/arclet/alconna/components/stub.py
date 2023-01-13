@@ -36,7 +36,7 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
         """
 
     def __repr__(self):
-        return f"{{{', '.join(f'{k}={v}' for k, v in vars(self).items() if v and not k.startswith('_'))}}}"
+        return f"{{{', '.join([f'{k}={v}' for k, v in vars(self).items() if v and not k.startswith('_')])}}}"
 
 
 @dataclass(init=True)

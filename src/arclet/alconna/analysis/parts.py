@@ -276,9 +276,9 @@ def analyse_subcommand(analyser: Analyser, param: Subcommand) -> tuple[str, Subc
         _text, _str = analyser.popitem(param.separators, move=False)
         if _text in analyser.alconna.namespace_config.builtin_option_name['completion']:
             raise CompletionTriggered(param)
-        _param = _param if (_param := (analyser.subcommand_params[name].get(_text) if _str and _text else Ellipsis)) \
+        _param = _param if (_param := (analyser.sub_params[name].get(_text) if _str and _text else Ellipsis)) \
             else (
-            analyse_unmatch_params(analyser.subcommand_params[name].values(), _text, analyser.fuzzy_match)
+            analyse_unmatch_params(analyser.sub_params[name].values(), _text, analyser.fuzzy_match)
         )
         if (not _param or _param is Ellipsis) and not args:
             res.value = None

@@ -22,13 +22,7 @@ class ArgAction:
     """负责封装action的类"""
     action: Callable[..., Any]
 
-    def handle(
-        self,
-        params: dict,
-        varargs: list | None = None,
-        kwargs: dict | None = None,
-        raise_exc: bool = False,
-    ):
+    def handle(self, params: dict, varargs: list | None = None, kwargs: dict | None = None, raise_exc: bool = False):
         """
         处理action
 
@@ -127,7 +121,7 @@ class ActionHandler(ArparmaBehavior):
                         self.options[f"{opt.dest}.{option.dest}"] = option.action
 
     def operate(self, interface: Arparma):
-        interface.clean()
+        self.before_operate(interface)
         source = interface.source
 
         if action := self.main_action:

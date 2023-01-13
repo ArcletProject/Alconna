@@ -38,8 +38,8 @@ class Analyser(Generic[TDataCollection]):
     bak_data: list[str | Any]
     raw_data: list[str | Any]
     ndata: int  # 原始数据的长度
-    command_params: dict[str, Sentence | list[Option] | Subcommand]
-    subcommand_params: dict[str, dict[str, Sentence | list[Option]]]
+    main_params: dict[str, Sentence | list[Option] | Subcommand]
+    sub_params: dict[str, dict[str, Sentence | list[Option]]]
     param_ids: set[str]
     # 命令头部
     command_header: (
@@ -92,7 +92,7 @@ class Analyser(Generic[TDataCollection]):
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.message_cache = alconna.namespace_config.enable_message_cache
         self.param_ids = set()
-        self.command_params, self.subcommand_params, self.sub_part_lens = {}, {}, {}
+        self.main_params, self.sub_params, self.sub_part_lens = {}, {}, {}
         self.part_len = range(0)
         self.special = {}
         self.special.update(
@@ -314,9 +314,9 @@ class Analyser(Generic[TDataCollection]):
         for _ in self.part_len:
             try:
                 _text, _str = self.popitem(move=False)
-                _param = _param if (_param := (self.command_params.get(_text) if _str and _text else Ellipsis)) else (
+                _param = _param if (_param := (self.main_params.get(_text) if _str and _text else Ellipsis)) else (
                     None if self.default_separate else analyse_unmatch_params(
-                        self.command_params.values(), _text, self.fuzzy_match
+                        self.main_params.values(), _text, self.fuzzy_match
                     )
                 )
                 if (not _param or _param is Ellipsis) and not self.main_args:

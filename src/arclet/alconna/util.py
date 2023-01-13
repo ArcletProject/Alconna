@@ -175,7 +175,7 @@ class LruCache(Mapping[_K, _V]):
 
     @property
     def recent(self) -> _V | None:
-        with contextlib.suppress(KeyError):
+        with contextlib.suppress(KeyError, IndexError):
             return self.cache[list(self.cache.keys())[-1]]
         return None
 
@@ -187,6 +187,6 @@ class LruCache(Mapping[_K, _V]):
 
     def items(self, size: int = -1) -> Iterator[tuple[_K, _V]]:
         if size > 0:
-            with contextlib.suppress(IndexError):
+            with contextlib.suppress(IndexError, KeyError):
                 return iter(list(self.cache.items())[:-size - 1:-1])
         return iter(self.cache.items())

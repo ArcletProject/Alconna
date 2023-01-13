@@ -4,7 +4,7 @@ from __future__ import annotations
 import weakref
 from copy import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
 import shelve
 import contextlib
 
@@ -30,11 +30,11 @@ class CommandManager(metaclass=Singleton):
     current_count: int
     max_count: int
 
-    __commands: dict[str, dict[str, Alconna | AlconnaGroup]]
+    __commands: dict[str, dict[str, Union[Alconna, AlconnaGroup]]]
     __analysers: dict[Alconna, Analyser]
     __abandons: list[Alconna]
     __record: LruCache[int, Arparma]
-    __shortcuts: LruCache[str, Arparma | DataCollection[str | Any]]
+    __shortcuts: LruCache[str, Union[Arparma, DataCollection[Union[str, Any]]]]
 
     def __init__(self):
         self.cache_path = f"{__file__.replace('manager.py', '')}manager_cache.db"
@@ -255,11 +255,11 @@ class CommandManager(metaclass=Singleton):
         header = header or config.lang.manager_help_header
         if max_length < 1:
             command_string = "\n".join(
-                f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
-                for index, slot in enumerate(cmds)
+                [f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
+                for index, slot in enumerate(cmds)]
             ) if show_index else "\n".join(
-                f" - {cmd.name} : {cmd.meta.description}"
-                for cmd in cmds
+                [f" - {cmd.name} : {cmd.meta.description}"
+                for cmd in cmds]
             )
         else:
             max_page = len(cmds) // max_length + 1
@@ -267,13 +267,13 @@ class CommandManager(metaclass=Singleton):
                 page = 1
             header += "\t" + pages.format(current=page, total=max_page)
             command_string = "\n".join(
-                f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : {cmd.meta.description}"
+                [f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : {cmd.meta.description}"
                 for index, cmd in enumerate(
                     cmds[(page - 1) * max_length: page * max_length], start=(page - 1) * max_length
-                )
+                )]
             ) if show_index else "\n".join(
-                f" - {cmd.name} : {cmd.meta.description}"
-                for cmd in cmds[(page - 1) * max_length: page * max_length]
+                [f" - {cmd.name} : {cmd.meta.description}"
+                for cmd in cmds[(page - 1) * max_length: page * max_length]]
             )
         help_names = set()
         for i in cmds:
@@ -330,9 +330,9 @@ class CommandManager(metaclass=Singleton):
                "Commands:\n" + \
                f"[{', '.join(map(lambda x: x.path, self.get_commands()))}]" + \
                "\nShortcuts:\n" + \
-               "\n".join(f" {k} => {v}" for k, v in self.__shortcuts.items()) + \
+               "\n".join([f" {k} => {v}" for k, v in self.__shortcuts.items()]) + \
                "\nRecords:\n" + \
-               "\n".join(f" [{k}]: {v[1].origin}" for k, v in enumerate(self.__record.items(20))) + \
+               "\n".join([f" [{k}]: {v[1].origin}" for k, v in enumerate(self.__record.items(20))]) + \
                "\nDisabled Commands:\n" + \
                f"[{', '.join(map(lambda x: x.path, self.__abandons))}]"
 

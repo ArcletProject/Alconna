@@ -235,7 +235,7 @@ class TextFormatter:
                 sep = f"[{'|'.join(arg.separators)!r}]"
             res += self.param(arg) + sep
         notice = [(arg.name, arg.notice) for arg in args.argument if arg.notice]
-        return f"{res}\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice) if notice else res
+        return f"{res}\n## 注释\n  " + "\n  ".join([f"{v[0]}: {v[1]}" for v in notice]) if notice else res
 
     def header(self, root: dict[str, Any], separators: tuple[str, ...]) -> str:
         """头部节点的描述"""
@@ -272,10 +272,10 @@ class TextFormatter:
     def body(self, parts: list[Option | Subcommand]) -> str:
         """子节点列表的描述"""
         option_string = "".join(
-            self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
-            if opt.name not in self.ignore_names
+            [self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
+            if opt.name not in self.ignore_names]
         )
-        subcommand_string = "".join(self.part(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts))
+        subcommand_string = "".join([self.part(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts)])
         option_help = "可用的选项有:\n" if option_string else ""
         subcommand_help = "可用的子命令有:\n" if subcommand_string else ""
         return f"{subcommand_help}{subcommand_string}{option_help}{option_string}"

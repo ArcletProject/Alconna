@@ -24,9 +24,6 @@ class _StoreValue(ArgAction):
     def __init__(self, value: Any):
         super().__init__(lambda: value)
 
-    def handle(self, params, varargs=None, kwargs=None, raise_exc=False):
-        return self.action()
-
 
 def store_value(value: Any):
     """存储一个值"""

@@ -30,13 +30,13 @@ def default_params_parser(analyser: Analyser):
     require_len = 0
     for opts in analyser.alconna.options:
         if isinstance(opts, Option):
-            _compile_opts(opts, analyser.command_params)  # type: ignore
+            _compile_opts(opts, analyser.main_params)  # type: ignore
             analyser.param_ids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
             sub_require_len = 0
-            analyser.command_params[opts.dest] = opts
+            analyser.main_params[opts.dest] = opts
             analyser.param_ids.add(opts.name)
-            sub_params = analyser.subcommand_params.setdefault(opts.dest, {})
+            sub_params = analyser.sub_params.setdefault(opts.dest, {})
             for sub_opts in opts.options:
                 _compile_opts(sub_opts, sub_params)
                 if sub_opts.requires:
@@ -51,7 +51,7 @@ def default_params_parser(analyser: Analyser):
             analyser.param_ids.update(opts.requires)
             require_len = max(len(opts.requires), require_len)
             for k in opts.requires:
-                analyser.command_params.setdefault(k, Sentence(name=k))
+                analyser.main_params.setdefault(k, Sentence(name=k))
         analyser.part_len = range(
             len(analyser.alconna.options) + analyser.need_main_args + require_len
         )
@@ -81,7 +81,7 @@ class _DummyAnalyser(Analyser):
 
     def __new__(cls, *args, **kwargs):
         cls.alconna = cls._DummyALC()  # type: ignore
-        cls.command_params, cls.subcommand_params, cls.sub_part_lens = {}, {}, {}
+        cls.main_params, cls.sub_params, cls.sub_part_lens = {}, {}, {}
         cls.param_ids = set()
         cls.default_separate = True
         cls.context = None
