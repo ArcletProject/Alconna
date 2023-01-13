@@ -15,10 +15,9 @@ from ..base import Option, Subcommand
 @dataclass(init=True, unsafe_hash=True)
 class OutputAction(ArgAction):
     generator: Callable[[], str]
-    cache: dict[str, str] = field(default_factory=dict, hash=False, init=False)
 
     def handle(self, params=None, varargs=None, kwargs=None, raise_exc=False):
-        return super().handle({"help": self.generator()}, varargs, kwargs, raise_exc)
+        return super().handle({"output": self.generator()}, varargs, kwargs, raise_exc)
 
 
 @dataclass
@@ -27,11 +26,13 @@ class OutputActionManager(metaclass=Singleton):
     cache: dict[str, Callable] = field(default_factory=dict)
     outputs: dict[str, OutputAction] = field(default_factory=dict)
     send_action: Callable[[str], Any] = field(default=lambda x: print(x))
+    _out_cache: dict[str, dict[str, Any]] = field(default_factory=dict, hash=False, init=False)
 
     def __post_init__(self):
         def _clr(mgr: OutputActionManager):
             mgr.cache.clear()
             mgr.outputs.clear()
+            mgr._out_cache.clear()
             Singleton.remove(mgr.__class__)
 
         finalize(self, _clr, self)
@@ -41,10 +42,14 @@ class OutputActionManager(metaclass=Singleton):
         if action := self.get(command):
             if generator:
                 action.generator = generator
-            return action.cache.update(action.handle(raise_exc=raise_exception))
-        if generator:
-            return action.cache.update(self.set(generator, command).handle(raise_exc=raise_exception))
-        raise KeyError(f"Command {command} not found")
+        elif generator:
+            action = self.set(generator, command)
+        else:
+            raise KeyError(f"Command {command} not found")
+        res = action.handle(raise_exc=raise_exception)
+        if command in self._out_cache:
+            self._out_cache[command].update(res)
+        return res
 
     def get(self, command: str | None = None) -> OutputAction | None:
         """获取指定的输出行为"""
@@ -74,10 +79,9 @@ class OutputActionManager(metaclass=Singleton):
     def capture(self, command: str | None = None):
         """捕获输出"""
         command = command or "$global"
-        if not (action := self.outputs.get(command)):
-            raise KeyError(f"Command {command} not found")
-        yield action.cache
-        action.cache.clear()
+        _cache = self._out_cache.setdefault(command, {})
+        yield _cache
+        _cache.clear()
 
 
 output_manager = OutputActionManager()

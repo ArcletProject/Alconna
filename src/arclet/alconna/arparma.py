@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
 from typing import Any, TypeVar, overload, Generic, Mapping, Callable
 from types import MappingProxyType
 from contextlib import suppress
@@ -21,14 +20,16 @@ T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
 class Arparma(Generic[TDataCollection]):
-    """
-    承载解析结果与操作数据的接口类
-    """
+    """承载解析结果与操作数据的接口类"""
+    header_match: HeadResult
+    options: dict[str, OptionResult]
+    subcommands: dict[str, SubcommandResult]
+
     def __init__(
         self,
         source: str,
         origin: TDataCollection,
-        matched: bool,
+        matched: bool = False,
         header_match: HeadResult | None = None,
         error_info: type[BaseException] | BaseException | str = '',
         error_data: list[str | Any] | None = None
@@ -61,7 +62,7 @@ class Arparma(Generic[TDataCollection]):
         return self.header_match.groups
 
     @property
-    def header_matched(self):
+    def head_matched(self):
         return self.header_match.matched
 
     @property
@@ -203,9 +204,7 @@ class Arparma(Generic[TDataCollection]):
         if source is None:
             return default
         if isinstance(source, (OptionResult, SubcommandResult)):
-            if not endpoint:
-                return source
-            source = asdict(source)
+            return getattr(source, endpoint, default) if endpoint else source
         return source.get(endpoint, default) if endpoint else MappingProxyType(source)
 
     def query_with(self, arg_type: type[T], path: str | None = None, default: T | None = None) -> T | None:

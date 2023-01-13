@@ -34,7 +34,7 @@ def default_params_parser(analyser: Analyser):
             analyser.param_ids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
             sub_require_len = 0
-            analyser.main_params[opts.dest] = opts
+            analyser.main_params[opts.name] = opts
             analyser.param_ids.add(opts.name)
             sub_params = analyser.sub_params.setdefault(opts.dest, {})
             for sub_opts in opts.options:

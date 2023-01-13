@@ -51,7 +51,7 @@ class Analyser(Generic[TDataCollection]):
     options: dict[str, OptionResult]  # 存放解析到的所有选项
     subcommands: dict[str, SubcommandResult]  # 存放解析到的所有子命令
     main_args: dict[str, Any]  # 主参数
-    header: HeadResult
+    header: tuple[Any, ...]
     need_main_args: bool  # 是否需要主参数
     part_len: range  # 分段长度
     sub_part_lens: dict[str, range]
@@ -120,14 +120,9 @@ class Analyser(Generic[TDataCollection]):
                 continue
             if part.startswith('{') and part.endswith('}'):
                 res = part[1:-1].split(':')
-                if not res:
+                if not res or (len(res) > 1 and not res[1] and not res[0]):
                     parts[i] = ".+?"
-                    continue
-                if len(res) == 1:
-                    parts[i] = f"(?P<{res[0]}>.+?)"
-                elif not res[1] and not res[0]:
-                    parts[i] = ".+?"
-                elif not res[1]:
+                elif len(res) == 1 or not res[1]:
                     parts[i] = f"(?P<{res[0]}>.+?)"
                 elif not res[0]:
                     parts[i] = f"{pattern_map[res[1]].pattern if res[1] in pattern_map else res[1]}"
@@ -136,7 +131,7 @@ class Analyser(Generic[TDataCollection]):
         return "".join(parts)
 
     def __init_header__(
-        self, command_name: str | type | BasePattern, headers: list[str | Any] | list[tuple[Any, str]]
+        self, command_name: str | type | BasePattern, headers: list[Any] | list[tuple[Any, str]]
     ):
         if isinstance(command_name, str):
             command_name = self.__handle_bracket__(command_name)
@@ -175,13 +170,10 @@ class Analyser(Generic[TDataCollection]):
 
     def reset(self):
         """重置分析器"""
-        # self.current_index, self.content_index, self.ndata, self.temp_token = 0, 0, 0, 0
         self.current_index, self.ndata, self.temp_token = 0, 0, 0
-        # self.head_matched = False
         self.temporary_data, self.main_args, self.options, self.subcommands = {}, {}, {}, {}
         self.raw_data, self.bak_data, self.sentences = [], [], []
-        self.header, self.context = HeadResult(), None
-        # self.head_pos = (0, 0)
+        self.header, self.context = (), None
 
     def push(self, *data: str | Any) -> Self:
         for d in data:
@@ -388,7 +380,7 @@ class Analyser(Generic[TDataCollection]):
 
     def export(self, exception: BaseException | None = None, fail: bool = False) -> Arparma[TDataCollection]:
         """创建arpamar, 其一定是一次解析的最后部分"""
-        result = Arparma(self.alconna.path, self.temporary_data.pop("origin", "None"), not fail, self.header)
+        result = Arparma(self.alconna.path, self.temporary_data.pop("origin", "None"), not fail, HeadResult(*self.header))
         if fail:
             result.error_info = repr(exception or traceback.format_exc(limit=1))
             result.error_data = self.release()

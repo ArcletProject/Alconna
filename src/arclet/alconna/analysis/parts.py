@@ -10,7 +10,7 @@ from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, Co
 from ..typing import MultiVar, KeyWordVar
 from ..args import Args, Arg
 from ..base import Option, Subcommand
-from ..model import OptionResult, SubcommandResult, Sentence, HeadResult
+from ..model import OptionResult, SubcommandResult, Sentence
 from ..util import levenshtein_norm, split_once
 from ..config import config
 
@@ -304,7 +304,7 @@ def analyse_subcommand(analyser: Analyser, param: Subcommand) -> tuple[str, Subc
     return name, res
 
 
-def analyse_header(analyser: Analyser) -> HeadResult:
+def analyse_header(analyser: Analyser) -> tuple:
     """
     分析命令头部
 
@@ -316,15 +316,15 @@ def analyse_header(analyser: Analyser) -> HeadResult:
     command = analyser.command_header
     head_text, _str = analyser.popitem()
     if isinstance(command, TPattern) and _str and (mat := command.fullmatch(head_text)):
-        return HeadResult(head_text, head_text, True, mat.groupdict())
+        return head_text, head_text, True, mat.groupdict()
     elif isinstance(command, BasePattern) and (val := command(head_text, Empty)).success:
-        return HeadResult(head_text, val.value, True)
+        return head_text, val.value, True
     else:
         may_command, _m_str = analyser.popitem()
         if isinstance(command, List) and _m_str and not _str:
             for _command in command:
                 if (mat := _command[1].fullmatch(may_command)) and head_text == _command[0]:
-                    return HeadResult((head_text, may_command), (head_text, may_command), True, mat.groupdict())
+                    return (head_text, may_command), (head_text, may_command), True, mat.groupdict()
         if isinstance(command, tuple):
             if not _str and not isclass(head_text) and (
                 (isinstance(command[0], list) and (head_text in command[0] or type(head_text) in command[0])) or
@@ -332,21 +332,21 @@ def analyse_header(analyser: Analyser) -> HeadResult:
             ):
                 if isinstance(command[1], TPattern):
                     if _m_str and (mat := command[1].fullmatch(may_command)):
-                        return HeadResult((head_text, may_command), (head_text, may_command), True, mat.groupdict())
+                        return (head_text, may_command), (head_text, may_command), True, mat.groupdict()
                 elif (val := command[1](may_command, Empty)).success:
-                    return HeadResult((head_text, may_command), (head_text, val.value), True)
+                    return (head_text, may_command), (head_text, val.value), True
             elif _str and isinstance(command[0], tuple) and isinstance(command[0][1], TPattern):
                 if _m_str:
                     pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
                     if mat := pat.fullmatch(head_text):
                         analyser.pushback(may_command)
-                        return HeadResult(head_text, head_text, True, mat.groupdict())
+                        return head_text, head_text, True, mat.groupdict()
                     elif mat := pat.fullmatch(head_text + may_command):
-                        return HeadResult(head_text + may_command, head_text + may_command, True, mat.groupdict())
+                        return head_text + may_command, head_text + may_command, True, mat.groupdict()
                 elif isinstance(command[1], BasePattern) and (
                     (mat := command[0][1].fullmatch(head_text)) and (val := command[1](may_command, Empty)).success
                 ):
-                    return HeadResult(head_text + may_command, (head_text, val.value), True, mat.groupdict())
+                    return (head_text, may_command), (head_text, val.value), True, mat.groupdict()
 
     if _str and analyser.fuzzy_match:
         headers_text = []
