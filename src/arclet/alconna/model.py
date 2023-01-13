@@ -1,32 +1,33 @@
-from __future__ import annotations
-
-from dataclasses import dataclass, field
-from typing import Any
-from .util import _safe_dcs_args
-
-
-@dataclass(**_safe_dcs_args(frozen=True, eq=True, slots=True, repr=True))
 class Sentence:
-    name: str
-    separators: tuple[str, ...] = field(default=(' ',))
+    __slots__ = ("name", "separators")
+
+    def __init__(self, name, separators=None):
+        self.name = name
+        self.separators = separators or (" ",)
 
 
-@dataclass(**_safe_dcs_args(eq=True, slots=True, repr=True))
 class OptionResult:
-    value: Any = field(default=Ellipsis)
-    args: dict[str, Any] = field(default_factory=dict)
+    __slots__ = ("value", "args")
+
+    def __init__(self, value=Ellipsis, args=None):
+        self.value = value
+        self.args = args or {}
 
 
-@dataclass(**_safe_dcs_args(eq=True, slots=True, repr=True))
 class SubcommandResult:
-    value: Any = field(default=Ellipsis)
-    args: dict[str, Any] = field(default_factory=dict)
-    options: dict[str, OptionResult] = field(default_factory=dict)
+    __slots__ = ("value", "args", "options")
+
+    def __init__(self, value=Ellipsis, args=None, options=None):
+        self.value = value
+        self.args = args or {}
+        self.options = options or {}
 
 
-@dataclass(**_safe_dcs_args(eq=True, slots=True, repr=True))
 class HeadResult:
-    origin: Any = field(default=None)
-    result: Any = field(default=None)
-    matched: bool = field(default=False)
-    groups: dict[str, str] = field(default_factory=dict)
+    __slots__ = ("origin", "result", "matched", "groups")
+
+    def __init__(self, origin=None, result=None, matched=False, groups=None):
+        self.origin = origin
+        self.result = result
+        self.matched = matched
+        self.groups = groups or {}

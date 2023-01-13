@@ -20,21 +20,31 @@ T = TypeVar('T')
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
-@dataclass(eq=True)
 class Arparma(Generic[TDataCollection]):
     """
     承载解析结果与操作数据的接口类
     """
-    _source: str = field(compare=True)
-    origin: TDataCollection = field(compare=True)
-    matched: bool = field(default=False, compare=True)
-    header_match: HeadResult = field(default=HeadResult(), compare=True)
-    error_data: list[str | Any] = field(default_factory=list, compare=False)
-    error_info: str | BaseException | type[BaseException] = field(default='', compare=False)
-    main_args: dict[str, Any] = field(default_factory=dict, compare=True)
-    other_args: dict[str, Any] = field(default_factory=dict, compare=True)
-    options: dict[str, OptionResult] = field(default_factory=dict, compare=True)
-    subcommands: dict[str, SubcommandResult] = field(default_factory=dict, compare=True)
+    def __init__(
+        self,
+        source: str,
+        origin: TDataCollection,
+        matched: bool,
+        header_match: HeadResult | None = None,
+        error_info: type[BaseException] | BaseException | str = '',
+        error_data: list[str | Any] | None = None
+    ):
+        self._source = source
+        self.origin = origin
+        self.matched = matched
+        self.header_match = header_match or HeadResult()
+        self.error_info = error_info
+        self.error_data = error_data or []
+        self.main_args = {}
+        self.other_args = {}
+        self.options = {}
+        self.subcommands = {}
+
+
 
     def _clr(self):
         ks = list(self.__dict__.keys())
