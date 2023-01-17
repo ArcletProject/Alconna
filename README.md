@@ -47,16 +47,16 @@ from arclet.alconna import Alconna, Option, Subcommand, Args
 
 cmd = Alconna(
     "/pip",
-    Subcommand("install", [Option("-u|--upgrade")], Args.pak_name[str]),
+    Subcommand("install", Option("-u|--upgrade"), Args.pak_name[str]),
     Option("list")
 )
 
-result = cmd.parse("/pip install cesloi --upgrade") # 该方法返回一个Arpamar类的实例
+result = cmd.parse("/pip install numpy --upgrade") # 该方法返回一个Arpamar类的实例
 print(result.query('install'))  # 或者 result.install
 ```
 其结果为
 ```
-{'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
+value=None args={'pak_name': 'numpy'} options={'upgrade': value=Ellipsis args={}} subcommands={}
 ```
 
 ## 讨论

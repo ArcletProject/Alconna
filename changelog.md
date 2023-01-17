@@ -1,12 +1,22 @@
-# Alconna 1.5.0:
+# Alconna 1.5.x:
+
+## Alconna 1.5.0:
 1. 加入 `HeadResult`, 表示头部匹配的结果
-2. `Arparma.header_match` 现在返回 `HeadResult` 类型
-3. `Arparma.update` 移动到 `ArparmaBehavior.update`
-4. `Arparma.query` 现在不一定返回 `Mapping` 类型
-5. 新增 `output_manager.set` 方法以新增输出行为
-6. 修改 `output_manager.get` 方法从构建输出行为到只获取输出行为
-7. 新增 `output_manager.capture` 上下文管理器以提供输出捕获功能
-8. `set_default` 可以细化至更新 `subcmd.opt.args.arg` 的值
+2. 加入 `SubAnalyser`, 负责部分原 `Analyser` 的部分功能
+3. `Arparma.header_match` 现在返回 `HeadResult` 类型
+4. 新增 `DataCollectionContainer` 类, 负责原 `Analyser` 的数据操作
+5. 因为 [2], 现在支持子命令嵌套
+6. 部分 api 改动: 
+   - `Analyser.process` -> `Analyser.container.build`
+   - `Analyser.analyser` -> `Analyser.process`
+   - `analyse_subcommand` -> `analyse_param`
+7. 新增 `Analyser.config` 方法以配置如 `preprocessor`, `filter_out` 之类的参数
+8. `Arparma.update` 移动到 `ArparmaBehavior.update`
+9. `Arparma.query` 现在不一定返回 `Mapping` 类型
+10. 新增 `output_manager.set` 方法以新增输出行为
+11. 修改 `output_manager.get` 方法从构建输出行为到只获取输出行为
+12. 新增 `output_manager.capture` 上下文管理器以提供输出捕获功能
+13. `set_default` 可以细化至更新 `subcmd.opt.args.arg` 的值
 
 # Alconna 1.4.x:
 
