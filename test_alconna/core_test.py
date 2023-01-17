@@ -419,6 +419,7 @@ def test_nest_subcommand():
     assert alc23.parse("core23 bar baz a 123").matched
     assert alc23.parse("core23 bar baz --qux a 123").matched
     assert not alc23.parse("core23 bar baz a --qux 123").matched
+    assert alc23.parse("core23 bar baz --qux a 123").query("bar.baz.qux.value") is Ellipsis
 
 
 
