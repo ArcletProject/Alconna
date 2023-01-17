@@ -89,6 +89,18 @@ class Arparma(Generic[TDataCollection]):
     def get_duplication(self, dup: type[T_Duplication] | None = None) -> T_Duplication:
         return (dup(self.source) if dup else generate_duplication(self.source)).set_target(self)  # type: ignore
 
+    def _unpack_opts(self, _data):
+        for _v in _data.values():
+            self.other_args = {**self.other_args, **_v.args}
+
+    def _unpack_subs(self, _data):
+        for _v in _data.values():
+            self.other_args = {**self.other_args, **_v.args}
+            if _v.options:
+                self._unpack_opts(_v.options)
+            if _v.subcommands:
+                self._unpack_subs(_v.subcommands)
+
     def encapsulate_result(
         self,
         main_args: dict[str, Any],
@@ -99,14 +111,9 @@ class Arparma(Generic[TDataCollection]):
         self.main_args = main_args.copy()
         self.options = options.copy()
         self.subcommands = subcommands.copy()
-        for v in options.values():
-            self.other_args = {**self.other_args, **v.args}
-        for k in subcommands:
-            v = subcommands[k]
-            self.other_args = {**self.other_args, **v.args}
-            if sub_opts := v.options:
-                for vv in sub_opts.values():
-                    self.other_args = {**self.other_args, **vv.args}
+        self._unpack_opts(options)
+        self._unpack_subs(subcommands)
+
 
     @staticmethod
     def behave_cancel():
@@ -167,24 +174,31 @@ class Arparma(Generic[TDataCollection]):
                 return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
             return __src.args, _end
 
+        def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult]):
+            if _pf == "subcommands":
+                _pf = _parts.pop(0)
+            if not _parts:
+                return _subs, _pf
+            elif not (__src := _subs.get(_pf)):
+                return _subs, _pf
+            if (_end := _parts.pop(0)) == "value":
+                return __src, _end
+            if _end == 'args':
+                return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
+            if _end == "options" and (_end in __src.options or not _parts):
+                raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
+            if _end == "options" or _end in __src.options:
+                return _handle_opt(_end, _parts, __src.options)
+            if _end == "subcommands" and (_end in __src.subcommands or not _parts):
+                raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
+            if _end == "subcommands" or _end in __src.subcommands:
+                return _handle_sub(_end, _parts, __src.subcommands)
+            return __src.args, _end
+
         if prefix == "options" or prefix in self.options:
             return _handle_opt(prefix, parts, self.options)
         if prefix == "subcommands" or prefix in self.subcommands:
-            if prefix == "subcommands":
-                prefix = parts.pop(0)
-            if not parts: # subcommands.foo or foo
-                return self.subcommands, prefix
-            elif not (_src := self.subcommands.get(prefix)):  # subcommands.foo.bar or foo.bar
-                return self.subcommands, prefix
-            if (end := parts.pop(0)) == "value":
-                return _src, end
-            if end == 'args':
-                return (_src.args, parts.pop(0)) if parts else (_src, end)
-            if end == "options" and (end in _src.options or not parts):
-                raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{prefix}.{end}"))
-            if end == "options" or end in _src.options:
-                return _handle_opt(end, parts, _src.options)
-            return _src.args, end
+            return _handle_sub(prefix, parts, self.subcommands)
         prefix = prefix.replace("$main", "main_args").replace("$other", "other_args")
         if prefix in {"main_args", "other_args"}:
             return getattr(self, prefix, {}), parts.pop(0)

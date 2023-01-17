@@ -21,12 +21,13 @@ class OptionResult:
 
 @dataclass(eq=True)
 class SubcommandResult:
-    __slots__ = ("value", "args", "options")
+    __slots__ = ("value", "args", "options", "subcommands")
     __repr__ = _repr_
-    def __init__(self, value=Ellipsis, args=None, options=None):
+    def __init__(self, value=Ellipsis, args=None, options=None, subcommands=None):
         self.value = value
         self.args = args or {}
         self.options = options or {}
+        self.subcommands = subcommands or {}
 
 
 @dataclass(eq=True)

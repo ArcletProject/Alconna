@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from functools import reduce
 from typing import Callable, Sequence, overload, Iterable
 from typing_extensions import Self
 
@@ -123,8 +124,8 @@ class Option(CommandNode):
     def __add__(self, other) -> Self | Subcommand:
         if isinstance(other, Option):
             return Subcommand(
-                self.name, [other], self.args, self.dest, self.action,
-                self.separators, self.help_text, self.requires
+                self.name, other, self.args, dest=self.dest, action=self.action,
+                separators=self.separators, help_text=self.help_text, requires=self.requires
             )
         if isinstance(other, (Arg, Args)):
             self.args += other
@@ -142,18 +143,23 @@ class Option(CommandNode):
 
 class Subcommand(CommandNode):
     """子命令, 次于主命令, 可解析 SubOption"""
-    options: list[Option]
+    options: list[Option | Subcommand]
 
     def __init__(
         self,
-        name: str, options: list[Option] | None = None, args: Args | str | None = None,
+        name: str,
+        *args: Args | Arg | Option | Subcommand,
         dest: str | None = None, action: ArgAction | Callable | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
     ):
-        self.options = options or []
-        super().__init__(name, args, dest, action, separators, help_text, requires)
+        self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
+        super().__init__(
+            name,
+            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
+            dest, action, separators, help_text, requires
+        )
 
     def __add__(self, other) -> Self:
         if isinstance(other, (Option, str)):

@@ -47,3 +47,7 @@ class CompletionTriggered(Exception):
 
 class PauseTriggered(Exception):
     """解析状态保存触发"""
+
+
+class SpecialOptionTriggered(Exception):
+    """内置选项解析触发"""

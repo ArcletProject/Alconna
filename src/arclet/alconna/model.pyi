@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Any
 
 class Sentence:
@@ -14,8 +15,13 @@ class SubcommandResult:
     value: Any
     args: dict[str, Any]
     options: dict[str, OptionResult]
+    subcommands: dict[str, SubcommandResult]
     def __init__(
-        self, value: Any = ..., args: dict[str, Any] | None = ..., options: dict[str, OptionResult] | None = ...
+        self,
+        value: Any = ...,
+        args: dict[str, Any] | None = ...,
+        options: dict[str, OptionResult] | None = ...,
+        subcommands: dict[str, SubcommandResult] | None = ...
     ) -> None: ...
 
 class HeadResult:

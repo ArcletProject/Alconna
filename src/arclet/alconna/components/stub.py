@@ -131,19 +131,23 @@ class SubcommandStub(BaseStub[Subcommand]):
     args: ArgsStub = field(init=False)
     dest: str = field(init=False)
     options: list[OptionStub] = field(init=False)
+    subcommands: list[SubcommandStub] = field(init=False)
     name: str = field(init=False)
 
     def __post_init__(self):
         self.dest = self._origin.dest
         self.name = self._origin.name.lstrip('-')
         self.args = ArgsStub(self._origin.args)
-        self.options = [OptionStub(opt) for opt in self._origin.options]
+        self.options = [OptionStub(opt) for opt in self._origin.options if isinstance(opt, Option)]
+        self.subcommands = [SubcommandStub(sub) for sub in  self._origin.options if isinstance(sub, Subcommand)]
 
     def set_result(self, result: SubcommandResult):
         self._value = result.value
         self.args.set_result(result.args)
         for option in self.options:
             option.set_result(result.options.get(option.dest, None))
+        for subcommand in self.subcommands:
+            subcommand.set_result(result.subcommands.get(subcommand.dest, None))
         self.available = True
 
     def option(self, name: str) -> OptionStub:

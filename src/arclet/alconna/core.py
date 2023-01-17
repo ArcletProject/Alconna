@@ -136,7 +136,7 @@ class AlconnaGroup(CommandNode):
         return res._fail("Not Matched Any Command")
 
 
-class Alconna(CommandNode):
+class Alconna(Subcommand):
     """
     更加精确的命令解析
 
@@ -149,8 +149,8 @@ class Alconna(CommandNode):
         ...     Option("opt", Args["opt_arg", "opt_arg"]),
         ...     Subcommand(
         ...         "sub_name",
-        ...         [Option("sub_opt", Args["sub_arg", "sub_arg"])],
-        ...          Args["sub_main_args", "sub_main_args"]
+        ...         Option("sub_opt", Args["sub_arg", "sub_arg"]),
+        ...         Args["sub_main_args", "sub_main_args"]
         ...     ),
         ...     Args["main_args", "main_args"],
         ...  )
@@ -159,7 +159,6 @@ class Alconna(CommandNode):
     _group = False
     headers: list[str | object] | list[tuple[object, str]]
     command: str | Any
-    options: list[Option | Subcommand]
     analyser_type: type[Analyser]
     formatter_type: type[TextFormatter]
     namespace: str
@@ -211,9 +210,20 @@ class Alconna(CommandNode):
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
             self.command = "" if self.headers else sys.argv[0]
-        self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = np_config.name
+        self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
+        self.formatter_type = formatter_type or np_config.formatter_type or TextFormatter
+        self.meta = meta or CommandMeta()
+        self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
+        self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
+        super().__init__(
+            command_manager.sign,
+            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
+            action=action,
+            separators=separators or np_config.separators,
+        )
+        self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.options.append(
             Option("|".join(np_config.builtin_option_name['help']), help_text=config.lang.builtin_option_help),
         )
@@ -228,17 +238,6 @@ class Alconna(CommandNode):
             Option(
                 "|".join(np_config.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
             )
-        )
-        self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
-        self.formatter_type = formatter_type or np_config.formatter_type or TextFormatter
-        self.meta = meta or CommandMeta()
-        self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
-        self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
-        super().__init__(
-            command_manager.sign,
-            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            action=action,
-            separators=separators or np_config.separators,  # type: ignore
         )
         self.behaviors = behaviors or []
         self.behaviors.insert(0, ActionHandler(self))
@@ -369,9 +368,9 @@ class Alconna(CommandNode):
             analyser = command_manager.require(self)
         except ValueError:
             analyser = compile(self)
-        analyser.process(message)
+        analyser.container.build(message)
         try:
-            arp: Arparma[TDataCollection] = analyser.analyse(interrupt=interrupt)
+            arp: Arparma[TDataCollection] = analyser.process(interrupt=interrupt)
         except PauseTriggered:
             return analyser
         if arp.matched:

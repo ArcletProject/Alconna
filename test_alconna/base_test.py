@@ -49,12 +49,9 @@ def test_separator():
 
 
 def test_subcommand():
-    sub = Subcommand("test", options=[Option("foo"), Option("bar")])
+    sub = Subcommand("test", Option("foo"), Option("bar"))
     assert len(sub.options) == 2
-    assert analyse_subcommand(sub, "test foo") == (
-        "test",
-        SubcommandResult(None, {}, {"foo": OptionResult()}),
-    )
+    assert analyse_subcommand(sub, "test foo") == SubcommandResult(None, {}, {"foo": OptionResult()})
 
 
 def test_compact():
