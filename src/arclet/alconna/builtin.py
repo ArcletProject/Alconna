@@ -35,13 +35,13 @@ store_false = store_value(False)
 
 
 if TYPE_CHECKING:
-    from arclet.alconna import alconna_version
+    from arclet.alconna import __version__
     from arclet.alconna.arparma import Arparma
 
 
     def version(value: tuple | None):
         """返回一个以元组形式存储的版本信息"""
-        return _StoreValue(value) if value else _StoreValue(alconna_version)
+        return _StoreValue(".".join(map(str, value))) if value else _StoreValue(__version__)
 
 
 @dataclass(init=True, eq=True, unsafe_hash=True)

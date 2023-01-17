@@ -102,8 +102,9 @@ def resolve_requires(options: list[Option | Subcommand]):
 
     for opt in options:
         if not opt.requires:
-            reqs.setdefault(opt.name, opt)
+            # reqs.setdefault(opt.name, opt)
             [reqs.setdefault(i, opt) for i in opt.aliases] if isinstance(opt, Option) else None
+            reqs.setdefault(opt.name, resolve_requires(opt.options)) if isinstance(opt, Subcommand) else None
         else:
             _reqs = _cache = {}
             for req in opt.requires:
@@ -113,10 +114,18 @@ def resolve_requires(options: list[Option | Subcommand]):
                 else:
                     _cache[req] = {}
                     _cache = _cache[req]
-            _cache[opt.name] = opt  # type: ignore
+            # _cache[opt.name] = opt  # type: ignore
             [_cache.setdefault(i, opt) for i in opt.aliases] if isinstance(opt, Option) else None  # type: ignore
+            _cache.setdefault(opt.name, resolve_requires(opt.options)) if isinstance(opt, Subcommand) else None
             _u(reqs, _reqs)
     return reqs
+
+def ensure_node(target: str, options: list[Option | Subcommand]):
+    for opt in options:
+        if isinstance(opt, Option) and target in opt.aliases:
+            return opt
+        if isinstance(opt, Subcommand):
+            return opt if target == opt.name else ensure_node(target, opt.options)
 
 
 @dataclass
@@ -177,20 +186,23 @@ class TextFormatter:
                 if isinstance(_cache, dict) and text in _cache:
                     _cache = _cache[text]
                     _parts.append(text)
-                if not _parts:
-                    return self.format(trace)
+            if not _parts:
+                return self.format(trace)
             if isinstance(_cache, dict):
-                _opts, _visited = [], set()
-                for k, i in _cache.items():
-                    if isinstance(i, dict):
-                        _opts.append(Option(k, requires=_parts))
-                    elif i not in _visited:
-                        _opts.append(i)
-                        _visited.add(i)
-                return self.format(Trace(
-                    {"name": _parts[-1], 'header': [], 'description': _parts[-1]}, Args(), trace.separators,
-                    _opts
-                ))
+                if ensure := ensure_node(_parts[-1], trace.body):
+                    _cache = ensure
+                else:
+                    _opts, _visited = [], set()
+                    for k, i in _cache.items():
+                        if isinstance(i, dict):
+                            _opts.append(Option(k, requires=_parts))
+                        elif i not in _visited:
+                            _opts.append(i)
+                            _visited.add(i)
+                    return self.format(Trace(
+                        {"name": _parts[-1], 'header': [], 'description': _parts[-1]}, Args(), trace.separators,
+                        _opts
+                    ))
             if isinstance(_cache, Option):
                 return self.format(Trace(
                     {"name": "", "header": list(_cache.aliases), "description": _cache.help_text}, _cache.args,
