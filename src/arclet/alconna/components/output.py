@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from weakref import finalize
-from typing import Callable, Coroutine, Any, TYPE_CHECKING 
-from dataclasses import dataclass
+from typing import Callable, Any, TYPE_CHECKING
+from dataclasses import dataclass, field
 from nepattern import Empty, AllParam, BasePattern
+from contextlib import contextmanager
 
 from .action import ArgAction
 from ..util import Singleton
@@ -11,60 +12,79 @@ from ..args import Args, Arg
 from ..base import Option, Subcommand
 
 
+@dataclass(init=True, unsafe_hash=True)
 class OutputAction(ArgAction):
-    output_text_call: Callable[[], str]
+    generator: Callable[[], str]
 
-    def __init__(self, send_action, out_call, command=None):
-        super().__init__(send_action)
-        self.output_text_call = out_call
-        self.command = command
-
-    def handle(self, option_dict=None, varargs=None, kwargs=None, raise_exception=False):
-        return super().handle({"help": self.output_text_call()}, varargs, kwargs, raise_exception)
+    def handle(self, params=None, varargs=None, kwargs=None, raise_exc=False):
+        return super().handle({"output": self.generator()}, varargs, kwargs, raise_exc)
 
 
+@dataclass
 class OutputActionManager(metaclass=Singleton):
     """帮助信息"""
-    cache: dict[str, Callable]
-    outputs: dict[str, OutputAction]
-    send_action: Callable[[str], Any | Coroutine]
+    cache: dict[str, Callable] = field(default_factory=dict)
+    outputs: dict[str, OutputAction] = field(default_factory=dict)
+    send_action: Callable[[str], Any] = field(default=lambda x: print(x))
+    _out_cache: dict[str, dict[str, Any]] = field(default_factory=dict, hash=False, init=False)
 
-    def __init__(self):
-        self.cache = {}
-        self.outputs = {}
-        self.send_action = lambda x: print(x)
-
+    def __post_init__(self):
         def _clr(mgr: OutputActionManager):
             mgr.cache.clear()
             mgr.outputs.clear()
+            mgr._out_cache.clear()
             Singleton.remove(mgr.__class__)
 
         finalize(self, _clr, self)
 
-    def get(self, command: str, output_call: Callable[[], str]) -> OutputAction:
-        """获取发送帮助信息的 action"""
-        if command not in self.outputs:
-            self.outputs[command] = OutputAction(self.send_action, output_call, command)
+    def send(self, command: str | None = None, generator: Callable[[], str] | None = None, raise_exception=False):
+        """调用指定的输出行为"""
+        if action := self.get(command):
+            if generator:
+                action.generator = generator
+        elif generator:
+            action = self.set(generator, command)
         else:
-            self.outputs[command].output_text_call = output_call
+            raise KeyError(f"Command {command} not found")
+        res = action.handle(raise_exc=raise_exception)
+        if command in self._out_cache:
+            self._out_cache[command].update(res)
+        return res
 
-        if command in self.cache:
-            self.outputs[command].action = self.cache[command]
-            del self.cache[command]
+    def get(self, command: str | None = None) -> OutputAction | None:
+        """获取指定的输出行为"""
+        return self.outputs.get(command or "$global")
+
+    def set(self, generator: Callable[[], str], command: str | None = None) -> OutputAction:
+        """设置指定的输出行为"""
+        command = command or "$global"
+        if command in self.outputs:
+            self.outputs[command].generator = generator
+        elif command in self.cache:
+            self.outputs[command] = OutputAction(self.cache.pop(command), generator)
+        else:
+            self.outputs[command] = OutputAction(self.send_action, generator)
         return self.outputs[command]
 
     def set_action(self, action: Callable[[str], Any], command: str | None = None):
-        """修改help_send_action"""
-        if command is None:
+        """修改输出行为"""
+        if command is None or command == "$global":
             self.send_action = action
         elif cmd := self.outputs.get(command):
             cmd.action = action
         else:
             self.cache[command] = action
 
+    @contextmanager
+    def capture(self, command: str | None = None):
+        """捕获输出"""
+        command = command or "$global"
+        _cache = self._out_cache.setdefault(command, {})
+        yield _cache
+        _cache.clear()
+
 
 output_manager = OutputActionManager()
-
 
 if TYPE_CHECKING:
     from ..core import Alconna, AlconnaGroup
@@ -82,8 +102,9 @@ def resolve_requires(options: list[Option | Subcommand]):
 
     for opt in options:
         if not opt.requires:
-            reqs.setdefault(opt.name, opt)
+            # reqs.setdefault(opt.name, opt)
             [reqs.setdefault(i, opt) for i in opt.aliases] if isinstance(opt, Option) else None
+            reqs.setdefault(opt.name, resolve_requires(opt.options)) if isinstance(opt, Subcommand) else None
         else:
             _reqs = _cache = {}
             for req in opt.requires:
@@ -93,10 +114,18 @@ def resolve_requires(options: list[Option | Subcommand]):
                 else:
                     _cache[req] = {}
                     _cache = _cache[req]
-            _cache[opt.name] = opt  # type: ignore
+            # _cache[opt.name] = opt  # type: ignore
             [_cache.setdefault(i, opt) for i in opt.aliases] if isinstance(opt, Option) else None  # type: ignore
+            _cache.setdefault(opt.name, resolve_requires(opt.options)) if isinstance(opt, Subcommand) else None
             _u(reqs, _reqs)
     return reqs
+
+def ensure_node(target: str, options: list[Option | Subcommand]):
+    for opt in options:
+        if isinstance(opt, Option) and target in opt.aliases:
+            return opt
+        if isinstance(opt, Subcommand):
+            return opt if target == opt.name else ensure_node(target, opt.options)
 
 
 @dataclass
@@ -157,20 +186,23 @@ class TextFormatter:
                 if isinstance(_cache, dict) and text in _cache:
                     _cache = _cache[text]
                     _parts.append(text)
-                if not _parts:
-                    return self.format(trace)
+            if not _parts:
+                return self.format(trace)
             if isinstance(_cache, dict):
-                _opts, _visited = [], set()
-                for k, i in _cache.items():
-                    if isinstance(i, dict):
-                        _opts.append(Option(k, requires=_parts))
-                    elif i not in _visited:
-                        _opts.append(i)
-                        _visited.add(i)
-                return self.format(Trace(
-                    {"name": _parts[-1], 'header': [], 'description': _parts[-1]}, Args(), trace.separators,
-                    _opts
-                ))
+                if ensure := ensure_node(_parts[-1], trace.body):
+                    _cache = ensure
+                else:
+                    _opts, _visited = [], set()
+                    for k, i in _cache.items():
+                        if isinstance(i, dict):
+                            _opts.append(Option(k, requires=_parts))
+                        elif i not in _visited:
+                            _opts.append(i)
+                            _visited.add(i)
+                    return self.format(Trace(
+                        {"name": _parts[-1], 'header': [], 'description': _parts[-1]}, Args(), trace.separators,
+                        _opts
+                    ))
             if isinstance(_cache, Option):
                 return self.format(Trace(
                     {"name": "", "header": list(_cache.aliases), "description": _cache.help_text}, _cache.args,
@@ -219,7 +251,7 @@ class TextFormatter:
                 sep = f"[{'|'.join(arg.separators)!r}]"
             res += self.param(arg) + sep
         notice = [(arg.name, arg.notice) for arg in args.argument if arg.notice]
-        return f"{res}\n## 注释\n  " + "\n  ".join(f"{v[0]}: {v[1]}" for v in notice) if notice else res
+        return f"{res}\n## 注释\n  " + "\n  ".join([f"{v[0]}: {v[1]}" for v in notice]) if notice else res
 
     def header(self, root: dict[str, Any], separators: tuple[str, ...]) -> str:
         """头部节点的描述"""
@@ -256,10 +288,10 @@ class TextFormatter:
     def body(self, parts: list[Option | Subcommand]) -> str:
         """子节点列表的描述"""
         option_string = "".join(
-            self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
-            if opt.name not in self.ignore_names
+            [self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
+            if opt.name not in self.ignore_names]
         )
-        subcommand_string = "".join(self.part(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts))
+        subcommand_string = "".join([self.part(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts)])
         option_help = "可用的选项有:\n" if option_string else ""
         subcommand_help = "可用的子命令有:\n" if subcommand_string else ""
         return f"{subcommand_help}{subcommand_string}{option_help}{option_string}"

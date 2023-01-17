@@ -1,25 +1,27 @@
 from typing import Union
-from nepattern import set_unit
+from nepattern import BasePattern, PatternModel
 from arclet.alconna.analysis.analyser import Analyser
 from arclet.alconna import Alconna, Args
 
 
 def test_filter_out():
-    Analyser.filter_out = ["int"]
+    Analyser.config(filter_out=["int"])
     ana = Alconna("ana", Args["foo", str])
     assert ana.parse(["ana", 123, "bar"]).matched is True
     assert ana.parse("ana bar").matched is True
-    Analyser.filter_out.remove("int")
-    assert ana.parse(["ana", 123, "bar"]).matched is False
+    Analyser.config(filter_out=[])
+    ana_1 = Alconna("ana", Args["foo", str])
+    assert ana_1.parse(["ana", 123, "bar"]).matched is False
 
 
 def test_preprocessor():
-    Analyser.preprocessors["float"] = lambda x: int(x)
+    Analyser.config(processors={"float": lambda x: int(x)})
     ana1 = Alconna("ana1", Args["bar", int])
     assert ana1.parse(["ana1", 123.06]).matched is True
     assert ana1.parse(["ana1", 123.06]).bar == 123
-    del Analyser.preprocessors["float"]
-    assert ana1.parse(["ana1", 123.06]).matched is False
+    Analyser.config(processors={})
+    ana1_1 = Alconna("ana1", Args["bar", int])
+    assert ana1_1.parse(["ana1", 123.06]).matched is False
 
 
 def test_with_set_unit():
@@ -50,19 +52,26 @@ def test_with_set_unit():
         def at(user_id: Union[int, str]):
             return Segment("at", qq=str(user_id))
 
-    Analyser.text_sign = "plain"
-    Analyser.preprocessors['Segment'] = lambda x: str(x) if x.type == "text" else None
+    Analyser.config(
+        text_sign="plain",
+        processors={"Segment": lambda x: str(x) if x.type == "text" else None}
+    )
 
-    face = set_unit(Segment, lambda x: x.type == "face")
-    at = set_unit(Segment, lambda x: x.type == "at")
+    def gen_unit(type_: str):
+        return BasePattern(
+            type_, PatternModel.TYPE_CONVERT, Segment,
+            lambda _, seg: seg if seg.type == type_ else None,
+            type_, accepts=[Segment]
+        )
 
-    ana2 = Alconna("ana2", Args["foo", at]["bar", face])
+    Face = gen_unit("face")
+    At = gen_unit("at")
+
+    ana2 = Alconna("ana2", Args["foo", At]["bar", Face])
     res = ana2.parse([Segment.text("ana2"), Segment.at(123456), Segment.face(103)])
     assert res.matched is True
     assert res.foo.data['qq'] == '123456'
-
-    Analyser.text_sign = 'text'
-    del Analyser.preprocessors['Segment']
+    Analyser.config()
 
 
 if __name__ == '__main__':

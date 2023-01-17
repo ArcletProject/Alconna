@@ -31,8 +31,8 @@ def test_alconna_multi_match():
         "core1",
         Subcommand(
             "test",
-            [Option("-u", Args["username", str], help_text="输入用户名")],
-            args=Args["test", "Test"],
+            Option("-u", Args["username", str], help_text="输入用户名"),
+            Args["test", "Test"],
             help_text="测试用例",
         ),
         Option("-n|--num", Args["count", int, 123], help_text="输入数字"),
@@ -42,7 +42,7 @@ def test_alconna_multi_match():
     )
     assert len(alc1.options) == 6
     print("")
-    print(repr(alc1.get_help()))
+    print("Help Repr:", repr(alc1.get_help()))
     res1 = alc1.parse(["/core1 -u", 123, "test Test -u AAA -n 222 127.0.0.1"])
     assert res1.matched is True
     assert res1.query("num.count") == 222
@@ -67,10 +67,8 @@ def test_formatter():
         "/pip",
         Subcommand(
             "install",
-            [
-                Option("--upgrade", help_text="升级包"),
-                Option("-i|--index-url", Args["url", URL]),
-            ],
+            Option("--upgrade", help_text="升级包"),
+            Option("-i|--index-url", Args["url", URL]),
             Args["pak", str],
             help_text="安装一个包",
         ),
@@ -97,7 +95,7 @@ def test_alconna_special_help():
         "Cal",
         Subcommand(
             "-div",
-            [Option("--round|-r", Args.decimal[int], help_text="保留n位小数")],
+            Option("--round|-r", Args.decimal[int], help_text="保留n位小数"),
             Args(num_a=int, num_b=int),
             help_text="除法计算",
         ),
@@ -339,13 +337,17 @@ def test_args_notice():
 
 def test_completion():
     alc20 = (
-            "core20" + Option("fool") + Option(
-        "foo",
-        Args.bar["a|b|c", Field(completion=lambda: "test completion; choose a, b or c")]
-    ) + Option(
-        "off",
-        Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])]
-    ) + Args["test", int, Field(1, completion=lambda: "try -1 ?")]
+        "core20" +
+        Option("fool") +
+        Option(
+            "foo",
+            Args.bar["a|b|c", Field(completion=lambda: "test completion; choose a, b or c")]
+        ) +
+        Option(
+            "off",
+            Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])]
+        ) +
+        Args["test", int, Field(1, completion=lambda: "try -1 ?")]
     )
 
     alc20.parse("core20 --comp")
@@ -361,10 +363,10 @@ def test_completion():
 
 def test_interrupt():
     alc21 = Alconna("core21", Args.foo[int], Args.bar[str])
-    print("\n", alc21.parse("core21"))
-    print("\n", ana := alc21.parse("core21", interrupt=True))
-
-    assert ana.push("1", "a").analyse().matched
+    print("\n", "no interrupt [failed]:", alc21.parse("core21"))
+    print("\n", "interrupt [pending]:", ana := alc21.parse("core21", interrupt=True))
+    ana.container.push("1", "a")
+    assert ana.process().matched
 
 
 def test_call():
@@ -383,8 +385,8 @@ def test_call():
     alc22.parse("core22 321 abc")
     assert cb.result == 642
 
-    alc22_1 = Alconna("core22_1", Args.foo[int], Args.bar[str])
-    res = alc22_1.parse("core22_1 123 abc")
+    alc22_1 = Alconna("core22_1", Args.foo[int], Args.bar[str], Args.baz[bool])
+    res = alc22_1.parse("core22_1 123 abc false")
 
     async def cb1(foo: int, bar: str):
         await asyncio.sleep(0.1)
@@ -399,6 +401,31 @@ def test_call():
 
     asyncio.run(main())
 
+
+def test_nest_subcommand():
+    alc23 = Alconna(
+        "core23",
+        Args.foo[int],
+        Subcommand(
+            "bar",
+            Subcommand(
+                "baz",
+                Option("--qux"),
+                help_text="test nest subcommand; deep 2"
+            ),
+            Args["abc", str],
+            help_text="test nest subcommand; deep 1"
+        ),
+        meta=CommandMeta("test nest subcommand")
+    )
+    assert alc23.parse("core23 123").matched
+    assert alc23.parse("core23 bar baz a 123").matched
+    assert alc23.parse("core23 bar baz --qux a 123").matched
+    assert not alc23.parse("core23 bar baz a --qux 123").matched
+    assert alc23.parse("core23 bar baz --qux a 123").query("bar.baz.qux.value") is Ellipsis
+    print("")
+    #alc23.parse("core23 --help")
+    alc23.parse("core23 bar baz --help")
 
 if __name__ == "__main__":
     import pytest

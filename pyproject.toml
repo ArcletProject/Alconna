@@ -4,15 +4,15 @@ build-backend = "pdm.pep517.api"
 
 [project]
 name = "arclet-alconna"
-version = "1.4.3"
 description = "A High-performance, Generality, Humane Command Line Arguments Parser Library."
 authors = [
     {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},
 ]
 dependencies = [
     "typing-extensions~=4.4.0",
-    "nepattern>=0.3.2",
+    "nepattern>=0.4.2",
 ]
+dynamic = ["version"]
 requires-python = ">=3.8"
 readme = "README-EN.md"
 license = {text = "MIT"}
@@ -54,10 +54,19 @@ includes = ["src/arclet"]
 [tool.pdm.dev-dependencies]
 dev = [
     "pytest~=7.2.0",
-    "coverage~=6.5.0",
+    "coverage~=7.0.1",
     "pydeps~=1.11.0",
     "fix-future-annotations>=0.4.0",
+    "viztracer>=0.15.6",
 ]
+
+[tool.pdm.scripts]
+test = "python entry_test.py"
+benchmark = "python benchmark.py"
+
+[tool.pdm.version]
+source = "file"
+path = "src/arclet/alconna/__init__.py"
 
 [tool.pylint.BASIC]
 class-const-naming-style = "any"

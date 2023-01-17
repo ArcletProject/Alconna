@@ -43,17 +43,17 @@ from arclet.alconna import Alconna, Option, Subcommand, Args
 
 cmd = Alconna(
     "/pip",
-    Subcommand("install", [Option("-u|--upgrade")], Args.pak_name[str]),
+    Subcommand("install", Option("-u|--upgrade"), Args.pak_name[str]),
     Option("list")
 )
 
-result = cmd.parse("/pip install cesloi --upgrade") # This method returns an 'Arparma' class instance.
+result = cmd.parse("/pip install numpy --upgrade") # This method returns an 'Arparma' class instance.
 print(result.query('install'))  # Or result.install
 ```
 
 Output as follows:
 ```
-{'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
+value=None args={'pak_name': 'numpy'} options={'upgrade': value=Ellipsis args={}} subcommands={}
 ```
 
 ## Communication

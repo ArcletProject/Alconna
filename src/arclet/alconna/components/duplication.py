@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast 
 from inspect import isclass
+from typing_extensions import Self
 
 from ..config import config
 from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Option
@@ -15,37 +16,33 @@ class Duplication:
     """
     用以更方便的检查、调用解析结果的类。
     """
-    __target: Arparma
-
-    @property
-    def origin(self) -> Arparma:
-        return self.__target
+    __stubs__: dict[str, str | list[str] | dict[str, str]]
 
     @property
     def header(self):
-        return self.__target.header
+        return self.__stubs__['header']
 
-    def set_target(self, target: Arparma):
-        self.__target = target
+    def set_target(self, target: Arparma) -> Self:
+        if target.header:
+            self.__stubs__['header'] = target.header.copy()
         if self.__stubs__.get("main_args"):
-            getattr(self, self.__stubs__["main_args"]).set_result(target.main_args)  # type: ignore
+            getattr(self, self.__stubs__["main_args"]).set_result(target.main_args.copy())  # type: ignore
         for key in self.__stubs__["options"]:
             if key in target.options:
-                getattr(self, key).set_result(target._options[key])  # noqa
+                getattr(self, key).set_result(target.options[key])  # noqa
         for key in self.__stubs__["subcommands"]:
             if key in target.subcommands:
-                getattr(self, key).set_result(target._subcommands[key])  # noqa
+                getattr(self, key).set_result(target.subcommands[key])  # noqa
         for key in target.all_matched_args:
             if key in self.__stubs__['other_args']:
                 setattr(self, key, target.all_matched_args[key])
-        if isinstance(target.header, dict):
-            for key in target.header:
-                if key in self.__stubs__['other_args']:
-                    setattr(self, key, target.header[key])
+        for key in target.header:
+            if key in self.__stubs__['other_args']:
+                setattr(self, key, target.header[key])
         return self
 
     def __init__(self, target: Alconna | AlconnaGroup):
-        self.__stubs__ = {"options": [], "subcommands": [], "other_args": []}
+        self.__stubs__ = {"options": [], "subcommands": [], "other_args": [], "header": {}}
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):
                 if value == ArgsStub:
@@ -63,7 +60,7 @@ class Duplication:
                             self.__stubs__["options"].append(key)
                 else:
                     raise TypeError(config.lang.duplication_stub_type_error.format(target=value))
-            elif key not in '__target':
+            elif key != '__stubs__':
                 self.__stubs__['other_args'].append(key)
 
     def __repr__(self):

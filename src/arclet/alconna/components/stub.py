@@ -3,26 +3,27 @@ from __future__ import annotations
 from inspect import isclass
 from typing import Any, TypeVar, Generic
 from abc import ABCMeta, abstractmethod
-from nepattern import BasePattern, AllParam
+from dataclasses import dataclass, field
+from nepattern import BasePattern, AllParam, AnyOne
 
 from ..args import Args
-from ..base import Option, Subcommand, OptionResult, SubcommandResult  # type: ignore
+from ..base import Option, Subcommand
+from ..model import OptionResult, SubcommandResult
 from ..config import config
 
 T = TypeVar('T')
 T_Origin = TypeVar('T_Origin')
 
 
+@dataclass(init=True, eq=True)
 class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
     """
     基础的命令组件存根
     """
 
-    available: bool
-    _value: Any
     _origin: T_Origin
-
-    __ignore__ = ['available', '_value', '_origin', 'origin', '__ignore__']
+    _value: Any = field(default=None)
+    available: bool = field(default=True, init=False)
 
     @property
     def origin(self) -> T_Origin:
@@ -35,36 +36,34 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
         """
 
     def __repr__(self):
-        return f"{{{', '.join(f'{k}={v}' for k, v in vars(self).items() if v and not k.startswith('_'))}}}"
+        return f"{{{', '.join([f'{k}={v}' for k, v in vars(self).items() if v and not k.startswith('_')])}}}"
 
 
+@dataclass(init=True)
 class ArgsStub(BaseStub[Args]):
     """
     参数存根
     """
-    _value: dict[str, Any]
+    _value: dict[str, Any] = field(default_factory=dict)
 
-    def __init__(self, args: Args):
-        self._origin = args
-        self._value = {}
-        for arg in args.argument:
+    def __post_init__(self):
+        for arg in self._origin.argument:
             key = arg.name
-            if arg.value is AllParam:
+            if arg.value in (AllParam, AnyOne):
                 self.__annotations__[key] = Any
             elif isinstance(arg.value, BasePattern):
                 self.__annotations__[key] = arg.value.origin
             else:
                 self.__annotations__[key] = arg.value
             setattr(self, key, arg.field.default_gen)
-        self.available = False
 
     def set_result(self, result: dict[str, Any]):
         if result:
-            self._value = result
+            self._value = result.copy()
             self.available = True
 
     @property
-    def first_arg(self) -> Any:
+    def first(self) -> Any:
         return self.__getitem__(0)
 
     def get(self, item: str | type[T], default=None) -> T | Any:
@@ -88,13 +87,11 @@ class ArgsStub(BaseStub[Args]):
         return len(self._value)
 
     def __getattribute__(self, item):
-        if item in super(ArgsStub, self).__getattribute__('__ignore__'):
+        if item not in (_cache := super().__getattribute__('_value')):
             return super().__getattribute__(item)
-        if item in super().__getattribute__('_value'):
-            return super().__getattribute__('_value').get(item, None)
-        return super().__getattribute__(item)
+        return _cache.get(item, None)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: int | str) -> Any:
         if isinstance(item, str):
             return self._value[item]
         elif isinstance(item, int):
@@ -103,54 +100,54 @@ class ArgsStub(BaseStub[Args]):
             raise TypeError(config.lang.stub_key_error.format(target=item))
 
 
+@dataclass(init=True)
 class OptionStub(BaseStub[Option]):
     """
     选项存根
     """
-    args: ArgsStub
-    dest: str
-    aliases: list[str]
-    name: str
+    args: ArgsStub = field(init=False)
+    dest: str = field(init=False)
+    aliases: list[str] = field(init=False)
+    name: str = field(init=False)
 
-    def __init__(self, option: Option):
-        self.args = ArgsStub(option.args)
-        self.aliases = [alias.lstrip('-') for alias in option.aliases]
-        self.name = option.name.lstrip('-')
-        self.dest = option.dest
-        self._origin = option
-        self.available = False
-        self._value = None
+    def __post_init__(self):
+        self.dest = self._origin.dest
+        self.aliases = [alias.lstrip('-') for alias in self._origin.aliases]
+        self.name = self._origin.name.lstrip('-')
+        self.args = ArgsStub(self._origin.args)
 
     def set_result(self, result: OptionResult | None):
         if result:
-            self._value = result['value']
-            self.args.set_result(result['args'])
+            self._value = result.value
+            self.args.set_result(result.args)
             self.available = True
 
 
+@dataclass(init=True)
 class SubcommandStub(BaseStub[Subcommand]):
     """
     子命令存根
     """
-    args: ArgsStub
-    dest: str
-    options: list[OptionStub]
-    name: str
+    args: ArgsStub = field(init=False)
+    dest: str = field(init=False)
+    options: list[OptionStub] = field(init=False)
+    subcommands: list[SubcommandStub] = field(init=False)
+    name: str = field(init=False)
 
-    def __init__(self, subcommand: Subcommand):
-        self.args = ArgsStub(subcommand.args)
-        self.options = [OptionStub(option) for option in subcommand.options]
-        self.name = subcommand.name.lstrip('-')
-        self.available = False
-        self._value = None
-        self.dest = subcommand.dest
-        self._origin = subcommand
+    def __post_init__(self):
+        self.dest = self._origin.dest
+        self.name = self._origin.name.lstrip('-')
+        self.args = ArgsStub(self._origin.args)
+        self.options = [OptionStub(opt) for opt in self._origin.options if isinstance(opt, Option)]
+        self.subcommands = [SubcommandStub(sub) for sub in  self._origin.options if isinstance(sub, Subcommand)]
 
     def set_result(self, result: SubcommandResult):
-        self._value = result['value']
-        self.args.set_result(result['args'])
+        self._value = result.value
+        self.args.set_result(result.args)
         for option in self.options:
-            option.set_result(result['options'].get(option.dest, None))
+            option.set_result(result.options.get(option.dest, None))
+        for subcommand in self.subcommands:
+            subcommand.set_result(result.subcommands.get(subcommand.dest, None))
         self.available = True
 
     def option(self, name: str) -> OptionStub:

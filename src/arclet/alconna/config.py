@@ -19,7 +19,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from .components.behavior import T_ABehavior
+    from .components.behavior import ArparmaBehavior
     from .components.output import TextFormatter
 
 
@@ -29,12 +29,12 @@ class OptionNames(TypedDict):
     completion: set[str]
 
 
-@dataclass
+@dataclass(init=True, repr=True)
 class Namespace:
     name: str
     headers: list[str | object] | list[tuple[object, str]] = field(default_factory=list)
     separators: tuple[str, ...] = field(default_factory=lambda: (" ",))
-    behaviors: list[T_ABehavior] = field(default_factory=list)
+    behaviors: list[ArparmaBehavior] = field(default_factory=list)
     formatter_type: type[TextFormatter] | None = field(default=None)
     fuzzy_match: bool = field(default=False)
     raise_exception: bool = field(default=False)

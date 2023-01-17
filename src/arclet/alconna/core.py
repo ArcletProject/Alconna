@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 from functools import reduce
 from typing import List, Union, Callable, Tuple, TypeVar, overload, Iterable, Any, Literal
+from typing_extensions import Self
 from dataclasses import dataclass, field
 from .config import config, Namespace
 from .analysis.base import compile
@@ -16,7 +17,7 @@ from .exceptions import PauseTriggered
 from .analysis.analyser import TAnalyser, Analyser
 from .components.action import ActionHandler, ArgAction
 from .components.output import TextFormatter
-from .components.behavior import T_ABehavior
+from .components.behavior import ArparmaBehavior
 from .components.duplication import Duplication
 from .components.executor import ArparmaExecutor, T
 
@@ -60,7 +61,7 @@ class AlconnaGroup(CommandNode):
         self.name.replace(command_manager.sign, '')
         self.__handler_help_text__()
 
-    def __handler_help_text__(self):
+    def __handler_help_text__(self) -> Self:
         self.meta.description = "\n"
         for command in self.commands:
             self.meta.description += f" * {command.name} : {command.meta.description}\n"
@@ -82,7 +83,7 @@ class AlconnaGroup(CommandNode):
         return res
 
     @property
-    def behaviors(self) -> list[T_ABehavior]:
+    def behaviors(self) -> list[ArparmaBehavior]:
         res = []
         for cmd in self.commands:
             res.extend(cmd.behaviors[1:])
@@ -92,12 +93,12 @@ class AlconnaGroup(CommandNode):
         """返回该命令的帮助信息"""
         return self.commands[0].formatter_type(self).format_node()
 
-    def append(self, *commands: Alconna):
+    def append(self, *commands: Alconna) -> Self:
         self.commands += list(commands)
         self.__handler_help_text__()
         return self
 
-    def __union__(self, other: AlconnaGroup | Alconna):
+    def __union__(self, other: AlconnaGroup | Alconna) -> Self:
         if isinstance(other, AlconnaGroup):
             self.commands += other.commands
             self.__handler_help_text__()
@@ -105,7 +106,7 @@ class AlconnaGroup(CommandNode):
             self.commands.append(other)
         return self
 
-    def reset_namespace(self, namespace: str | Namespace):
+    def reset_namespace(self, namespace: str | Namespace) -> Self:
         """重新设置命名空间"""
         command_manager.delete(self)
         if isinstance(namespace, str):
@@ -135,7 +136,7 @@ class AlconnaGroup(CommandNode):
         return res._fail("Not Matched Any Command")
 
 
-class Alconna(CommandNode):
+class Alconna(Subcommand):
     """
     更加精确的命令解析
 
@@ -148,8 +149,8 @@ class Alconna(CommandNode):
         ...     Option("opt", Args["opt_arg", "opt_arg"]),
         ...     Subcommand(
         ...         "sub_name",
-        ...         [Option("sub_opt", Args["sub_arg", "sub_arg"])],
-        ...          Args["sub_main_args", "sub_main_args"]
+        ...         Option("sub_opt", Args["sub_arg", "sub_arg"]),
+        ...         Args["sub_main_args", "sub_main_args"]
         ...     ),
         ...     Args["main_args", "main_args"],
         ...  )
@@ -158,12 +159,11 @@ class Alconna(CommandNode):
     _group = False
     headers: list[str | object] | list[tuple[object, str]]
     command: str | Any
-    options: list[Option | Subcommand]
     analyser_type: type[Analyser]
     formatter_type: type[TextFormatter]
     namespace: str
     meta: CommandMeta
-    behaviors: list[T_ABehavior]
+    behaviors: list[ArparmaBehavior]
     custom_types = {}
 
     global_analyser_type: type[Analyser] = Analyser
@@ -183,7 +183,7 @@ class Alconna(CommandNode):
         namespace: str | Namespace | None = None,
         separators: str | Iterable[str] | None = None,
         analyser_type: type[TAnalyser] | None = None,
-        behaviors: list[T_ABehavior] | None = None,
+        behaviors: list[ArparmaBehavior] | None = None,
         formatter_type: type[TextFormatter] | None = None
     ):
         """
@@ -210,9 +210,20 @@ class Alconna(CommandNode):
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
             self.command = "" if self.headers else sys.argv[0]
-        self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = np_config.name
+        self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
+        self.formatter_type = formatter_type or np_config.formatter_type or TextFormatter
+        self.meta = meta or CommandMeta()
+        self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
+        self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
+        super().__init__(
+            command_manager.sign,
+            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
+            action=action,
+            separators=separators or np_config.separators,
+        )
+        self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         self.options.append(
             Option("|".join(np_config.builtin_option_name['help']), help_text=config.lang.builtin_option_help),
         )
@@ -227,17 +238,6 @@ class Alconna(CommandNode):
             Option(
                 "|".join(np_config.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
             )
-        )
-        self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
-        self.formatter_type = formatter_type or np_config.formatter_type or TextFormatter
-        self.meta = meta or CommandMeta()
-        self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
-        self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
-        super().__init__(
-            command_manager.sign,
-            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            action=action,
-            separators=separators or np_config.separators,  # type: ignore
         )
         self.behaviors = behaviors or []
         self.behaviors.insert(0, ActionHandler(self))
@@ -265,7 +265,7 @@ class Alconna(CommandNode):
     def namespace_config(self) -> Namespace:
         return config.namespaces[self.namespace]
 
-    def reset_namespace(self, namespace: Namespace | str, header: bool = True):
+    def reset_namespace(self, namespace: Namespace | str, header: bool = True) -> Self:
         """重新设置命名空间"""
         command_manager.delete(self)
         if isinstance(namespace, str):
@@ -292,10 +292,9 @@ class Alconna(CommandNode):
         command_manager.register(self)
         return self
 
-    def reset_behaviors(self, behaviors: list[T_ABehavior]):
+    def reset_behaviors(self, behaviors: list[ArparmaBehavior]) -> Self:
         """重新设置解析行为器"""
-        self.behaviors = behaviors
-        self.behaviors.insert(0, ActionHandler(self))
+        self.behaviors[1:] = behaviors
         return self
 
     def get_help(self) -> str:
@@ -337,7 +336,7 @@ class Alconna(CommandNode):
     def __repr__(self):
         return f"{self.namespace}::{self.name}(args={self.args}, options={self.options})"
 
-    def add(self, name: str, *alias: str, args: Args | None = None, sep: str = " ", help_: str | None = None):
+    def add(self, name: str, *alias: str, args: Args | None = None, sep: str = " ", help_: str | None = None) -> Self:
         """链式注册一个 Option"""
         command_manager.delete(self)
         names = name.split(sep)
@@ -362,14 +361,16 @@ class Alconna(CommandNode):
         ...
 
     def parse(
-        self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None,
-        interrupt: bool = False, static: bool = True
+        self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None, interrupt: bool = False
     ) -> Analyser[TDataCollection] | Arparma[TDataCollection] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
-        analyser = command_manager.require(self) if static else compile(self)
-        analyser.process(message)
         try:
-            arp: Arparma[TDataCollection] = analyser.analyse(interrupt=interrupt)
+            analyser = command_manager.require(self)
+        except ValueError:
+            analyser = compile(self)
+        analyser.container.build(message)
+        try:
+            arp: Arparma[TDataCollection] = analyser.process(interrupt=interrupt)
         except PauseTriggered:
             return analyser
         if arp.matched:
@@ -383,13 +384,12 @@ class Alconna(CommandNode):
         self._executors.append(ext)
         return self._executors[-1]
 
-    def __truediv__(self, other):
-        self.reset_namespace(other)
-        return self
+    def __truediv__(self, other) -> Self:
+        return self.reset_namespace(other)
 
     __rtruediv__ = __truediv__
 
-    def __add__(self, other):
+    def __add__(self, other) -> Self:
         command_manager.delete(self)
         if isinstance(other, CommandMeta):
             self.meta = other
@@ -406,13 +406,12 @@ class Alconna(CommandNode):
         command_manager.register(self)
         return self
 
-    def __or__(self, other):
+    def __or__(self, other) -> Self | AlconnaGroup:
         if isinstance(other, Alconna):
             return AlconnaGroup(self.name, self, other, namespace=self.namespace)
         return self
 
     def _calc_hash(self):
         return hash(
-            (self.path + str([i.name for i in self.args.argument]) + str([i.value for i in self.args.argument])
-             + str(self.headers), *self.options, self.meta)
+            (self.path + str(self.headers), self.meta, *self.options, *self.args.argument)
         )

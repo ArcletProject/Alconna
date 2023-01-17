@@ -1,4 +1,6 @@
-from arclet.alconna.base import Option, Subcommand, CommandNode, Args
+from arclet.alconna.base import Option, Subcommand, CommandNode
+from arclet.alconna.args import Args
+from arclet.alconna.model import OptionResult, SubcommandResult
 from arclet.alconna.analysis.base import analyse_option, analyse_subcommand
 
 
@@ -41,23 +43,21 @@ def test_option_requires():
 
 def test_separator():
     opt2 = Option("foo", Args.bar[int], separators="|")
-    assert analyse_option(opt2, "foo|123") == ("foo", {"args": {"bar": 123}, "value": None})
+    assert analyse_option(opt2, "foo|123") == ("foo", OptionResult(None, {"bar": 123}))
     opt2_1 = Option("foo", Args.bar[int]).separate("|")
     assert opt2 == opt2_1
 
 
 def test_subcommand():
-    sub = Subcommand("test", options=[Option("foo"), Option("bar")])
+    sub = Subcommand("test", Option("foo"), Option("bar"))
     assert len(sub.options) == 2
-    assert analyse_subcommand(sub, "test foo") == (
-        "test", {"value": None, "args": {}, 'options': {"foo": {"args": {}, "value": Ellipsis}}}
-    )
+    assert analyse_subcommand(sub, "test foo") == SubcommandResult(None, {}, {"foo": OptionResult()})
 
 
 def test_compact():
     opt3 = Option("foo", Args.bar[int], separators="")
     assert opt3.is_compact is True
-    assert analyse_option(opt3, "foo123") == ("foo", {"args": {"bar": 123}, "value": None})
+    assert analyse_option(opt3, "foo123") == ("foo", OptionResult(None, {"bar": 123}))
 
 
 def test_from_callable():
@@ -66,7 +66,7 @@ def test_from_callable():
 
     opt4 = Option("foo", action=test)
     assert len(opt4.args.argument) == 2
-    assert analyse_option(opt4, "foo 123 True") == ("foo", {"args": {"bar": 123, "baz": True}, "value": None})
+    assert analyse_option(opt4, "foo 123 True") == ("foo", OptionResult(None, {"bar": 123, "baz": True}))
 
 
 def test_add():
@@ -74,7 +74,7 @@ def test_add():
     assert len((Option("foo") + Option("bar") + "baz").options) == 2
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import pytest
 
     pytest.main([__file__, "-vs"])

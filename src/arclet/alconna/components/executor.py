@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-@dataclass(unsafe_hash=True)
+@dataclass(init=True, unsafe_hash=True)
 class ArparmaExecutor(Generic[T]):
     target: Callable[..., T]
     binding: Callable[..., Arparma | None] = field(default=lambda: None, repr=False)
@@ -23,6 +23,6 @@ class ArparmaExecutor(Generic[T]):
         if not arp or not arp.matched:
             raise ExecuteFailed('Unmatched')
         try:
-            return self.target(**arp.all_matched_args)
+            return arp.call(self.target)
         except Exception as e:
             raise ExecuteFailed(e) from e

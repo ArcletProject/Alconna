@@ -36,10 +36,10 @@ if __name__ == "__main__":
 
     sec = 0.0
     for _ in range(count):
-        st = time.time()
-        compile_alc.process(msg)
-        compile_alc.analyse()
-        sec += time.time() - st
+        st = time.perf_counter()
+        compile_alc.container.build(msg)
+        compile_alc.process()
+        sec += time.perf_counter() - st
     print(f"Alconna: {count / sec:.2f}msg/s")
 
     print("RUN 2:")
@@ -47,8 +47,8 @@ if __name__ == "__main__":
 
     for _ in range(count):
         st = time.thread_time_ns()
-        compile_alc.process(msg)
-        compile_alc.analyse()
+        compile_alc.container.build(msg)
+        compile_alc.process()
         li += (time.thread_time_ns() - st)
 
     print(f"Alconna: {li / count} ns per loop with {count} loops")
@@ -58,8 +58,8 @@ if __name__ == "__main__":
     prof = cProfile.Profile()
     prof.enable()
     for _ in range(count):
-        compile_alc.process(msg)
-        compile_alc.analyse()
+        compile_alc.container.build(msg)
+        compile_alc.process()
     prof.create_stats()
 
     stats = pstats.Stats(prof)
