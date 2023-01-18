@@ -45,9 +45,9 @@ def default_params_parser(analyser: SubAnalyser, _config: Namespace):
             require_len = max(len(opts.requires), require_len)
             for k in opts.requires:
                 analyser.compile_params.setdefault(k, Sentence(name=k))
-        analyser.part_len = range(
-            len(analyser.command.options) + analyser.need_main_args + require_len
-        )
+    analyser.part_len = range(
+        len(analyser.command.options) + analyser.need_main_args + require_len
+    )
 
 
 def compile(alconna: Alconna, params_parser: Callable[[TAnalyser, Namespace], None] = default_params_parser) -> TAnalyser:

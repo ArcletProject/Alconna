@@ -148,13 +148,15 @@ class Subcommand(CommandNode):
     def __init__(
         self,
         name: str,
-        *args: Args | Arg | Option | Subcommand,
+        *args: Args | Arg | Option | Subcommand | list[Option | Subcommand],
         dest: str | None = None, action: ArgAction | Callable | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
     ):
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
+        for li in filter(lambda x: isinstance(x, list), args):
+            self.options.extend(li)
         super().__init__(
             name,
             reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore

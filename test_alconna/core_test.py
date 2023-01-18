@@ -427,6 +427,18 @@ def test_nest_subcommand():
     #alc23.parse("core23 --help")
     alc23.parse("core23 bar baz --help")
 
+    alc23_1 = Alconna(
+        "core23_1",
+        Subcommand(
+            "bar",
+            [
+                Subcommand("qux", Args["def", bool]),
+                Option("baz", Args["abc", str])
+            ]
+        )
+    )
+    assert alc23_1.parse("core23_1 bar qux false baz hhh").query("bar.qux.def") is False
+
 if __name__ == "__main__":
     import pytest
 
