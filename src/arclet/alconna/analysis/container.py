@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 from typing_extensions import Self
 from dataclasses import dataclass, field
 
@@ -11,7 +11,7 @@ from ..args import Arg
 from ..base import Option, Subcommand
 from ..typing import DataCollection
 
-
+_cache: dict[type, dict[str, Any]] = {}
 
 @dataclass(repr=True)
 class DataCollectionContainer:
@@ -32,8 +32,22 @@ class DataCollectionContainer:
     temporary_data: dict[str, Any]  = field(init=False)  # 临时数据
     temp_token: int = field(init=False) # 临时token
 
+    @classmethod
+    def config(
+        cls,
+        preprocessors: dict[str, Callable[..., Any]] | None = None,
+        text_sign: str | None = None,
+        filter_out: list[str] | None = None
+    ):
+        _cache.setdefault(cls, {}).update(locals())
+
+
     def __post_init__(self):
         self.reset()
+        if __cache := _cache.get(self.__class__, {}):
+            self.preprocessors.update(__cache["preprocessors"] or {})
+            self.filter_out.extend(__cache["filter_out"] or [])
+            self.text_sign = __cache["text_sign"] or self.text_sign
 
     def reset(self):
         self.current_index, self.ndata, self.temp_token = 0, 0, 0
@@ -148,3 +162,5 @@ class DataCollectionContainer:
     def data_reset(self, data: list[str | Any], index: int):
         self.raw_data = data
         self.current_index = index
+
+TContainer = TypeVar("TContainer", bound=DataCollectionContainer)

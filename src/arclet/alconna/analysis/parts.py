@@ -133,7 +133,7 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
     """
     result: dict[str, Any] = {}
     for arg in args.argument:
-        analyser.context = arg
+        analyser.container.context = arg
         key, value, default_val, optional = arg.name, arg.value, arg.field.default_gen, arg.optional
         seps = arg.separators
         may_arg, _str = analyser.container.popitem(seps)
@@ -228,7 +228,7 @@ def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionRes
         analyser: 使用的分析器
         param: 目标Option
     """
-    analyser.context = param
+    analyser.container.context = param
     if param.requires and analyser.sentences != param.requires:
         raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
     analyser.sentences = []
@@ -277,6 +277,7 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
     elif isinstance(_param, Sentence):
         analyser.sentences.append(analyser.container.popitem()[0])
     elif _param:
+        assert _param is not Ellipsis
         _param.process()
         analyser.subcommands_result.setdefault(_param.command.dest, _param.export())
 
@@ -339,10 +340,10 @@ def analyse_header(analyser: Analyser) -> tuple:
         else:
             source = head_text + analyser.container.separators[0] + str(may_command)
         if source == analyser.command.command:
-            analyser.head_matched = False
+            analyser.header_result = (source, source, False)
             raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
         for ht in headers_text:
             if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
-                analyser.head_matched = True
+                analyser.header_result = (source, ht, True)
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(target=source, source=ht))
     raise ParamsUnmatched(config.lang.header_error.format(target=head_text))

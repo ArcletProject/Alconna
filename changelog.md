@@ -1,5 +1,12 @@
 # Alconna 1.5.x:
 
+## Alconna 1.5.2:
+1. 调整解析器的可拓展性
+2. 改进类型提示
+
+## Alconna 1.5.1:
+1. 修复子解析器的 bug
+
 ## Alconna 1.5.0:
 1. 加入 `HeadResult`, 表示头部匹配的结果
 2. 加入 `SubAnalyser`, 负责部分原 `Analyser` 的部分功能

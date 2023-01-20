@@ -14,7 +14,7 @@ from .typing import TDataCollection, DataCollection
 from .config import config, Namespace
 
 if TYPE_CHECKING:
-    from .analysis.analyser import Analyser
+    from .analysis.analyser import Analyser, TAnalyser
     from .core import Alconna, AlconnaGroup, CommandMeta
     from .arparma import Arparma
 
@@ -112,10 +112,10 @@ class CommandManager(metaclass=Singleton):
             namespace[command.name] = command
             self.current_count += 1
 
-    def require(self, command: Alconna) -> Analyser:
+    def require(self, command: Alconna[TAnalyser]) -> TAnalyser:
         """获取命令解析器"""
         try:
-            return self.__analysers[command]
+            return self.__analysers[command]  # type: ignore
         except KeyError as e:
             namespace, name = self._command_part(command.path)
             raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
@@ -166,10 +166,10 @@ class CommandManager(metaclass=Singleton):
         else:
             raise ValueError(config.lang.manager_incorrect_shortcut.format(target=f"{shortcut}"))
 
-    def find_shortcut(self, shortcut: str, target: Alconna | str | None = None):
+    def find_shortcut(self, shortcut: str, target: Alconna | str | None = None) -> Arparma | DataCollection:
         """查找快捷命令"""
         if target:
-            namespace, name = self._command_part(target if isinstance(target, str) else target.path)
+            namespace, name = self._command_part(target if isinstance(target, str) else target.path)  # type: ignore
             try:
                 _ = self.__commands[namespace][name]
             except KeyError as e:
@@ -181,8 +181,8 @@ class CommandManager(metaclass=Singleton):
                     config.lang.manager_target_command_error.format(target=f"{namespace}.{name}", shortcut=shortcut)
                 ) from e
         else:
-            with contextlib.suppress(StopIteration):
-                return self.__shortcuts.get(next(filter(lambda x: x.split("::")[1] == shortcut, self.__shortcuts)))
+            with contextlib.suppress(StopIteration, KeyError):
+                return self.__shortcuts[next(filter(lambda x: x.split("::")[1] == shortcut, self.__shortcuts))]
             raise ValueError(config.lang.manager_undefined_shortcut.format(target=f"{shortcut}"))
 
     def delete_shortcut(self, shortcut: str, target: Alconna | str | None = None):
@@ -326,7 +326,7 @@ class CommandManager(metaclass=Singleton):
 
     def reuse(self, index: int = -1):
         key = list(self.__record.cache.keys())[index]
-        return self.__record.get(key)
+        return self.__record[key]
 
     def __repr__(self):
         return f"Current: {hex(id(self))} in {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}\n" + \

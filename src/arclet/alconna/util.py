@@ -6,7 +6,7 @@ import contextlib
 import inspect
 from functools import lru_cache
 from collections import OrderedDict
-from typing import TypeVar, Any, Iterator, Hashable, Mapping, Callable
+from typing import TypeVar, Any, Iterator, Hashable, Generic, Callable, overload
 
 R = TypeVar('R')
 
@@ -118,9 +118,9 @@ _V = TypeVar("_V")
 _T = TypeVar("_T")
 
 
-class LruCache(Mapping[_K, _V]):
+class LruCache(Generic[_K, _V]):
     max_size: int
-    cache: OrderedDict
+    cache: OrderedDict[_K, _V]
 
     __slots__ = ("max_size", "cache", "__size")
 
@@ -129,16 +129,24 @@ class LruCache(Mapping[_K, _V]):
         self.cache = OrderedDict()
         self.__size = 0
 
-    def get(self, key: _K, default: _T | None = None) -> _V | _T:
+    @overload
+    def get(self, key: _K) -> _V | None:
+        ...
+
+    @overload
+    def get(self, key: _K, default: _T) -> _V | _T:
+        ...
+
+    def get(self, key: _K, default: _T | None = None) -> _V | _T | None:
         if key in self.cache:
             self.cache.move_to_end(key)
             return self.cache[key]
         return default
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: _K) -> _V:
         if res := self.get(item):
             return res
-        raise ValueError
+        raise KeyError(item)
 
     def set(self, key: _K, value: Any) -> None:
         if key in self.cache:

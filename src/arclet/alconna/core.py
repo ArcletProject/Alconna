@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 from functools import reduce
-from typing import List, Union, Callable, Tuple, TypeVar, overload, Iterable, Any, Literal
+from typing import List, Union, Callable, Tuple, TypeVar, overload, Iterable, Any, Literal, Generic, Sequence
 from typing_extensions import Self
 from dataclasses import dataclass, field
 from .config import config, Namespace
@@ -136,7 +136,7 @@ class AlconnaGroup(CommandNode):
         return res._fail("Not Matched Any Command")
 
 
-class Alconna(Subcommand):
+class Alconna(Subcommand, Generic[TAnalyser]):
     """
     更加精确的命令解析
 
@@ -159,7 +159,7 @@ class Alconna(Subcommand):
     _group = False
     headers: list[str | object] | list[tuple[object, str]]
     command: str | Any
-    analyser_type: type[Analyser]
+    analyser_type: type[TAnalyser]
     formatter_type: type[TextFormatter]
     namespace: str
     meta: CommandMeta
@@ -169,7 +169,7 @@ class Alconna(Subcommand):
     global_analyser_type: type[Analyser] = Analyser
 
     @classmethod
-    def default_analyser(cls, __t: type[TAnalyser] | None = None):
+    def default_analyser(cls, __t: type[TAnalyser] | None = None) -> type[Alconna[TAnalyser]]:
         """配置 Alconna 的默认解析器"""
         if __t is not None:
             cls.global_analyser_type = __t
@@ -181,7 +181,7 @@ class Alconna(Subcommand):
         action: ArgAction | Callable | None = None,
         meta: CommandMeta | None = None,
         namespace: str | Namespace | None = None,
-        separators: str | Iterable[str] | None = None,
+        separators: str | set[str] | Sequence[str] | None = None,
         analyser_type: type[TAnalyser] | None = None,
         behaviors: list[ArparmaBehavior] | None = None,
         formatter_type: type[TextFormatter] | None = None
@@ -357,12 +357,12 @@ class Alconna(Subcommand):
         ...
 
     @overload
-    def parse(self, message: TDataCollection, *, interrupt: Literal[True]) -> Analyser[TDataCollection]:
+    def parse(self, message, *, interrupt: Literal[True]) -> TAnalyser:
         ...
 
     def parse(
         self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None, interrupt: bool = False
-    ) -> Analyser[TDataCollection] | Arparma[TDataCollection] | T_Duplication:
+    ) -> TAnalyser | Arparma[TDataCollection] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         try:
             analyser = command_manager.require(self)

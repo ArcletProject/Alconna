@@ -141,14 +141,15 @@ class SubcommandStub(BaseStub[Subcommand]):
         self.options = [OptionStub(opt) for opt in self._origin.options if isinstance(opt, Option)]
         self.subcommands = [SubcommandStub(sub) for sub in  self._origin.options if isinstance(sub, Subcommand)]
 
-    def set_result(self, result: SubcommandResult):
-        self._value = result.value
-        self.args.set_result(result.args)
-        for option in self.options:
-            option.set_result(result.options.get(option.dest, None))
-        for subcommand in self.subcommands:
-            subcommand.set_result(result.subcommands.get(subcommand.dest, None))
-        self.available = True
+    def set_result(self, result: SubcommandResult | None):
+        if result:
+            self._value = result.value
+            self.args.set_result(result.args)
+            for option in self.options:
+                option.set_result(result.options.get(option.dest, None))
+            for subcommand in self.subcommands:
+                subcommand.set_result(result.subcommands.get(subcommand.dest, None))
+            self.available = True
 
     def option(self, name: str) -> OptionStub:
         return next(opt for opt in self.options if opt.name == name)

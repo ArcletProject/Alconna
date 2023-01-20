@@ -1,25 +1,25 @@
 from typing import Union
 from nepattern import BasePattern, PatternModel
-from arclet.alconna.analysis.analyser import Analyser
+from arclet.alconna.analysis.container import DataCollectionContainer
 from arclet.alconna import Alconna, Args
 
 
 def test_filter_out():
-    Analyser.config(filter_out=["int"])
+    DataCollectionContainer.config(filter_out=["int"])
     ana = Alconna("ana", Args["foo", str])
     assert ana.parse(["ana", 123, "bar"]).matched is True
     assert ana.parse("ana bar").matched is True
-    Analyser.config(filter_out=[])
+    DataCollectionContainer.config(filter_out=[])
     ana_1 = Alconna("ana", Args["foo", str])
     assert ana_1.parse(["ana", 123, "bar"]).matched is False
 
 
 def test_preprocessor():
-    Analyser.config(processors={"float": lambda x: int(x)})
+    DataCollectionContainer.config(preprocessors={"float": lambda x: int(x)})
     ana1 = Alconna("ana1", Args["bar", int])
     assert ana1.parse(["ana1", 123.06]).matched is True
     assert ana1.parse(["ana1", 123.06]).bar == 123
-    Analyser.config(processors={})
+    DataCollectionContainer.config(preprocessors={})
     ana1_1 = Alconna("ana1", Args["bar", int])
     assert ana1_1.parse(["ana1", 123.06]).matched is False
 
@@ -52,9 +52,9 @@ def test_with_set_unit():
         def at(user_id: Union[int, str]):
             return Segment("at", qq=str(user_id))
 
-    Analyser.config(
+    DataCollectionContainer.config(
         text_sign="plain",
-        processors={"Segment": lambda x: str(x) if x.type == "text" else None}
+        preprocessors={"Segment": lambda x: str(x) if x.type == "text" else None}
     )
 
     def gen_unit(type_: str):
@@ -71,7 +71,7 @@ def test_with_set_unit():
     res = ana2.parse([Segment.text("ana2"), Segment.at(123456), Segment.face(103)])
     assert res.matched is True
     assert res.foo.data['qq'] == '123456'
-    Analyser.config()
+    DataCollectionContainer.config()
 
 
 if __name__ == '__main__':

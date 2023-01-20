@@ -35,9 +35,10 @@ def default_params_parser(analyser: SubAnalyser, _config: Namespace):
             _compile_opts(opts, analyser.compile_params)  # type: ignore
             analyser.container.param_ids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
-            analyser.compile_params[opts.name] = SubAnalyser(opts, analyser.container, _config, analyser.fuzzy_match)
+            sub = SubAnalyser(opts, analyser.container, _config, analyser.fuzzy_match)
+            analyser.compile_params[opts.name] = sub
             analyser.container.param_ids.add(opts.name)
-            default_params_parser(analyser.compile_params[opts.name], _config)
+            default_params_parser(sub, _config)
         if not set(analyser.container.separators).issuperset(opts.separators):
             analyser.container.default_separate &= False
         if opts.requires:
@@ -50,7 +51,7 @@ def default_params_parser(analyser: SubAnalyser, _config: Namespace):
     )
 
 
-def compile(alconna: Alconna, params_parser: Callable[[TAnalyser, Namespace], None] = default_params_parser) -> TAnalyser:
+def compile(alconna: Alconna[TAnalyser], params_parser: Callable[[TAnalyser, Namespace], None] = default_params_parser) -> TAnalyser:
     _analyser = alconna.analyser_type(alconna)
     params_parser(_analyser, alconna.namespace_config)
     return _analyser
@@ -78,7 +79,7 @@ class _DummyAnalyser(Analyser):
         cls.container = DataCollectionContainer(message_cache=False, filter_crlf=True)
         cls.special = {}
         for i in config.default_namespace.builtin_option_name.values():
-            cls.special.fromkeys(i, True)  # noqa
+            cls.special.fromkeys(i, True)  # noqa  # type: ignore
         return super().__new__(cls)
 
 
