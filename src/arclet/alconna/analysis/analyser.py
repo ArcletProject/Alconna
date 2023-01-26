@@ -303,7 +303,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                 if rest := self.container.release():
                     if rest[-1] in self.completion_names:
                         return handle_completion(self, self.container.context)  # type: ignore
-                    if handler := self.special.get(rest[-1]):
+                    if isinstance(rest[-1], str) and ( handler := self.special.get(rest[-1])):
                         return handler(self)
                 if interrupt and isinstance(e1, ArgumentMissing):
                     raise PauseTriggered from e1

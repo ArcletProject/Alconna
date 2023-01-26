@@ -137,7 +137,7 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
         key, value, default_val, optional = arg.name, arg.value, arg.field.default_gen, arg.optional
         seps = arg.separators
         may_arg, _str = analyser.container.popitem(seps)
-        if may_arg in analyser.special:
+        if _str and may_arg in analyser.special:
             raise CompletionTriggered(arg)
         if not may_arg or (_str and may_arg in analyser.container.param_ids):
             analyser.container.pushback(may_arg)
@@ -251,7 +251,7 @@ def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionRes
 
 
 def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
-    if handler := analyser.special.get(_text):
+    if handler := analyser.special.get(_text if _str else Ellipsis):
         raise SpecialOptionTriggered(handler)
     _param = _param if (_param := (analyser.compile_params.get(_text) if _str and _text else Ellipsis)) else (
         None if analyser.container.default_separate else analyse_unmatch_params(
