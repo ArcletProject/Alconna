@@ -300,10 +300,10 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             except CompletionTriggered as comp:
                 return handle_completion(self, comp.args[0])
             except (ParamsUnmatched, ArgumentMissing) as e1:
-                if rest := self.container.release():
+                if (rest := self.container.release()) and isinstance(rest[-1], str):
                     if rest[-1] in self.completion_names:
                         return handle_completion(self, self.container.context)  # type: ignore
-                    if isinstance(rest[-1], str) and ( handler := self.special.get(rest[-1])):
+                    if handler := self.special.get(rest[-1]):
                         return handler(self)
                 if interrupt and isinstance(e1, ArgumentMissing):
                     raise PauseTriggered from e1
