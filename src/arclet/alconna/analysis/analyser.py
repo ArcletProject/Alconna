@@ -276,7 +276,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
 
         rest = self.container.release()
         if len(rest) > 0:
-            if rest[-1] in self.completion_names:
+            if isinstance(rest[-1], str) and rest[-1] in self.completion_names:
                 return handle_completion(self, rest[-2])
             exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.container.popitem(move=False)[0]))
         else:

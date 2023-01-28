@@ -43,7 +43,7 @@ def _handle_unit(analyser: Analyser, trigger: Arg):
         comp = gen()
         if isinstance(comp, str):
             return output_manager.send(analyser.command.name, lambda: comp, analyser.raise_exception)
-        target = analyser.container.release(recover=True)[-2]
+        target = str(analyser.container.release(recover=True)[-2])
         o = "\n- ".join(list(filter(lambda x: target in x, comp)) or comp)
         return output_manager.send(
             analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n- {o}", analyser.raise_exception
@@ -119,7 +119,7 @@ def handle_completion(analyser: Analyser, trigger: None | Args | Subcommand | st
         )
     else:
         got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
-        target = analyser.container.release(recover=True)[-1]
+        target = str(analyser.container.release(recover=True)[-1])
         if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):
             out = [i for i in _res if i not in got]
             output_manager.send(

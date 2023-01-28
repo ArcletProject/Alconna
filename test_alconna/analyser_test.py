@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-from arclet.alconna import Alconna, Args
+from arclet.alconna import Alconna, Args, Option
 from arclet.alconna.analysis.container import DataCollectionContainer
 from nepattern import BasePattern, PatternModel
 
@@ -83,6 +83,12 @@ def test_unhashable_unit():
     ana3 = Alconna("ana3", Args["foo", At])
     print(ana3.parse(["ana3", Segment.at(123)]))
     print(ana3.parse(["ana3", Segment.face(123)]))
+
+    ana3_1 = Alconna("ana3_1", Option("--foo", Args["bar", int]))
+    print(ana3_1.parse(["ana3_1 --foo 123"]))
+    print(ana3_1.parse(["ana3_1", Segment.face(123)]))
+    print(ana3_1.parse(["ana3_1", "--foo", "--comp", Segment.at(123)]))
+    print(ana3_1.parse(["ana3_1", "--comp", Segment.at(123)]))
 
 if __name__ == '__main__':
     import pytest

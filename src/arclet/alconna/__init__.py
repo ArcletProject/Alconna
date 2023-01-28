@@ -19,7 +19,7 @@ from .components.output import output_manager, TextFormatter
 from .components.duplication import Duplication
 from .components.stub import ArgsStub, OptionStub, SubcommandStub
 
-__version__ = "1.5.4"
+__version__ = "1.5.5"
 
 if TYPE_CHECKING:
     from .builtin import version
