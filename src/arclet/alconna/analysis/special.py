@@ -29,7 +29,7 @@ def handle_shortcut(analyser: Analyser):
     try:
         msg = analyser.command.shortcut(
             opt_v["name"],
-            None if opt_v["command"] == "_" else analyser.converter(opt_v["command"]),
+            None if opt_v["command"] == "_" else {"command": analyser.converter(opt_v["command"])},
             bool(opt_v.get("delete"))
         )
         output_manager.send(analyser.command.name, lambda: msg, analyser.raise_exception)

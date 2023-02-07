@@ -10,7 +10,7 @@ from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .analysis.base import compile, analyse
 from .core import Alconna, AlconnaGroup, CommandMeta
 from .arparma import Arparma
-from .manager import command_manager
+from .manager import command_manager, ShortcutArgs
 from .config import config, load_lang_file, namespace, Namespace
 
 from .builtin import store_value, set_default, store_true, store_false
@@ -19,7 +19,7 @@ from .components.output import output_manager, TextFormatter
 from .components.duplication import Duplication
 from .components.stub import ArgsStub, OptionStub, SubcommandStub
 
-__version__ = "1.5.5"
+__version__ = "1.6.0"
 
 if TYPE_CHECKING:
     from .builtin import version

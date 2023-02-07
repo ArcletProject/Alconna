@@ -7,9 +7,18 @@ import inspect
 from functools import lru_cache
 from collections import OrderedDict
 from typing import TypeVar, Any, Iterator, Hashable, Generic, Callable, overload
+from typing_extensions import ParamSpec
 
-R = TypeVar('R')
+R = TypeVar("R")
+T = TypeVar("T")
+P = ParamSpec("P")
 
+def init_spec(fn: Callable[P, T]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]:
+    def wrapper(func: Callable[[Any, T], R]) -> Callable[P, R]:
+        def inner(*args: P.args, **kwargs: P.kwargs):
+            return func(args[0], fn(*args[1:], **kwargs))   # type: ignore
+        return inner
+    return wrapper
 
 @lru_cache(4096)
 def get_signature(target: Callable):

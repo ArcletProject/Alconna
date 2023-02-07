@@ -3,15 +3,16 @@ from __future__ import annotations
 
 import sys
 from functools import reduce
-from typing import List, Union, Callable, Tuple, TypeVar, overload, Iterable, Any, Literal, Generic, Sequence
+from typing import List, Union, Callable, Tuple, TypeVar, overload, Any, Literal, Generic, Sequence
 from typing_extensions import Self
 from dataclasses import dataclass, field
 from .config import config, Namespace
 from .analysis.base import compile
 from .args import Args, Arg
+from .util import init_spec
 from .base import CommandNode, Option, Subcommand
 from .typing import TDataCollection
-from .manager import command_manager
+from .manager import command_manager, ShortcutArgs
 from .arparma import Arparma
 from .exceptions import PauseTriggered
 from .analysis.analyser import TAnalyser, Analyser
@@ -205,12 +206,11 @@ class Alconna(Subcommand, Generic[TAnalyser]):
             np_config = config.namespaces.setdefault(namespace.name, namespace)
         else:
             np_config = config.namespaces.setdefault(namespace, Namespace(namespace))
-        self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers,)))  # type: ignore
+        self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers.copy(),)))  # type: ignore
         try:
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
             self.command = "" if self.headers else sys.argv[0]
-        self.action_list = {"options": {}, "subcommands": {}, "main": None}
         self.namespace = np_config.name
         self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
         self.formatter_type = formatter_type or np_config.formatter_type or TextFormatter
@@ -286,8 +286,8 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         self.options[-1] = Option(
             "|".join(namespace.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
         )
-        self.meta.fuzzy_match = namespace.fuzzy_match
-        self.meta.raise_exception = namespace.raise_exception
+        self.meta.fuzzy_match = namespace.fuzzy_match or self.meta.fuzzy_match
+        self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
@@ -306,22 +306,20 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         """设置Alconna内的自定义类型"""
         cls.custom_types = types
 
-    def shortcut(
-        self, short_key: str, command: TDataCollection | None = None, delete: bool = False
-    ):
+    def shortcut(self, key: str, args: ShortcutArgs | None = None, delete: bool = False):
         """添加快捷命令"""
         try:
             if delete:
-                command_manager.delete_shortcut(short_key, self)
-                return config.lang.shortcut_delete_success.format(shortcut=short_key, target=self.path.split(".")[-1])
-            if command:
-                command_manager.add_shortcut(self, short_key, command)
-                return config.lang.shortcut_add_success.format(shortcut=short_key, target=self.path.split(".")[-1])
+                command_manager.delete_shortcut(self, key)
+                return config.lang.shortcut_delete_success.format(shortcut=key, target=self.path.split(".")[-1])
+            if args:
+                command_manager.add_shortcut(self, key, args)
+                return config.lang.shortcut_add_success.format(shortcut=key, target=self.path.split(".")[-1])
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
-                    command_manager.add_shortcut(self, short_key, cmd)
-                    return config.lang.shortcut_add_success.format(shortcut=short_key, target=self.path.split(".")[-1])
+                    command_manager.add_shortcut(self, key, {"command": cmd})
+                    return config.lang.shortcut_add_success.format(shortcut=key, target=self.path.split(".")[-1])
                 raise ValueError(
                     config.lang.shortcut_recent_command_error.format(
                         target=self.path, source=getattr(alc, "path", "Unknown"))
@@ -336,17 +334,21 @@ class Alconna(Subcommand, Generic[TAnalyser]):
     def __repr__(self):
         return f"{self.namespace}::{self.name}(args={self.args}, options={self.options})"
 
-    def add(self, name: str, *alias: str, args: Args | None = None, sep: str = " ", help_: str | None = None) -> Self:
-        """链式注册一个 Option"""
+    def add(self, opt: Option | Subcommand) -> Self:
         command_manager.delete(self)
-        names = name.split(sep)
-        name, requires = names[-1], names[:-1]
-        opt = Option(name, args, list(alias), separators=sep, help_text=help_, requires=requires)
         self.options.insert(-3, opt)
         self.behaviors[0] = ActionHandler(self)
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
+
+    @init_spec(Option)
+    def option(self, opt: Option) -> Self:
+        return self.add(opt)
+
+    @init_spec(Subcommand)
+    def subcommand(self, sub: Subcommand) -> Self:
+        return self.add(sub)
 
     @overload
     def parse(self, message: TDataCollection) -> Arparma[TDataCollection]:

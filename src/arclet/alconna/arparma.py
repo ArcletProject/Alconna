@@ -247,8 +247,8 @@ class Arparma(Generic[TDataCollection]):
         if data := self.query_with(item):
             return data
 
-    def __getattr__(self, item):
-        return self.all_matched_args.get(item)
+    def __getattr__(self, item: str):
+        return self.query(item) if "_" in item else self.all_matched_args.get(item)
 
     def __repr__(self):
         if self.error_info:

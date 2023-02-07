@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import traceback
 from copy import copy
+from re import Match
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from dataclasses import dataclass, field, InitVar
 from typing_extensions import Self
@@ -10,7 +11,7 @@ from typing_extensions import Self
 from nepattern import pattern_map, type_parser, BasePattern
 from nepattern.util import TPattern
 
-from ..manager import command_manager
+from ..manager import command_manager, ShortcutArgs
 from ..exceptions import (
     ParamsUnmatched,
     ArgumentMissing,
@@ -235,6 +236,23 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
+    def shortcut(self, short: Arparma | ShortcutArgs, regex: Match | None) -> Arparma[TDataCollection]:
+        if isinstance(short, Arparma):
+            return short
+        self.container.build(short['command']).push(*short.get('args', [])).push(
+            *[f'{k}{f"{self.container.separators[0]}{v}" if v else ""}' for k, v in short.get('options', {}).items()]
+        )
+        if regex:
+            groups: list[str] = regex.groups()
+            gdict: dict[str, str] = regex.groupdict()
+            for j, data in enumerate(self.container.raw_data):
+                if isinstance(data, str):
+                    for i, c in enumerate(groups):
+                        self.container.raw_data[j] = data.replace(f"{{{i}}}", c)
+                    for k, v in gdict.items():
+                        self.container.raw_data[j] = data.replace(f"{{{k}}}", v)
+        return self.process()
+
     def process(self, message: TDataCollection | None = None, interrupt: bool = False) -> Arparma[TDataCollection]:
         """主体解析函数, 应针对各种情况进行解析"""
         if command_manager.is_disable(self.command):
@@ -256,14 +274,16 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         except ParamsUnmatched as e:
             self.container.current_index = 0
             try:
-                _res = command_manager.find_shortcut(self.container.popitem(move=False)[0], self.command)
-                self.reset()
-                self.container.reset()
-                return _res if isinstance(_res, Arparma) else self.process(_res)  # type: ignore
+                _res = command_manager.find_shortcut(self.command, self.container.popitem(move=False)[0])
             except ValueError as exc:
                 if self.raise_exception:
                     raise e from exc
                 return self.export(fail=True, exception=e)
+            else:
+                self.reset()
+                self.container.reset()
+                return self.shortcut(*_res)
+
         except FuzzyMatchSuccess as Fuzzy:
             output_manager.send(self.command.name, lambda: str(Fuzzy), self.raise_exception)
             return self.export(fail=True)

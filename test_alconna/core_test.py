@@ -110,9 +110,10 @@ def test_alconna_special_help():
 def test_alconna_chain_option():
     alc5 = (
         Alconna("点歌")
-            .add("歌名", sep="：", args=Args(song_name=str))
-            .add("歌手", sep="：", args=Args(singer_name=str))
-    )
+        .option("歌名", Args(song_name=str), separators="：")
+        .option("歌手", Args(singer_name=str), separators="：")
+    ).add(Subcommand("foo").add(Option("bar")))
+
     res = alc5.parse("点歌 歌名：Freejia")
     assert res.song_name == "Freejia"
 
@@ -296,14 +297,13 @@ def test_fuzzy():
 def test_shortcut():
     alc16 = Alconna("core16", Args["foo", int], Option("bar"))
     assert alc16.parse("core16 123 bar").matched is True
-    alc16.shortcut("TEST", "core16 432 bar")
-    res = alc16.parse("TEST")
+    alc16.shortcut("TEST(\d+)", {"args": ["{0}"]})
+    res = alc16.parse("TEST123")
     assert res.matched is True
-    assert res.foo == 432
-    alc16.parse("core16 --shortcut TEST1 'core16 123'")
-    res1 = alc16.parse("TEST1")
-    assert res1.matched is True
-    assert res1.foo == 123
+    assert res.foo == 123
+    alc16.parse("core16 --shortcut TEST2 'core16 321'")
+    res1 = alc16.parse("TEST2")
+    assert res1.foo == 321
 
 
 def test_help():

@@ -181,8 +181,10 @@ class Subcommand(CommandNode):
             return Alconna(other, self)
         raise TypeError(f"unsupported operand type(s) for +: '{other.__class__.__name__}' and 'Subcommand'")
 
-
-
+    def add(self, opt: Option | Subcommand) -> Self:
+        self.options.append(opt)
+        self._hash = self._calc_hash()
+        return self
 
 
 __all__ = ["CommandNode", "Option", "Subcommand"]

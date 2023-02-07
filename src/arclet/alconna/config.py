@@ -7,16 +7,10 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     ContextManager,
-    
     Final,
-    
-    
-    
-    
-    
-    TypedDict,
-    
+    TypedDict
 )
+
 
 if TYPE_CHECKING:
     from .components.behavior import ArparmaBehavior

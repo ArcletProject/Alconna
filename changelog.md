@@ -1,3 +1,9 @@
+# Alconna 1.6.x:
+
+## Alconna 1.6.0
+1. 改进 shorcut
+2. 改进 Alconna.add，加入subcommand的添加
+
 # Alconna 1.5.x:
 
 ## Alconna 1.5.2:
