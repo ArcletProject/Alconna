@@ -13,16 +13,16 @@ T = TypeVar("T")
 @dataclass(init=True, unsafe_hash=True)
 class ArparmaExecutor(Generic[T]):
     target: Callable[..., T]
-    binding: Callable[..., Arparma | None] = field(default=lambda: None, repr=False)
+    binding: Callable[..., list[Arparma]] = field(default=lambda: [], repr=False)
 
     @property
     def result(self) -> T:
         if not self.binding:
             raise ExecuteFailed(None)
-        arp = self.binding()
-        if not arp or not arp.matched:
+        arps = self.binding()
+        if not arps or not arps[-1].matched:
             raise ExecuteFailed('Unmatched')
         try:
-            return arp.call(self.target)
+            return arps[-1].call(self.target)
         except Exception as e:
             raise ExecuteFailed(e) from e

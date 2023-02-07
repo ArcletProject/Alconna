@@ -293,10 +293,8 @@ class CommandManager:
     def get_token(self, result: Arparma) -> int:
         return next((token for token, res in self.__record.items() if res == result), 0)
 
-    def get_result(self, command: Alconna):
-        for v in self.__record.values():
-            if v.source == command:
-                return v
+    def get_result(self, command: Alconna) -> list[Arparma]:
+        return [v for v in self.__record.values() if v.source == command]
 
     @property
     def recent_message(self) -> DataCollection[str | Any] | None:
