@@ -203,6 +203,7 @@ def test_alconna_action():
 
 
 def test_alconna_synthesise():
+    from typing import List
     alc10 = Alconna(
         Arg("min",  r".*(\d+)张.*", seps="到"),
         Arg("max;?", r".*(\d+)张.*"),
@@ -225,11 +226,11 @@ def test_alconna_synthesise():
         msg := (
             "cpp 1 2\n"
             "#include <iostream>\n"
-            "..."
+            "int main() {...}"
         )
     )
     print((res := alc10_1.parse(msg)))
-    print("\n".join(res.query("lines")))
+    print("\n".join(res.query_with(List[str], "lines", [])))
 
 
 def test_simple_override():

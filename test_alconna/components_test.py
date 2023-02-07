@@ -100,6 +100,7 @@ def test_output():
         assert output.get("output")
         print("")
         print(output.get("output"))
+    print(output.get("output"))  # capture will clear when exit context
 
 if __name__ == '__main__':
     import pytest

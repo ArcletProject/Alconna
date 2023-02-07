@@ -5,7 +5,7 @@ from types import MappingProxyType
 from contextlib import suppress
 from typing_extensions import Self
 
-from nepattern import Empty
+from nepattern import Empty, generic_isinstance
 from .util import get_signature
 from .typing import TDataCollection
 from .config import config
@@ -16,6 +16,7 @@ from .components.behavior import ArparmaBehavior, requirement_handler
 from .components.duplication import Duplication, generate_duplication
 
 T = TypeVar('T')
+D = TypeVar('D')
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
@@ -137,10 +138,7 @@ class Arparma(Generic[TDataCollection]):
                 self._unpack_subs(_v.subcommands)
 
     def encapsulate_result(
-        self,
-        main_args: dict[str, Any],
-        options: dict[str, OptionResult],
-        subcommands: dict[str, SubcommandResult]
+        self, main_args: dict[str, Any], options: dict[str, OptionResult], subcommands: dict[str, SubcommandResult]
     ) -> None:
         """处理 Arparma 中的数据"""
         self.main_args = main_args.copy()
@@ -205,13 +203,9 @@ class Arparma(Generic[TDataCollection]):
         return None, prefix
 
     @overload
-    def query(self, path: str) -> Mapping[str, Any] | Any | None:
-        ...
-
+    def query(self, path: str) -> Mapping[str, Any] | Any | None: ...
     @overload
-    def query(self, path: str, default: T) -> T | Mapping[str, Any] | Any:
-        ...
-
+    def query(self, path: str, default: T) -> T | Mapping[str, Any] | Any: ...
     def query(self, path: str, default: T | None = None) -> Any | Mapping[str, Any] | T | None:
         """根据path查询值"""
         source, endpoint = self.__require__(path.split('.'))
@@ -221,12 +215,18 @@ class Arparma(Generic[TDataCollection]):
             return getattr(source, endpoint, default) if endpoint else source
         return source.get(endpoint, default) if endpoint else MappingProxyType(source)
 
-    def query_with(self, arg_type: type[T], path: str | None = None, default: T | None = None) -> T | None:
+    @overload
+    def query_with(self, arg_type: type[T], path: str | None = None) -> T | None: ...
+    @overload
+    def query_with(self, arg_type: type[T], *, default: D) -> T | D: ...
+    @overload
+    def query_with(self, arg_type: type[T], path: str, default: D) -> T | D: ...
+    def query_with(self, arg_type: type[T], path: str | None = None, default: D | None = None) -> T | D | None:
         """根据类型查询参数"""
         if path:
-            return res if isinstance(res := self.query(path, Empty), arg_type) else default
+            return res if generic_isinstance(res := self.query(path, Empty), arg_type) else default
         with suppress(IndexError):
-            return [v for v in self.all_matched_args.values() if isinstance(v, arg_type)][0]
+            return [v for v in self.all_matched_args.values() if generic_isinstance(v, arg_type)][0]
         return default
 
     def find(self, path: str) -> bool:
