@@ -17,9 +17,7 @@ T_Origin = TypeVar('T_Origin')
 
 @dataclass(init=True, eq=True)
 class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
-    """
-    基础的命令组件存根
-    """
+    """基础的命令组件存根"""
 
     _origin: T_Origin
     _value: Any = field(default=None)
@@ -31,9 +29,7 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
 
     @abstractmethod
     def set_result(self, result: Any) -> None:
-        """
-        设置解析结果与可用性
-        """
+        """设置解析结果与可用性"""
 
     def __repr__(self):
         return f"{{{', '.join([f'{k}={v}' for k, v in vars(self).items() if v and not k.startswith('_')])}}}"
@@ -41,9 +37,7 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
 
 @dataclass(init=True)
 class ArgsStub(BaseStub[Args]):
-    """
-    参数存根
-    """
+    """参数存根"""
     _value: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -102,9 +96,7 @@ class ArgsStub(BaseStub[Args]):
 
 @dataclass(init=True)
 class OptionStub(BaseStub[Option]):
-    """
-    选项存根
-    """
+    """选项存根"""
     args: ArgsStub = field(init=False)
     dest: str = field(init=False)
     aliases: list[str] = field(init=False)
@@ -125,9 +117,7 @@ class OptionStub(BaseStub[Option]):
 
 @dataclass(init=True)
 class SubcommandStub(BaseStub[Subcommand]):
-    """
-    子命令存根
-    """
+    """子命令存根"""
     args: ArgsStub = field(init=False)
     dest: str = field(init=False)
     options: list[OptionStub] = field(init=False)

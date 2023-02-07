@@ -11,7 +11,7 @@ import shelve
 import contextlib
 
 from .exceptions import ExceedMaxCount
-from .util import Singleton, LruCache
+from .util import LruCache
 from .typing import TDataCollection, DataCollection
 from .config import config, Namespace
 
@@ -27,7 +27,7 @@ class ShortcutArgs(TypedDict):
     options: NotRequired[dict[str, Any]]
 
 
-class CommandManager(metaclass=Singleton):
+class CommandManager:
     """
     Alconna 命令管理器
 
@@ -66,7 +66,6 @@ class CommandManager(metaclass=Singleton):
                 arp._clr()
             self.__record.clear()
             self.__shortcuts.clear()
-            Singleton.remove(self.__class__)
 
         weakref.finalize(self, _del)
 
@@ -295,11 +294,9 @@ class CommandManager(metaclass=Singleton):
         return next((token for token, res in self.__record.items() if res == result), 0)
 
     def get_result(self, command: Alconna):
-        res = None
         for v in self.__record.values():
             if v.source == command:
-                res = v
-        return res
+                return v
 
     @property
     def recent_message(self) -> DataCollection[str | Any] | None:
@@ -334,3 +331,4 @@ class CommandManager(metaclass=Singleton):
 
 
 command_manager = CommandManager()
+__all__ = ["ShortcutArgs", "command_manager"]

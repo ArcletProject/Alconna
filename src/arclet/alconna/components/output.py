@@ -7,7 +7,6 @@ from nepattern import Empty, AllParam, BasePattern
 from contextlib import contextmanager
 
 from .action import ArgAction
-from ..util import Singleton
 from ..args import Args, Arg
 from ..base import Option, Subcommand
 
@@ -21,7 +20,7 @@ class OutputAction(ArgAction):
 
 
 @dataclass
-class OutputActionManager(metaclass=Singleton):
+class OutputActionManager:
     """帮助信息"""
     cache: dict[str, Callable] = field(default_factory=dict)
     outputs: dict[str, OutputAction] = field(default_factory=dict)
@@ -33,7 +32,6 @@ class OutputActionManager(metaclass=Singleton):
             mgr.cache.clear()
             mgr.outputs.clear()
             mgr._out_cache.clear()
-            Singleton.remove(mgr.__class__)
 
         finalize(self, _clr, self)
 

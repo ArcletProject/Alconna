@@ -104,10 +104,7 @@ class ArgsMeta(type):
     """Args 类的元类"""
 
     def __getattr__(self, name):
-        class _Seminal:
-            __getitem__ = partial(self.__class__.__getitem__, self, key=name)
-
-        return _Seminal()
+        return type("_Seminal", (), {"__getitem__": partial(self.__class__.__getitem__, self, key=name)})()
 
     def __getitem__(self, item, key: str | None = None):
         data = item if isinstance(item, tuple) else (item,)
@@ -224,9 +221,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "keyword_only", "_visit"
 
     def add(self, name: str, *, value: Any, default: Any = None, flags: list[ArgFlag] | None = None) -> Self:
-        """
-        添加一个参数
-        """
+        """添加一个参数"""
         if next(filter(lambda x: x.name == name, self.argument), False):
             return self
         self.argument.append(Arg(name, value, default, flags=flags))

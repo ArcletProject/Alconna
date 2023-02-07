@@ -13,9 +13,7 @@ if TYPE_CHECKING:
 
 
 class Duplication:
-    """
-    用以更方便的检查、调用解析结果的类。
-    """
+    """用以更方便的检查、调用解析结果的类。"""
     __stubs__: dict[str, str | list[str] | dict[str, str]]
 
     @property
@@ -74,16 +72,14 @@ class Duplication:
 
 
 def generate_duplication(command: Alconna) -> Duplication:
-    """
-    依据给定的命令生成一个解析结果的检查类。
-    """
+    """依据给定的命令生成一个解析结果的检查类。"""
     options = filter(lambda x: isinstance(x, Option), command.options)
     subcommands = filter(lambda x: isinstance(x, Subcommand), command.options)
     return cast(Duplication, type(
-        command.name.strip("/\\.-:") + 'Interface',
+        f"{command.name.strip('/.-:')}Interface",
         (Duplication,), {
             "__annotations__": {
-                **{"args": ArgsStub},
+                "args": ArgsStub,
                 **{opt.dest: OptionStub for opt in options},
                 **{sub.dest: SubcommandStub for sub in subcommands},
             }

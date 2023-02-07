@@ -19,6 +19,42 @@ T = TypeVar('T')
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
+def _handle_opt(_pf: str, _parts: list[str], _opts: dict[str, OptionResult]):
+    if _pf == "options":
+        _pf = _parts.pop(0)
+    if not _parts:  # options.foo or foo
+        return _opts, _pf
+    elif not (__src := _opts.get(_pf)):  # options.foo.bar or foo.bar
+        return _opts, _pf
+    if (_end := _parts.pop(0)) == "value":
+        return __src, _end
+    if _end == 'args':
+        return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
+    return __src.args, _end
+
+
+def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult]):
+    if _pf == "subcommands":
+        _pf = _parts.pop(0)
+    if not _parts:
+        return _subs, _pf
+    elif not (__src := _subs.get(_pf)):
+        return _subs, _pf
+    if (_end := _parts.pop(0)) == "value":
+        return __src, _end
+    if _end == 'args':
+        return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
+    if _end == "options" and (_end in __src.options or not _parts):
+        raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
+    if _end == "options" or _end in __src.options:
+        return _handle_opt(_end, _parts, __src.options)
+    if _end == "subcommands" and (_end in __src.subcommands or not _parts):
+        raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
+    if _end == "subcommands" or _end in __src.subcommands:
+        return _handle_sub(_end, _parts, __src.subcommands)
+    return __src.args, _end
+
+
 class Arparma(Generic[TDataCollection]):
     """承载解析结果与操作数据的接口类"""
     header_match: HeadResult
@@ -44,7 +80,6 @@ class Arparma(Generic[TDataCollection]):
         self.other_args = {}
         self.options = {}
         self.subcommands = {}
-
 
 
     def _clr(self):
@@ -160,41 +195,6 @@ class Arparma(Generic[TDataCollection]):
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
             raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=prefix))
-
-        def _handle_opt(_pf: str, _parts: list[str], _opts: dict[str, OptionResult]):
-            if _pf == "options":
-                _pf = _parts.pop(0)
-            if not _parts:  # options.foo or foo
-                return _opts, _pf
-            elif not (__src := _opts.get(_pf)):  # options.foo.bar or foo.bar
-                return _opts, _pf
-            if (_end := _parts.pop(0)) == "value":
-                return __src, _end
-            if _end == 'args':
-                return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
-            return __src.args, _end
-
-        def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult]):
-            if _pf == "subcommands":
-                _pf = _parts.pop(0)
-            if not _parts:
-                return _subs, _pf
-            elif not (__src := _subs.get(_pf)):
-                return _subs, _pf
-            if (_end := _parts.pop(0)) == "value":
-                return __src, _end
-            if _end == 'args':
-                return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
-            if _end == "options" and (_end in __src.options or not _parts):
-                raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
-            if _end == "options" or _end in __src.options:
-                return _handle_opt(_end, _parts, __src.options)
-            if _end == "subcommands" and (_end in __src.subcommands or not _parts):
-                raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
-            if _end == "subcommands" or _end in __src.subcommands:
-                return _handle_sub(_end, _parts, __src.subcommands)
-            return __src.args, _end
-
         if prefix == "options" or prefix in self.options:
             return _handle_opt(prefix, parts, self.options)
         if prefix == "subcommands" or prefix in self.subcommands:

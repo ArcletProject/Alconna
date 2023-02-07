@@ -36,20 +36,6 @@ def is_async(o: Any):
     return inspect.iscoroutinefunction(o) or inspect.isawaitable(o)
 
 
-class Singleton(type):
-    """单例模式"""
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-    @classmethod
-    def remove(mcs, cls):
-        mcs._instances.pop(cls, None)
-
-
 @lru_cache(4096)
 def split_once(text: str, separates: str | tuple[str, ...], crlf: bool = True):
     """单次分隔字符串"""
@@ -128,7 +114,6 @@ _T = TypeVar("_T")
 
 
 class LruCache(Generic[_K, _V]):
-    max_size: int
     cache: OrderedDict[_K, _V]
 
     __slots__ = ("max_size", "cache", "__size")
@@ -153,9 +138,7 @@ class LruCache(Generic[_K, _V]):
         return default
 
     def __getitem__(self, item: _K) -> _V:
-        if res := self.get(item):
-            return res
-        raise KeyError(item)
+        return self.cache[item]
 
     def set(self, key: _K, value: Any) -> None:
         if key in self.cache:
@@ -169,9 +152,6 @@ class LruCache(Generic[_K, _V]):
     def delete(self, key: _K) -> None:
         self.cache.pop(key)
 
-    def size(self) -> int:
-        return self.__size
-
     def has(self, key: _K) -> bool:
         return key in self.cache
 
@@ -181,8 +161,7 @@ class LruCache(Generic[_K, _V]):
     def __len__(self) -> int:
         return len(self.cache)
 
-    def __contains__(self, key: _K) -> bool:
-        return key in self.cache
+    __contains__ = has
 
     def __iter__(self) -> Iterator[_K]:
         return iter(self.cache)

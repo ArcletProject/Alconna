@@ -11,16 +11,11 @@ from .model import OptionResult, SubcommandResult
 __all__ = ["set_default", "store_value", "version", "store_true", "store_false"]
 
 
-class _MISSING_TYPE:
-    pass
-
-
+class _MISSING_TYPE:pass
 MISSING = _MISSING_TYPE()
 
 
 class _StoreValue(ArgAction):
-    """针对特定值的类"""
-
     def __init__(self, value: Any):
         super().__init__(lambda: value)
 
