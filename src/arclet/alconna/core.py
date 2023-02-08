@@ -342,26 +342,20 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         command_manager.register(self)
         return self
 
-    @init_spec(Option)
+    @init_spec(Option, True)
     def option(self, opt: Option) -> Self:
         return self.add(opt)
 
-    @init_spec(Subcommand)
+    @init_spec(Subcommand, True)
     def subcommand(self, sub: Subcommand) -> Self:
         return self.add(sub)
 
     @overload
-    def parse(self, message: TDataCollection) -> Arparma[TDataCollection]:
-        ...
-
+    def parse(self, message: TDataCollection) -> Arparma[TDataCollection]: ...
     @overload
-    def parse(self, message, *, duplication: type[T_Duplication]) -> T_Duplication:
-        ...
-
+    def parse(self, message, *, duplication: type[T_Duplication]) -> T_Duplication: ...
     @overload
-    def parse(self, message, *, interrupt: Literal[True]) -> TAnalyser:
-        ...
-
+    def parse(self, message, *, interrupt: Literal[True]) -> TAnalyser: ...
     def parse(
         self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None, interrupt: bool = False
     ) -> TAnalyser | Arparma[TDataCollection] | T_Duplication:

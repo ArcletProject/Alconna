@@ -6,17 +6,27 @@ import contextlib
 import inspect
 from functools import lru_cache
 from collections import OrderedDict
-from typing import TypeVar, Any, Iterator, Hashable, Generic, Callable, overload
+from typing import TypeVar, Any, Iterator, Hashable, Generic, Callable, overload, Literal
 from typing_extensions import ParamSpec
 
 R = TypeVar("R")
 T = TypeVar("T")
 P = ParamSpec("P")
 
-def init_spec(fn: Callable[P, T]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]:
-    def wrapper(func: Callable[[Any, T], R]) -> Callable[P, R]:
+@overload
+def init_spec(fn: Callable[P, T]) -> Callable[[Callable[[T], R]], Callable[P, R]]:
+    ...
+@overload
+def init_spec(fn: Callable[P, T], is_method: Literal[True]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]:
+    ...
+def init_spec(   # type: ignore
+    fn: Callable[P, T], is_method: bool = False
+) -> Callable[[Callable[[T], R] | Callable[[Any, T], R]], Callable[P, R]]:
+    def wrapper(func: Callable[[T], R] | Callable[[Any, T], R]) -> Callable[P, R]:
         def inner(*args: P.args, **kwargs: P.kwargs):
-            return func(args[0], fn(*args[1:], **kwargs))   # type: ignore
+            if is_method:
+                return func(args[0], fn(*args[1:], **kwargs))   # type: ignore
+            return func(fn(*args, **kwargs))   # type: ignore
         return inner
     return wrapper
 
