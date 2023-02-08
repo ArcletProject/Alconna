@@ -53,6 +53,21 @@ def test_alconna_multi_match():
     assert res3.matched is False
     assert res3.head_matched is True
 
+    alc1_1 = Alconna(
+        "core1_1",
+        Subcommand(
+            "foo",
+            Option("bar"),
+            Subcommand("foo"),
+            Args["qux", str]
+        )
+    )
+    assert alc1_1.parse("core1_1 foo abc").matched
+    assert alc1_1.parse("core1_1 foo foo abc").matched
+    assert alc1_1.parse("core1_1 foo bar abc").matched
+    assert alc1_1.parse("core1_1 foo bar foo abc").matched
+    assert alc1_1.parse("core1_1 foo foo bar abc").matched
+
 
 def test_special_header():
     alc2 = Alconna("RD{r:int}?=={e:int}")

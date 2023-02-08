@@ -276,8 +276,7 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
             raise exc  # type: ignore  # noqa
     elif isinstance(_param, Sentence):
         analyser.sentences.append(analyser.container.popitem()[0])
-    elif _param:
-        assert _param is not Ellipsis
+    elif _param not in (None, Ellipsis):
         _param.process()
         analyser.subcommands_result.setdefault(_param.command.dest, _param.export())
 
