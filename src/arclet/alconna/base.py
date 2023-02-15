@@ -13,9 +13,7 @@ from .components.action import ArgAction
 
 
 class CommandNode:
-    """
-    命令体基类, 规定基础命令的参数
-    """
+    """命令体基类, 规定基础命令的参数"""
     name: str
     dest: str
     args: Args
@@ -114,13 +112,9 @@ class Option(CommandNode):
         )
 
     @overload
-    def __add__(self, other: Option) -> Subcommand:
-        ...
-
+    def __add__(self, other: Option) -> Subcommand: ...
     @overload
-    def __add__(self, other: Args | Arg) -> Option:
-        ...
-
+    def __add__(self, other: Args | Arg) -> Option: ...
     def __add__(self, other) -> Self | Subcommand:
         if isinstance(other, Option):
             return Subcommand(

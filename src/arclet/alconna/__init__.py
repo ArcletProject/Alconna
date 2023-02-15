@@ -1,6 +1,5 @@
 """Alconna 概览"""
 
-from typing import TYPE_CHECKING
 from nepattern import AllParam as AllParam, Empty as Empty, AnyOne as AnyOne  # noqa
 from .util import split_once, split, LruCache
 from .typing import MultiVar, KeyWordVar, Kw, Nargs
@@ -21,8 +20,5 @@ from .components.duplication import Duplication
 from .components.stub import ArgsStub, OptionStub, SubcommandStub
 
 __version__ = "1.6.0"
-
-if TYPE_CHECKING:
-    from .builtin import version
 
 Arpamar = Arparma

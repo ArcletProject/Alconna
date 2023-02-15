@@ -4,13 +4,7 @@ import asyncio
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    ContextManager,
-    Final,
-    TypedDict
-)
-
+from typing import TYPE_CHECKING, ContextManager, Final, TypedDict
 
 if TYPE_CHECKING:
     from .components.behavior import ArparmaBehavior
@@ -52,12 +46,12 @@ class namespace(ContextManager[Namespace]):
     """
     新建一个命名空间配置并暂时作为默认命名空间
 
-    Example:
-        with namespace("xxx") as np:
-            np.headers = [aaa]
-            alc = Alconna(...)
-            alc.headers == [aaa]
+    with namespace("xxx") as np:
+        np.headers = [aaa]
+        alc = Alconna(...)
+        alc.headers == [aaa]
     """
+
     def __init__(self, name: Namespace | str):
         self.np = Namespace(name) if isinstance(name, str) else name
         self.name = self.np.name if isinstance(name, Namespace) else name
@@ -93,10 +87,7 @@ class _LangConfig:
             self.__config = self.__file[name]
             self.__file["$default"] = name
             json.dump(
-                self.__file,
-                self.path.open("w", encoding="utf-8"),
-                ensure_ascii=False,
-                indent=2,
+                self.__file, self.path.open("w", encoding="utf-8"), ensure_ascii=False, indent=2
             )
             return
         raise ValueError(self.__config["lang.type_error"].format(target=name))
@@ -136,9 +127,7 @@ class _AlconnaConfig:
     message_max_cache: int = 100
     fuzzy_threshold: float = 0.6
     _default_namespace = "Alconna"
-    namespaces: dict[str, Namespace] = {
-        _default_namespace: Namespace(_default_namespace)
-    }
+    namespaces: dict[str, Namespace] = {_default_namespace: Namespace(_default_namespace)}
 
     @property
     def default_namespace(self):
@@ -148,8 +137,7 @@ class _AlconnaConfig:
     def default_namespace(self, np: str | Namespace):
         if isinstance(np, str):
             if np not in self.namespaces:
-                old = self.namespaces.pop(self._default_namespace)
-                assert old
+                old = self.namespaces.pop(self._default_namespace, Namespace(np))
                 old.name = np
                 self.namespaces[np] = old
             self._default_namespace = np

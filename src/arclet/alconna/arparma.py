@@ -147,7 +147,6 @@ class Arparma(Generic[TDataCollection]):
         self._unpack_opts(options)
         self._unpack_subs(subcommands)
 
-
     @staticmethod
     def behave_cancel():
         raise BehaveCancelled
@@ -234,13 +233,9 @@ class Arparma(Generic[TDataCollection]):
         return self.query(path, Empty) != Empty
 
     @overload
-    def __getitem__(self, item: type[T]) -> T | None:
-        ...
-
+    def __getitem__(self, item: type[T]) -> T | None: ...
     @overload
-    def __getitem__(self, item: str) -> Any:
-        ...
-
+    def __getitem__(self, item: str) -> Any:  ...
     def __getitem__(self, item: str | type[T]) -> T | Any | None:
         if isinstance(item, str):
             return self.query(item)

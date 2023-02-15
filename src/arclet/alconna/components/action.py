@@ -36,17 +36,13 @@ class ArgAction:
         kwargs = kwargs or {}
         try:
             if is_async(self.action):
-                loop = config.loop
-                if loop.is_running():
-                    loop.create_task(self.action(*_varargs, **kwargs))
+                if config.loop.is_running():
+                    config.loop.create_task(self.action(*_varargs, **kwargs))
                     return params
-                else:
-                    additional_values = loop.run_until_complete(self.action(*_varargs, **kwargs))
+                additional_values = config.loop.run_until_complete(self.action(*_varargs, **kwargs))
             else:
                 additional_values = self.action(*_varargs, **kwargs)
-            if not additional_values:
-                return params
-            return additional_values if isinstance(additional_values, Dict) else params
+            return additional_values if additional_values and isinstance(additional_values, Dict) else params
         except Exception as e:
             if raise_exc:
                 raise e

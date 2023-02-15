@@ -14,11 +14,9 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 @overload
-def init_spec(fn: Callable[P, T]) -> Callable[[Callable[[T], R]], Callable[P, R]]:
-    ...
+def init_spec(fn: Callable[P, T]) -> Callable[[Callable[[T], R]], Callable[P, R]]: ...
 @overload
-def init_spec(fn: Callable[P, T], is_method: Literal[True]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]:
-    ...
+def init_spec(fn: Callable[P, T], is_method: Literal[True]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]: ...
 def init_spec(   # type: ignore
     fn: Callable[P, T], is_method: bool = False
 ) -> Callable[[Callable[[T], R] | Callable[[Any, T], R]], Callable[P, R]]:
@@ -49,9 +47,7 @@ def is_async(o: Any):
 @lru_cache(4096)
 def split_once(text: str, separates: str | tuple[str, ...], crlf: bool = True):
     """单次分隔字符串"""
-    index = 0
-    out_text = ""
-    quotation = ""
+    index, out_text, quotation = 0, "", ""
     separates = tuple(separates)
     text = text.lstrip()
     for index, char in enumerate(text):
@@ -84,8 +80,7 @@ def split(text: str, separates: tuple[str, ...] | None = None, crlf: bool = True
         List[str]: 切割后的字符串, 可能含有空格
     """
     separates = separates or (" ",)
-    result = ""
-    quotation = ""
+    result, quotation = "", ""
     for index, char in enumerate(text):
         if char in {"'", '"', "’", "“"}:
             if not quotation:
