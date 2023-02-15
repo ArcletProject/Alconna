@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Args, AnyOne, compile, config
+from arclet.alconna import Alconna, Args, AnyOne, compile
 import cProfile
 import pstats
 
@@ -20,8 +20,6 @@ class At:
         self.target = t
 
 
-config.default_namespace.enable_message_cache = True
-
 alc = Alconna(
     ["."],
     "test",
@@ -36,32 +34,29 @@ if __name__ == "__main__":
 
     sec = 0.0
     for _ in range(count):
-        st = time.time()
-        compile_alc.process(msg)
-        compile_alc.analyse()
-        ed = time.time()
-        sec += ed - st
+        st = time.perf_counter()
+        compile_alc.container.build(msg)
+        compile_alc.process()
+        sec += time.perf_counter() - st
     print(f"Alconna: {count / sec:.2f}msg/s")
 
     print("RUN 2:")
-    li = []
+    li = 0.0
 
-    pst = time.time()
     for _ in range(count):
         st = time.thread_time_ns()
-        compile_alc.process(msg)
-        compile_alc.analyse()
-        ed = time.thread_time_ns()
-        li.append(ed - st)
-    led = time.time()
+        compile_alc.container.build(msg)
+        compile_alc.process()
+        li += (time.thread_time_ns() - st)
 
-    print(f"Alconna: {sum(li) / count} ns per loop with {count} loops")
+    print(f"Alconna: {li / count} ns per loop with {count} loops")
+
 
     prof = cProfile.Profile()
     prof.enable()
     for _ in range(count):
-        compile_alc.process(msg)
-        compile_alc.analyse()
+        compile_alc.container.build(msg)
+        compile_alc.process()
     prof.create_stats()
 
     stats = pstats.Stats(prof)
