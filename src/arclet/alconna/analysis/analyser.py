@@ -97,10 +97,7 @@ class SubAnalyser(Generic[TContainer]):
 
     def export(self) -> SubcommandResult:
         res = SubcommandResult(
-            self.value_result,
-            self.args_result.copy(),
-            self.options_result.copy(),
-            self.subcommands_result.copy()
+            self.value_result, self.args_result.copy(), self.options_result.copy(), self.subcommands_result.copy()
         )
         self.reset()
         return res
@@ -239,7 +236,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     def shortcut(self, short: Arparma | ShortcutArgs, regex: Match | None) -> Arparma[TDataCollection]:
         if isinstance(short, Arparma):
             return short
-        self.container.build(short['command']).push(*short.get('args', [])).push(
+        self.container.build(short['command']).rebuild(*short.get('args', [])).rebuild(
             *[f'{k}{f"{self.container.separators[0]}{v}" if v else ""}' for k, v in short.get('options', {}).items()]
         )
         if regex:
@@ -248,9 +245,10 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             for j, data in enumerate(self.container.raw_data):
                 if isinstance(data, str):
                     for i, c in enumerate(groups):
-                        self.container.raw_data[j] = data.replace(f"{{{i}}}", c)
+                        data = data.replace(f"{{{i}}}", c)
                     for k, v in gdict.items():
-                        self.container.raw_data[j] = data.replace(f"{{{k}}}", v)
+                        data = data.replace(f"{{{k}}}", v)
+                    self.container.raw_data[j] = data
         return self.process()
 
     def process(self, message: TDataCollection | None = None, interrupt: bool = False) -> Arparma[TDataCollection]:

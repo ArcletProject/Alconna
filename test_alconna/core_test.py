@@ -311,12 +311,13 @@ def test_fuzzy():
 
 
 def test_shortcut():
-    alc16 = Alconna("core16", Args["foo", int], Option("bar"))
-    assert alc16.parse("core16 123 bar").matched is True
-    alc16.shortcut("TEST(\d+)", {"args": ["{0}"]})
-    res = alc16.parse("TEST123")
+    alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
+    assert alc16.parse("core16 123 bar abcd").matched is True
+    alc16.shortcut("TEST(\d+)(.+)", {"args": ["{0}"], "options": {"bar": "{1}"}})
+    res = alc16.parse("TEST123aa")
     assert res.matched is True
     assert res.foo == 123
+    assert res.baz == "aa"
     alc16.parse("core16 --shortcut TEST2 'core16 321'")
     res1 = alc16.parse("TEST2")
     assert res1.foo == 321
@@ -381,7 +382,10 @@ def test_interrupt():
     alc21 = Alconna("core21", Args.foo[int], Args.bar[str])
     print("\n", "no interrupt [failed]:", alc21.parse("core21"))
     print("\n", "interrupt [pending]:", ana := alc21.parse("core21", interrupt=True))
-    ana.container.push("1", "a")
+    ana.container.rebuild("1", "a")
+    assert ana.process().matched
+    print("\n", "interrupt [pending]:", ana := alc21.parse("core21 123", interrupt=True))
+    ana.container.rebuild("a")
     assert ana.process().matched
 
 

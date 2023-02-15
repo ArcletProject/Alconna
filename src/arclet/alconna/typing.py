@@ -26,8 +26,7 @@ class KeyWordVar(BasePattern):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         self.sep = sep
         assert isinstance(self.base, BasePattern)
-        alias = f"@{sep}{self.base}"
-        super().__init__(r"(.+?)", PatternModel.KEEP, self.base.origin, alias=alias)
+        super().__init__(r"(.+?)", PatternModel.KEEP, self.base.origin, alias=f"@{sep}{self.base}")
 
     def __repr__(self):
         return self.alias
@@ -35,10 +34,7 @@ class KeyWordVar(BasePattern):
 
 class _Kw:
     __slots__ = ()
-
-    def __getitem__(self, item):
-        return KeyWordVar(item)
-
+    __getitem__ = lambda s, i: KeyWordVar(i)
     __matmul__ = __getitem__
     __rmatmul__ = __getitem__
 
@@ -49,11 +45,7 @@ class MultiVar(BasePattern):
     flag: Literal["+", "*"]
     length: int
 
-    def __init__(
-        self,
-        value: BasePattern | Any,
-        flag: int | Literal["+", "*"] = "+"
-    ):
+    def __init__( self, value: BasePattern | Any, flag: int | Literal["+", "*"] = "+"):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         assert isinstance(self.base, BasePattern)
         if not isinstance(flag, int):
@@ -78,6 +70,4 @@ class MultiVar(BasePattern):
 Nargs = MultiVar
 Kw = _Kw()
 
-__all__ = [
-    "DataCollection", "TDataCollection", "MultiVar", "Nargs", "Kw", "KeyWordVar"
-]
+__all__ = ["DataCollection", "TDataCollection", "MultiVar", "Nargs", "Kw", "KeyWordVar"]

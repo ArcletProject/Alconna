@@ -99,8 +99,7 @@ def _exec_args(args: dict[str, Any], func: ArgAction, raise_exc: bool):
 
 def _exec(data: OptionResult | SubcommandResult, func: ArgAction, raise_exc: bool):
     return (
-        ("args", _exec_args(data.args, func, raise_exc))
-        if data.args else ("value", func.action())
+        ("args", _exec_args(data.args, func, raise_exc)) if data.args else ("value", func.action())
     )
 
 
@@ -112,13 +111,14 @@ class ActionHandler(ArparmaBehavior):
 
     def __post_init__(self, source: Alconna):
         self.main_action = source.action
-        for opt in source.options:
-            if opt.action:
-                self.options[opt.dest] = opt.action
-            if hasattr(opt, "options"):
-                for option in opt.options:  # type: ignore
-                    if option.action:
-                        self.options[f"{opt.dest}.{option.dest}"] = option.action
+        def _step(src, prefix=None):
+            for opt in src.options:
+                if opt.action:
+                    self.options[(f"{prefix}." if prefix else "") + opt.dest] = opt.action
+                if hasattr(opt, "options"):
+                    _step(opt, (f"{prefix}." if prefix else "") + opt.dest)
+
+        _step(source)
 
     def operate(self, interface: Arparma):
         self.before_operate(interface)

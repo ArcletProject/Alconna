@@ -94,17 +94,17 @@ class DataCollectionContainer:
             self.temp_token = self.generate_token(raw_data)
         return self
 
-    def push(self, *data: str | Any) -> Self:
-        for d in data:
+    def rebuild(self, *data: str | Any) -> Self:
+        self.raw_data = self.bak_data.copy()
+        for i, d in enumerate(data):
             if not d:
                 continue
-            if isinstance(d, str) and isinstance(self.raw_data[-1], str):
-                if self.current_index >= self.ndata:
-                    self.current_index -= 1
+            if isinstance(d, str) and i > 0 and isinstance(self.raw_data[-1], str):
                 self.raw_data[-1] += f"{self.separators[0]}{d}"
             else:
                 self.raw_data.append(d)
                 self.ndata += 1
+        self.current_index = 0
         self.bak_data = self.raw_data.copy()
         return self
 

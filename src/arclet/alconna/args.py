@@ -104,7 +104,7 @@ class ArgsMeta(type):
     """Args 类的元类"""
 
     def __getattr__(self, name):
-        return type("_Seminal", (), {"__getitem__": partial(self.__class__.__getitem__, self, key=name)})()
+        return type("_S", (), {"__getitem__": partial(self.__class__.__getitem__, self, key=name), "__call__": None})()
 
     def __getitem__(self, item, key: str | None = None):
         data = item if isinstance(item, tuple) else (item,)
