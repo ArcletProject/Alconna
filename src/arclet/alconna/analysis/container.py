@@ -79,7 +79,7 @@ class DataCollectionContainer:
                 continue
             if (proc := self.preprocessors.get(uname)) and (res := proc(unit)):
                 unit = res
-            if text := getattr(unit, self.text_sign, unit if isinstance(unit, str) else None):
+            if text := unit if isinstance(unit, str) else getattr(unit, self.text_sign, ''):
                 if not (res := text.strip()):
                     continue
                 raw_data.append(res)

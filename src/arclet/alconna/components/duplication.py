@@ -8,7 +8,7 @@ from ..config import config
 from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub, Subcommand, Option
 
 if TYPE_CHECKING:
-    from ..core import Alconna, AlconnaGroup
+    from ..core import Alconna
     from ..arparma import Arparma
 
 
@@ -39,7 +39,7 @@ class Duplication:
                 setattr(self, key, target.header[key])
         return self
 
-    def __init__(self, target: Alconna | AlconnaGroup):
+    def __init__(self, target: Alconna):
         self.__stubs__ = {"options": [], "subcommands": [], "other_args": [], "header": {}}
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):

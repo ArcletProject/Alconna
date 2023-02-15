@@ -17,7 +17,7 @@ def handle_help(analyser: Analyser):
     _help_param = [str(i) for i in analyser.container.release(recover=True) if i not in analyser.special]
     output_manager.send(
         analyser.command.name,
-        lambda: analyser.command.formatter_type(analyser.command).format_node(_help_param),
+        lambda: analyser.command.formatter.format_node(_help_param),
         analyser.raise_exception
     )
     return analyser.export(fail=True)

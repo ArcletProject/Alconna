@@ -300,7 +300,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         else:
             exc = ArgumentMissing(config.lang.analyser_param_missing)
         if interrupt and isinstance(exc, ArgumentMissing):
-            raise PauseTriggered
+            raise PauseTriggered(self)
         if self.raise_exception:
             raise exc
         return self.export(fail=True, exception=exc)
@@ -324,7 +324,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                     if handler := self.special.get(rest[-1]):
                         return handler(self)
                 if interrupt and isinstance(e1, ArgumentMissing):
-                    raise PauseTriggered from e1
+                    raise PauseTriggered(self) from e1
                 if self.raise_exception:
                     raise
                 return self.export(fail=True, exception=e1)

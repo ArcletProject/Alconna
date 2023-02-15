@@ -17,7 +17,7 @@ from .config import config, Namespace
 
 if TYPE_CHECKING:
     from .analysis.analyser import Analyser, TAnalyser
-    from .core import Alconna, AlconnaGroup, CommandMeta
+    from .core import Alconna, CommandMeta
     from .arparma import Arparma
 
 
@@ -38,7 +38,7 @@ class CommandManager:
     current_count: int
     max_count: int
 
-    __commands: dict[str, dict[str, Union[Alconna, AlconnaGroup]]]
+    __commands: dict[str, dict[str, Alconna]]
     __analysers: dict[Alconna, Analyser]
     __abandons: list[Alconna]
     __record: LruCache[int, Arparma]
@@ -98,24 +98,21 @@ class CommandManager:
             return
         return config.namespaces.get(name)
 
-    def register(self, command: Alconna | AlconnaGroup) -> None:
+    def register(self, command: Alconna) -> None:
         """注册命令解析器, 会同时记录解析器对应的命令"""
         from .analysis.base import compile
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
-        if not command._group:   # noqa
-            self.__analysers.pop(command, None)  # type: ignore
-            self.__analysers[command] = compile(command)  # type: ignore
-        else:
-            for cmd in command.commands:  # type: ignore
-                self.__analysers.pop(cmd, None)
-                self.__analysers[cmd] = compile(cmd)
+        self.__analysers.pop(command, None)
+        self.__analysers[command] = compile(command)
         namespace = self.__commands.setdefault(command.namespace, {})
         if _cmd := namespace.get(command.name):
             if _cmd == command:
                 return
-            _cmd.__union__(command)
+            _cmd.formatter.add(command)
+            command.formatter = _cmd.formatter
         else:
+            command.formatter.add(command)
             namespace[command.name] = command
             self.current_count += 1
 
@@ -127,16 +124,16 @@ class CommandManager:
             namespace, name = self._command_part(command.path)
             raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
 
-    def delete(self, command: Alconna | AlconnaGroup | str) -> None:
+    def requires(self, *paths: str) -> list[Analyser]:
+        return [v for k, v in self.__analysers.items() if k.path in paths]
+
+    def delete(self, command: Alconna | str) -> None:
         """删除命令"""
         namespace, name = self._command_part(command if isinstance(command, str) else command.path)
         try:
             base = self.__commands[namespace][name]
-            if base._group:  # noqa
-                for cmd in base.commands:  # type: ignore
-                    del self.__analysers[cmd]
-            else:
-                del self.__analysers[base]  # type: ignore
+            base.formatter.remove(base)
+            del self.__analysers[base]
             del self.__commands[namespace][name]
             self.current_count -= 1
         finally:
@@ -195,7 +192,7 @@ class CommandManager:
             with contextlib.suppress(StopIteration):
                 self.__shortcuts.delete(next(filter(lambda x: self.__shortcuts[x] == res, self.__shortcuts)))
 
-    def get_command(self, command: str) -> Alconna | AlconnaGroup:
+    def get_command(self, command: str) -> Alconna:
         """获取命令"""
         namespace, name = self._command_part(command)
         if namespace not in self.__commands or name not in self.__commands[namespace]:
@@ -278,8 +275,7 @@ class CommandManager:
 
     def command_help(self, command: str) -> str | None:
         """获取单个命令的帮助"""
-        command_parts = self._command_part(command)
-        if cmd := self.get_command(f"{command_parts[0]}.{command_parts[1]}"):
+        if cmd := self.get_command(command):
             return cmd.get_help()
 
     def record(self, token: int, result: Arparma):

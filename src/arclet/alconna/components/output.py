@@ -4,7 +4,7 @@ from weakref import finalize
 from typing import Callable, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from nepattern import Empty, AllParam, BasePattern
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 from .action import ArgAction
 from ..args import Args, Arg
@@ -85,7 +85,7 @@ class OutputActionManager:
 output_manager = OutputActionManager()
 
 if TYPE_CHECKING:
-    from ..core import Alconna, AlconnaGroup
+    from ..core import Alconna
 
 
 def resolve_requires(options: list[Option | Subcommand]):
@@ -126,56 +126,62 @@ def ensure_node(target: str, options: list[Option | Subcommand]):
             return opt if target == opt.name else ensure_node(target, opt.options)
 
 
-@dataclass
+@dataclass(eq=True)
 class Trace:
     head: dict[str, Any]
     args: Args
     separators: tuple[str, ...]
     body: list[Option | Subcommand]
 
-    def union(self, other: Trace):
-        self.head['header'] = list({*self.head['header'], *other.head['header']})
-        self.body = list({*self.body, *other.body})
+    def union(self, others: list[Trace]):
+        if not others:
+            return self
+        if others[0] == self:
+            return self.union(others[1:])
+        hds = self.head.copy()
+        hds['header'] = list({*self.head['header'], *others[0].head['header']})
+        return Trace(hds, self.args, self.separators, list({*self.body, *others[0].body})).union(others[1:])
 
 
 class TextFormatter:
-    """
-    帮助文档格式化器
+    """帮助文档格式化器
 
     该格式化器负责将传入的命令节点字典解析并生成帮助文档字符串
     """
 
-    def __init__(self, base: Alconna | AlconnaGroup):
-        self.data = []
+    def __init__(self):
+        self.data = {}
         self.ignore_names = set()
 
-        def _handle(command: Alconna):
-            self.ignore_names.update(command.namespace_config.builtin_option_name['help'])
-            self.ignore_names.update(command.namespace_config.builtin_option_name['shortcut'])
-            self.ignore_names.update(command.namespace_config.builtin_option_name['completion'])
-            hds = command.headers.copy()
-            if command.name in hds:
-                hds.remove(command.name)  # type: ignore
-            return Trace(
-                {
-                    'name': command.name, 'header': hds or [], 'description': command.meta.description,
-                    'usage': command.meta.usage, 'example': command.meta.example
-                },
-                command.args, command.separators, command.options
-            )
+    def add(self, base: Alconna):
+        self.ignore_names.update(base.namespace_config.builtin_option_name['help'])
+        self.ignore_names.update(base.namespace_config.builtin_option_name['shortcut'])
+        self.ignore_names.update(base.namespace_config.builtin_option_name['completion'])
+        hds = base.headers.copy()
+        if base.name in hds:
+            hds.remove(base.name)
+        res = Trace(
+            {
+                'name': base.name, 'header': hds or [], 'description': base.meta.description,
+                'usage': base.meta.usage, 'example': base.meta.example
+            },
+            base.args, base.separators, base.options.copy()
+        )
+        self.data.setdefault(base.path, []).append(res)
+        return self
 
-        for cmd in base.commands if base._group else [base]:  # type: ignore
-            if self.data and self.data[-1].head['name'] == cmd.name:
-                self.data[-1].union(_handle(cmd))  # type: ignore
-            else:
-                self.data.append(_handle(cmd))  # type: ignore
+    def remove(self, base: Alconna | str):
+        if isinstance(base, str):
+            self.data.pop(base)
+        else:
+            with suppress(ValueError):
+                self.data.get(base.path, []).remove(base)
+
 
     def format_node(self, end: list | None = None):
-        """
-        格式化命令节点
-        """
-
-        def _handle(trace: Trace):
+        """格式化命令节点"""
+        def _handle(traces: list[Trace]):
+            trace = traces[0].union(traces[1:])
             if not end or end == ['']:
                 return self.format(trace)
             _cache = resolve_requires(trace.body)
@@ -213,7 +219,7 @@ class TextFormatter:
                 ))
             return self.format(trace)
 
-        return "\n".join(map(_handle, self.data))
+        return "\n".join(map(_handle, self.data.values()))
 
     def format(self, trace: Trace) -> str:
         """help text的生成入口"""

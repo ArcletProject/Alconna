@@ -281,14 +281,6 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
         analyser.subcommands_result.setdefault(_param.command.dest, _param.export())
 
 def analyse_header(analyser: Analyser) -> tuple:
-    """
-    分析命令头部
-
-    Args:
-        analyser: 使用的分析器
-    Returns:
-        head_match: 当命令头内写有正则表达式并且匹配成功的话, 返回匹配结果
-    """
     command = analyser.command_header
     head_text, _str = analyser.container.popitem()
     if isinstance(command, TPattern) and _str and (mat := command.fullmatch(head_text)):

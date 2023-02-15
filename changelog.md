@@ -3,6 +3,8 @@
 ## Alconna 1.6.0
 1. 改进 shorcut
 2. 改进 Alconna.add，加入subcommand的添加
+3. 修复 bugs
+4. 移除 `AlconnGroup` 类，但保留通过 `|` 组合命令的行为
 
 # Alconna 1.5.x:
 

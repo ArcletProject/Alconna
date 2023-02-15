@@ -8,7 +8,8 @@ from .args import Args, Field, ArgFlag, Arg
 from .base import CommandNode, Option, Subcommand
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .analysis.base import compile, analyse
-from .core import Alconna, AlconnaGroup, CommandMeta
+from .analysis.container import DataCollectionContainer
+from .core import Alconna, CommandMeta
 from .arparma import Arparma
 from .manager import command_manager, ShortcutArgs
 from .config import config, load_lang_file, namespace, Namespace

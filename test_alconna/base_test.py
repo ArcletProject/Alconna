@@ -1,7 +1,7 @@
 from arclet.alconna.base import Option, Subcommand, CommandNode
 from arclet.alconna.args import Args
 from arclet.alconna.model import OptionResult, SubcommandResult
-from arclet.alconna.analysis.base import analyse_option, analyse_subcommand
+from devtool import analyse_option, analyse_subcommand
 
 
 def test_node_create():

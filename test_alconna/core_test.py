@@ -1,4 +1,3 @@
-from arclet.alconna.core import AlconnaGroup
 from arclet.alconna import (
     Alconna,
     Args,
@@ -294,11 +293,8 @@ def test_wildcard():
 
 
 def test_alconna_group():
-    alc14 = AlconnaGroup(
-        "core14",
-        Alconna("core14", Option("--foo"), Option("--bar", Args["num", int])),
-        Alconna("core14", Option("--baz"), Option("--qux", Args["num", int])),
-    )
+    alc14 = Alconna("core14", Option("--foo"), Option("--bar", Args["num", int])) | \
+            Alconna("core14", Option("--baz"), Option("--qux", Args["num", int]))
     assert alc14.parse("core14 --foo --bar 123").matched is True
     assert alc14.parse("core14 --baz --qux 123").matched is True
     print("\n---------------------------")
