@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from typing import Dict, Callable, Any
+from types import LambdaType
+from nepattern import AnyOne, AllParam
 from dataclasses import dataclass
 
 from .args import Args
 from .util import is_async
+from .exceptions import InvalidParam
 from .model import OptionResult, SubcommandResult
 
 
@@ -51,16 +54,14 @@ class ArgAction:
             args.__merge__(args.from_callable(action)[0])
             return ArgAction(action)
         target_args, _ = Args.from_callable(action)
-        # if len(target_args.argument) != len(args.argument):
-        #     raise InvalidParam(config.lang.action_length_error)
-        # if not isinstance(action, LambdaType):
-        #     for tgt, slf in zip(target_args.argument, args.argument):
-        #         if tgt.value in (AnyOne, AllParam):
-        #             continue
-        #         if tgt.value != slf.value:
-        #             raise InvalidParam(config.lang.action_args_error.format(
-        #                 target=tgt.value.origin, key=tgt.name, source=slf.value.origin
-        #             ))
+        if len(target_args.argument) != len(args.argument):
+            raise InvalidParam(action)
+        if not isinstance(action, LambdaType):
+            for tgt, slf in zip(target_args.argument, args.argument):
+                if tgt.value in (AnyOne, AllParam):
+                    continue
+                if tgt.value != slf.value:
+                    raise ValueError(tgt.value.origin, tgt.name)
         return ArgAction(action)
 
 
