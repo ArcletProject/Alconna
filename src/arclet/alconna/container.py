@@ -4,12 +4,12 @@ from typing import Any, Callable, TypeVar
 from typing_extensions import Self
 from dataclasses import dataclass, field
 
-from ..util import split_once, split
-from ..exceptions import NullMessage
-from ..config import config
-from ..args import Arg
-from ..base import Option, Subcommand
-from ..typing import DataCollection
+from .util import split_once, split
+from .exceptions import NullMessage
+from .config import config
+from .args import Arg
+from .base import Option, Subcommand
+from .typing import DataCollection
 
 _cache: dict[type, dict[str, Any]] = {}
 

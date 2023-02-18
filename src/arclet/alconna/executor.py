@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Callable, TypeVar, Generic, TYPE_CHECKING
 from dataclasses import dataclass, field
 
-from ..exceptions import ExecuteFailed
+from .exceptions import ExecuteFailed
 if TYPE_CHECKING:
-    from ..arparma import Arparma
+    from .arparma import Arparma
 
 T = TypeVar("T")
 

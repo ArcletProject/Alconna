@@ -5,14 +5,13 @@ import inspect
 from functools import partial
 from copy import deepcopy
 from enum import Enum
-from contextlib import suppress
 from typing import Union, Iterable, Callable, Any, Sequence, TypeVar, Generic
-from typing_extensions import get_origin, Self
+from typing_extensions import Self
 from dataclasses import dataclass, field as dc_field
-from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionPattern, type_parser, pattern_map
+from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionPattern, type_parser
 from .util import _safe_dcs_args, get_signature
 from .config import config
-from .exceptions import InvalidParam, NullMessage
+from .exceptions import InvalidParam
 from .typing import MultiVar, KeyWordVar
 
 _T = TypeVar("_T")
@@ -121,49 +120,8 @@ class Args(metaclass=ArgsMeta):  # type: ignore
     optional_count: int
 
     @classmethod
-    def from_string_list(cls, args: list[list[str]], custom_types: dict[str, type]) -> Args:
-        """
-        从处理好的字符串列表中生成Args
-
-        Examples:
-            >>> Args.from_string_list([["foo", "str"], ["bar", "digit", "123"]], {"digit":int})
-        """
-        _args = cls()
-        for arg in args:
-            if (_le := len(arg)) == 0:
-                raise NullMessage
-            default = arg[2].strip(" ") if _le > 2 else None
-            name = arg[0].strip(" ")
-            value = AllParam if name.startswith("...") else (
-                AnyOne if name.startswith("..") else (arg[1].strip(" ") if _le > 1 else name.lstrip(".-"))
-            )
-            name = name.replace("...", "").replace("..", "")
-            _multi, _kw, _slice = "", False, -1
-            if value not in (AllParam, AnyOne):
-                if mat := re.match(r"^(?P<name>.+?)(?P<multi>[+*]+)(\[)?(?P<slice>\d*)(])?$", value):
-                    value = mat["name"]
-                    _multi = mat["multi"][0]
-                    _kw = len(mat["multi"]) > 1
-                    _slice = int(mat["slice"] or -1)
-                with suppress(NameError, ValueError, TypeError):
-                    value = pattern_map.get(value, None) or type_parser(eval(value, custom_types))  # type: ignore
-                    default = (get_origin(value.origin) or value.origin)(default) if default else default
-                if _multi:
-                    value = MultiVar(KeyWordVar(value) if _kw else value, _slice if _slice > 1 else _multi)
-            _args.add(name, value=value, default=default)
-        return _args
-
-    @classmethod
     def from_callable(cls, target: Callable):
-        """
-        从可调用函数中构造Args
-
-        Examples:
-            >>> def test(a: str, b: int, c: float = 0.0, *, d: str, e: int = 0, f: float = 0.0):
-            ...     pass
-            >>> Args.from_callable(test)
-
-        """
+        """从可调用函数中构造Args"""
         _args = cls()
         method = False
         for param in get_signature(target):
@@ -173,18 +131,16 @@ class Args(metaclass=ArgsMeta):  # type: ignore
                 continue
             anno = param.annotation
             de = param.default
+            NULL = {Empty: None, None: Empty}
             if anno == inspect.Signature.empty:
-                anno = type(de) if de not in (inspect.Signature.empty, None) else AnyOne
-            if de is inspect.Signature.empty:
-                de = None
-            elif de is None:
-                de = inspect.Signature.empty
+                anno = type(de) if de not in NULL else AnyOne
+            de = NULL.get(de, de)
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
                     anno = BasePattern(f"(?:-*no)?-*{name}", 3, bool, lambda _, x: not x.lstrip("-").startswith('no'))
+                    _args.keyword_only.append(name)
                 else:
                     anno = KeyWordVar(anno, sep=' ')
-                _args.keyword_only.append(name)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")
             if param.kind == param.VAR_KEYWORD:
@@ -193,10 +149,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         return _args, method
 
     def __init__(
-        self,
-        *args: Arg,
-        separators: str | Iterable[str] | None = None,
-        **kwargs: TAValue
+        self, *args: Arg, separators: str | Iterable[str] | None = None, **kwargs: TAValue
     ):
         """
         构造一个Args

@@ -6,14 +6,14 @@ from typing import Iterable, List, Any, TYPE_CHECKING
 from nepattern import AllParam, Empty, BasePattern
 from nepattern.util import TPattern
 
-from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, \
+from .exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, \
     SpecialOptionTriggered
-from ..typing import MultiVar, KeyWordVar
-from ..args import Args, Arg
-from ..base import Option
-from ..model import OptionResult, Sentence
-from ..util import levenshtein_norm, split_once
-from ..config import config
+from .typing import MultiVar, KeyWordVar
+from .args import Args, Arg
+from .base import Option
+from .model import OptionResult, Sentence
+from .util import levenshtein_norm, split_once
+from .config import config
 
 if TYPE_CHECKING:
     from .analyser import Analyser, SubAnalyser

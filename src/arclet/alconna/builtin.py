@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, overload 
+from typing import Any, Callable, overload
 
-from .components.action import ArgAction
-from .components.behavior import ArparmaBehavior
+from .action import ArgAction
+from .arparma import ArparmaBehavior, Arparma
 from .exceptions import BehaveCancelled
 from .model import OptionResult, SubcommandResult
 
@@ -27,10 +27,6 @@ def store_value(value: Any):
 
 store_true = store_value(True)
 store_false = store_value(False)
-
-
-if TYPE_CHECKING:
-    from arclet.alconna.arparma import Arparma
 
 
 @dataclass(init=True, eq=True, unsafe_hash=True)

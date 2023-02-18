@@ -1,8 +1,8 @@
 from arclet.alconna import Alconna, Option, Args, Subcommand, Arparma, ArparmaBehavior, store_value
 from arclet.alconna.builtin import set_default
-from arclet.alconna.components.duplication import Duplication, generate_duplication
-from arclet.alconna.components.stub import ArgsStub, OptionStub, SubcommandStub
-from arclet.alconna.components.output import output_manager
+from arclet.alconna.duplication import Duplication, generate_duplication
+from arclet.alconna.stub import ArgsStub, OptionStub, SubcommandStub
+from arclet.alconna.output import output_manager
 
 def test_behavior():
     com = Alconna("comp", Args["bar", int]) + Option("foo")
@@ -80,8 +80,8 @@ def test_duplication():
     assert isinstance(duplication1.baz, str)
 
     com4_1 = Alconna(["!", "！"], "yiyu", Args["value;OH", str])
-    dup = generate_duplication(com4_1)
-    dup.set_target(com4_1.parse("!yiyu"))
+    res = com4_1.parse("!yiyu")
+    dup = generate_duplication(res)
 
 def test_output():
     print("")

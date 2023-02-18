@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, ContextManager, Final, TypedDict
-
-if TYPE_CHECKING:
-    from .components.behavior import ArparmaBehavior
-    from .components.output import TextFormatter
+from typing import ContextManager, Final, TypedDict
 
 
 class OptionNames(TypedDict):
@@ -22,8 +17,7 @@ class Namespace:
     name: str
     headers: list[str | object] | list[tuple[object, str]] = field(default_factory=list)
     separators: tuple[str, ...] = field(default_factory=lambda: (" ",))
-    behaviors: list[ArparmaBehavior] = field(default_factory=list)
-    formatter_type: type[TextFormatter] | None = field(default=None)
+    formatter_type: type["TextFormatter"] | None = field(default=None)  # type: ignore
     fuzzy_match: bool = field(default=False)
     raise_exception: bool = field(default=False)
     enable_message_cache: bool = field(default=True)
@@ -122,7 +116,6 @@ class _LangConfig:
 
 class _AlconnaConfig:
     lang: _LangConfig = _LangConfig()
-    loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
     command_max_count: int = 200
     message_max_cache: int = 100
     fuzzy_threshold: float = 0.6
@@ -144,11 +137,6 @@ class _AlconnaConfig:
         else:
             self._default_namespace = np.name
             self.namespaces[np.name] = np
-
-    @classmethod
-    def set_loop(cls, loop: asyncio.AbstractEventLoop) -> None:
-        """设置事件循环"""
-        cls.loop = loop
 
 
 config = _AlconnaConfig()

@@ -9,7 +9,7 @@ from typing_extensions import Self
 from .args import Args, Arg
 from .exceptions import InvalidParam
 from .config import config
-from .components.action import ArgAction
+from .action import ArgAction
 
 
 class CommandNode:
@@ -23,7 +23,7 @@ class CommandNode:
     requires: list[str]
 
     def __init__(
-        self, name: str, args: Args | str | None = None,
+        self, name: str, args: Arg | Args | None = None,
         dest: str | None = None, action: ArgAction | Callable | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
@@ -34,7 +34,7 @@ class CommandNode:
 
         Args:
             name(str): 命令节点名称
-            args(Args): 命令节点参数
+            args(Arg | Args): 命令节点参数
             action(ArgAction): 命令节点响应动作
             separators(str | Sequence[str] | Set[str]): 命令分隔符
             help_text(str): 命令帮助信息
@@ -47,9 +47,7 @@ class CommandNode:
         self.name = _parts[-1]
         self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []
         self.requires.extend(_parts[:-1])
-        self.args = (args if isinstance(args, Args) else Args.from_string_list(
-            [re.split("[:=]", p) for p in re.split(r"\s*,\s*", args)], {}
-        )) if args else Args()
+        self.args = Args() + args
         self.action = ArgAction.__validator__(action, self.args)
         self.separators = (' ',) if separators is None else (
             (separators,) if isinstance(separators, str) else tuple(separators)
@@ -90,7 +88,7 @@ class Option(CommandNode):
 
     def __init__(
         self,
-        name: str, args: Args | str | None = None, alias: Iterable[str] | None = None,
+        name: str, args: Arg | Args | None = None, alias: Iterable[str] | None = None,
         dest: str | None = None, action: ArgAction | Callable | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,

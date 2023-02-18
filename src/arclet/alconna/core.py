@@ -5,25 +5,50 @@ import sys
 from functools import reduce
 from typing import List, Union, Callable, Tuple, TypeVar, overload, Any, Literal, Generic, Sequence
 from typing_extensions import Self
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, InitVar
 from .config import config, Namespace
 from .args import Args, Arg
 from .util import init_spec
 from .base import Option, Subcommand
 from .typing import TDataCollection
 from .manager import command_manager, ShortcutArgs
-from .arparma import Arparma
+from .arparma import Arparma, ArparmaBehavior
 from .exceptions import PauseTriggered
-from .analysis.analyser import TAnalyser, Analyser
-from .components.action import ActionHandler, ArgAction
-from .components.output import TextFormatter
-from .components.behavior import ArparmaBehavior
-from .components.duplication import Duplication
-from .components.executor import ArparmaExecutor, T
+from .analyser import TAnalyser, Analyser
+from .action import ArgAction, exec_, exec_args
+from .formatter import TextFormatter
+from .duplication import Duplication
+from .executor import ArparmaExecutor, T
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
 
+@dataclass
+class ActionHandler(ArparmaBehavior):
+    source: InitVar[Alconna]
+    main_action: ArgAction | None = field(init=False, default=None)
+    options: dict[str, ArgAction] = field(init=False, default_factory=dict)
+
+    def __post_init__(self, source: Alconna):
+        self.main_action = source.action
+        def _step(src, prefix=None):
+            for opt in src.options:
+                if opt.action:
+                    self.options[(f"{prefix}." if prefix else "") + opt.dest] = opt.action
+                if hasattr(opt, "options"):
+                    _step(opt, (f"{prefix}." if prefix else "") + opt.dest)
+
+        _step(source)
+
+    def operate(self, interface: Arparma):
+        self.before_operate(interface)
+        source = interface.source
+        if action := self.main_action:
+            self.update(interface, "main_args", exec_args(interface.main_args, action, source.meta.raise_exception))
+        for path, action in self.options.items():
+            if d := interface.query(path, None):
+                end, value = exec_(d, action, source.meta.raise_exception)  # type: ignore
+                self.update(interface, f"{path}.{end}", value)  # type: ignore
 
 @dataclass(unsafe_hash=True)
 class CommandMeta:
@@ -140,7 +165,6 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         )
         self.behaviors = behaviors or []
         self.behaviors.insert(0, ActionHandler(self))
-        self.behaviors.extend(np_config.behaviors)
         self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
         self._hash = self._calc_hash()
         command_manager.register(self)
@@ -163,7 +187,6 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         self.namespace = namespace.name
         if header:
             self.headers = namespace.headers.copy()
-        self.behaviors[1:] = namespace.behaviors[:]
         self.options[-3] = Option(
             "|".join(namespace.builtin_option_name['help']), help_text=config.lang.builtin_option_help
         )
@@ -265,7 +288,7 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         if arp.matched:
             self.behaviors[0].operate(arp)
             arp = arp.execute()
-        return duplication(self).set_target(arp) if duplication else arp
+        return duplication(arp) if duplication else arp
 
     def bind(self, target: Callable[..., T]) -> ArparmaExecutor[T]:
         ext = ArparmaExecutor(target)
@@ -288,8 +311,7 @@ class Alconna(Subcommand, Generic[TAnalyser]):
             self.args += other
             self.nargs = len(self.args)
         elif isinstance(other, str):
-            _part = other.split("/")
-            self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
+            self.options.append(Option(other))
         self.behaviors[0] = ActionHandler(self)
         self._hash = self._calc_hash()
         command_manager.register(self)

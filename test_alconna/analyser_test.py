@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, Union
 
 from arclet.alconna import Alconna, Args, Option
-from arclet.alconna.analysis.container import DataCollectionContainer
+from arclet.alconna.container import DataCollectionContainer
 from nepattern import BasePattern, PatternModel
 
 

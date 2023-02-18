@@ -14,11 +14,11 @@ from .exceptions import ExceedMaxCount
 from .util import LruCache
 from .typing import TDataCollection, DataCollection
 from .config import config, Namespace
+from .arparma import Arparma
 
 if TYPE_CHECKING:
-    from .analysis.analyser import Analyser, TAnalyser
+    from .analyser import Analyser, TAnalyser
     from .core import Alconna, CommandMeta
-    from .arparma import Arparma
 
 
 class ShortcutArgs(TypedDict):
@@ -100,7 +100,7 @@ class CommandManager:
 
     def register(self, command: Alconna) -> None:
         """注册命令解析器, 会同时记录解析器对应的命令"""
-        from .analysis.base import compile
+        from .analyser import compile
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         self.__analysers.pop(command, None)

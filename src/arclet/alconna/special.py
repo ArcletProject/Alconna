@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING 
 from nepattern import Empty
-from ..components.output import output_manager
-from ..base import Subcommand, Option
-from ..args import Arg, Args
-from ..config import config
-from ..exceptions import ParamsUnmatched
+
+from .output import output_manager
+from .base import Subcommand, Option
+from .args import Arg, Args
+from .config import config
+from .exceptions import ParamsUnmatched
 from .parts import analyse_args
 
 if TYPE_CHECKING:

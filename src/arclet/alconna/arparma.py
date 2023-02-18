@@ -1,23 +1,24 @@
 from __future__ import annotations
 
-from typing import Any, TypeVar, overload, Generic, Mapping, Callable
-from types import MappingProxyType
+from abc import ABCMeta, abstractmethod
 from contextlib import suppress
-from typing_extensions import Self
+from dataclasses import dataclass, field
+from functools import lru_cache
+from inspect import Signature
+from types import MappingProxyType
+from typing import Any, Callable, Generic, Mapping, TypeVar, overload
 
 from nepattern import Empty, generic_isinstance
-from .util import get_signature
-from .typing import TDataCollection
+from typing_extensions import Self
+
 from .config import config
-from .manager import command_manager
-from .model import SubcommandResult, OptionResult, HeadResult
 from .exceptions import BehaveCancelled, OutBoundsBehave
-from .components.behavior import ArparmaBehavior, requirement_handler
-from .components.duplication import Duplication, generate_duplication
+from .model import HeadResult, OptionResult, SubcommandResult
+from .typing import TDataCollection
+from .util import get_signature
 
 T = TypeVar('T')
 D = TypeVar('D')
-T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
 
 def _handle_opt(_pf: str, _parts: list[str], _opts: dict[str, OptionResult]):
@@ -90,6 +91,7 @@ class Arparma(Generic[TDataCollection]):
 
     @property
     def source(self):
+        from .manager import command_manager
         return command_manager.get_command(self._source)
 
     @property
@@ -120,10 +122,8 @@ class Arparma(Generic[TDataCollection]):
 
     @property
     def token(self) -> int:
+        from .manager import command_manager
         return command_manager.get_token(self)
-
-    def get_duplication(self, dup: type[T_Duplication] | None = None) -> T_Duplication:
-        return (dup(self.source) if dup else generate_duplication(self.source)).set_target(self)  # type: ignore
 
     def _unpack_opts(self, _data):
         for _v in _data.values():
@@ -161,13 +161,14 @@ class Arparma(Generic[TDataCollection]):
             for behavior in behaviors:
                 exc_behaviors.extend(requirement_handler(behavior))
             for b in exc_behaviors:
+                b.before_operate(self)
+            for b in exc_behaviors:
                 try:
-                    b.before_operate(self)
                     b.operate(self)
                 except BehaveCancelled:
                     continue
                 except OutBoundsBehave as e:
-                    return self._fail(e)
+                    return self.fail(e)
         return self
 
     def call(self, target: Callable[..., T], **additional):
@@ -176,7 +177,7 @@ class Arparma(Generic[TDataCollection]):
             return target(**{k: v for k, v in {**self.all_matched_args, **additional}.items() if k in names})
         raise RuntimeError
 
-    def _fail(self, exc: type[BaseException] | BaseException | str):
+    def fail(self, exc: type[BaseException] | BaseException | str):
         return Arparma(self._source, self.origin, False, self.header_match, error_info=exc)
 
     def __require__(self, parts: list[str]) -> tuple[dict[str, Any] | OptionResult | SubcommandResult | None, str]:
@@ -243,7 +244,7 @@ class Arparma(Generic[TDataCollection]):
             return data
 
     def __getattr__(self, item: str):
-        return self.query(item) if "_" in item else self.all_matched_args.get(item)
+        return self.all_matched_args.get(item, self.query(item.replace('_', '.')))
 
     def __repr__(self):
         if self.error_info:
@@ -256,3 +257,59 @@ class Arparma(Generic[TDataCollection]):
             other_args = {k: v for k, v in self.other_args.items() if k not in ('$varargs', '$kwargs', '$kwonly')}
             attrs.append(("other_args", other_args))
             return ", ".join([f"{a}={v}" for a, v in attrs if v])
+
+
+@dataclass(init=True, unsafe_hash=True, repr=True)
+class ArparmaBehavior(metaclass=ABCMeta):
+    """
+    解析结果行为器的基类, 对应一个对解析结果的操作行为
+    """
+    record: dict[int, dict[str, tuple[Any, Any]]] = field(default_factory=dict, init=False, repr=False, hash=False)
+    requires: list[ArparmaBehavior] = field(init=False, hash=False, repr=False)
+    def before_operate(self, interface: Arparma):
+        if not self.record:
+            return
+        if not (_record := self.record.get(interface.token, None)):
+            return
+        for path, (past, current) in _record.items():
+            source, end = interface.__require__(path.split("."))
+            if source is None:
+                continue
+            if isinstance(source, dict):
+                if past != Signature.empty:
+                    source[end] = past
+                elif source.get(end, Signature.empty) != current:
+                    source.pop(end)
+            elif past != Signature.empty:
+                setattr(source, end, past)
+            elif getattr(source, end, Signature.empty) != current:
+                delattr(source, end)
+        _record.clear()
+
+    @abstractmethod
+    def operate(self, interface: Arparma):
+        ...
+
+    def update(self, interface: Arparma, path: str, value: Any):
+        def _update(tkn, src, pth, ep, val):
+            _record = self.record.setdefault(tkn, {})
+            if isinstance(src, dict):
+                _record[pth] = (src.get(ep, Signature.empty), val)
+                src[ep] = val
+            else:
+                _record[pth] = (getattr(src, ep, Signature.empty), val)
+                setattr(src, ep, val)
+
+        source, end = interface.__require__(path.split("."))
+        if source is None:
+            return
+        if end:
+            _update(interface.token, source, path, end, value)
+        elif isinstance(value, dict):
+            for k, v in value.items():
+                _update(interface.token, source, f"{path}.{k}", k, v)
+
+
+@lru_cache(4096)
+def requirement_handler(behavior: ArparmaBehavior) -> list[ArparmaBehavior]:
+    return [*getattr(behavior, 'requires', []), behavior]

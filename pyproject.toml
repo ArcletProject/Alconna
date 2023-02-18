@@ -63,6 +63,7 @@ dev = [
 [tool.pdm.scripts]
 test = "python entry_test.py"
 benchmark = "python benchmark.py"
+deps = "pydeps ./src/arclet/alconna"
 
 [tool.pdm.version]
 source = "file"

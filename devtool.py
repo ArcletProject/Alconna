@@ -4,10 +4,9 @@ from collections import namedtuple
 from typing import Any
 import traceback
 
-from arclet.alconna.analysis.base import default_params_parser
-from arclet.alconna.analysis.analyser import Analyser
-from arclet.alconna.analysis.container import DataCollectionContainer
-from arclet.alconna.analysis.parts import analyse_args as ala, analyse_header as alh, analyse_option as alo
+from arclet.alconna.analyser import Analyser, default_params_parser
+from arclet.alconna.container import DataCollectionContainer
+from arclet.alconna.parts import analyse_args as ala, analyse_header as alh, analyse_option as alo
 from arclet.alconna.typing import DataCollection
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.args import Args

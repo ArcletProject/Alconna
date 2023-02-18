@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from inspect import isclass
 from typing import Any, TypeVar, Generic
+from typing_extensions import Self
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 from nepattern import BasePattern, AllParam, AnyOne
 
-from ..args import Args
-from ..base import Option, Subcommand
-from ..model import OptionResult, SubcommandResult
-from ..config import config
+from .args import Args
+from .base import Option, Subcommand
+from .model import OptionResult, SubcommandResult
 
 T = TypeVar('T')
 T_Origin = TypeVar('T_Origin')
@@ -28,7 +28,7 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
         return self._origin
 
     @abstractmethod
-    def set_result(self, result: Any) -> None:
+    def set_result(self, result: Any) -> Self:
         """设置解析结果与可用性"""
 
     def __repr__(self):
@@ -55,6 +55,7 @@ class ArgsStub(BaseStub[Args]):
         if result:
             self._value = result.copy()
             self.available = True
+        return self
 
     @property
     def first(self) -> Any:
@@ -64,10 +65,7 @@ class ArgsStub(BaseStub[Args]):
         if isinstance(item, str):
             return self._value.get(item, default)
         for k, v in self.__annotations__.items():
-            if isclass(item):
-                if v == item:
-                    return self._value.get(k, default)
-            elif isinstance(item, v):
+            if isclass(v) and (item == v or issubclass(v, item)):
                 return self._value.get(k, default)
         return default
 
@@ -86,12 +84,9 @@ class ArgsStub(BaseStub[Args]):
         return _cache.get(item, None)
 
     def __getitem__(self, item: int | str) -> Any:
-        if isinstance(item, str):
-            return self._value[item]
-        elif isinstance(item, int):
+        if isinstance(item, int):
             return list(self._value.values())[item]
-        else:
-            raise TypeError(config.lang.stub_key_error.format(target=item))
+        return self._value[item]
 
 
 @dataclass(init=True)
@@ -113,6 +108,7 @@ class OptionStub(BaseStub[Option]):
             self._value = result.value
             self.args.set_result(result.args)
             self.available = True
+        return self
 
 
 @dataclass(init=True)
@@ -140,6 +136,7 @@ class SubcommandStub(BaseStub[Subcommand]):
             for subcommand in self.subcommands:
                 subcommand.set_result(result.subcommands.get(subcommand.dest, None))
             self.available = True
+        return self
 
     def option(self, name: str) -> OptionStub:
         return next(opt for opt in self.options if opt.name == name)
