@@ -345,7 +345,6 @@ def handle_help(analyser: Analyser):
     output_manager.send(
         analyser.command.name,
         lambda: analyser.command.formatter.format_node(_help_param),
-        analyser.raise_exception
     )
     return analyser.export(fail=True)
 
@@ -359,9 +358,9 @@ def handle_shortcut(analyser: Analyser):
             None if opt_v["command"] == "_" else {"command": analyser.converter(opt_v["command"])},
             bool(opt_v.get("delete"))
         )
-        output_manager.send(analyser.command.name, lambda: msg, analyser.raise_exception)
+        output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
-        output_manager.send(analyser.command.name, lambda: str(e), analyser.raise_exception)
+        output_manager.send(analyser.command.name, lambda: str(e))
     return analyser.export(fail=True)
 
 
@@ -369,16 +368,16 @@ def _handle_unit(analyser: Analyser, trigger: Arg):
     if gen := trigger.field.completion:
         comp = gen()
         if isinstance(comp, str):
-            return output_manager.send(analyser.command.name, lambda: comp, analyser.raise_exception)
+            return output_manager.send(analyser.command.name, lambda: comp)
         target = str(analyser.container.release(recover=True)[-2])
         o = "\n- ".join(list(filter(lambda x: target in x, comp)) or comp)
         return output_manager.send(
-            analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n- {o}", analyser.raise_exception
+            analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n- {o}"
         )
     default = trigger.field.default_gen
     o = f"{trigger.value}{'' if default is None else f' default:({None if default is Empty else default})'}"
     return output_manager.send(
-        analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n{o}", analyser.raise_exception
+        analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n{o}"
     )
 
 
@@ -426,7 +425,6 @@ def handle_completion(analyser: Analyser, trigger: None | Args | Subcommand | st
             analyser.command.name,
             lambda: f"{config.lang.common_completion_node}\n- " +
                     "\n- ".join(analyser.get_sub_analyser(trigger).compile_params),
-            analyser.raise_exception
         )
     elif isinstance(trigger, str):
         res = list(filter(lambda x: trigger in x, analyser.compile_params))
@@ -442,7 +440,6 @@ def handle_completion(analyser: Analyser, trigger: None | Args | Subcommand | st
         output_manager.send(
             analyser.command.name,
             lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(out or res),
-            analyser.raise_exception
         )
     else:
         got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
@@ -452,13 +449,11 @@ def handle_completion(analyser: Analyser, trigger: None | Args | Subcommand | st
             output_manager.send(
                 analyser.command.name,
                 lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(out or _res),
-                analyser.raise_exception
             )
         else:
             res = _handle_sentence(analyser) if analyser.sentences else _handle_none(analyser, got)
             output_manager.send(
                 analyser.command.name,
                 lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(set(res)),
-                analyser.raise_exception
             )
     return analyser.export(fail=True, exception='NoneType: None\n')  # type: ignore
