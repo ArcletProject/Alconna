@@ -28,8 +28,7 @@ from .arparma import Arparma
 from .typing import TDataCollection
 from .config import config, Namespace
 from .output import output_manager
-from .parts import analyse_args, analyse_param, analyse_header
-from .special import handle_help, handle_shortcut, handle_completion
+from .handlers import analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion
 from .container import DataCollectionContainer, TContainer
 
 if TYPE_CHECKING:

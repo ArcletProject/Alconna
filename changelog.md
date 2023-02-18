@@ -4,7 +4,13 @@
 1. 改进 shorcut
 2. 改进 Alconna.add，加入subcommand的添加
 3. 修复 bugs
-4. 移除 `AlconnGroup` 类，但保留通过 `|` 组合命令的行为
+4. 移动 `Args.from_string_list` 至 `arclet-alconna-tools`
+5. 合并 `arparma` 与 `components.behavior`
+6. 合并 `parts` 与 `special`
+7. 移动 `Formatter` 至 `formatter.py`
+8. 移动 `ActionHandler` 至 `core.py`
+9. 移除 `AlconnGroup` 类，但保留通过 `|` 组合命令的行为
+10. 移除 `analysis.base`
 
 # Alconna 1.5.x:
 

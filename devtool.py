@@ -6,7 +6,7 @@ import traceback
 
 from arclet.alconna.analyser import Analyser, default_params_parser
 from arclet.alconna.container import DataCollectionContainer
-from arclet.alconna.parts import analyse_args as ala, analyse_header as alh, analyse_option as alo
+from arclet.alconna.handlers import analyse_args as ala, analyse_header as alh, analyse_option as alo
 from arclet.alconna.typing import DataCollection
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.args import Args
