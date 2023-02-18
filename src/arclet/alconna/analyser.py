@@ -282,7 +282,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                 return self.shortcut(*_res)
 
         except FuzzyMatchSuccess as Fuzzy:
-            output_manager.send(self.command.name, lambda: str(Fuzzy), self.raise_exception)
+            output_manager.send(self.command.name, lambda: str(Fuzzy))
             return self.export(fail=True)
 
         if fail := self.analyse(interrupt):
@@ -310,7 +310,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                 _t, _s = self.container.popitem(move=False)
                 analyse_param(self, _t, _s)
             except FuzzyMatchSuccess as e:
-                output_manager.send(self.command.name, lambda: str(e), self.raise_exception)
+                output_manager.send(self.command.name, lambda: str(e))
                 return self.export(fail=True)
             except SpecialOptionTriggered as sot:
                 return sot.args[0](self)
