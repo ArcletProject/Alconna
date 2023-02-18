@@ -2,18 +2,19 @@ from __future__ import annotations
 
 import re
 from inspect import isclass
-from typing import Iterable, List, Any, TYPE_CHECKING 
-from nepattern import AllParam, Empty, BasePattern
+from typing import TYPE_CHECKING, Any, Iterable, List
+
+from nepattern import AllParam, BasePattern, Empty
 from nepattern.util import TPattern
 
-from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, CompletionTriggered, \
-    SpecialOptionTriggered
-from ..typing import MultiVar, KeyWordVar
-from ..args import Args, Arg
-from ..base import Option
-from ..model import OptionResult, Sentence
-from ..util import levenshtein_norm, split_once
-from ..config import config
+from .args import Arg, Args
+from .base import Option, Subcommand
+from .config import config
+from .exceptions import ArgumentMissing, CompletionTriggered, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered
+from .model import OptionResult, Sentence
+from .output import output_manager
+from .typing import KeyWordVar, MultiVar
+from .util import levenshtein_norm, split_once
 
 if TYPE_CHECKING:
     from .analyser import Analyser, SubAnalyser
@@ -133,11 +134,11 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
     """
     result: dict[str, Any] = {}
     for arg in args.argument:
-        analyser.context = arg
+        analyser.container.context = arg
         key, value, default_val, optional = arg.name, arg.value, arg.field.default_gen, arg.optional
         seps = arg.separators
         may_arg, _str = analyser.container.popitem(seps)
-        if may_arg in analyser.special:
+        if _str and may_arg in analyser.special:
             raise CompletionTriggered(arg)
         if not may_arg or (_str and may_arg in analyser.container.param_ids):
             analyser.container.pushback(may_arg)
@@ -228,7 +229,7 @@ def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionRes
         analyser: 使用的分析器
         param: 目标Option
     """
-    analyser.context = param
+    analyser.container.context = param
     if param.requires and analyser.sentences != param.requires:
         raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
     analyser.sentences = []
@@ -251,7 +252,7 @@ def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionRes
 
 
 def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
-    if handler := analyser.special.get(_text):
+    if handler := analyser.special.get(_text if _str else Ellipsis):
         raise SpecialOptionTriggered(handler)
     _param = _param if (_param := (analyser.compile_params.get(_text) if _str and _text else Ellipsis)) else (
         None if analyser.container.default_separate else analyse_unmatch_params(
@@ -276,19 +277,11 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
             raise exc  # type: ignore  # noqa
     elif isinstance(_param, Sentence):
         analyser.sentences.append(analyser.container.popitem()[0])
-    elif _param:
+    elif _param not in (None, Ellipsis):
         _param.process()
         analyser.subcommands_result.setdefault(_param.command.dest, _param.export())
 
 def analyse_header(analyser: Analyser) -> tuple:
-    """
-    分析命令头部
-
-    Args:
-        analyser: 使用的分析器
-    Returns:
-        head_match: 当命令头内写有正则表达式并且匹配成功的话, 返回匹配结果
-    """
     command = analyser.command_header
     head_text, _str = analyser.container.popitem()
     if isinstance(command, TPattern) and _str and (mat := command.fullmatch(head_text)):
@@ -339,10 +332,133 @@ def analyse_header(analyser: Analyser) -> tuple:
         else:
             source = head_text + analyser.container.separators[0] + str(may_command)
         if source == analyser.command.command:
-            analyser.head_matched = False
+            analyser.header_result = (source, source, False)
             raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
         for ht in headers_text:
             if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
-                analyser.head_matched = True
+                analyser.header_result = (source, ht, True)
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(target=source, source=ht))
     raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
+
+def handle_help(analyser: Analyser):
+    _help_param = [str(i) for i in analyser.container.release(recover=True) if i not in analyser.special]
+    output_manager.send(
+        analyser.command.name,
+        lambda: analyser.command.formatter.format_node(_help_param),
+        analyser.raise_exception
+    )
+    return analyser.export(fail=True)
+
+
+def handle_shortcut(analyser: Analyser):
+    analyser.container.popitem()
+    opt_v = analyse_args(analyser, Args["delete;?", "delete"]["name", str]["command", str, "_"], 3)
+    try:
+        msg = analyser.command.shortcut(
+            opt_v["name"],
+            None if opt_v["command"] == "_" else {"command": analyser.converter(opt_v["command"])},
+            bool(opt_v.get("delete"))
+        )
+        output_manager.send(analyser.command.name, lambda: msg, analyser.raise_exception)
+    except Exception as e:
+        output_manager.send(analyser.command.name, lambda: str(e), analyser.raise_exception)
+    return analyser.export(fail=True)
+
+
+def _handle_unit(analyser: Analyser, trigger: Arg):
+    if gen := trigger.field.completion:
+        comp = gen()
+        if isinstance(comp, str):
+            return output_manager.send(analyser.command.name, lambda: comp, analyser.raise_exception)
+        target = str(analyser.container.release(recover=True)[-2])
+        o = "\n- ".join(list(filter(lambda x: target in x, comp)) or comp)
+        return output_manager.send(
+            analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n- {o}", analyser.raise_exception
+        )
+    default = trigger.field.default_gen
+    o = f"{trigger.value}{'' if default is None else f' default:({None if default is Empty else default})'}"
+    return output_manager.send(
+        analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n{o}", analyser.raise_exception
+    )
+
+
+def _handle_sentence(analyser: Analyser):
+    res: list[str] = []
+    s_len = len(stc := analyser.sentences)
+    for opt in filter(
+        lambda x: len(x.requires) >= s_len and x.requires[s_len - 1] == stc[-1],
+        analyser.command.options,
+    ):
+        if len(opt.requires) > s_len:
+            res.append(opt.requires[s_len])
+        else:
+            res.extend(opt.aliases if isinstance(opt, Option) else [opt.name])
+    return res
+
+
+def _handle_none(analyser: Analyser, got: list[str]):
+    res: list[str] = []
+    if not analyser.args_result and analyser.self_args.argument:
+        unit = analyser.self_args.argument[0]
+        if gen := unit.field.completion:
+            res.append(comp if isinstance(comp := gen(), str) else "\n- ".join(comp))
+        else:
+            default = unit.field.default_gen
+            res.append(
+                f"{unit.value}{'' if default is None else f' ({None if default is Empty else default})'}"
+            )
+    for opt in filter(
+        lambda x: x.name not in analyser.command.namespace_config.builtin_option_name['completion'],
+        analyser.command.options,
+    ):
+        if opt.requires and all(opt.requires[0] not in i for i in got):
+            res.append(opt.requires[0])
+        elif opt.dest not in got:
+            res.extend(opt.aliases if isinstance(opt, Option) else [opt.name])
+    return res
+
+
+def handle_completion(analyser: Analyser, trigger: None | Args | Subcommand | str = None):
+    if isinstance(trigger, Arg):
+        _handle_unit(analyser, trigger)
+    elif isinstance(trigger, Subcommand):
+        output_manager.send(
+            analyser.command.name,
+            lambda: f"{config.lang.common_completion_node}\n- " +
+                    "\n- ".join(analyser.get_sub_analyser(trigger).compile_params),
+            analyser.raise_exception
+        )
+    elif isinstance(trigger, str):
+        res = list(filter(lambda x: trigger in x, analyser.compile_params))
+        if not res:
+            return analyser.export(
+                fail=True,
+                exception=ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=trigger)),
+            )
+        out = [
+            i for i in res
+            if i not in (*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences)
+        ]
+        output_manager.send(
+            analyser.command.name,
+            lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(out or res),
+            analyser.raise_exception
+        )
+    else:
+        got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
+        target = str(analyser.container.release(recover=True)[-1])
+        if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):
+            out = [i for i in _res if i not in got]
+            output_manager.send(
+                analyser.command.name,
+                lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(out or _res),
+                analyser.raise_exception
+            )
+        else:
+            res = _handle_sentence(analyser) if analyser.sentences else _handle_none(analyser, got)
+            output_manager.send(
+                analyser.command.name,
+                lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(set(res)),
+                analyser.raise_exception
+            )
+    return analyser.export(fail=True, exception='NoneType: None\n')  # type: ignore

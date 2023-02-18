@@ -1,26 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, overload 
+from typing import Any, Callable, overload
 
-from .components.action import ArgAction
-from .components.behavior import ArparmaBehavior
+from .action import ArgAction
+from .arparma import Arparma, ArparmaBehavior
 from .exceptions import BehaveCancelled
 from .model import OptionResult, SubcommandResult
 
-__all__ = ["set_default", "store_value", "version", "store_true", "store_false"]
+__all__ = ["set_default", "store_value", "store_true", "store_false"]
 
 
-class _MISSING_TYPE:
-    pass
-
-
+class _MISSING_TYPE:pass
 MISSING = _MISSING_TYPE()
 
 
 class _StoreValue(ArgAction):
-    """针对特定值的类"""
-
     def __init__(self, value: Any):
         super().__init__(lambda: value)
 
@@ -32,16 +27,6 @@ def store_value(value: Any):
 
 store_true = store_value(True)
 store_false = store_value(False)
-
-
-if TYPE_CHECKING:
-    from arclet.alconna import __version__
-    from arclet.alconna.arparma import Arparma
-
-
-    def version(value: tuple | None):
-        """返回一个以元组形式存储的版本信息"""
-        return _StoreValue(".".join(map(str, value))) if value else _StoreValue(__version__)
 
 
 @dataclass(init=True, eq=True, unsafe_hash=True)
@@ -93,33 +78,21 @@ class _SetDefault(ArparmaBehavior):
 
 @overload
 def set_default(
-    *,
-    value: Any,
-    arg: str | None = None,
-    option: str | None = None,
-    subcommand: str | None = None,
+    *, value: Any, arg: str | None = None, option: str | None = None, subcommand: str | None = None,
 ) -> _SetDefault:
     ...
-
 
 @overload
 def set_default(
-    *,
-    factory: Callable[..., Any],
-    arg: str | None = None,
-    option: str | None = None,
-    subcommand: str | None = None,
+    *, factory: Callable[..., Any], arg: str | None = None, option: str | None = None, subcommand: str | None = None,
 ) -> _SetDefault:
     ...
-
 
 def set_default(
     *,
     value: Any = MISSING,
     factory: Callable[..., Any] = MISSING,
-    arg: str | None = None,
-    option: str | None = None,
-    subcommand: str | None = None,
+    arg: str | None = None, option: str | None = None, subcommand: str | None = None,
 ) -> _SetDefault:
     """
     设置一个选项的默认值, 在无该选项时会被设置

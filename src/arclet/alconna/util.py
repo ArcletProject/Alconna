@@ -1,15 +1,32 @@
 """杂物堆"""
 from __future__ import annotations
 
-import sys
 import contextlib
 import inspect
-from functools import lru_cache
+import sys
 from collections import OrderedDict
-from typing import TypeVar, Any, Iterator, Hashable, Mapping, Callable
+from functools import lru_cache
+from typing import Any, Callable, Generic, Hashable, Iterator, Literal, TypeVar, overload
+from typing_extensions import ParamSpec
 
-R = TypeVar('R')
+R = TypeVar("R")
+T = TypeVar("T")
+P = ParamSpec("P")
 
+@overload
+def init_spec(fn: Callable[P, T]) -> Callable[[Callable[[T], R]], Callable[P, R]]: ...
+@overload
+def init_spec(fn: Callable[P, T], is_method: Literal[True]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]: ...
+def init_spec(   # type: ignore
+    fn: Callable[P, T], is_method: bool = False
+) -> Callable[[Callable[[T], R] | Callable[[Any, T], R]], Callable[P, R]]:
+    def wrapper(func: Callable[[T], R] | Callable[[Any, T], R]) -> Callable[P, R]:
+        def inner(*args: P.args, **kwargs: P.kwargs):
+            if is_method:
+                return func(args[0], fn(*args[1:], **kwargs))   # type: ignore
+            return func(fn(*args, **kwargs))   # type: ignore
+        return inner
+    return wrapper
 
 @lru_cache(4096)
 def get_signature(target: Callable):
@@ -27,26 +44,10 @@ def is_async(o: Any):
     return inspect.iscoroutinefunction(o) or inspect.isawaitable(o)
 
 
-class Singleton(type):
-    """单例模式"""
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-    @classmethod
-    def remove(mcs, cls):
-        mcs._instances.pop(cls, None)
-
-
 @lru_cache(4096)
 def split_once(text: str, separates: str | tuple[str, ...], crlf: bool = True):
     """单次分隔字符串"""
-    index = 0
-    out_text = ""
-    quotation = ""
+    index, out_text, quotation = 0, "", ""
     separates = tuple(separates)
     text = text.lstrip()
     for index, char in enumerate(text):
@@ -79,8 +80,7 @@ def split(text: str, separates: tuple[str, ...] | None = None, crlf: bool = True
         List[str]: 切割后的字符串, 可能含有空格
     """
     separates = separates or (" ",)
-    result = ""
-    quotation = ""
+    result, quotation = "", ""
     for index, char in enumerate(text):
         if char in {"'", '"', "’", "“"}:
             if not quotation:
@@ -118,9 +118,8 @@ _V = TypeVar("_V")
 _T = TypeVar("_T")
 
 
-class LruCache(Mapping[_K, _V]):
-    max_size: int
-    cache: OrderedDict
+class LruCache(Generic[_K, _V]):
+    cache: OrderedDict[_K, _V]
 
     __slots__ = ("max_size", "cache", "__size")
 
@@ -129,16 +128,22 @@ class LruCache(Mapping[_K, _V]):
         self.cache = OrderedDict()
         self.__size = 0
 
-    def get(self, key: _K, default: _T | None = None) -> _V | _T:
+    @overload
+    def get(self, key: _K) -> _V | None:
+        ...
+
+    @overload
+    def get(self, key: _K, default: _T) -> _V | _T:
+        ...
+
+    def get(self, key: _K, default: _T | None = None) -> _V | _T | None:
         if key in self.cache:
             self.cache.move_to_end(key)
             return self.cache[key]
         return default
 
-    def __getitem__(self, item):
-        if res := self.get(item):
-            return res
-        raise ValueError
+    def __getitem__(self, item: _K) -> _V:
+        return self.cache[item]
 
     def set(self, key: _K, value: Any) -> None:
         if key in self.cache:
@@ -152,9 +157,6 @@ class LruCache(Mapping[_K, _V]):
     def delete(self, key: _K) -> None:
         self.cache.pop(key)
 
-    def size(self) -> int:
-        return self.__size
-
     def has(self, key: _K) -> bool:
         return key in self.cache
 
@@ -164,8 +166,7 @@ class LruCache(Mapping[_K, _V]):
     def __len__(self) -> int:
         return len(self.cache)
 
-    def __contains__(self, key: _K) -> bool:
-        return key in self.cache
+    __contains__ = has
 
     def __iter__(self) -> Iterator[_K]:
         return iter(self.cache)

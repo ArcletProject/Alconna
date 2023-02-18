@@ -1,22 +1,60 @@
 from __future__ import annotations
 
-from typing import Any, TypeVar, overload, Generic, Mapping, Callable
-from types import MappingProxyType
+from abc import ABCMeta, abstractmethod
 from contextlib import suppress
+from dataclasses import dataclass, field
+from functools import lru_cache
+from inspect import Signature
+from types import MappingProxyType
+from typing import Any, Callable, Generic, Mapping, TypeVar, overload
+
+from nepattern import Empty, generic_isinstance
 from typing_extensions import Self
 
-from nepattern import Empty
-from .util import get_signature
-from .typing import TDataCollection
 from .config import config
-from .manager import command_manager
-from .model import SubcommandResult, OptionResult, HeadResult
 from .exceptions import BehaveCancelled, OutBoundsBehave
-from .components.behavior import ArparmaBehavior, requirement_handler
-from .components.duplication import Duplication, generate_duplication
+from .model import HeadResult, OptionResult, SubcommandResult
+from .typing import TDataCollection
+from .util import get_signature
 
 T = TypeVar('T')
-T_Duplication = TypeVar('T_Duplication', bound=Duplication)
+D = TypeVar('D')
+
+
+def _handle_opt(_pf: str, _parts: list[str], _opts: dict[str, OptionResult]):
+    if _pf == "options":
+        _pf = _parts.pop(0)
+    if not _parts:  # options.foo or foo
+        return _opts, _pf
+    elif not (__src := _opts.get(_pf)):  # options.foo.bar or foo.bar
+        return _opts, _pf
+    if (_end := _parts.pop(0)) == "value":
+        return __src, _end
+    if _end == 'args':
+        return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
+    return __src.args, _end
+
+
+def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult]):
+    if _pf == "subcommands":
+        _pf = _parts.pop(0)
+    if not _parts:
+        return _subs, _pf
+    elif not (__src := _subs.get(_pf)):
+        return _subs, _pf
+    if (_end := _parts.pop(0)) == "value":
+        return __src, _end
+    if _end == 'args':
+        return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
+    if _end == "options" and (_end in __src.options or not _parts):
+        raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
+    if _end == "options" or _end in __src.options:
+        return _handle_opt(_end, _parts, __src.options)
+    if _end == "subcommands" and (_end in __src.subcommands or not _parts):
+        raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
+    if _end == "subcommands" or _end in __src.subcommands:
+        return _handle_sub(_end, _parts, __src.subcommands)
+    return __src.args, _end
 
 
 class Arparma(Generic[TDataCollection]):
@@ -46,7 +84,6 @@ class Arparma(Generic[TDataCollection]):
         self.subcommands = {}
 
 
-
     def _clr(self):
         ks = list(self.__dict__.keys())
         for k in ks:
@@ -54,6 +91,7 @@ class Arparma(Generic[TDataCollection]):
 
     @property
     def source(self):
+        from .manager import command_manager
         return command_manager.get_command(self._source)
 
     @property
@@ -84,10 +122,8 @@ class Arparma(Generic[TDataCollection]):
 
     @property
     def token(self) -> int:
+        from .manager import command_manager
         return command_manager.get_token(self)
-
-    def get_duplication(self, dup: type[T_Duplication] | None = None) -> T_Duplication:
-        return (dup(self.source) if dup else generate_duplication(self.source)).set_target(self)  # type: ignore
 
     def _unpack_opts(self, _data):
         for _v in _data.values():
@@ -102,10 +138,7 @@ class Arparma(Generic[TDataCollection]):
                 self._unpack_subs(_v.subcommands)
 
     def encapsulate_result(
-        self,
-        main_args: dict[str, Any],
-        options: dict[str, OptionResult],
-        subcommands: dict[str, SubcommandResult]
+        self, main_args: dict[str, Any], options: dict[str, OptionResult], subcommands: dict[str, SubcommandResult]
     ) -> None:
         """处理 Arparma 中的数据"""
         self.main_args = main_args.copy()
@@ -113,7 +146,6 @@ class Arparma(Generic[TDataCollection]):
         self.subcommands = subcommands.copy()
         self._unpack_opts(options)
         self._unpack_subs(subcommands)
-
 
     @staticmethod
     def behave_cancel():
@@ -129,13 +161,14 @@ class Arparma(Generic[TDataCollection]):
             for behavior in behaviors:
                 exc_behaviors.extend(requirement_handler(behavior))
             for b in exc_behaviors:
+                b.before_operate(self)
+            for b in exc_behaviors:
                 try:
-                    b.before_operate(self)
                     b.operate(self)
                 except BehaveCancelled:
                     continue
                 except OutBoundsBehave as e:
-                    return self._fail(e)
+                    return self.fail(e)
         return self
 
     def call(self, target: Callable[..., T], **additional):
@@ -144,7 +177,7 @@ class Arparma(Generic[TDataCollection]):
             return target(**{k: v for k, v in {**self.all_matched_args, **additional}.items() if k in names})
         raise RuntimeError
 
-    def _fail(self, exc: type[BaseException] | BaseException | str):
+    def fail(self, exc: type[BaseException] | BaseException | str):
         return Arparma(self._source, self.origin, False, self.header_match, error_info=exc)
 
     def __require__(self, parts: list[str]) -> tuple[dict[str, Any] | OptionResult | SubcommandResult | None, str]:
@@ -160,41 +193,6 @@ class Arparma(Generic[TDataCollection]):
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
             raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=prefix))
-
-        def _handle_opt(_pf: str, _parts: list[str], _opts: dict[str, OptionResult]):
-            if _pf == "options":
-                _pf = _parts.pop(0)
-            if not _parts:  # options.foo or foo
-                return _opts, _pf
-            elif not (__src := _opts.get(_pf)):  # options.foo.bar or foo.bar
-                return _opts, _pf
-            if (_end := _parts.pop(0)) == "value":
-                return __src, _end
-            if _end == 'args':
-                return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
-            return __src.args, _end
-
-        def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult]):
-            if _pf == "subcommands":
-                _pf = _parts.pop(0)
-            if not _parts:
-                return _subs, _pf
-            elif not (__src := _subs.get(_pf)):
-                return _subs, _pf
-            if (_end := _parts.pop(0)) == "value":
-                return __src, _end
-            if _end == 'args':
-                return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
-            if _end == "options" and (_end in __src.options or not _parts):
-                raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
-            if _end == "options" or _end in __src.options:
-                return _handle_opt(_end, _parts, __src.options)
-            if _end == "subcommands" and (_end in __src.subcommands or not _parts):
-                raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
-            if _end == "subcommands" or _end in __src.subcommands:
-                return _handle_sub(_end, _parts, __src.subcommands)
-            return __src.args, _end
-
         if prefix == "options" or prefix in self.options:
             return _handle_opt(prefix, parts, self.options)
         if prefix == "subcommands" or prefix in self.subcommands:
@@ -205,13 +203,9 @@ class Arparma(Generic[TDataCollection]):
         return None, prefix
 
     @overload
-    def query(self, path: str) -> Mapping[str, Any] | Any | None:
-        ...
-
+    def query(self, path: str) -> Mapping[str, Any] | Any | None: ...
     @overload
-    def query(self, path: str, default: T) -> T | Mapping[str, Any] | Any:
-        ...
-
+    def query(self, path: str, default: T) -> T | Mapping[str, Any] | Any: ...
     def query(self, path: str, default: T | None = None) -> Any | Mapping[str, Any] | T | None:
         """根据path查询值"""
         source, endpoint = self.__require__(path.split('.'))
@@ -221,12 +215,18 @@ class Arparma(Generic[TDataCollection]):
             return getattr(source, endpoint, default) if endpoint else source
         return source.get(endpoint, default) if endpoint else MappingProxyType(source)
 
-    def query_with(self, arg_type: type[T], path: str | None = None, default: T | None = None) -> T | None:
+    @overload
+    def query_with(self, arg_type: type[T], path: str | None = None) -> T | None: ...
+    @overload
+    def query_with(self, arg_type: type[T], *, default: D) -> T | D: ...
+    @overload
+    def query_with(self, arg_type: type[T], path: str, default: D) -> T | D: ...
+    def query_with(self, arg_type: type[T], path: str | None = None, default: D | None = None) -> T | D | None:
         """根据类型查询参数"""
         if path:
-            return res if isinstance(res := self.query(path, Empty), arg_type) else default
+            return res if generic_isinstance(res := self.query(path, Empty), arg_type) else default
         with suppress(IndexError):
-            return [v for v in self.all_matched_args.values() if isinstance(v, arg_type)][0]
+            return [v for v in self.all_matched_args.values() if generic_isinstance(v, arg_type)][0]
         return default
 
     def find(self, path: str) -> bool:
@@ -234,17 +234,17 @@ class Arparma(Generic[TDataCollection]):
         return self.query(path, Empty) != Empty
 
     @overload
-    def __getitem__(self, item: type[T]) -> T | None:
-        ...
-
+    def __getitem__(self, item: type[T]) -> T | None: ...
+    @overload
+    def __getitem__(self, item: str) -> Any:  ...
     def __getitem__(self, item: str | type[T]) -> T | Any | None:
         if isinstance(item, str):
             return self.query(item)
         if data := self.query_with(item):
             return data
 
-    def __getattr__(self, item):
-        return self.all_matched_args.get(item)
+    def __getattr__(self, item: str):
+        return self.all_matched_args.get(item, self.query(item.replace('_', '.')))
 
     def __repr__(self):
         if self.error_info:
@@ -257,3 +257,59 @@ class Arparma(Generic[TDataCollection]):
             other_args = {k: v for k, v in self.other_args.items() if k not in ('$varargs', '$kwargs', '$kwonly')}
             attrs.append(("other_args", other_args))
             return ", ".join([f"{a}={v}" for a, v in attrs if v])
+
+
+@dataclass(init=True, unsafe_hash=True, repr=True)
+class ArparmaBehavior(metaclass=ABCMeta):
+    """
+    解析结果行为器的基类, 对应一个对解析结果的操作行为
+    """
+    record: dict[int, dict[str, tuple[Any, Any]]] = field(default_factory=dict, init=False, repr=False, hash=False)
+    requires: list[ArparmaBehavior] = field(init=False, hash=False, repr=False)
+    def before_operate(self, interface: Arparma):
+        if not self.record:
+            return
+        if not (_record := self.record.get(interface.token, None)):
+            return
+        for path, (past, current) in _record.items():
+            source, end = interface.__require__(path.split("."))
+            if source is None:
+                continue
+            if isinstance(source, dict):
+                if past != Signature.empty:
+                    source[end] = past
+                elif source.get(end, Signature.empty) != current:
+                    source.pop(end)
+            elif past != Signature.empty:
+                setattr(source, end, past)
+            elif getattr(source, end, Signature.empty) != current:
+                delattr(source, end)
+        _record.clear()
+
+    @abstractmethod
+    def operate(self, interface: Arparma):
+        ...
+
+    def update(self, interface: Arparma, path: str, value: Any):
+        def _update(tkn, src, pth, ep, val):
+            _record = self.record.setdefault(tkn, {})
+            if isinstance(src, dict):
+                _record[pth] = (src.get(ep, Signature.empty), val)
+                src[ep] = val
+            else:
+                _record[pth] = (getattr(src, ep, Signature.empty), val)
+                setattr(src, ep, val)
+
+        source, end = interface.__require__(path.split("."))
+        if source is None:
+            return
+        if end:
+            _update(interface.token, source, path, end, value)
+        elif isinstance(value, dict):
+            for k, v in value.items():
+                _update(interface.token, source, f"{path}.{k}", k, v)
+
+
+@lru_cache(4096)
+def requirement_handler(behavior: ArparmaBehavior) -> list[ArparmaBehavior]:
+    return [*getattr(behavior, 'requires', []), behavior]

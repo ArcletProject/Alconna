@@ -1,7 +1,7 @@
 from arclet.alconna.base import Option, Subcommand, CommandNode
-from arclet.alconna.args import Args
+from arclet.alconna.args import Args, Arg
 from arclet.alconna.model import OptionResult, SubcommandResult
-from arclet.alconna.analysis.base import analyse_option, analyse_subcommand
+from devtool import analyse_option, analyse_subcommand
 
 
 def test_node_create():
@@ -11,8 +11,8 @@ def test_node_create():
     assert node.nargs == 1
 
 
-def test_string_args():
-    node1 = CommandNode("foo", "bar:int")
+def test_single_args():
+    node1 = CommandNode("foo", Arg("bar", int))
     assert node1.args == Args.bar[int]
 
 

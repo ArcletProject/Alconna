@@ -1,5 +1,5 @@
 from arclet.alconna.typing import DataCollection
-from arclet.alconna.util import split_once, split, LruCache, Singleton
+from arclet.alconna.util import split_once, split, LruCache
 
 
 def test_split_once():
@@ -45,17 +45,6 @@ def test_collection():
     assert isinstance({"a": 1}, DataCollection)
     assert isinstance([123, 456, 7.0, {"a": 1}], DataCollection)
     assert issubclass(list, DataCollection)
-
-
-def test_singleton():
-    """测试单例， 使用metaclass"""
-    class Test(metaclass=Singleton):
-        a: int
-
-    t = Test()
-    t.a = 1
-    t1 = Test()
-    assert t1.a == 1
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 from typing import Union
 from nepattern import BasePattern, PatternModel, Bind
 from arclet.alconna import Args, ArgFlag, Nargs, Kw, KeyWordVar
-from arclet.alconna.analysis.base import analyse_args
+from devtool import analyse_args
 
 
 def test_kwargs_create():

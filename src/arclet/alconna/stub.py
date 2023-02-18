@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from inspect import isclass
-from typing import Any, TypeVar, Generic
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
-from nepattern import BasePattern, AllParam, AnyOne
+from inspect import isclass
+from typing import Any, Generic, TypeVar
+from nepattern import AllParam, AnyOne, BasePattern
+from typing_extensions import Self
 
-from ..args import Args
-from ..base import Option, Subcommand
-from ..model import OptionResult, SubcommandResult
-from ..config import config
+from .args import Args
+from .base import Option, Subcommand
+from .model import OptionResult, SubcommandResult
 
 T = TypeVar('T')
 T_Origin = TypeVar('T_Origin')
@@ -17,9 +17,7 @@ T_Origin = TypeVar('T_Origin')
 
 @dataclass(init=True, eq=True)
 class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
-    """
-    基础的命令组件存根
-    """
+    """基础的命令组件存根"""
 
     _origin: T_Origin
     _value: Any = field(default=None)
@@ -30,10 +28,8 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
         return self._origin
 
     @abstractmethod
-    def set_result(self, result: Any) -> None:
-        """
-        设置解析结果与可用性
-        """
+    def set_result(self, result: Any) -> Self:
+        """设置解析结果与可用性"""
 
     def __repr__(self):
         return f"{{{', '.join([f'{k}={v}' for k, v in vars(self).items() if v and not k.startswith('_')])}}}"
@@ -41,9 +37,7 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
 
 @dataclass(init=True)
 class ArgsStub(BaseStub[Args]):
-    """
-    参数存根
-    """
+    """参数存根"""
     _value: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -61,6 +55,7 @@ class ArgsStub(BaseStub[Args]):
         if result:
             self._value = result.copy()
             self.available = True
+        return self
 
     @property
     def first(self) -> Any:
@@ -70,10 +65,7 @@ class ArgsStub(BaseStub[Args]):
         if isinstance(item, str):
             return self._value.get(item, default)
         for k, v in self.__annotations__.items():
-            if isclass(item):
-                if v == item:
-                    return self._value.get(k, default)
-            elif isinstance(item, v):
+            if isclass(v) and (item == v or issubclass(v, item)):
                 return self._value.get(k, default)
         return default
 
@@ -92,19 +84,14 @@ class ArgsStub(BaseStub[Args]):
         return _cache.get(item, None)
 
     def __getitem__(self, item: int | str) -> Any:
-        if isinstance(item, str):
-            return self._value[item]
-        elif isinstance(item, int):
+        if isinstance(item, int):
             return list(self._value.values())[item]
-        else:
-            raise TypeError(config.lang.stub_key_error.format(target=item))
+        return self._value[item]
 
 
 @dataclass(init=True)
 class OptionStub(BaseStub[Option]):
-    """
-    选项存根
-    """
+    """选项存根"""
     args: ArgsStub = field(init=False)
     dest: str = field(init=False)
     aliases: list[str] = field(init=False)
@@ -121,13 +108,12 @@ class OptionStub(BaseStub[Option]):
             self._value = result.value
             self.args.set_result(result.args)
             self.available = True
+        return self
 
 
 @dataclass(init=True)
 class SubcommandStub(BaseStub[Subcommand]):
-    """
-    子命令存根
-    """
+    """子命令存根"""
     args: ArgsStub = field(init=False)
     dest: str = field(init=False)
     options: list[OptionStub] = field(init=False)
@@ -141,14 +127,16 @@ class SubcommandStub(BaseStub[Subcommand]):
         self.options = [OptionStub(opt) for opt in self._origin.options if isinstance(opt, Option)]
         self.subcommands = [SubcommandStub(sub) for sub in  self._origin.options if isinstance(sub, Subcommand)]
 
-    def set_result(self, result: SubcommandResult):
-        self._value = result.value
-        self.args.set_result(result.args)
-        for option in self.options:
-            option.set_result(result.options.get(option.dest, None))
-        for subcommand in self.subcommands:
-            subcommand.set_result(result.subcommands.get(subcommand.dest, None))
-        self.available = True
+    def set_result(self, result: SubcommandResult | None):
+        if result:
+            self._value = result.value
+            self.args.set_result(result.args)
+            for option in self.options:
+                option.set_result(result.options.get(option.dest, None))
+            for subcommand in self.subcommands:
+                subcommand.set_result(result.subcommands.get(subcommand.dest, None))
+            self.available = True
+        return self
 
     def option(self, name: str) -> OptionStub:
         return next(opt for opt in self.options if opt.name == name)

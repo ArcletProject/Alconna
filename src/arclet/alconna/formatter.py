@@ -1,93 +1,15 @@
 from __future__ import annotations
 
-from weakref import finalize
-from typing import Callable, Any, TYPE_CHECKING
-from dataclasses import dataclass, field
-from nepattern import Empty, AllParam, BasePattern
-from contextlib import contextmanager
+from contextlib import suppress
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
+from nepattern import AllParam, BasePattern, Empty
 
-from .action import ArgAction
-from ..util import Singleton
-from ..args import Args, Arg
-from ..base import Option, Subcommand
-
-
-@dataclass(init=True, unsafe_hash=True)
-class OutputAction(ArgAction):
-    generator: Callable[[], str]
-
-    def handle(self, params=None, varargs=None, kwargs=None, raise_exc=False):
-        return super().handle({"output": self.generator()}, varargs, kwargs, raise_exc)
-
-
-@dataclass
-class OutputActionManager(metaclass=Singleton):
-    """帮助信息"""
-    cache: dict[str, Callable] = field(default_factory=dict)
-    outputs: dict[str, OutputAction] = field(default_factory=dict)
-    send_action: Callable[[str], Any] = field(default=lambda x: print(x))
-    _out_cache: dict[str, dict[str, Any]] = field(default_factory=dict, hash=False, init=False)
-
-    def __post_init__(self):
-        def _clr(mgr: OutputActionManager):
-            mgr.cache.clear()
-            mgr.outputs.clear()
-            mgr._out_cache.clear()
-            Singleton.remove(mgr.__class__)
-
-        finalize(self, _clr, self)
-
-    def send(self, command: str | None = None, generator: Callable[[], str] | None = None, raise_exception=False):
-        """调用指定的输出行为"""
-        if action := self.get(command):
-            if generator:
-                action.generator = generator
-        elif generator:
-            action = self.set(generator, command)
-        else:
-            raise KeyError(f"Command {command} not found")
-        res = action.handle(raise_exc=raise_exception)
-        if command in self._out_cache:
-            self._out_cache[command].update(res)
-        return res
-
-    def get(self, command: str | None = None) -> OutputAction | None:
-        """获取指定的输出行为"""
-        return self.outputs.get(command or "$global")
-
-    def set(self, generator: Callable[[], str], command: str | None = None) -> OutputAction:
-        """设置指定的输出行为"""
-        command = command or "$global"
-        if command in self.outputs:
-            self.outputs[command].generator = generator
-        elif command in self.cache:
-            self.outputs[command] = OutputAction(self.cache.pop(command), generator)
-        else:
-            self.outputs[command] = OutputAction(self.send_action, generator)
-        return self.outputs[command]
-
-    def set_action(self, action: Callable[[str], Any], command: str | None = None):
-        """修改输出行为"""
-        if command is None or command == "$global":
-            self.send_action = action
-        elif cmd := self.outputs.get(command):
-            cmd.action = action
-        else:
-            self.cache[command] = action
-
-    @contextmanager
-    def capture(self, command: str | None = None):
-        """捕获输出"""
-        command = command or "$global"
-        _cache = self._out_cache.setdefault(command, {})
-        yield _cache
-        _cache.clear()
-
-
-output_manager = OutputActionManager()
+from .args import Arg, Args
+from .base import Option, Subcommand
 
 if TYPE_CHECKING:
-    from ..core import Alconna, AlconnaGroup
+    from .core import Alconna
 
 
 def resolve_requires(options: list[Option | Subcommand]):
@@ -128,56 +50,62 @@ def ensure_node(target: str, options: list[Option | Subcommand]):
             return opt if target == opt.name else ensure_node(target, opt.options)
 
 
-@dataclass
+@dataclass(eq=True)
 class Trace:
     head: dict[str, Any]
     args: Args
     separators: tuple[str, ...]
     body: list[Option | Subcommand]
 
-    def union(self, other: Trace):
-        self.head['header'] = list({*self.head['header'], *other.head['header']})
-        self.body = list({*self.body, *other.body})
+    def union(self, others: list[Trace]):
+        if not others:
+            return self
+        if others[0] == self:
+            return self.union(others[1:])
+        hds = self.head.copy()
+        hds['header'] = list({*self.head['header'], *others[0].head['header']})
+        return Trace(hds, self.args, self.separators, list({*self.body, *others[0].body})).union(others[1:])
 
 
 class TextFormatter:
-    """
-    帮助文档格式化器
+    """帮助文档格式化器
 
     该格式化器负责将传入的命令节点字典解析并生成帮助文档字符串
     """
 
-    def __init__(self, base: Alconna | AlconnaGroup):
-        self.data = []
+    def __init__(self):
+        self.data = {}
         self.ignore_names = set()
 
-        def _handle(command: Alconna):
-            self.ignore_names.update(command.namespace_config.builtin_option_name['help'])
-            self.ignore_names.update(command.namespace_config.builtin_option_name['shortcut'])
-            self.ignore_names.update(command.namespace_config.builtin_option_name['completion'])
-            hds = command.headers.copy()
-            if command.name in hds:
-                hds.remove(command.name)  # type: ignore
-            return Trace(
-                {
-                    'name': command.name, 'header': hds or [], 'description': command.meta.description,
-                    'usage': command.meta.usage, 'example': command.meta.example
-                },
-                command.args, command.separators, command.options
-            )
+    def add(self, base: Alconna):
+        self.ignore_names.update(base.namespace_config.builtin_option_name['help'])
+        self.ignore_names.update(base.namespace_config.builtin_option_name['shortcut'])
+        self.ignore_names.update(base.namespace_config.builtin_option_name['completion'])
+        hds = base.headers.copy()
+        if base.name in hds:
+            hds.remove(base.name)
+        res = Trace(
+            {
+                'name': base.name, 'header': hds or [], 'description': base.meta.description,
+                'usage': base.meta.usage, 'example': base.meta.example
+            },
+            base.args, base.separators, base.options.copy()
+        )
+        self.data.setdefault(base.path, []).append(res)
+        return self
 
-        for cmd in base.commands if base._group else [base]:  # type: ignore
-            if self.data and self.data[-1].head['name'] == cmd.name:
-                self.data[-1].union(_handle(cmd))  # type: ignore
-            else:
-                self.data.append(_handle(cmd))  # type: ignore
+    def remove(self, base: Alconna | str):
+        if isinstance(base, str):
+            self.data.pop(base)
+        else:
+            with suppress(ValueError):
+                self.data.get(base.path, []).remove(base)
+
 
     def format_node(self, end: list | None = None):
-        """
-        格式化命令节点
-        """
-
-        def _handle(trace: Trace):
+        """格式化命令节点"""
+        def _handle(traces: list[Trace]):
+            trace = traces[0].union(traces[1:])
             if not end or end == ['']:
                 return self.format(trace)
             _cache = resolve_requires(trace.body)
@@ -215,7 +143,7 @@ class TextFormatter:
                 ))
             return self.format(trace)
 
-        return "\n".join(map(_handle, self.data))
+        return "\n".join(map(_handle, self.data.values()))
 
     def format(self, trace: Trace) -> str:
         """help text的生成入口"""
@@ -296,5 +224,4 @@ class TextFormatter:
         subcommand_help = "可用的子命令有:\n" if subcommand_string else ""
         return f"{subcommand_help}{subcommand_string}{option_help}{option_string}"
 
-
-__all__ = ["TextFormatter", "output_manager", "Trace"]
+__all__ = ["TextFormatter", "Trace"]

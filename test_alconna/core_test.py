@@ -1,4 +1,3 @@
-from arclet.alconna.core import AlconnaGroup
 from arclet.alconna import (
     Alconna,
     Args,
@@ -52,6 +51,21 @@ def test_alconna_multi_match():
     res3 = alc1.parse("/core1 aa")
     assert res3.matched is False
     assert res3.head_matched is True
+
+    alc1_1 = Alconna(
+        "core1_1",
+        Subcommand(
+            "foo",
+            Option("bar"),
+            Subcommand("foo"),
+            Args["qux", str]
+        )
+    )
+    assert alc1_1.parse("core1_1 foo abc").matched
+    assert alc1_1.parse("core1_1 foo foo abc").matched
+    assert alc1_1.parse("core1_1 foo bar abc").matched
+    assert alc1_1.parse("core1_1 foo bar foo abc").matched
+    assert alc1_1.parse("core1_1 foo foo bar abc").matched
 
 
 def test_special_header():
@@ -110,9 +124,10 @@ def test_alconna_special_help():
 def test_alconna_chain_option():
     alc5 = (
         Alconna("点歌")
-            .add("歌名", sep="：", args=Args(song_name=str))
-            .add("歌手", sep="：", args=Args(singer_name=str))
-    )
+        .option("歌名", Args(song_name=str), separators="：")
+        .option("歌手", Args(singer_name=str), separators="：")
+    ).add(Subcommand("foo").add(Option("bar")))
+
     res = alc5.parse("点歌 歌名：Freejia")
     assert res.song_name == "Freejia"
 
@@ -202,6 +217,7 @@ def test_alconna_action():
 
 
 def test_alconna_synthesise():
+    from typing import List
     alc10 = Alconna(
         Arg("min",  r".*(\d+)张.*", seps="到"),
         Arg("max;?", r".*(\d+)张.*"),
@@ -224,11 +240,11 @@ def test_alconna_synthesise():
         msg := (
             "cpp 1 2\n"
             "#include <iostream>\n"
-            "..."
+            "int main() {...}"
         )
     )
     print((res := alc10_1.parse(msg)))
-    print("\n".join(res.query("lines")))
+    print("\n".join(res.query_with(List[str], "lines", [])))
 
 
 def test_simple_override():
@@ -277,11 +293,8 @@ def test_wildcard():
 
 
 def test_alconna_group():
-    alc14 = AlconnaGroup(
-        "core14",
-        Alconna("core14", Option("--foo"), Option("--bar", Args["num", int])),
-        Alconna("core14", Option("--baz"), Option("--qux", Args["num", int])),
-    )
+    alc14 = Alconna("core14", Option("--foo"), Option("--bar", Args["num", int])) | \
+            Alconna("core14", Option("--baz"), Option("--qux", Args["num", int]))
     assert alc14.parse("core14 --foo --bar 123").matched is True
     assert alc14.parse("core14 --baz --qux 123").matched is True
     print("\n---------------------------")
@@ -294,16 +307,16 @@ def test_fuzzy():
 
 
 def test_shortcut():
-    alc16 = Alconna("core16", Args["foo", int], Option("bar"))
-    assert alc16.parse("core16 123 bar").matched is True
-    alc16.shortcut("TEST", "core16 432 bar")
-    res = alc16.parse("TEST")
+    alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
+    assert alc16.parse("core16 123 bar abcd").matched is True
+    alc16.shortcut("TEST(\d+)(.+)", {"args": ["{0}"], "options": {"bar": "{1}"}})
+    res = alc16.parse("TEST123aa")
     assert res.matched is True
-    assert res.foo == 432
-    alc16.parse("core16 --shortcut TEST1 'core16 123'")
-    res1 = alc16.parse("TEST1")
-    assert res1.matched is True
-    assert res1.foo == 123
+    assert res.foo == 123
+    assert res.baz == "aa"
+    alc16.parse("core16 --shortcut TEST2 'core16 321'")
+    res1 = alc16.parse("TEST2")
+    assert res1.foo == 321
 
 
 def test_help():
@@ -365,7 +378,10 @@ def test_interrupt():
     alc21 = Alconna("core21", Args.foo[int], Args.bar[str])
     print("\n", "no interrupt [failed]:", alc21.parse("core21"))
     print("\n", "interrupt [pending]:", ana := alc21.parse("core21", interrupt=True))
-    ana.container.push("1", "a")
+    ana.container.rebuild("1", "a")
+    assert ana.process().matched
+    print("\n", "interrupt [pending]:", ana := alc21.parse("core21 123", interrupt=True))
+    ana.container.rebuild("a")
     assert ana.process().matched
 
 
