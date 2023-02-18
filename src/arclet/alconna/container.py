@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any, Callable, TypeVar
 from typing_extensions import Self
-from dataclasses import dataclass, field
 
-from .util import split_once, split
-from .exceptions import NullMessage
-from .config import config
 from .args import Arg
 from .base import Option, Subcommand
+from .config import config
+from .exceptions import NullMessage
 from .typing import DataCollection
+from .util import split, split_once
 
 _cache: dict[type, dict[str, Any]] = {}
 
@@ -142,11 +142,7 @@ class DataCollectionContainer:
         if replace:
             self.raw_data[self.current_index] = data
 
-    def release(
-        self,
-        separate: tuple[str, ...] | None = None,
-        recover: bool = False
-    ) -> list[str | Any]:
+    def release(self, separate: tuple[str, ...] | None = None, recover: bool = False) -> list[str | Any]:
         _result = []
         data = self.bak_data if recover else self.raw_data[self.current_index:]
         for _data in data:

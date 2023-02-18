@@ -2,23 +2,24 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import InitVar, dataclass, field
 from functools import reduce
-from typing import List, Union, Callable, Tuple, TypeVar, overload, Any, Literal, Generic, Sequence
+from typing import Any, Callable, Generic, List, Literal, Sequence, Tuple, TypeVar, Union, overload
 from typing_extensions import Self
-from dataclasses import dataclass, field, InitVar
-from .config import config, Namespace
-from .args import Args, Arg
-from .util import init_spec
-from .base import Option, Subcommand
-from .typing import TDataCollection
-from .manager import command_manager, ShortcutArgs
-from .arparma import Arparma, ArparmaBehavior
-from .exceptions import PauseTriggered
-from .analyser import TAnalyser, Analyser
+
 from .action import ArgAction, exec_, exec_args
-from .formatter import TextFormatter
+from .analyser import Analyser, TAnalyser
+from .args import Arg, Args
+from .arparma import Arparma, ArparmaBehavior
+from .base import Option, Subcommand
+from .config import Namespace, config
 from .duplication import Duplication
+from .exceptions import PauseTriggered
 from .executor import ArparmaExecutor, T
+from .formatter import TextFormatter
+from .manager import ShortcutArgs, command_manager
+from .typing import TDataCollection
+from .util import init_spec
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
@@ -89,7 +90,6 @@ class Alconna(Subcommand, Generic[TAnalyser]):
     namespace: str
     meta: CommandMeta
     behaviors: list[ArparmaBehavior]
-    custom_types = {}
 
     global_analyser_type: type[Analyser] = Analyser
 
@@ -213,11 +213,6 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         """返回该命令的帮助信息"""
         return self.formatter.format_node()
 
-    @classmethod
-    def set_custom_types(cls, **types: type):
-        """设置Alconna内的自定义类型"""
-        cls.custom_types = types
-
     def shortcut(self, key: str, args: ShortcutArgs | None = None, delete: bool = False):
         """添加快捷命令"""
         try:
@@ -325,3 +320,5 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         return hash(
             (self.path + str(self.headers), self.meta, *self.options, *self.args.argument)
         )
+
+__all__ = ["Alconna", "CommandMeta"]

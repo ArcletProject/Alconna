@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from inspect import isclass
-from typing import Any, TypeVar, Generic
-from typing_extensions import Self
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
-from nepattern import BasePattern, AllParam, AnyOne
+from inspect import isclass
+from typing import Any, Generic, TypeVar
+from nepattern import AllParam, AnyOne, BasePattern
+from typing_extensions import Self
 
 from .args import Args
 from .base import Option, Subcommand

@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import re
 from functools import reduce
-from typing import Callable, Sequence, overload, Iterable
+from typing import Callable, Iterable, Sequence, overload
 from typing_extensions import Self
 
-from .args import Args, Arg
-from .exceptions import InvalidParam
-from .config import config
 from .action import ArgAction
+from .args import Arg, Args
+from .config import config
+from .exceptions import InvalidParam
 
 
 class CommandNode:

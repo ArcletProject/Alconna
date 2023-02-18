@@ -1,70 +1,66 @@
 from __future__ import annotations
 
-from weakref import finalize
-from typing import Callable, Any
-from dataclasses import dataclass, field
 from contextlib import contextmanager
+from dataclasses import dataclass, field
+from typing import Any, Callable
+from weakref import finalize
 
 
 @dataclass(init=True, unsafe_hash=True)
-class OutputAction:
+class Sender:
     action: Callable[..., Any]
     generator: Callable[[], str]
 
-    def handle(self, raise_exc: bool = False):
+    def __call__(self, *args, **kwargs):
         res = self.generator()
-        try:
-            data = self.action(res)
-            return data if data and isinstance(data, dict) else {"output": res}
-        except Exception as e:
-            if raise_exc:
-                raise e
-        return {"output": res}
+        data = self.action(res)
+        return data if data and isinstance(data, dict) else {"output": res}
+
 
 
 @dataclass
-class OutputActionManager:
+class OutputManager:
     """帮助信息"""
     cache: dict[str, Callable] = field(default_factory=dict)
-    outputs: dict[str, OutputAction] = field(default_factory=dict)
+    outputs: dict[str, Sender] = field(default_factory=dict)
     send_action: Callable[[str], Any] = field(default=lambda x: print(x))
     _out_cache: dict[str, dict[str, Any]] = field(default_factory=dict, hash=False, init=False)
 
     def __post_init__(self):
-        def _clr(mgr: OutputActionManager):
+        def _clr(mgr: OutputManager):
             mgr.cache.clear()
             mgr.outputs.clear()
             mgr._out_cache.clear()
 
         finalize(self, _clr, self)
 
-    def send(self, command: str | None = None, generator: Callable[[], str] | None = None, raise_exception=False):
+    def send(self, command: str | None = None, generator: Callable[[], str] | None = None):
         """调用指定的输出行为"""
-        if action := self.get(command):
+        if sender := self.get(command):
             if generator:
-                action.generator = generator
+                sender.generator = generator
         elif generator:
-            action = self.set(generator, command)
+            sender = self.set(generator, command)
         else:
             raise KeyError(f"Command {command} not found")
-        res = action.handle(raise_exc=raise_exception)
+        res = sender()
         if command in self._out_cache:
             self._out_cache[command].update(res)
         return res
 
-    def get(self, command: str | None = None) -> OutputAction | None:
+    def get(self, command: str | None = None) -> Sender | None:
         """获取指定的输出行为"""
         return self.outputs.get(command or "$global")
 
-    def set(self, generator: Callable[[], str], command: str | None = None) -> OutputAction:
+    def set(self, generator: Callable[[], str], command: str | None = None) -> Sender:
         """设置指定的输出行为"""
         command = command or "$global"
         if command in self.outputs:
             self.outputs[command].generator = generator
         elif command in self.cache:
-            self.outputs[command] = OutputAction(self.cache.pop(command), generator)
+            self.outputs[command] = Sender(self.cache.pop(command), generator)
         else:
-            self.outputs[command] = OutputAction(self.send_action, generator)
+            self.outputs[command] = Sender(self.send_action, generator)
         return self.outputs[command]
 
     def set_action(self, action: Callable[[str], Any], command: str | None = None):
@@ -85,6 +81,6 @@ class OutputActionManager:
         _cache.clear()
 
 
-output_manager = OutputActionManager()
+output_manager = OutputManager()
 
 __all__ = ["output_manager"]

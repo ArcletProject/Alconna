@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, overload
 
 from .action import ArgAction
-from .arparma import ArparmaBehavior, Arparma
+from .arparma import Arparma, ArparmaBehavior
 from .exceptions import BehaveCancelled
 from .model import OptionResult, SubcommandResult
 

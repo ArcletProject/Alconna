@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-import re
 import inspect
-from functools import partial
+import re
 from copy import deepcopy
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from enum import Enum
-from typing import Union, Iterable, Callable, Any, Sequence, TypeVar, Generic
+from functools import partial
+from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
+from nepattern import AllParam, AnyOne, BasePattern, Empty, UnionPattern, type_parser
 from typing_extensions import Self
-from dataclasses import dataclass, field as dc_field
-from nepattern import BasePattern, Empty, AllParam, AnyOne, UnionPattern, type_parser
-from .util import _safe_dcs_args, get_signature
+
 from .config import config
 from .exceptions import InvalidParam
-from .typing import MultiVar, KeyWordVar
+from .typing import KeyWordVar, MultiVar
+from .util import _safe_dcs_args, get_signature
 
 _T = TypeVar("_T")
 TAValue = Union[BasePattern, AllParam.__class__, type, str]

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, Callable, Any
-from types import LambdaType
-from nepattern import AnyOne, AllParam
 from dataclasses import dataclass
+from types import LambdaType
+from typing import Any, Callable, Dict
+from nepattern import AllParam, AnyOne
 
 from .args import Args
-from .util import is_async
 from .exceptions import InvalidParam
 from .model import OptionResult, SubcommandResult
+from .util import is_async
 
 
 @dataclass(init=True, unsafe_hash=True)

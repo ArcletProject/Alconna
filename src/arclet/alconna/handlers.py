@@ -10,13 +10,7 @@ from nepattern.util import TPattern
 from .args import Arg, Args
 from .base import Option, Subcommand
 from .config import config
-from .exceptions import (
-    ArgumentMissing,
-    CompletionTriggered,
-    FuzzyMatchSuccess,
-    ParamsUnmatched,
-    SpecialOptionTriggered
-)
+from .exceptions import ArgumentMissing, CompletionTriggered, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered
 from .model import OptionResult, Sentence
 from .output import output_manager
 from .typing import KeyWordVar, MultiVar

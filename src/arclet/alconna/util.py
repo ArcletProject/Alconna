@@ -1,12 +1,12 @@
 """杂物堆"""
 from __future__ import annotations
 
-import sys
 import contextlib
 import inspect
-from functools import lru_cache
+import sys
 from collections import OrderedDict
-from typing import TypeVar, Any, Iterator, Hashable, Generic, Callable, overload, Literal
+from functools import lru_cache
+from typing import Any, Callable, Generic, Hashable, Iterator, Literal, TypeVar, overload
 from typing_extensions import ParamSpec
 
 R = TypeVar("R")

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import cast
 from inspect import isclass
+from typing import cast
 
 from .arparma import Arparma
-from .stub import BaseStub, ArgsStub, SubcommandStub, OptionStub
-
+from .stub import ArgsStub, BaseStub, OptionStub, SubcommandStub
 
 
 class Duplication:
@@ -13,7 +12,7 @@ class Duplication:
     header: dict[str, str]
 
     def __init__(self, target: Arparma):
-        from .base import Subcommand, Option
+        from .base import Option, Subcommand
         self.header = target.header.copy()
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):
@@ -42,7 +41,7 @@ class Duplication:
 
 def generate_duplication(arp: Arparma) -> Duplication:
     """依据给定的命令生成一个解析结果的检查类。"""
-    from .base import Subcommand, Option
+    from .base import Option, Subcommand
     options = filter(lambda x: isinstance(x, Option), arp.source.options)
     subcommands = filter(lambda x: isinstance(x, Subcommand), arp.source.options)
     return cast(Duplication, type(
