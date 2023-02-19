@@ -257,6 +257,7 @@ class Args(metaclass=ArgsMeta):  # type: ignore
         if isinstance(other, Args):
             self.argument.extend(other.argument)
             self.__check_vars__()
+            self.keyword_only = list(set(self.keyword_only + other.keyword_only))
             del other
         elif isinstance(other, Arg):
             self.argument.append(other)
