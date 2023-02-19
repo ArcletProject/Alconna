@@ -1,5 +1,8 @@
 # Alconna 1.6.x:
 
+## Alconna 1.6.1
+1. 修复 不同 Args 合并时丢失来自 from_callable 提供的参数
+
 ## Alconna 1.6.0
 1. 改进 shorcut
 2. 改进 Alconna.add，加入subcommand的添加
