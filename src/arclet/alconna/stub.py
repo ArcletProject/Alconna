@@ -21,7 +21,7 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
 
     _origin: T_Origin
     _value: Any = field(default=None)
-    available: bool = field(default=True, init=False)
+    available: bool = field(default=False, init=False)
 
     @property
     def origin(self) -> T_Origin:

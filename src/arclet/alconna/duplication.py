@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from inspect import isclass
 from typing import cast
+from nepattern import Empty
 
 from .arparma import Arparma
 from .stub import ArgsStub, BaseStub, OptionStub, SubcommandStub
@@ -20,14 +21,14 @@ class Duplication:
                     setattr(self, key, ArgsStub(target.source.args).set_result(target.main_args))
                 elif value == SubcommandStub:
                     for subcommand in filter(lambda x: isinstance(x, Subcommand), target.source.options):
-                        if subcommand.dest == key and key in target.subcommands:
-                            setattr(self, key, SubcommandStub(subcommand).set_result(target.subcommands[key]))
+                        if subcommand.dest == key:
+                            setattr(self, key, SubcommandStub(subcommand).set_result(target.subcommands.get(key, None)))
                 elif value == OptionStub:
                     for option in filter(lambda x: isinstance(x, Option), target.source.options):
-                        if option.dest == key and key in target.options:
-                            setattr(self, key, OptionStub(option).set_result(target.options[key]))
-            elif key != 'header' and key in target.all_matched_args:
-                setattr(self, key, target.all_matched_args[key])
+                        if option.dest == key:
+                            setattr(self, key, OptionStub(option).set_result(target.options.get(key, None)))
+            elif key != 'header':
+                setattr(self, key, target.all_matched_args.get(key, Empty))
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self.__annotations__})'

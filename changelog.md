@@ -1,5 +1,12 @@
 # Alconna 1.6.x:
 
+## Alconna 1.6.3:
+1. 修复 `Stub.available` 初始值为 `True` 的错误
+2. 修复 `Duplication` 仅对解析存在的选项设置存根的错误
+
+## Alconna 1.6.2
+1. 修复 语言文件读取时未关闭的错误
+
 ## Alconna 1.6.1
 1. 修复 不同 Args 合并时丢失来自 from_callable 提供的参数
 
