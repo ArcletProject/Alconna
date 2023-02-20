@@ -69,7 +69,8 @@ class _LangConfig:
     __slots__ = "__config", "__file"
 
     def __init__(self):
-        self.__file = json.load(self.path.open("r", encoding="utf-8"))
+        with self.path.open("r", encoding="utf-8") as f:
+            self.__file = json.load(f)
         self.__config: dict[str, str] = self.__file[self.__file["$default"]]
 
     @property
@@ -80,16 +81,18 @@ class _LangConfig:
         if name != "$default" and name in self.__file:
             self.__config = self.__file[name]
             self.__file["$default"] = name
-            json.dump(
-                self.__file, self.path.open("w", encoding="utf-8"), ensure_ascii=False, indent=2
-            )
+            with self.path.open("w", encoding="utf-8") as f:
+                json.dump(
+                    self.__file, f, ensure_ascii=False, indent=2
+                )
             return
         raise ValueError(self.__config["lang.type_error"].format(target=name))
 
     def reload(self, path: str | Path, lang_type: str | None = None):
         if isinstance(path, str):
             path = Path(path)
-        content = json.load(path.open("r", encoding="utf-8"))
+        with path.open("r", encoding="utf-8") as f:
+            content = json.load(f)
         if not lang_type:
             self.__config.update(content)
         elif lang_type in self.__file:
