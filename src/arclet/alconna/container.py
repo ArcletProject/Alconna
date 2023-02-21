@@ -106,6 +106,8 @@ class DataCollectionContainer:
                 self.ndata += 1
         self.current_index = 0
         self.bak_data = self.raw_data.copy()
+        if self.message_cache:
+            self.temp_token = self.generate_token(self.raw_data)
         return self
 
     def popitem(self, separate: tuple[str, ...] | None = None, move: bool = True) -> tuple[str | Any, bool]:
