@@ -8,7 +8,8 @@ from arclet.alconna import (
     CommandMeta,
     MultiVar,
     KeyWordVar,
-    Arg
+    Arg,
+    store_true
 )
 from nepattern import IP, URL
 
@@ -454,6 +455,24 @@ def test_nest_subcommand():
         )
     )
     assert alc23_1.parse("core23_1 bar qux false baz hhh").query("bar.qux.def") is False
+
+def test_action():
+    alc24 = Alconna(
+        "core24",
+        Option("--yes|-y", action=store_true),
+        Args["module", AllParam]
+    )
+    res = alc24.parse("core24 -y abc def")
+    assert res.query("yes.value") is True
+    assert res.module == ["abc", "def"]
+
+    alc24_1 = Alconna(
+        "core24",
+        Args["yes", {"--yes": True, "-y": True}, False]["module", AllParam]
+    )
+    assert alc24_1.parse("core24 -y abc def").yes
+    assert not alc24_1.parse("core24 abc def").yes
+    assert alc24_1.parse("core24 abc def").module == ["abc", "def"]
 
 if __name__ == "__main__":
     import pytest

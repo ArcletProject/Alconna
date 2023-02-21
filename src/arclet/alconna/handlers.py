@@ -17,7 +17,7 @@ from .typing import KeyWordVar, MultiVar
 from .util import levenshtein_norm, split_once
 
 if TYPE_CHECKING:
-    from .analyser import Analyser, SubAnalyser
+    from .analyser import SubAnalyser, DataCollectionContainer, Analyser
 
 
 def _handle_keyword(
@@ -55,6 +55,64 @@ def _handle_keyword(
     raise ParamsUnmatched(config.lang.args_key_missing.format(target=may_arg, key=key))
 
 
+def _loop_kw(
+    analyser: SubAnalyser,
+    _loop: int,
+    rest_arg: int,
+    seps: tuple[str, ...],
+    value: MultiVar,
+    default: Any
+):
+    result = {}
+    for _ in range(_loop):
+        _m_arg, _m_str = analyser.container.popitem(seps)
+        if not _m_arg:
+            continue
+        if _m_str and _m_arg in analyser.container.param_ids:
+            analyser.container.pushback(_m_arg)
+            for _ in range(min(len(result), rest_arg - 1)):
+                arg = result.popitem()  # type: ignore
+                analyser.container.pushback(f'{arg[0]}={arg[1]}')
+            break
+        try:
+            _handle_keyword(analyser, value.base, _m_arg, seps, result, default, False)  # type: ignore
+        except ParamsUnmatched:
+            break
+    if not result:
+        if value.flag == '+':
+            raise ParamsUnmatched
+        result = [default] if default else []
+    return result
+
+
+def _loop(
+    container: DataCollectionContainer,
+    _loop: int,
+    rest_arg: int,
+    seps: tuple[str, ...],
+    value: MultiVar,
+    default: Any
+):
+    result = []
+    for _ in range(_loop):
+        _m_arg, _m_str = container.popitem(seps)
+        if not _m_arg:
+            continue
+        if _m_str and (_m_arg in container.param_ids or re.match(fr'^(.+)=\s?$', _m_arg)):
+            container.pushback(_m_arg)
+            for _ in range(min(len(result), rest_arg - 1)):
+                container.pushback(result.pop(-1))
+            break
+        if (res := value.base(_m_arg)).flag != 'valid':
+            container.pushback(_m_arg)
+            break
+        result.append(res.value)
+    if not result:
+        if value.flag == '+':
+            raise ParamsUnmatched
+        result = [default] if default else []
+    return tuple(result)
+
 def multi_arg_handler(
     analyser: SubAnalyser,
     args: Args,
@@ -70,54 +128,17 @@ def multi_arg_handler(
     _m_rest_arg = nargs - len(result_dict)
     _m_rest_all_param_count = len(analyser.container.release(seps))
     if not kw and not args.var_keyword or kw and not args.var_positional:
-        _loop = _m_rest_all_param_count - (_m_rest_arg - (value.flag == "+"))
+        loop = _m_rest_all_param_count - (_m_rest_arg - (value.flag == "+"))
     elif not kw:
-        _loop = _m_rest_all_param_count - (_m_rest_arg - (args[args.var_keyword].value.flag == "*"))
+        loop = _m_rest_all_param_count - (_m_rest_arg - (args[args.var_keyword].value.flag == "*"))
     else:
-        _loop = _m_rest_all_param_count - (_m_rest_arg - (args[args.var_positional].value.flag == "*"))
+        loop = _m_rest_all_param_count - (_m_rest_arg - (args[args.var_positional].value.flag == "*"))
     if value.length > 0:
-        _loop = min(_loop, value.length)
-    if kw:
-        result = {}
-        for _ in range(_loop):
-            _m_arg, _m_str = analyser.container.popitem(seps)
-            if not _m_arg:
-                continue
-            if _m_str and _m_arg in analyser.container.param_ids:
-                analyser.container.pushback(_m_arg)
-                for _ in range(min(len(result), _m_rest_arg - 1)):
-                    arg = result.popitem()  # type: ignore
-                    analyser.container.pushback(f'{arg[0]}={arg[1]}')
-                break
-            try:
-                _handle_keyword(analyser, value.base, _m_arg, seps, result, default, False)  # type: ignore
-            except ParamsUnmatched:
-                break
-        if not result:
-            if value.flag == '+':
-                raise ParamsUnmatched
-            result = [default] if default else []
-        result_dict[key] = result
-    else:
-        result = []
-        for _ in range(_loop):
-            _m_arg, _m_str = analyser.container.popitem(seps)
-            if not _m_arg:
-                continue
-            if _m_str and (_m_arg in analyser.container.param_ids or re.match(fr'^(.+)=\s?$', _m_arg)):
-                analyser.container.pushback(_m_arg)
-                for _ in range(min(len(result), _m_rest_arg - 1)):
-                    analyser.container.pushback(result.pop(-1))
-                break
-            if (res := value.base(_m_arg)).flag != 'valid':
-                analyser.container.pushback(_m_arg)
-                break
-            result.append(res.value)
-        if not result:
-            if value.flag == '+':
-                raise ParamsUnmatched
-            result = [default] if default else []
-        result_dict[key] = tuple(result)
+        loop = min(loop, value.length)
+    result_dict[key] = (
+        _loop_kw(analyser, loop, _m_rest_arg, seps, value, default) if kw
+        else _loop(analyser.container, loop, _m_rest_arg, seps, value, default)
+    )
 
 
 def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any]:
@@ -147,22 +168,21 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
             elif not optional:
                 raise ArgumentMissing(config.lang.args_missing.format(key=key))
             continue
-        if isinstance(value, BasePattern):
-            if value.__class__ is MultiVar:
+        if value.__class__ is MultiVar:
+            analyser.container.pushback(may_arg)
+            multi_arg_handler(analyser, args, arg, result, nargs)  # type: ignore
+        elif value.__class__ is KeyWordVar:
+            _handle_keyword(analyser, value, may_arg, seps, result, default_val, optional, key)  # type: ignore
+        elif isinstance(value, BasePattern):
+            res = value(may_arg, default_val)
+            if res.flag != 'valid':
                 analyser.container.pushback(may_arg)
-                multi_arg_handler(analyser, args, arg, result, nargs)  # type: ignore
-            elif value.__class__ is KeyWordVar:
-                _handle_keyword(analyser, value, may_arg, seps, result, default_val, optional, key)  # type: ignore
-            else:
-                res = value(may_arg, default_val)
-                if res.flag != 'valid':
-                    analyser.container.pushback(may_arg)
-                if res.flag == 'error':
-                    if optional:
-                        continue
-                    raise ParamsUnmatched(*res.error.args)
-                if not key.startswith('_key'):
-                    result[key] = res.value
+            if res.flag == 'error':
+                if optional:
+                    continue
+                raise ParamsUnmatched(*res.error.args)
+            if not key.startswith('_key'):
+                result[key] = res.value
         elif value is AllParam:
             analyser.container.pushback(may_arg)
             result[key] = analyser.container.release(seps)
@@ -193,32 +213,32 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
     return result
 
 
-def analyse_unmatch_params(
-    params: Iterable[list[Option] | Sentence | SubAnalyser],
-    text: str,
-    is_fuzzy_match: bool = False
-):
-    for _p in params:
+def analyse_unmatch_params(analyser: SubAnalyser, text: str):
+    for _p in analyser.compile_params.values():
         if isinstance(_p, list):
             res = []
             for _o in _p:
-                _may_param = split_once(text, _o.separators)[0]
-                if _may_param in _o.aliases or any(map(lambda x: _may_param.startswith(x), _o.aliases)):
+                _may_param, _ = split_once(text, _o.separators)
+                if _may_param in _o.aliases or any(map(_may_param.startswith, _o.aliases)):
+                    analyser.compile_params.setdefault(text, res)
                     res.append(_o)
                     continue
-                if is_fuzzy_match and levenshtein_norm(_may_param, _o.name) >= config.fuzzy_threshold:
+                if analyser.fuzzy_match and levenshtein_norm(_may_param, _o.name) >= config.fuzzy_threshold:
                     raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=_o.name))
             if res:
                 return res
         elif isinstance(_p, Sentence):
             if (_may_param := split_once(text, _p.separators)[0]) == _p.name:
+                analyser.compile_params.setdefault(text, _p)
                 return _p
-            if is_fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
+            if analyser.fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=_p.name))
         else:
-            if (_may_param := split_once(text, _p.container.separators)[0]) == _p.command.name:
+            _may_param, _ = split_once(text, _p.command.separators)
+            if _may_param == _p.command.name or _may_param.startswith(_p.command.name):
+                analyser.compile_params.setdefault(text, _p)
                 return _p
-            if is_fuzzy_match and levenshtein_norm(_may_param, _p.command.name) >= config.fuzzy_threshold:
+            if analyser.fuzzy_match and levenshtein_norm(_may_param, _p.command.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=_p.command.name))
 
 def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionResult]:
@@ -255,9 +275,7 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
     if handler := analyser.special.get(_text if _str else Ellipsis):
         raise SpecialOptionTriggered(handler)
     _param = _param if (_param := (analyser.compile_params.get(_text) if _str and _text else Ellipsis)) else (
-        None if analyser.container.default_separate else analyse_unmatch_params(
-            analyser.compile_params.values(), _text, analyser.fuzzy_match
-        )
+        None if analyser.container.default_separate else analyse_unmatch_params(analyser, _text)
     )
     if (not _param or _param is Ellipsis) and not analyser.args_result:
         analyser.args_result = analyse_args(analyser, analyser.self_args, analyser.command.nargs)
