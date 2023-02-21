@@ -1,5 +1,9 @@
 # Alconna 1.6.x:
 
+## Alconna 1.6.4:
+1. 修复 shortcut 的功能错误
+2. 字符串处理时不再对后跟引号外的 "\\" 处理
+
 ## Alconna 1.6.3:
 1. 修复 `Stub.available` 初始值为 `True` 的错误
 2. 修复 `Duplication` 仅对解析存在的选项设置存根的错误
