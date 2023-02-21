@@ -307,16 +307,27 @@ def test_fuzzy():
 
 
 def test_shortcut():
+    # 原始命令
     alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
     assert alc16.parse("core16 123 bar abcd").matched is True
+    # 构造体缩写传入；{i} 将被可能的正则匹配替换
     alc16.shortcut("TEST(\d+)(.+)", {"args": ["{0}"], "options": {"bar": "{1}"}})
     res = alc16.parse("TEST123aa")
     assert res.matched is True
     assert res.foo == 123
     assert res.baz == "aa"
+    # 指令缩写传入， TEST2 -> core16 321
     alc16.parse("core16 --shortcut TEST2 'core16 321'")
     res1 = alc16.parse("TEST2")
     assert res1.foo == 321
+    # 缩写命令的构造顺序： 1.新指令 2.传入指令的额外参数 3.构造体参数
+    alc16.parse("core16 --shortcut TEST3 core16")
+    res2 = alc16.parse("TEST3 442")
+    assert res2.foo == 442
+    # 指令缩写也支持正则
+    alc16.parse("core16 --shortcut TESTa4(\d+) 'core16 {0}'")
+    res3 = alc16.parse("TESTa4257")
+    assert res3.foo == 257
 
 
 def test_help():

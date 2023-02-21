@@ -7,9 +7,11 @@ def test_split_once():
     text1 = "rrr b bbbb"
     text2 = "\'rrr b\' bbbb"
     text3 = "\\\'rrr b\\\' bbbb"
+    text4 = "\\\'rrr \\b\\\' bbbb"
     assert split_once(text1, ' ') == ('rrr', 'b bbbb')
     assert split_once(text2, ' ') == ("rrr b", 'bbbb')
     assert split_once(text3, ' ') == ("'rrr b'", 'bbbb')
+    assert split_once(text4, ' ') == ("'rrr \\b'", 'bbbb')  # 不消除其他转义字符斜杠
 
 
 def test_split():

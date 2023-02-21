@@ -232,15 +232,18 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
-    def shortcut(self, short: Arparma | ShortcutArgs, regex: Match | None) -> Arparma[TDataCollection]:
+    def shortcut(self, data: list[Any], short: Arparma | ShortcutArgs, reg: Match | None) -> Arparma[TDataCollection]:
         if isinstance(short, Arparma):
             return short
-        self.container.build(short['command']).rebuild(*short.get('args', [])).rebuild(
+        self.container.build(short['command'])\
+            .rebuild(*data)\
+            .rebuild(*short.get('args', []))\
+            .rebuild(
             *[f'{k}{f"{self.container.separators[0]}{v}" if v else ""}' for k, v in short.get('options', {}).items()]
         )
-        if regex:
-            groups: list[str] = regex.groups()
-            gdict: dict[str, str] = regex.groupdict()
+        if reg:
+            groups: list[str] = reg.groups()
+            gdict: dict[str, str] = reg.groupdict()
             for j, data in enumerate(self.container.raw_data):
                 if isinstance(data, str):
                     for i, c in enumerate(groups):
@@ -248,6 +251,8 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                     for k, v in gdict.items():
                         data = data.replace(f"{{{k}}}", v)
                     self.container.raw_data[j] = data
+            if self.container.message_cache:
+                self.container.temp_token = self.container.generate_token(self.container.raw_data)
         return self.process()
 
     def process(self, message: TDataCollection | None = None, interrupt: bool = False) -> Arparma[TDataCollection]:
@@ -267,8 +272,8 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             return res
         try:
             self.header_result = analyse_header(self)
-            # self.head_pos = self.current_index
         except ParamsUnmatched as e:
+            self.container.raw_data = self.container.bak_data.copy()
             self.container.current_index = 0
             try:
                 _res = command_manager.find_shortcut(self.command, self.container.popitem(move=False)[0])
@@ -277,9 +282,11 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                     raise e from exc
                 return self.export(fail=True, exception=e)
             else:
+                self.container.popitem()
+                data = self.container.release()
                 self.reset()
                 self.container.reset()
-                return self.shortcut(*_res)
+                return self.shortcut(data, *_res)
 
         except FuzzyMatchSuccess as Fuzzy:
             output_manager.send(self.command.name, lambda: str(Fuzzy))

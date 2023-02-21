@@ -44,6 +44,9 @@ def is_async(o: Any):
     return inspect.iscoroutinefunction(o) or inspect.isawaitable(o)
 
 
+QUOTATION = {"'", '"', "’", "“"}
+
+
 @lru_cache(4096)
 def split_once(text: str, separates: str | tuple[str, ...], crlf: bool = True):
     """单次分隔字符串"""
@@ -51,7 +54,7 @@ def split_once(text: str, separates: str | tuple[str, ...], crlf: bool = True):
     separates = tuple(separates)
     text = text.lstrip()
     for index, char in enumerate(text):
-        if char in {"'", '"', "’", "“"}:  # 遇到引号括起来的部分跳过分隔
+        if char in QUOTATION:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
                 quotation = char
                 if index and text[index - 1] == "\\":
@@ -62,7 +65,7 @@ def split_once(text: str, separates: str | tuple[str, ...], crlf: bool = True):
                     out_text += char
         elif (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
             break
-        elif char != "\\":
+        elif char != "\\" or text[index + 1] not in QUOTATION:
             out_text += char
     return out_text, text[index + 1:]
 
@@ -82,7 +85,7 @@ def split(text: str, separates: tuple[str, ...] | None = None, crlf: bool = True
     separates = separates or (" ",)
     result, quotation = "", ""
     for index, char in enumerate(text):
-        if char in {"'", '"', "’", "“"}:
+        if char in QUOTATION:
             if not quotation:
                 quotation = char
                 if index and text[index - 1] == "\\":
@@ -94,7 +97,7 @@ def split(text: str, separates: tuple[str, ...] | None = None, crlf: bool = True
         elif (not quotation and char in separates) or (crlf and char in {"\n", "\r"}):
             if result and result[-1] != "\0":
                 result += "\0"
-        elif char != "\\":
+        elif char != "\\" or text[index + 1] not in QUOTATION:
             result += char
     return result.split('\0') if result else []
 
