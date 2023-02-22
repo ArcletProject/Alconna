@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 _repr_ = lambda self: " ".join(f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__)
 
+
 @dataclass(eq=True)
 class Sentence:
     __slots__ = ("name", "separators")

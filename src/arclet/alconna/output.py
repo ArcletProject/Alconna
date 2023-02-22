@@ -17,7 +17,6 @@ class Sender:
         return data if data and isinstance(data, dict) else {"output": res}
 
 
-
 @dataclass
 class OutputManager:
     """帮助信息"""

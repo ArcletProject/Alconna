@@ -42,6 +42,7 @@ def resolve_requires(options: list[Option | Subcommand]):
             _u(reqs, _reqs)
     return reqs
 
+
 def ensure_node(target: str, options: list[Option | Subcommand]):
     for opt in options:
         if isinstance(opt, Option) and target in opt.aliases:
@@ -100,7 +101,6 @@ class TextFormatter:
         else:
             with suppress(ValueError):
                 self.data.get(base.path, []).remove(base)
-
 
     def format_node(self, end: list | None = None):
         """格式化命令节点"""
@@ -223,5 +223,6 @@ class TextFormatter:
         option_help = "可用的选项有:\n" if option_string else ""
         subcommand_help = "可用的子命令有:\n" if subcommand_string else ""
         return f"{subcommand_help}{subcommand_string}{option_help}{option_string}"
+
 
 __all__ = ["TextFormatter", "Trace"]

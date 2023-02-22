@@ -13,6 +13,7 @@ from .util import split, split_once
 
 _cache: dict[type, dict[str, Any]] = {}
 
+
 @dataclass(repr=True)
 class DataCollectionContainer:
     preprocessors: dict[str, Callable[..., Any]] = field(default_factory=dict)
@@ -27,10 +28,10 @@ class DataCollectionContainer:
     context: Arg | Subcommand | Option | None = field(init=False)
     current_index: int = field(init=False)  # 当前数据的index
     ndata: int = field(init=False)  # 原始数据的长度
-    bak_data: list[str | Any]  = field(init=False)
-    raw_data: list[str | Any]  = field(init=False)
-    temporary_data: dict[str, Any]  = field(init=False)  # 临时数据
-    temp_token: int = field(init=False) # 临时token
+    bak_data: list[str | Any] = field(init=False)
+    raw_data: list[str | Any] = field(init=False)
+    temporary_data: dict[str, Any] = field(init=False)  # 临时数据
+    temp_token: int = field(init=False)  # 临时token
 
     @classmethod
     def config(
@@ -40,7 +41,6 @@ class DataCollectionContainer:
         filter_out: list[str] | None = None
     ):
         _cache.setdefault(cls, {}).update(locals())
-
 
     def __post_init__(self):
         self.reset()
@@ -160,5 +160,6 @@ class DataCollectionContainer:
     def data_reset(self, data: list[str | Any], index: int):
         self.raw_data = data
         self.current_index = index
+
 
 TContainer = TypeVar("TContainer", bound=DataCollectionContainer)

@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from dataclasses import InitVar, dataclass, field
 from functools import reduce
-from typing import Any, Callable, Generic, List, Literal, Sequence, Tuple, TypeVar, Union, overload
+from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, overload
 from typing_extensions import Self
 
 from .action import ArgAction, exec_, exec_args
@@ -18,11 +18,11 @@ from .exceptions import PauseTriggered
 from .executor import ArparmaExecutor, T
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDataCollection
+from .typing import TDataCollection, THeader
 from .util import init_spec
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
-T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
+
 
 @dataclass
 class ActionHandler(ArparmaBehavior):
@@ -50,6 +50,7 @@ class ActionHandler(ArparmaBehavior):
             if d := interface.query(path, None):
                 end, value = exec_(d, action, source.meta.raise_exception)  # type: ignore
                 self.update(interface, f"{path}.{end}", value)  # type: ignore
+
 
 @dataclass(unsafe_hash=True)
 class CommandMeta:
@@ -83,7 +84,7 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         ...  )
         >>> alc.parse("name opt opt_arg")
     """
-    headers: list[str | object] | list[tuple[object, str]]
+    headers: THeader
     command: str | Any
     analyser_type: type[TAnalyser]
     formatter: TextFormatter
@@ -102,7 +103,7 @@ class Alconna(Subcommand, Generic[TAnalyser]):
 
     def __init__(
         self,
-        *args: Option | Subcommand | str | T_Header | Any | Args | Arg,
+        *args: Option | Subcommand | str | THeader | Any | Args | Arg,
         action: ArgAction | Callable | None = None,
         meta: CommandMeta | None = None,
         namespace: str | Namespace | None = None,
@@ -320,5 +321,6 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         return hash(
             (self.path + str(self.headers), self.meta, *self.options, *self.args.argument)
         )
+
 
 __all__ = ["Alconna", "CommandMeta"]

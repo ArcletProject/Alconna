@@ -125,7 +125,7 @@ class SubcommandStub(BaseStub[Subcommand]):
         self.name = self._origin.name.lstrip('-')
         self.args = ArgsStub(self._origin.args)
         self.options = [OptionStub(opt) for opt in self._origin.options if isinstance(opt, Option)]
-        self.subcommands = [SubcommandStub(sub) for sub in  self._origin.options if isinstance(sub, Subcommand)]
+        self.subcommands = [SubcommandStub(sub) for sub in self._origin.options if isinstance(sub, Subcommand)]
 
     def set_result(self, result: SubcommandResult | None):
         if result:

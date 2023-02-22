@@ -13,10 +13,17 @@ R = TypeVar("R")
 T = TypeVar("T")
 P = ParamSpec("P")
 
+
 @overload
-def init_spec(fn: Callable[P, T]) -> Callable[[Callable[[T], R]], Callable[P, R]]: ...
+def init_spec(fn: Callable[P, T]) -> Callable[[Callable[[T], R]], Callable[P, R]]:
+    ...
+
+
 @overload
-def init_spec(fn: Callable[P, T], is_method: Literal[True]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]: ...
+def init_spec(fn: Callable[P, T], is_method: Literal[True]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]:
+    ...
+
+
 def init_spec(   # type: ignore
     fn: Callable[P, T], is_method: bool = False
 ) -> Callable[[Callable[[T], R] | Callable[[Any, T], R]], Callable[P, R]]:
@@ -27,6 +34,7 @@ def init_spec(   # type: ignore
             return func(fn(*args, **kwargs))   # type: ignore
         return inner
     return wrapper
+
 
 @lru_cache(4096)
 def get_signature(target: Callable):

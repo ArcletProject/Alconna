@@ -82,11 +82,13 @@ def set_default(
 ) -> _SetDefault:
     ...
 
+
 @overload
 def set_default(
     *, factory: Callable[..., Any], arg: str | None = None, option: str | None = None, subcommand: str | None = None,
 ) -> _SetDefault:
     ...
+
 
 def set_default(
     *,

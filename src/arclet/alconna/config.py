@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ContextManager, Final, TypedDict
+from .typing import THeader
 
 
 class OptionNames(TypedDict):
@@ -15,7 +16,7 @@ class OptionNames(TypedDict):
 @dataclass(init=True, repr=True)
 class Namespace:
     name: str
-    headers: list[str | object] | list[tuple[object, str]] = field(default_factory=list)
+    headers: THeader = field(default_factory=list)
     separators: tuple[str, ...] = field(default_factory=lambda: (" ",))
     formatter_type: type["TextFormatter"] | None = field(default=None)  # type: ignore
     fuzzy_match: bool = field(default=False)

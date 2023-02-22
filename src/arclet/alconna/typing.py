@@ -1,9 +1,10 @@
 """Alconna 参数相关"""
 from __future__ import annotations
 
-from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Tuple, Dict
+from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Tuple, Dict, List
 from nepattern import BasePattern, type_parser, PatternModel
 
+THeader = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
 
 
@@ -45,7 +46,7 @@ class MultiVar(BasePattern):
     flag: Literal["+", "*"]
     length: int
 
-    def __init__( self, value: BasePattern | Any, flag: int | Literal["+", "*"] = "+"):
+    def __init__(self, value: BasePattern | Any, flag: int | Literal["+", "*"] = "+"):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         assert isinstance(self.base, BasePattern)
         if not isinstance(flag, int):
@@ -70,4 +71,4 @@ class MultiVar(BasePattern):
 Nargs = MultiVar
 Kw = _Kw()
 
-__all__ = ["DataCollection", "TDataCollection", "MultiVar", "Nargs", "Kw", "KeyWordVar"]
+__all__ = ["DataCollection", "TDataCollection", "MultiVar", "Nargs", "Kw", "KeyWordVar", "THeader"]

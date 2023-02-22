@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import re
-from inspect import isclass
-from typing import TYPE_CHECKING, Any, Iterable, List
+from typing import TYPE_CHECKING, Any, Iterable
 
 from nepattern import AllParam, BasePattern, Empty
 from nepattern.util import TPattern
 
 from .args import Arg, Args
+from .header import Double
 from .base import Option, Subcommand
 from .config import config
 from .exceptions import ArgumentMissing, CompletionTriggered, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered
@@ -112,6 +112,7 @@ def _loop(
             raise ParamsUnmatched
         result = [default] if default else []
     return tuple(result)
+
 
 def multi_arg_handler(
     analyser: SubAnalyser,
@@ -241,6 +242,7 @@ def analyse_unmatch_params(analyser: SubAnalyser, text: str):
             if analyser.fuzzy_match and levenshtein_norm(_may_param, _p.command.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_may_param, target=_p.command.name))
 
+
 def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionResult]:
     """
     分析 Option 部分
@@ -299,6 +301,7 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
         _param.process()
         analyser.subcommands_result.setdefault(_param.command.dest, _param.export())
 
+
 def analyse_header(analyser: Analyser) -> tuple:
     command = analyser.command_header
     head_text, _str = analyser.container.popitem()
@@ -306,43 +309,21 @@ def analyse_header(analyser: Analyser) -> tuple:
         return head_text, head_text, True, mat.groupdict()
     elif isinstance(command, BasePattern) and (val := command(head_text, Empty)).success:
         return head_text, val.value, True
-    else:
-        may_command, _m_str = analyser.container.popitem()
-        if isinstance(command, List) and _m_str and not _str:
-            for _command in command:
-                if (mat := _command[1].fullmatch(may_command)) and head_text == _command[0]:
-                    return (head_text, may_command), (head_text, may_command), True, mat.groupdict()
-        if isinstance(command, tuple):
-            if not _str and not isclass(head_text) and (
-                (isinstance(command[0], list) and (head_text in command[0] or type(head_text) in command[0])) or
-                (isinstance(command[0], tuple) and (head_text in command[0][0] or type(head_text) in command[0][0]))
-            ):
-                if isinstance(command[1], TPattern):
-                    if _m_str and (mat := command[1].fullmatch(may_command)):
-                        return (head_text, may_command), (head_text, may_command), True, mat.groupdict()
-                elif (val := command[1](may_command, Empty)).success:
-                    return (head_text, may_command), (head_text, val.value), True
-            elif _str and isinstance(command[0], tuple) and isinstance(command[0][1], TPattern):
-                if _m_str:
-                    pat = re.compile(command[0][1].pattern + command[1].pattern)  # type: ignore
-                    if mat := pat.fullmatch(head_text):
-                        analyser.container.pushback(may_command)
-                        return head_text, head_text, True, mat.groupdict()
-                    elif mat := pat.fullmatch(head_text + may_command):
-                        return head_text + may_command, head_text + may_command, True, mat.groupdict()
-                elif isinstance(command[1], BasePattern) and (
-                    (mat := command[0][1].fullmatch(head_text)) and (val := command[1](may_command, Empty)).success
-                ):
-                    return (head_text, may_command), (head_text, val.value), True, mat.groupdict()
+
+    may_command, _m_str = analyser.container.popitem()
+    if isinstance(command, list) and _m_str:
+        for pair in command:
+            if res := pair.match(head_text, may_command):
+                return res
+    if isinstance(command, Double) and (
+        res := command.match(head_text, may_command, _str, _m_str, analyser.container.pushback)
+    ):
+        return res
 
     if _str and analyser.fuzzy_match:
         headers_text = []
         if analyser.command.headers and analyser.command.headers != [""]:
-            for i in analyser.command.headers:
-                if isinstance(i, str):
-                    headers_text.append(f"{i}{analyser.command.command}")
-                else:
-                    headers_text.extend((f"{i}", analyser.command.command))
+            headers_text.extend(f"{i}{analyser.command.command}" for i in analyser.command.headers)
         elif analyser.command.command:
             headers_text.append(analyser.command.command)
         if isinstance(command, (TPattern, BasePattern)):
@@ -357,6 +338,7 @@ def analyse_header(analyser: Analyser) -> tuple:
                 analyser.header_result = (source, ht, True)
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(target=source, source=ht))
     raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
+
 
 def handle_help(analyser: Analyser):
     _help_param = [str(i) for i in analyser.container.release(recover=True) if i not in analyser.special]

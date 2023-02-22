@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import re
 import traceback
-from copy import copy
 from re import Match
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, Callable
 from dataclasses import dataclass, field, InitVar
 from typing_extensions import Self
 
-from nepattern import pattern_map, type_parser, BasePattern
+from nepattern import BasePattern
 from nepattern.util import TPattern
 
 from .manager import command_manager, ShortcutArgs
@@ -22,6 +20,7 @@ from .exceptions import (
     NullMessage
 )
 from .args import Args
+from .header import handle_header, Pair, Double
 from .base import Option, Subcommand
 from .model import Sentence, HeadResult, OptionResult, SubcommandResult
 from .arparma import Arparma
@@ -34,24 +33,6 @@ from .container import DataCollectionContainer, TContainer
 if TYPE_CHECKING:
     from .core import Alconna
 
-
-def handle_bracket(name: str):
-    if len(parts := re.split(r"(\{.*?})", name)) <= 1:
-        return name
-    for i, part in enumerate(parts):
-        if not part:
-            continue
-        if part.startswith('{') and part.endswith('}'):
-            res = part[1:-1].split(':')
-            if not res or (len(res) > 1 and not res[1] and not res[0]):
-                parts[i] = ".+?"
-            elif len(res) == 1 or not res[1]:
-                parts[i] = f"(?P<{res[0]}>.+?)"
-            elif not res[0]:
-                parts[i] = f"{pattern_map[res[1]].pattern if res[1] in pattern_map else res[1]}"
-            else:
-                parts[i] = f"(?P<{res[0]}>{pattern_map[res[1]].pattern if res[1] in pattern_map else res[1]})"
-    return "".join(parts)
 
 @dataclass
 class SubAnalyser(Generic[TContainer]):
@@ -155,13 +136,9 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     command: Alconna  # Alconna实例
     used_tokens: set[int]  # 已使用的token
     # 命令头部
-    command_header: (
-        BasePattern | TPattern | list[tuple[Any, TPattern]] |
-        tuple[tuple[list[Any], TPattern] | list[Any], TPattern | BasePattern]
-    )
+    command_header: TPattern | BasePattern | list[Pair] | Double
     container_type: type[TContainer]
     _global_container_type = DataCollectionContainer
-
 
     def __init__(self, alconna: Alconna, container_type: type[TContainer] | None = None):
         _type: type[TContainer] = container_type or self.__class__._global_container_type  # type: ignore
@@ -178,7 +155,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.used_tokens = set()
         self.default_separate = True
-        self.__init_header__(alconna.command, alconna.headers)
+        self.command_header = handle_header(alconna.command, alconna.headers)
 
     @classmethod
     def default_container(cls, __t: type[TContainer] | None = None) -> type[Analyser[TContainer, TDataCollection]]:
@@ -194,40 +171,6 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     @staticmethod
     def converter(command: str) -> TDataCollection:
         return command  # type: ignore
-    def __init_header__(
-        self, command_name: str | type | BasePattern, headers: list[Any] | list[tuple[Any, str]]
-    ):
-        if isinstance(command_name, str):
-            command_name = handle_bracket(command_name)
-
-        _cmd_name, _cmd_str = (
-            (re.compile(command_name), command_name) if isinstance(command_name, str) else
-            (copy(type_parser(command_name)), str(command_name))
-        )
-        if not headers:
-            self.command_header = _cmd_name  # type: ignore
-        elif isinstance(headers[0], tuple):
-            mixins = [(h[0], re.compile(re.escape(h[1]) + _cmd_str)) for h in headers]  # type: ignore
-            self.command_header = mixins
-        else:
-            elements = []
-            ch_text = ""
-            for h in headers:
-                if isinstance(h, str):
-                    ch_text += f"{re.escape(h)}|"
-                else:
-                    elements.append(h)
-            if not elements:
-                if isinstance(_cmd_name, TPattern):
-                    self.command_header = re.compile(f"(?:{ch_text[:-1]}){_cmd_str}")  # noqa
-                else:
-                    _cmd_name.pattern = f"(?:{ch_text[:-1]}){_cmd_name.pattern}"  # type: ignore
-                    _cmd_name.regex_pattern = re.compile(_cmd_name.pattern)  # type: ignore
-                    self.command_header = _cmd_name  # type: ignore
-            elif not ch_text:
-                self.command_header = (elements, _cmd_name)  # type: ignore
-            else:
-                self.command_header = (elements, re.compile(f"(?:{ch_text[:-1]})")), _cmd_name  # type: ignore # noqa
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.path}>"
@@ -242,7 +185,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             *[f'{k}{f"{self.container.separators[0]}{v}" if v else ""}' for k, v in short.get('options', {}).items()]
         )
         if reg:
-            groups: list[str] = reg.groups()
+            groups: tuple[str, ...] = reg.groups()
             gdict: dict[str, str] = reg.groupdict()
             for j, data in enumerate(self.container.raw_data):
                 if isinstance(data, str):
@@ -357,6 +300,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
 
 TAnalyser = TypeVar("TAnalyser", bound=Analyser)
 
+
 def _compile_opts(option: Option, data: dict[str, Sentence | list[Option] | SubAnalyser]):
     for alias in option.aliases:
         if (li := data.get(alias)) and isinstance(li, list):
@@ -364,7 +308,6 @@ def _compile_opts(option: Option, data: dict[str, Sentence | list[Option] | SubA
             li.sort(key=lambda x: x.priority, reverse=True)
         else:
             data[alias] = [option]
-
 
 
 def default_params_parser(analyser: SubAnalyser, _config: Namespace):

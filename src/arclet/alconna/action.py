@@ -91,4 +91,3 @@ def exec_(data: OptionResult | SubcommandResult, func: ArgAction, raise_exc: boo
     return (
         ("args", exec_args(data.args, func, raise_exc)) if data.args else ("value", func.action())
     )
-

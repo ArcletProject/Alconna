@@ -134,55 +134,82 @@ def test_alconna_chain_option():
 
 
 def test_alconna_multi_header():
+    from nepattern import NUMBER
+
     class A:
         pass
 
     a, b = A(), A()
+    # 纯文字头
     alc6 = Alconna("core6", ["/", "!", "."])
     assert alc6.parse("!core6").head_matched is True
     assert alc6.parse("#core6").head_matched is False
+    assert alc6.parse("! core6").head_matched is False
     assert alc6.parse([a]).head_matched is False
-    alc6_1 = Alconna("core6_1", ["/", a])
-    assert alc6_1.parse("/core6_1").head_matched is True
-    assert alc6_1.parse([a, "core6_1"]).head_matched is True
-    assert alc6_1.parse([b, "core6_1"]).head_matched is False
-    alc6_2 = Alconna("core6_2", [(a, "/")])
+    # 对头
+    alc6_2 = Alconna("core6_2", [(a, "/"), (A, "!"), ("c", "."), (NUMBER, "d")])
     assert alc6_2.parse([a, "/core6_2"]).head_matched is True
     assert alc6_2.parse([a, "core6_2"]).head_matched is False
+    assert alc6_2.parse([b, "/core6_2"]).head_matched is False
+    assert alc6_2.parse([b, "!core6_2"]).head_matched is True
+    assert alc6_2.parse([a, "!core6_2"]).head_matched is True
+    assert alc6_2.parse([A, "!core6_2"]).head_matched is False
+    assert alc6_2.parse(["c", ".core6_2"]).head_matched is True
+    assert alc6_2.parse(["c", "core6_2"]).head_matched is False
+    assert alc6_2.parse("c.core6_2").head_matched is False
+    assert alc6_2.parse([123, "dcore6_2"]).head_matched is True
+    assert alc6_2.parse(["123.0", "dcore6_2"]).head_matched is True
+    assert alc6_2.parse(['aaa', "dcore6_2"]).head_matched is False
+    assert alc6_2.parse('123dcore6_2').head_matched is False
     assert alc6_2.parse("/core6_2").head_matched is False
+    # 只有纯元素类头
     alc6_3 = Alconna(A)
     assert alc6_3.parse([a]).head_matched is True
     assert alc6_3.parse([b]).head_matched is True
     assert alc6_3.parse("a").head_matched is False
-    alc6_4 = Alconna(A, ["/", b])
-    assert alc6_4.parse(["/", a]).head_matched is True
-    assert alc6_4.parse([b, b]).head_matched is True
-    assert alc6_4.parse([b, a]).head_matched is True
-    assert alc6_4.parse([b]).head_matched is False
-    assert alc6_4.parse([b, "abc"]).head_matched is False
-    alc6_5 = Alconna(["/dd", "!cd"])
-    assert alc6_5.parse("/dd").head_matched is True
-    assert alc6_5.parse("/dd !cd").matched is False
-    alc6_6 = Alconna(1234)
-    assert alc6_6.parse([1234]).head_matched is True
-    assert alc6_6.parse([4321]).head_matched is False
-    alc6_7 = Alconna("core6_7", [A])
-    assert alc6_7.parse([a, "core6_7"]).head_matched is True
-    assert alc6_7.parse([b, "core6_7"]).head_matched is True
-    assert alc6_7.parse([A, "core6_7"]).head_matched is False
-    assert alc6_7.parse("core6_7").head_matched is False
+    # 只有纯文字头
+    alc6_4 = Alconna(["/dd", "!cd"])
+    assert alc6_4.parse("/dd").head_matched is True
+    assert alc6_4.parse("/dd !cd").matched is False
+    # 只有纯元素头
+    alc6_5 = Alconna(a)
+    assert alc6_5.parse([a]).head_matched is True
+    assert alc6_5.parse([b]).head_matched is False
+    # 元素类头
+    alc6_6 = Alconna("core6_6", [A])
+    assert alc6_6.parse([a, "core6_6"]).head_matched is True
+    assert alc6_6.parse([b, "core6_6"]).head_matched is True
+    assert alc6_6.parse([A, "core6_6"]).head_matched is False
+    assert alc6_6.parse("core6_6").head_matched is False
+    # 表达式头
+    alc6_7 = Alconna("core6_7", [NUMBER])
+    assert alc6_7.parse([123, "core6_7"]).head_matched is True
+    assert alc6_7.parse("123core6_7").head_matched is False
+    # 混合头
     alc6_8 = Alconna("core6_8", [A, '/'])
     assert alc6_8.parse([a, "core6_8"]).head_matched is True
     assert alc6_8.parse([b, "core6_8"]).head_matched is True
-    assert alc6_8.parse([A, "core6_8"]).head_matched is False
     assert alc6_8.parse("/core6_8").head_matched is True
+    assert alc6_8.parse([A, "core6_8"]).head_matched is False
+    assert alc6_8.parse(["/", "core6_8"]).head_matched is True
     assert alc6_8.parse("core6_8").head_matched is False
-    alc6_9 = Alconna(a, ["/", b])
-    assert alc6_9.parse(["/", a]).head_matched is True
-    assert alc6_9.parse([b, b]).head_matched is False
-    assert alc6_9.parse([b, a]).head_matched is True
-    assert alc6_9.parse([b]).head_matched is False
-    assert alc6_9.parse([b, "abc"]).head_matched is False
+    alc6_9 = Alconna("core6_9", ["/", a])
+    assert alc6_9.parse("/core6_9").head_matched is True
+    assert alc6_9.parse([a, "core6_9"]).head_matched is True
+    assert alc6_9.parse([b, "core6_9"]).head_matched is False
+    assert alc6_9.parse([A, "core6_9"]).head_matched is False
+    alc6_10 = Alconna(a, ["/", b])
+    assert alc6_10.parse(["/", a]).head_matched is True
+    assert alc6_10.parse([b, b]).head_matched is False
+    assert alc6_10.parse([b, a]).head_matched is True
+    assert alc6_10.parse([b]).head_matched is False
+    assert alc6_10.parse([b, "abc"]).head_matched is False
+    alc6_11 = Alconna(A, ["/", b])
+    assert alc6_11.parse(["/", a]).head_matched is True
+    assert alc6_11.parse([b, b]).head_matched is True
+    assert alc6_11.parse([b, a]).head_matched is True
+    assert alc6_11.parse([b]).head_matched is False
+    assert alc6_11.parse([b, "abc"]).head_matched is False
 
 
 def test_alconna_namespace():

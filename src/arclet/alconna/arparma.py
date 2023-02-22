@@ -83,7 +83,6 @@ class Arparma(Generic[TDataCollection]):
         self.options = {}
         self.subcommands = {}
 
-
     def _clr(self):
         ks = list(self.__dict__.keys())
         for k in ks:
@@ -266,6 +265,7 @@ class ArparmaBehavior(metaclass=ABCMeta):
     """
     record: dict[int, dict[str, tuple[Any, Any]]] = field(default_factory=dict, init=False, repr=False, hash=False)
     requires: list[ArparmaBehavior] = field(init=False, hash=False, repr=False)
+
     def before_operate(self, interface: Arparma):
         if not self.record:
             return
