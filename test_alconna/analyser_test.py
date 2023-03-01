@@ -3,7 +3,7 @@ from typing import Any, Union
 
 from arclet.alconna import Alconna, Args, Option
 from arclet.alconna.container import DataCollectionContainer
-from nepattern import BasePattern, PatternModel
+from nepattern import BasePattern, MatchMode
 
 
 @dataclass
@@ -29,12 +29,14 @@ class Segment:
     def at(user_id: Union[int, str]):
         return Segment("at", {"qq": str(user_id)})
 
+
 def gen_unit(type_: str):
     return BasePattern(
-        type_, PatternModel.TYPE_CONVERT, Any,
+        type_, MatchMode.TYPE_CONVERT, Any,
         lambda _, seg: seg if seg.type == type_ else None,
         type_, accepts=[Segment]
     )
+
 
 Face = gen_unit("face")
 At = gen_unit("at")

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Tuple, Dict, List
-from nepattern import BasePattern, type_parser, PatternModel
+from nepattern import BasePattern, type_parser, MatchMode
 
 THeader = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
@@ -27,7 +27,7 @@ class KeyWordVar(BasePattern):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         self.sep = sep
         assert isinstance(self.base, BasePattern)
-        super().__init__(r"(.+?)", PatternModel.KEEP, self.base.origin, alias=f"@{sep}{self.base}")
+        super().__init__(r"(.+?)", MatchMode.KEEP, self.base.origin, alias=f"@{sep}{self.base}")
 
     def __repr__(self):
         return self.alias
@@ -62,7 +62,7 @@ class MultiVar(BasePattern):
             self.flag = "+"
             self.length = 1
         origin = Dict[str, self.base.origin] if isinstance(self.base, KeyWordVar) else Tuple[self.base.origin, ...]
-        super().__init__(r"(.+?)", PatternModel.KEEP, origin, alias=alias)
+        super().__init__(r"(.+?)", MatchMode.KEEP, origin, alias=alias)
 
     def __repr__(self):
         return self.alias

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from inspect import isclass
 from nepattern.util import TPattern
-from nepattern import pattern_map, type_parser, BasePattern, Empty, UnionPattern
+from nepattern import all_patterns, type_parser, BasePattern, Empty, UnionPattern
 import re
 from typing import Any, Callable
 from dataclasses import dataclass, field
@@ -10,6 +10,7 @@ from copy import deepcopy
 
 
 def handle_bracket(name: str):
+    pattern_map = all_patterns()
     if len(parts := re.split(r"(\{.*?})", name)) <= 1:
         return name
     for i, part in enumerate(parts):
@@ -26,12 +27,6 @@ def handle_bracket(name: str):
             else:
                 parts[i] = f"(?P<{res[0]}>{pattern_map[res[1]].pattern if res[1] in pattern_map else res[1]})"
     return "".join(parts)
-
-
-command_header: (
-    BasePattern | TPattern | list[tuple[Any, TPattern]] |
-    tuple[tuple[list[Any], TPattern] | list[Any], TPattern | BasePattern]
-)
 
 
 @dataclass

@@ -312,4 +312,8 @@ class ArparmaBehavior(metaclass=ABCMeta):
 
 @lru_cache(4096)
 def requirement_handler(behavior: ArparmaBehavior) -> list[ArparmaBehavior]:
-    return [*getattr(behavior, 'requires', []), behavior]
+    res = []
+    for b in getattr(behavior, 'requires', []):
+        res.extend(requirement_handler(b))
+    res.append(behavior)
+    return res

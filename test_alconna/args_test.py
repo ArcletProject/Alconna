@@ -1,5 +1,5 @@
 from typing import Union
-from nepattern import BasePattern, PatternModel, Bind
+from nepattern import BasePattern, MatchMode, Bind
 from arclet.alconna import Args, ArgFlag, Nargs, Kw, KeyWordVar
 from devtool import analyse_args
 
@@ -107,7 +107,7 @@ def test_kwonly():
 
 
 def test_pattern():
-    test_type = BasePattern("(.+?).py", PatternModel.REGEX_CONVERT, list, lambda _, x: x.split("/"), "test")
+    test_type = BasePattern("(.+?).py", MatchMode.REGEX_CONVERT, list, lambda _, x: x.split("/"), "test")
     arg15 = Args().add("bar", value=test_type)
     assert analyse_args(arg15, 'abc.py') == {'bar': ['abc']}
     assert analyse_args(arg15, 'abc/def.py') == {'bar': ['abc', 'def']}

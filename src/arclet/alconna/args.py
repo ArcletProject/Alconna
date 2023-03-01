@@ -114,7 +114,7 @@ class ArgsMeta(type):
         return self(Arg(key, *data)) if key else self(Arg(*data))
 
 
-class Args(metaclass=ArgsMeta):  # type: ignore
+class Args(metaclass=ArgsMeta):
     argument: list[Arg]
     var_positional: str | None
     var_keyword: str | None

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import traceback
 from re import Match
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, Callable
+from typing import TYPE_CHECKING, Any, Generic, Callable
 from dataclasses import dataclass, field, InitVar
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from nepattern import BasePattern
 from nepattern.util import TPattern
@@ -298,7 +298,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         return result  # type: ignore
 
 
-TAnalyser = TypeVar("TAnalyser", bound=Analyser)
+TAnalyser = TypeVar("TAnalyser", bound=Analyser, default=Analyser)
 
 
 def _compile_opts(option: Option, data: dict[str, Sentence | list[Option] | SubAnalyser]):
