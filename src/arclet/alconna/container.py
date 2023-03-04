@@ -73,7 +73,7 @@ class DataCollectionContainer:
         self.temporary_data["origin"] = data
         if isinstance(data, str):
             data = [data]
-        i, exc, raw_data = 0, None, self.raw_data
+        i, raw_data = 0, self.raw_data
         for unit in data:
             if (uname := unit.__class__.__name__) in self.filter_out:
                 continue

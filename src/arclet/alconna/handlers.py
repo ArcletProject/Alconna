@@ -10,7 +10,7 @@ from .args import Arg, Args
 from .header import Double
 from .base import Option, Subcommand
 from .config import config
-from .exceptions import ArgumentMissing, CompletionTriggered, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered
+from .exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered
 from .model import OptionResult, Sentence
 from .output import output_manager
 from .typing import KeyWordVar, MultiVar
@@ -160,8 +160,8 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
         key, value, default_val, optional = arg.name, arg.value, arg.field.default_gen, arg.optional
         seps = arg.separators
         may_arg, _str = analyser.container.popitem(seps)
-        if _str and may_arg in analyser.special:
-            raise CompletionTriggered(arg)
+        if _str and (handler := analyser.special.get(may_arg)):
+            raise SpecialOptionTriggered(handler)
         if not may_arg or (_str and may_arg in analyser.container.param_ids):
             analyser.container.pushback(may_arg)
             if default_val is not None:
@@ -195,8 +195,6 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
             result[key] = None if default_val is Empty else default_val
         elif not optional:
             raise ParamsUnmatched(config.lang.args_error.format(target=may_arg))
-        else:
-            continue
     if args.var_keyword:
         kwargs = result[args.var_keyword]
         if not isinstance(kwargs, dict):
@@ -276,9 +274,10 @@ def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionRes
 def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
     if handler := analyser.special.get(_text if _str else Ellipsis):
         raise SpecialOptionTriggered(handler)
-    _param = _param if (_param := (analyser.compile_params.get(_text) if _str and _text else Ellipsis)) else (
-        None if analyser.container.default_separate else analyse_unmatch_params(analyser, _text)
-    )
+    if not _str or not _text:
+        _param = Ellipsis
+    elif not (_param := analyser.compile_params.get(_text)):
+        _param = None if analyser.container.default_separate else analyse_unmatch_params(analyser, _text)
     if (not _param or _param is Ellipsis) and not analyser.args_result:
         analyser.args_result = analyse_args(analyser, analyser.self_args, analyser.command.nargs)
     elif isinstance(_param, list):
@@ -341,7 +340,7 @@ def analyse_header(analyser: Analyser) -> tuple:
 
 
 def handle_help(analyser: Analyser):
-    _help_param = [str(i) for i in analyser.container.release(recover=True) if i not in analyser.special]
+    _help_param = [str(i) for i in analyser.container.release(recover=True) if str(i) not in analyser.special]
     output_manager.send(
         analyser.command.name,
         lambda: analyser.command.formatter.format_node(_help_param),
@@ -417,7 +416,8 @@ def _handle_none(analyser: Analyser, got: list[str]):
     return res
 
 
-def handle_completion(analyser: Analyser, trigger: None | Args | Subcommand | str = None):
+def handle_completion(analyser: Analyser, trigger: str | None = None):
+    trigger = trigger or analyser.container.context
     if isinstance(trigger, Arg):
         _handle_unit(analyser, trigger)
     elif isinstance(trigger, Subcommand):

@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Args, AnyOne, compile, command_manager, config
+from arclet.alconna import Alconna, Args, AnyOne, command_manager, config
 import cProfile
 import pstats
 
@@ -27,7 +27,7 @@ alc = Alconna(
     "test",
     Args["bar", AnyOne]
 )
-compile_alc = compile(alc)
+compile_alc = alc.compile()
 print(alc)
 msg = [Plain(".test"), At(124)]
 count = 20000

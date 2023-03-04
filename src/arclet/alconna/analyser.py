@@ -14,7 +14,6 @@ from .exceptions import (
     ParamsUnmatched,
     ArgumentMissing,
     FuzzyMatchSuccess,
-    CompletionTriggered,
     PauseTriggered,
     SpecialOptionTriggered,
     NullMessage
@@ -32,6 +31,38 @@ from .container import DataCollectionContainer, TContainer
 
 if TYPE_CHECKING:
     from .core import Alconna
+
+
+def _compile_opts(option: Option, data: dict[str, Sentence | list[Option] | SubAnalyser]):
+    for alias in option.aliases:
+        if (li := data.get(alias)) and isinstance(li, list):
+            li.append(option)  # type: ignore
+            li.sort(key=lambda x: x.priority, reverse=True)
+        else:
+            data[alias] = [option]
+
+
+def default_compiler(analyser: SubAnalyser, _config: Namespace):
+    require_len = 0
+    for opts in analyser.command.options:
+        if isinstance(opts, Option):
+            _compile_opts(opts, analyser.compile_params)  # type: ignore
+            analyser.container.param_ids.update(opts.aliases)
+        elif isinstance(opts, Subcommand):
+            sub = SubAnalyser(opts, analyser.container, _config, analyser.fuzzy_match)
+            analyser.compile_params[opts.name] = sub
+            analyser.container.param_ids.add(opts.name)
+            default_compiler(sub, _config)
+        if not set(analyser.container.separators).issuperset(opts.separators):
+            analyser.container.default_separate &= False
+        if opts.requires:
+            analyser.container.param_ids.update(opts.requires)
+            require_len = max(len(opts.requires), require_len)
+            for k in opts.requires:
+                analyser.compile_params.setdefault(k, Sentence(name=k))
+    analyser.part_len = range(
+        len(analyser.command.options) + analyser.need_main_args + require_len
+    )
 
 
 @dataclass
@@ -116,8 +147,7 @@ class SubAnalyser(Generic[TContainer]):
 
     def analyse(self) -> Self:
         for _ in self.part_len:
-            _t, _s = self.container.popitem(self.command.separators, move=False)
-            analyse_param(self, _t, _s)
+            analyse_param(self, *self.container.popitem(self.command.separators, move=False))
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(self, self.self_args, self.command.nargs)
         if not self.args_result and self.need_main_args:
@@ -137,7 +167,6 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     used_tokens: set[int]  # 已使用的token
     # 命令头部
     command_header: TPattern | BasePattern | list[Pair] | Double
-    container_type: type[TContainer]
     _global_container_type = DataCollectionContainer
 
     def __init__(self, alconna: Alconna, container_type: type[TContainer] | None = None):
@@ -151,10 +180,8 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             ),
             alconna.namespace_config
         )
-        self.raise_exception = alconna.meta.raise_exception
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.used_tokens = set()
-        self.default_separate = True
         self.command_header = handle_header(alconna.command, alconna.headers)
 
     @classmethod
@@ -221,7 +248,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             try:
                 _res = command_manager.find_shortcut(self.command, self.container.popitem(move=False)[0])
             except ValueError as exc:
-                if self.raise_exception:
+                if self.command.meta.raise_exception:
                     raise e from exc
                 return self.export(fail=True, exception=e)
             else:
@@ -250,31 +277,28 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             exc = ArgumentMissing(config.lang.analyser_param_missing)
         if interrupt and isinstance(exc, ArgumentMissing):
             raise PauseTriggered(self)
-        if self.raise_exception:
+        if self.command.meta.raise_exception:
             raise exc
         return self.export(fail=True, exception=exc)
 
     def analyse(self, interrupt: bool = False) -> Arparma[TDataCollection] | None:
         for _ in self.part_len:
             try:
-                _t, _s = self.container.popitem(move=False)
-                analyse_param(self, _t, _s)
+                analyse_param(self, *self.container.popitem(move=False))
             except FuzzyMatchSuccess as e:
                 output_manager.send(self.command.name, lambda: str(e))
                 return self.export(fail=True)
             except SpecialOptionTriggered as sot:
                 return sot.args[0](self)
-            except CompletionTriggered as comp:
-                return handle_completion(self, comp.args[0])
             except (ParamsUnmatched, ArgumentMissing) as e1:
                 if (rest := self.container.release()) and isinstance(rest[-1], str):
                     if rest[-1] in self.completion_names:
-                        return handle_completion(self, self.container.context)  # type: ignore
+                        return handle_completion(self)
                     if handler := self.special.get(rest[-1]):
                         return handler(self)
                 if interrupt and isinstance(e1, ArgumentMissing):
                     raise PauseTriggered(self) from e1
-                if self.raise_exception:
+                if self.command.meta.raise_exception:
                     raise
                 return self.export(fail=True, exception=e1)
             if self.container.done:
@@ -297,47 +321,15 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         self.reset()
         return result  # type: ignore
 
+    @classmethod
+    def compile(
+        cls: type[TAnalyser],
+        command: Alconna[TAnalyser],
+        compiler: Callable[[TAnalyser, Namespace], None] = default_compiler
+    ) -> TAnalyser:
+        _analyser = command.analyser_type(command)
+        compiler(_analyser, command.namespace_config)
+        return _analyser
+
 
 TAnalyser = TypeVar("TAnalyser", bound=Analyser, default=Analyser)
-
-
-def _compile_opts(option: Option, data: dict[str, Sentence | list[Option] | SubAnalyser]):
-    for alias in option.aliases:
-        if (li := data.get(alias)) and isinstance(li, list):
-            li.append(option)  # type: ignore
-            li.sort(key=lambda x: x.priority, reverse=True)
-        else:
-            data[alias] = [option]
-
-
-def default_params_parser(analyser: SubAnalyser, _config: Namespace):
-    require_len = 0
-    for opts in analyser.command.options:
-        if isinstance(opts, Option):
-            _compile_opts(opts, analyser.compile_params)  # type: ignore
-            analyser.container.param_ids.update(opts.aliases)
-        elif isinstance(opts, Subcommand):
-            sub = SubAnalyser(opts, analyser.container, _config, analyser.fuzzy_match)
-            analyser.compile_params[opts.name] = sub
-            analyser.container.param_ids.add(opts.name)
-            default_params_parser(sub, _config)
-        if not set(analyser.container.separators).issuperset(opts.separators):
-            analyser.container.default_separate &= False
-        if opts.requires:
-            analyser.container.param_ids.update(opts.requires)
-            require_len = max(len(opts.requires), require_len)
-            for k in opts.requires:
-                analyser.compile_params.setdefault(k, Sentence(name=k))
-    analyser.part_len = range(
-        len(analyser.command.options) + analyser.need_main_args + require_len
-    )
-
-
-def compile(alconna: Alconna[TAnalyser], params_parser: Callable[[TAnalyser, Namespace], None] = default_params_parser) -> TAnalyser:
-    _analyser = alconna.analyser_type(alconna)
-    params_parser(_analyser, alconna.namespace_config)
-    return _analyser
-
-
-def analyse(alconna: Alconna, command: TDataCollection) -> Arparma[TDataCollection]:
-    return compile(alconna).process(command).analyse().execute()

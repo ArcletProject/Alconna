@@ -4,7 +4,7 @@ from collections import namedtuple
 from typing import Any
 import traceback
 
-from arclet.alconna.analyser import Analyser, default_params_parser
+from arclet.alconna.analyser import Analyser, default_compiler
 from arclet.alconna.container import DataCollectionContainer
 from arclet.alconna.handlers import analyse_args as ala, analyse_header as alh, analyse_option as alo
 from arclet.alconna.typing import DataCollection
@@ -76,7 +76,7 @@ def analyse_option(option: Option, command: DataCollection[str | Any], raise_exc
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.command.options.append(option)
-    default_params_parser(_analyser, _analyser.command.namespace_config)
+    default_compiler(_analyser, _analyser.command.namespace_config)
     _analyser.command.options.clear()
     try:
         _analyser.container.build(command)
@@ -94,7 +94,7 @@ def analyse_subcommand(subcommand: Subcommand, command: DataCollection[str | Any
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.command.options.append(subcommand)
-    default_params_parser(_analyser, _analyser.command.namespace_config)
+    default_compiler(_analyser, _analyser.command.namespace_config)
     _analyser.command.options.clear()
     try:
         _analyser.container.build(command)

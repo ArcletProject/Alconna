@@ -6,7 +6,7 @@ from .typing import MultiVar, KeyWordVar, Kw, Nargs
 from .args import Args, Field, ArgFlag, Arg
 from .base import CommandNode, Option, Subcommand
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
-from .analyser import compile, analyse
+from .analyser import Analyser
 from .container import DataCollectionContainer
 from .core import Alconna, CommandMeta
 from .arparma import Arparma, ArparmaBehavior

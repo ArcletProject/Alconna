@@ -30,16 +30,16 @@ class ActionHandler(ArparmaBehavior):
     main_action: ArgAction | None = field(init=False, default=None)
     options: dict[str, ArgAction] = field(init=False, default_factory=dict)
 
+    def _step(self, src, prefix=None):
+        for opt in src.options:
+            if opt.action:
+                self.options[(f"{prefix}." if prefix else "") + opt.dest] = opt.action
+            if hasattr(opt, "options"):
+                self._step(opt, (f"{prefix}." if prefix else "") + opt.dest)
+
     def __post_init__(self, source: Alconna):
         self.main_action = source.action
-        def _step(src, prefix=None):
-            for opt in src.options:
-                if opt.action:
-                    self.options[(f"{prefix}." if prefix else "") + opt.dest] = opt.action
-                if hasattr(opt, "options"):
-                    _step(opt, (f"{prefix}." if prefix else "") + opt.dest)
-
-        _step(source)
+        self._step(source)
 
     def operate(self, interface: Arparma):
         self.before_operate(interface)
@@ -93,6 +93,9 @@ class Alconna(Subcommand, Generic[TAnalyser]):
     behaviors: list[ArparmaBehavior]
 
     global_analyser_type: type[Analyser] = Analyser
+
+    def compile(self) -> TAnalyser:
+        return self.analyser_type.compile(self)
 
     @classmethod
     def default_analyser(cls, __t: type[TAnalyser] | None = None) -> type[Alconna[TAnalyser]]:
@@ -219,15 +222,15 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         try:
             if delete:
                 command_manager.delete_shortcut(self, key)
-                return config.lang.shortcut_delete_success.format(shortcut=key, target=self.path.split(".")[-1])
+                return config.lang.shortcut_delete_success.format(shortcut=key, target=self.path)
             if args:
                 command_manager.add_shortcut(self, key, args)
-                return config.lang.shortcut_add_success.format(shortcut=key, target=self.path.split(".")[-1])
+                return config.lang.shortcut_add_success.format(shortcut=key, target=self.path)
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
                     command_manager.add_shortcut(self, key, {"command": cmd})
-                    return config.lang.shortcut_add_success.format(shortcut=key, target=self.path.split(".")[-1])
+                    return config.lang.shortcut_add_success.format(shortcut=key, target=self.path)
                 raise ValueError(
                     config.lang.shortcut_recent_command_error.format(
                         target=self.path, source=getattr(alc, "path", "Unknown"))
@@ -272,7 +275,7 @@ class Alconna(Subcommand, Generic[TAnalyser]):
     @overload
     def parse(self, message, *, duplication: type[T_Duplication]) -> T_Duplication: ...
     @overload
-    def parse(self, message, *, interrupt: Literal[True]) -> TAnalyser: ...
+    def parse(self, message: TDataCollection, *, interrupt: Literal[True]) -> Arparma[TDataCollection] | TAnalyser: ...
     def parse(
         self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None, interrupt: bool = False
     ) -> TAnalyser | Arparma[TDataCollection] | T_Duplication:

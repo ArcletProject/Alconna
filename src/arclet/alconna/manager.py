@@ -100,11 +100,10 @@ class CommandManager:
 
     def register(self, command: Alconna) -> None:
         """注册命令解析器, 会同时记录解析器对应的命令"""
-        from .analyser import compile
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         self.__analysers.pop(command, None)
-        self.__analysers[command] = compile(command)
+        self.__analysers[command] = command.compile()
         namespace = self.__commands.setdefault(command.namespace, {})
         if _cmd := namespace.get(command.name):
             if _cmd == command:
@@ -153,10 +152,9 @@ class CommandManager:
         if not enabled and command not in self.__abandons:
             self.__abandons.append(command)
 
-
     def add_shortcut(self, target: Alconna, key: str, source: Arparma | ShortcutArgs):
         """添加快捷命令"""
-        namespace, name = self._command_part(target if isinstance(target, str) else target.path)
+        namespace, name = self._command_part(target.path)
         if isinstance(source, dict):
             source['command'] = source.get('command', target.command or target.name)
             self.__shortcuts.set(f"{namespace}.{name}::{key}", source)
@@ -168,9 +166,11 @@ class CommandManager:
     @overload
     def find_shortcut(self, target: Alconna) -> list[Union[Arparma, ShortcutArgs]]:
         ...
+
     @overload
     def find_shortcut(self, target: Alconna, query: str) -> tuple[Arparma | ShortcutArgs, Match | None]:
         ...
+
     def find_shortcut(self, target: Alconna, query: str | None = None):
         """查找快捷命令"""
         namespace, name = self._command_part(target.path)
@@ -242,11 +242,11 @@ class CommandManager:
         header = header or config.lang.manager_help_header
         if max_length < 1:
             command_string = "\n".join(
-                [f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
-                for index, slot in enumerate(cmds)]
+                f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
+                for index, slot in enumerate(cmds)
             ) if show_index else "\n".join(
-                [f" - {cmd.name} : {cmd.meta.description}"
-                for cmd in cmds]
+                f" - {cmd.name} : {cmd.meta.description}"
+                for cmd in cmds
             )
         else:
             max_page = len(cmds) // max_length + 1
@@ -254,13 +254,13 @@ class CommandManager:
                 page = 1
             header += "\t" + pages.format(current=page, total=max_page)
             command_string = "\n".join(
-                [f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : {cmd.meta.description}"
+                f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : {cmd.meta.description}"
                 for index, cmd in enumerate(
                     cmds[(page - 1) * max_length: page * max_length], start=(page - 1) * max_length
-                )]
+                )
             ) if show_index else "\n".join(
-                [f" - {cmd.name} : {cmd.meta.description}"
-                for cmd in cmds[(page - 1) * max_length: page * max_length]]
+                f" - {cmd.name} : {cmd.meta.description}"
+                for cmd in cmds[(page - 1) * max_length: page * max_length]
             )
         help_names = set()
         for i in cmds:
