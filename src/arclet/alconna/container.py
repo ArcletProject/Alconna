@@ -17,7 +17,7 @@ _cache: dict[type, dict[str, Any]] = {}
 @dataclass(repr=True)
 class DataCollectionContainer:
     preprocessors: dict[str, Callable[..., Any]] = field(default_factory=dict)
-    text_sign: str = field(default='text')
+    to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
     separators: tuple[str, ...] = field(default=(' ',))  # 分隔符
     filter_out: list[str] = field(default_factory=list)  # 元素黑名单
     default_separate: bool = field(default=True)
@@ -37,7 +37,7 @@ class DataCollectionContainer:
     def config(
         cls,
         preprocessors: dict[str, Callable[..., Any]] | None = None,
-        text_sign: str | None = None,
+        to_text: Callable[[Any], str | None] = None,
         filter_out: list[str] | None = None
     ):
         _cache.setdefault(cls, {}).update(locals())
@@ -47,7 +47,7 @@ class DataCollectionContainer:
         if __cache := _cache.get(self.__class__, {}):
             self.preprocessors.update(__cache["preprocessors"] or {})
             self.filter_out.extend(__cache["filter_out"] or [])
-            self.text_sign = __cache["text_sign"] or self.text_sign
+            self.to_text = __cache["to_text"] or self.to_text
 
     def reset(self):
         self.current_index, self.ndata, self.temp_token = 0, 0, 0
@@ -79,7 +79,7 @@ class DataCollectionContainer:
                 continue
             if (proc := self.preprocessors.get(uname)) and (res := proc(unit)):
                 unit = res
-            if text := unit if isinstance(unit, str) else getattr(unit, self.text_sign, ''):
+            if text := self.to_text(unit):
                 if not (res := text.strip()):
                     continue
                 raw_data.append(res)

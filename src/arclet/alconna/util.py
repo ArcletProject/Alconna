@@ -58,23 +58,28 @@ QUOTATION = {"'", '"', "’", "“"}
 @lru_cache(4096)
 def split_once(text: str, separates: str | tuple[str, ...], crlf: bool = True):
     """单次分隔字符串"""
-    index, out_text, quotation = 0, "", ""
+    index, out_text, quotation, escape = 0, "", "", False
     separates = tuple(separates)
     text = text.lstrip()
-    for index, char in enumerate(text):
-        if char in QUOTATION:  # 遇到引号括起来的部分跳过分隔
+    for char in text:
+        if char == "\\":
+            escape = True
+            out_text += char
+        elif char in QUOTATION:  # 遇到引号括起来的部分跳过分隔
             if not quotation:
                 quotation = char
-                if index and text[index - 1] == "\\":
-                    out_text += char
+                if escape:
+                    out_text = out_text[:-1] + char
             elif char == quotation:
                 quotation = ""
-                if index and text[index - 1] == "\\":
-                    out_text += char
+                if escape:
+                    out_text = out_text[:-1] + char
         elif (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
             break
-        elif char != "\\" or text[index + 1] not in QUOTATION:
+        else:
             out_text += char
+            escape = False
+        index += 1
     return out_text, text[index + 1:]
 
 
@@ -91,22 +96,26 @@ def split(text: str, separates: tuple[str, ...] | None = None, crlf: bool = True
         List[str]: 切割后的字符串, 可能含有空格
     """
     separates = separates or (" ",)
-    result, quotation = "", ""
-    for index, char in enumerate(text):
-        if char in QUOTATION:
+    result, quotation, escape = "", "", False
+    for char in text:
+        if char == "\\":
+            escape = True
+            result += char
+        elif char in QUOTATION:
             if not quotation:
                 quotation = char
-                if index and text[index - 1] == "\\":
-                    result += char
+                if escape:
+                    result = result[:-1] + char
             elif char == quotation:
                 quotation = ""
-                if index and text[index - 1] == "\\":
-                    result += char
+                if escape:
+                    result = result[:-1] + char
         elif (not quotation and char in separates) or (crlf and char in {"\n", "\r"}):
             if result and result[-1] != "\0":
                 result += "\0"
-        elif char != "\\" or text[index + 1] not in QUOTATION:
+        else:
             result += char
+            escape = False
     return result.split('\0') if result else []
 
 

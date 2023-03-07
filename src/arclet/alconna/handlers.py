@@ -11,7 +11,7 @@ from .header import Double
 from .base import Option, Subcommand
 from .config import config
 from .exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered
-from .model import OptionResult, Sentence
+from .model import OptionResult, Sentence, HeadResult
 from .output import output_manager
 from .typing import KeyWordVar, MultiVar
 from .util import levenshtein_norm, split_once
@@ -49,7 +49,7 @@ def _handle_keyword(
             if optional:
                 return
             raise ParamsUnmatched(*res.error.args)
-        result_dict[_kwarg[1]] = res.value
+        result_dict[_kwarg[1]] = res._value  # type: ignore
         return
     analyser.container.pushback(may_arg)
     raise ParamsUnmatched(config.lang.args_key_missing.format(target=may_arg, key=key))
@@ -106,7 +106,7 @@ def _loop(
         if (res := value.base(_m_arg)).flag != 'valid':
             container.pushback(_m_arg)
             break
-        result.append(res.value)
+        result.append(res._value)  # type: ignore
     if not result:
         if value.flag == '+':
             raise ParamsUnmatched
@@ -183,7 +183,7 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
                     continue
                 raise ParamsUnmatched(*res.error.args)
             if not key.startswith('_key'):
-                result[key] = res.value
+                result[key] = res._value  # type: ignore
         elif value is AllParam:
             analyser.container.pushback(may_arg)
             result[key] = analyser.container.release(seps)
@@ -301,23 +301,23 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
         analyser.subcommands_result.setdefault(_param.command.dest, _param.export())
 
 
-def analyse_header(analyser: Analyser) -> tuple:
+def analyse_header(analyser: Analyser) -> HeadResult:
     command = analyser.command_header
     head_text, _str = analyser.container.popitem()
     if isinstance(command, TPattern) and _str and (mat := command.fullmatch(head_text)):
-        return head_text, head_text, True, mat.groupdict()
+        return HeadResult(head_text, head_text, True, mat.groupdict())
     elif isinstance(command, BasePattern) and (val := command(head_text, Empty)).success:
-        return head_text, val.value, True
+        return HeadResult(head_text, val.value, True)
 
     may_command, _m_str = analyser.container.popitem()
     if isinstance(command, list) and _m_str:
         for pair in command:
             if res := pair.match(head_text, may_command):
-                return res
+                return HeadResult(*res)
     if isinstance(command, Double) and (
         res := command.match(head_text, may_command, _str, _m_str, analyser.container.pushback)
     ):
-        return res
+        return HeadResult(*res)
 
     if _str and analyser.fuzzy_match:
         headers_text = []

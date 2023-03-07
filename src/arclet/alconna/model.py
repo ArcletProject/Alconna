@@ -2,7 +2,7 @@ from dataclasses import dataclass
 _repr_ = lambda self: " ".join(f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__)
 
 
-@dataclass(eq=True)
+@dataclass(init=False, eq=True)
 class Sentence:
     __slots__ = ("name", "separators")
     __repr__ = _repr_
@@ -11,7 +11,7 @@ class Sentence:
         self.separators = separators or (" ",)
 
 
-@dataclass(eq=True)
+@dataclass(init=False, eq=True)
 class OptionResult:
     __slots__ = ("value", "args")
     __repr__ = _repr_
@@ -20,7 +20,7 @@ class OptionResult:
         self.args = args or {}
 
 
-@dataclass(eq=True)
+@dataclass(init=False, eq=True)
 class SubcommandResult:
     __slots__ = ("value", "args", "options", "subcommands")
     __repr__ = _repr_
@@ -31,7 +31,7 @@ class SubcommandResult:
         self.subcommands = subcommands or {}
 
 
-@dataclass(eq=True)
+@dataclass(init=False, eq=True)
 class HeadResult:
     __slots__ = ("origin", "result", "matched", "groups")
     __repr__ = _repr_

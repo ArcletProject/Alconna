@@ -82,7 +82,7 @@ class SubAnalyser(Generic[TContainer]):
     subcommands_result: dict[str, SubcommandResult] = field(init=False)
     options_result: dict[str, OptionResult] = field(init=False)  # 存放解析到的所有选项
     args_result: dict[str, Any] = field(init=False)  # 参数的解析结果
-    header_result: tuple[Any, ...] = field(init=False)
+    header_result: HeadResult | None = field(init=False)
     value_result: Any = field(init=False)
     sentences: list[str] = field(init=False)  # 存放解析到的所有句子
 
@@ -116,7 +116,7 @@ class SubAnalyser(Generic[TContainer]):
     def reset(self):
         """重置分析器"""
         self.args_result, self.options_result, self.subcommands_result = {}, {}, {}
-        self.sentences, self.value_result, self.header_result = [], None, ()
+        self.sentences, self.value_result, self.header_result = [], None, None
 
     def __handle_args__(self):
         if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
@@ -174,6 +174,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         super().__init__(
             alconna,
             _type(
+                to_text=alconna.namespace_config.to_text,
                 separators=alconna.separators,
                 message_cache=alconna.namespace_config.enable_message_cache,
                 filter_crlf=not alconna.meta.keep_crlf,
@@ -237,8 +238,11 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                 self.container.build(message)
             except Exception as e:
                 return self.export(fail=True, exception=e)
-        if (res := command_manager.get_record(self.container.temp_token)) and self.container.temp_token in self.used_tokens:
-            self.reset()
+        if (
+            self.container.message_cache and
+            self.container.temp_token in self.used_tokens and
+            (res := command_manager.get_record(self.container.temp_token))
+        ):
             return res
         try:
             self.header_result = analyse_header(self)
@@ -309,7 +313,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
 
     def export(self, exception: BaseException | None = None, fail: bool = False) -> Arparma[TDataCollection]:
         """创建arpamar, 其一定是一次解析的最后部分"""
-        result = Arparma(self.command.path, self.container.origin, not fail, HeadResult(*self.header_result))
+        result = Arparma(self.command.path, self.container.origin, not fail, self.header_result)
         if fail:
             result.error_info = repr(exception or traceback.format_exc(limit=1))
             result.error_data = self.container.release()

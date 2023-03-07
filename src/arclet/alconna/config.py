@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ContextManager, Final, TypedDict
+from typing import ContextManager, Final, TypedDict, Callable, Any
 from .typing import THeader
 
 
@@ -29,6 +29,7 @@ class Namespace:
             "completion": {"--comp", "-cp"},
         }
     )
+    to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
 
     def __eq__(self, other):
         return isinstance(other, Namespace) and other.name == self.name

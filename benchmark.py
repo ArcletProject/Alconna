@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Args, AnyOne, command_manager, config
+from arclet.alconna import Alconna, Args, AnyOne, command_manager, namespace
 import cProfile
 import pstats
 
@@ -20,13 +20,14 @@ class At:
         self.target = t
 
 
-config.default_namespace.enable_message_cache = True
-
-alc = Alconna(
-    ["."],
-    "test",
-    Args["bar", AnyOne]
-)
+with namespace("test") as np:
+    np.enable_message_cache = True
+    np.to_text = lambda x: x.text if isinstance(x, Plain) else None
+    alc = Alconna(
+        ["."],
+        "test",
+        Args["bar", AnyOne]
+    )
 compile_alc = alc.compile()
 print(alc)
 msg = [Plain(".test"), At(124)]

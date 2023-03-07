@@ -42,7 +42,7 @@ class CommandManager:
     __analysers: dict[Alconna, Analyser]
     __abandons: list[Alconna]
     __record: LruCache[int, Arparma]
-    __shortcuts: LruCache[str, Union[Arparma, ShortcutArgs]]
+    __shortcuts: dict[str, Union[Arparma, ShortcutArgs]]
 
     def __init__(self):
         self.cache_path = f"{__file__.replace('manager.py', '')}manager_cache.db"
@@ -53,7 +53,7 @@ class CommandManager:
         self.__commands = {}
         self.__analysers = {}
         self.__abandons = []
-        self.__shortcuts = LruCache()
+        self.__shortcuts = {}
         self.__record = LruCache(config.message_max_cache)
 
         def _del():
@@ -73,7 +73,7 @@ class CommandManager:
         """加载缓存"""
         with contextlib.suppress(FileNotFoundError, KeyError):
             with shelve.open(self.cache_path) as db:
-                self.__shortcuts = db["shortcuts"]  # type: ignore
+                self.__shortcuts = dict(db["shortcuts"])  # type: ignore
 
     def dump_cache(self) -> None:
         """保存缓存"""
@@ -157,9 +157,9 @@ class CommandManager:
         namespace, name = self._command_part(target.path)
         if isinstance(source, dict):
             source['command'] = source.get('command', target.command or target.name)
-            self.__shortcuts.set(f"{namespace}.{name}::{key}", source)
+            self.__shortcuts[f"{namespace}.{name}::{key}"] = source
         elif source.matched:
-            self.__shortcuts.set(f"{namespace}.{name}::{key}", source)
+            self.__shortcuts[f"{namespace}.{name}::{key}"] = source
         else:
             raise ValueError(config.lang.manager_incorrect_shortcut.format(target=f"{key}"))
 
@@ -190,7 +190,7 @@ class CommandManager:
         """删除快捷命令"""
         for res in [self.find_shortcut(target, key)[0]] if key else self.find_shortcut(target):
             with contextlib.suppress(StopIteration):
-                self.__shortcuts.delete(next(filter(lambda x: self.__shortcuts[x] == res, self.__shortcuts)))
+                self.__shortcuts.pop(next(filter(lambda x: self.__shortcuts[x] == res, self.__shortcuts)))
 
     def get_command(self, command: str) -> Alconna:
         """获取命令"""
