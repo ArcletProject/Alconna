@@ -324,17 +324,17 @@ def analyse_header(analyser: Analyser) -> HeadResult:
         if analyser.command.headers and analyser.command.headers != [""]:
             headers_text.extend(f"{i}{analyser.command.command}" for i in analyser.command.headers)
         elif analyser.command.command:
-            headers_text.append(analyser.command.command)
+            headers_text.append(str(analyser.command.command))
         if isinstance(command, (TPattern, BasePattern)):
             source = head_text
         else:
             source = head_text + analyser.container.separators[0] + str(may_command)
         if source == analyser.command.command:
-            analyser.header_result = (source, source, False)
+            analyser.header_result = HeadResult(source, source, False)
             raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
         for ht in headers_text:
             if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
-                analyser.header_result = (source, ht, True)
+                analyser.header_result = HeadResult(source, ht, True)
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(target=source, source=ht))
     raise ParamsUnmatched(config.lang.header_error.format(target=head_text))
 
@@ -374,7 +374,7 @@ def _handle_unit(analyser: Analyser, trigger: Arg):
             analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n- {o}"
         )
     default = trigger.field.default_gen
-    o = f"{trigger.value}{'' if default is None else f' default:({None if default is Empty else default})'}"
+    o = f"[{trigger.name}]{trigger.value}{'' if default is None else f' default:({None if default is Empty else default})'}"
     return output_manager.send(
         analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n{o}"
     )
@@ -403,10 +403,10 @@ def _handle_none(analyser: Analyser, got: list[str]):
         else:
             default = unit.field.default_gen
             res.append(
-                f"{unit.value}{'' if default is None else f' ({None if default is Empty else default})'}"
+                f"[{unit.name}]{unit.value}{'' if default is None else f' ({None if default is Empty else default})'}"
             )
     for opt in filter(
-        lambda x: x.name not in analyser.command.namespace_config.builtin_option_name['completion'],
+        lambda x: x.name not in analyser.completion_names,
         analyser.command.options,
     ):
         if opt.requires and all(opt.requires[0] not in i for i in got):
@@ -418,6 +418,7 @@ def _handle_none(analyser: Analyser, got: list[str]):
 
 def handle_completion(analyser: Analyser, trigger: str | None = None):
     trigger = trigger or analyser.container.context
+    got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
     if isinstance(trigger, Arg):
         _handle_unit(analyser, trigger)
     elif isinstance(trigger, Subcommand):
@@ -433,16 +434,12 @@ def handle_completion(analyser: Analyser, trigger: str | None = None):
                 fail=True,
                 exception=ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=trigger)),
             )
-        out = [
-            i for i in res
-            if i not in (*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences)
-        ]
+        out = [i for i in res if i not in got]
         output_manager.send(
             analyser.command.name,
             lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(out or res),
         )
     else:
-        got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
         target = str(analyser.container.release(recover=True)[-1])
         if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):
             out = [i for i in _res if i not in got]

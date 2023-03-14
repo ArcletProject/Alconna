@@ -339,7 +339,7 @@ def test_shortcut():
     alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
     assert alc16.parse("core16 123 bar abcd").matched is True
     # 构造体缩写传入；{i} 将被可能的正则匹配替换
-    alc16.shortcut("TEST(\d+)(.+)", {"args": ["{0}"], "options": {"bar": "{1}"}})
+    alc16.shortcut("TEST(\d+)(.+)", {"args": ["{0}", "bar {1}"]})
     res = alc16.parse("TEST123aa")
     assert res.matched is True
     assert res.foo == 123
@@ -356,6 +356,19 @@ def test_shortcut():
     alc16.parse("core16 --shortcut TESTa4(\d+) 'core16 {0}'")
     res3 = alc16.parse("TESTa4257")
     assert res3.foo == 257
+    alc16.parse("core16 --shortcut TESTac 'core16 2{%0}'")
+    res4 = alc16.parse("TESTac 456")
+    assert res4.foo == 2456
+
+    alc16_1 = Alconna("exec", Args["content", str])
+    alc16_1.shortcut("echo", {"command": "exec print({%0})"})
+    alc16_1.shortcut("echo1", {"command": "exec print(\\'{*\n}\\')"})
+    res5 = alc16_1.parse("echo 123")
+    assert res5.content == "print(123)"
+    assert not alc16_1.parse("echo 123 456").matched
+    res6 = alc16_1.parse(["echo1", "123", "456 789"])
+    assert res6.content == "print('123\n456\n789')"
+
 
 
 def test_help():

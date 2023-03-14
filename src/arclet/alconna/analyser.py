@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import traceback
 from re import Match
 from typing import TYPE_CHECKING, Any, Generic, Callable
@@ -206,24 +207,39 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     def shortcut(self, data: list[Any], short: Arparma | ShortcutArgs, reg: Match | None) -> Arparma[TDataCollection]:
         if isinstance(short, Arparma):
             return short
-        self.container.build(short['command'])\
-            .rebuild(*data)\
-            .rebuild(*short.get('args', []))\
-            .rebuild(
-            *[f'{k}{f"{self.container.separators[0]}{v}" if v else ""}' for k, v in short.get('options', {}).items()]
-        )
+        self.container.build(short['command'])
+        data_index = 0
+        for i, unit in enumerate(self.container.raw_data):
+            if not data:
+                break
+            if not isinstance(unit, str):
+                continue
+            if unit == f"{{%{data_index}}}":
+                self.container.raw_data[i] = data.pop(0)
+                data_index += 1
+            elif f"{{%{data_index}}}" in unit:
+                self.container.raw_data[i] = unit.replace(f"{{%{data_index}}}", str(data.pop(0)))
+                data_index += 1
+            elif mat := re.search(r"\{\*(.*)\}", unit, re.DOTALL):
+                sep = mat[1]
+                self.container.raw_data[i] = unit.replace(f"{{*{sep}}}", (sep or ' ').join(map(str, data)))
+                data.clear()
+
+        self.container.bak_data = self.container.raw_data.copy()
+        self.container.rebuild(*data).rebuild(*short.get('args', []))
         if reg:
             groups: tuple[str, ...] = reg.groups()
             gdict: dict[str, str] = reg.groupdict()
-            for j, data in enumerate(self.container.raw_data):
-                if isinstance(data, str):
-                    for i, c in enumerate(groups):
-                        data = data.replace(f"{{{i}}}", c)
-                    for k, v in gdict.items():
-                        data = data.replace(f"{{{k}}}", v)
-                    self.container.raw_data[j] = data
-            if self.container.message_cache:
-                self.container.temp_token = self.container.generate_token(self.container.raw_data)
+            for j, unit in enumerate(self.container.raw_data):
+                if not isinstance(unit, str):
+                    continue
+                for i, c in enumerate(groups):
+                    unit = unit.replace(f"{{{i}}}", c)
+                for k, v in gdict.items():
+                    unit = unit.replace(f"{{{k}}}", v)
+                self.container.raw_data[j] = unit
+        if self.container.message_cache:
+            self.container.temp_token = self.container.generate_token(self.container.raw_data)
         return self.process()
 
     def process(self, message: TDataCollection | None = None, interrupt: bool = False) -> Arparma[TDataCollection]:

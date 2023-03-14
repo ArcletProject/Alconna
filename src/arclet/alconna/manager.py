@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 class ShortcutArgs(TypedDict):
     command: NotRequired[DataCollection[Any]]
     args: NotRequired[list[Any]]
-    options: NotRequired[dict[str, Any]]
 
 
 class CommandManager:

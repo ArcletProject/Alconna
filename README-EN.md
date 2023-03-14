@@ -69,6 +69,7 @@ QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 * Customizable Help Text Formatter, Command Analyser, etc.
 * Customizable Language File, Support i18n
 * Cache of input command for quick response of repeated command
+* Easy-to-use Construct and Usage of Command Shortcut
 * Various Features (FuzzyMatch, Command Completion, etc.)
 
 Example of Type Conversion:
@@ -96,9 +97,9 @@ read.parse(["read", Path("test_fire.py")])
 Example of FuzzyMatch:
 
 ```python
-from arclet.alconna import Alconna, CommandMeta
+from arclet.alconna import Alconna, CommandMeta, Arg
 
-alc = Alconna('!test_fuzzy', "foo:str", meta=CommandMeta(fuzzy_match=True))
+alc = Alconna('!test_fuzzy', Arg("foo", str), meta=CommandMeta(fuzzy_match=True))
 alc.parse("！test_fuzy foo bar")
 
 '''
@@ -106,6 +107,18 @@ alc.parse("！test_fuzy foo bar")
 '''
 ```
 
+Example of Command Shortcut:
+```python
+from arclet.alconna import Alconna, Args
+
+alc = Alconna("eval", Args["content", str], action=lambda x: eval(x, {}, {}))
+alc.shortcut("echo", {"command": "eval print(\\'{*}\\')"})
+alc.parse("echo Hello World!")
+
+'''
+Hello World!
+'''
+```
 
 Example of `typing` Support:
 ```python

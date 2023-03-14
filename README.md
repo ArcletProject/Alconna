@@ -67,11 +67,12 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 * 高效. 在 i5-10210U 处理器上, 性能大约为 `71000~289000 msg/s`; 测试脚本: [benchmark](benchmark.py) 
 * 精简、多样的构造方法
-* 强大的类型解析与转换功能
+* 强大的类型解析与类型转换功能
 * 可传入同步与异步的 action 函数
 * 高度自定义的帮助信息格式、命令解析器
 * 自定义语言文件, 支持 i18n
 * 命令输入缓存, 以保证重复命令的快速响应
+* 易用的快捷命令创建与使用
 * 模糊匹配、命令补全等一众特性
 
 类型转换示范:
@@ -97,13 +98,26 @@ read.parse(["read", Path("test_fire.py")])
 
 模糊匹配示范:
 ```python
-from arclet.alconna import Alconna, CommandMeta
+from arclet.alconna import Alconna, CommandMeta, Arg
 
-alc = Alconna('!test_fuzzy', "foo:str", meta=CommandMeta(fuzzy_match=True))
+alc = Alconna('!test_fuzzy', Arg("foo", str), meta=CommandMeta(fuzzy_match=True))
 alc.parse("！test_fuzy foo bar")
 
 '''
 ！test_fuzy not matched. Are you mean "!test_fuzzy"?
+'''
+```
+
+快捷命令示范:
+```python
+from arclet.alconna import Alconna, Args
+
+alc = Alconna("eval", Args["content", str], action=lambda x: eval(x, {}, {}))
+alc.shortcut("echo", {"command": "eval print(\\'{*}\\')"})
+alc.parse("echo Hello World!")
+
+'''
+Hello World!
 '''
 ```
 

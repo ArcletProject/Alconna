@@ -74,7 +74,7 @@ def split_once(text: str, separates: str | tuple[str, ...], crlf: bool = True):
                 quotation = ""
                 if escape:
                     out_text = out_text[:-1] + char
-        elif (char in separates and not quotation) or (crlf and char in {"\n", "\r"}):
+        elif (char in separates or (crlf and char in {"\n", "\r"})) and not quotation:
             break
         else:
             out_text += char
