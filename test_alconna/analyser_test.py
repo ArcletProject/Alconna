@@ -64,7 +64,6 @@ def test_preprocessor():
 
 def test_with_set_unit():
     DataCollectionContainer.config(
-        text_sign="plain",
         preprocessors={"Segment": lambda x: str(x) if x.type == "text" else None}
     )
 
@@ -78,7 +77,6 @@ def test_with_set_unit():
 
 def test_unhashable_unit():
     DataCollectionContainer.config(
-        text_sign="plain",
         preprocessors={"Segment": lambda x: str(x) if x.type == "text" else None}
     )
 
