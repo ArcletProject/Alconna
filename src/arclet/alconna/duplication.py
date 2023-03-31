@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from inspect import isclass
 from typing import cast
-from nepattern import Empty
+from tarina import Empty
 
 from .arparma import Arparma
 from .stub import ArgsStub, BaseStub, OptionStub, SubcommandStub

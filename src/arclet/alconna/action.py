@@ -5,11 +5,11 @@ from dataclasses import dataclass
 from types import LambdaType
 from typing import Any, Callable, Dict
 from nepattern import AllParam, AnyOne
+from tarina import is_async
 
 from .args import Args
 from .exceptions import InvalidParam
 from .model import OptionResult, SubcommandResult
-from .util import is_async
 
 
 @dataclass(init=True, unsafe_hash=True)

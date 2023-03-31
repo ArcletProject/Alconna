@@ -7,15 +7,14 @@ from functools import lru_cache
 from inspect import Signature
 from types import MappingProxyType
 from typing import Any, Callable, Generic, Mapping, TypeVar, overload
+from tarina import get_signature, generic_isinstance, Empty
 
-from nepattern import Empty, generic_isinstance
 from typing_extensions import Self
 
 from .config import config
 from .exceptions import BehaveCancelled, OutBoundsBehave
 from .model import HeadResult, OptionResult, SubcommandResult
 from .typing import TDataCollection
-from .util import get_signature
 
 T = TypeVar('T')
 D = TypeVar('D')

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING, Any, Iterable
-
-from nepattern import AllParam, BasePattern, Empty
+from tarina import Empty
+from nepattern import AllParam, BasePattern
 from nepattern.util import TPattern
 
 from .args import Arg, Args

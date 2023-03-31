@@ -6,6 +6,7 @@ from dataclasses import InitVar, dataclass, field
 from functools import reduce
 from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, overload
 from typing_extensions import Self
+from tarina import init_spec
 
 from .action import ArgAction, exec_, exec_args
 from .analyser import Analyser
@@ -20,7 +21,6 @@ from .executor import ArparmaExecutor, T
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
 from .typing import TDataCollection, THeader
-from .util import init_spec
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 

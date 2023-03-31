@@ -2,54 +2,16 @@
 from __future__ import annotations
 
 import contextlib
-import inspect
 import sys
 from collections import OrderedDict
 from functools import lru_cache
-from typing import Any, Callable, Generic, Hashable, Iterator, Literal, TypeVar, overload
-from typing_extensions import ParamSpec
-
-R = TypeVar("R")
-T = TypeVar("T")
-P = ParamSpec("P")
-
-
-@overload
-def init_spec(fn: Callable[P, T]) -> Callable[[Callable[[T], R]], Callable[P, R]]:
-    ...
-
-
-@overload
-def init_spec(fn: Callable[P, T], is_method: Literal[True]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]:
-    ...
-
-
-def init_spec(   # type: ignore
-    fn: Callable[P, T], is_method: bool = False
-) -> Callable[[Callable[[T], R] | Callable[[Any, T], R]], Callable[P, R]]:
-    def wrapper(func: Callable[[T], R] | Callable[[Any, T], R]) -> Callable[P, R]:
-        def inner(*args: P.args, **kwargs: P.kwargs):
-            if is_method:
-                return func(args[0], fn(*args[1:], **kwargs))   # type: ignore
-            return func(fn(*args, **kwargs))   # type: ignore
-        return inner
-    return wrapper
-
-
-@lru_cache(4096)
-def get_signature(target: Callable):
-    return inspect.signature(target).parameters.values()
+from typing import Any, Generic, Hashable, Iterator, TypeVar, overload
 
 
 def _safe_dcs_args(**kwargs):
     if sys.version_info < (3, 10):
         kwargs.pop('slots')
     return kwargs
-
-
-@lru_cache(4096)
-def is_async(o: Any):
-    return inspect.iscoroutinefunction(o) or inspect.isawaitable(o)
 
 
 QUOTATION = {"'", '"', "’", "“"}

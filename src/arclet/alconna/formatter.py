@@ -3,7 +3,8 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-from nepattern import AllParam, BasePattern, Empty
+from tarina import Empty
+from nepattern import AllParam, BasePattern
 
 from .args import Arg, Args
 from .base import Option, Subcommand

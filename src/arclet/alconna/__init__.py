@@ -1,6 +1,7 @@
 """Alconna 概览"""
 
-from nepattern import AllParam as AllParam, Empty as Empty, AnyOne as AnyOne  # noqa
+from nepattern import AllParam as AllParam, AnyOne as AnyOne  # noqa
+from tarina import Empty as Empty # noqa
 from .util import split_once, split, LruCache
 from .typing import MultiVar, KeyWordVar, Kw, Nargs
 from .args import Args, Field, ArgFlag, Arg

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from inspect import isclass
-from nepattern.util import TPattern
-from nepattern import all_patterns, type_parser, BasePattern, Empty, UnionPattern
 import re
-from typing import Any, Callable
-from dataclasses import dataclass, field
 from copy import deepcopy
+from dataclasses import dataclass, field
+from inspect import isclass
+from typing import Any, Callable
+
+from nepattern import BasePattern, UnionPattern, all_patterns, type_parser
+from nepattern.util import TPattern
+from tarina import Empty
 
 
 def handle_bracket(name: str):

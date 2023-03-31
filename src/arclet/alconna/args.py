@@ -8,13 +8,15 @@ from dataclasses import field as dc_field
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
-from nepattern import AllParam, AnyOne, BasePattern, Empty, UnionPattern, type_parser
+from tarina import Empty
+from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, type_parser
 from typing_extensions import Self
+from tarina import get_signature
 
 from .config import config
 from .exceptions import InvalidParam
 from .typing import KeyWordVar, MultiVar
-from .util import _safe_dcs_args, get_signature
+from .util import _safe_dcs_args
 
 _T = TypeVar("_T")
 TAValue = Union[BasePattern, AllParam.__class__, type, str]
