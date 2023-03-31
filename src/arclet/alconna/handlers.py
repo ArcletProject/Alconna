@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 def _handle_keyword(
-    analyser: SubAnalyser,
+    container: DataCollectionContainer,
     value: KeyWordVar,
     may_arg: Any,
     seps: tuple[str, ...],
@@ -29,53 +29,50 @@ def _handle_keyword(
     default_val: Any,
     optional: bool,
     key: str | None = None,
+    fuzzy: bool = False,
 ):
     if _kwarg := re.match(fr'^([^{value.sep}]+){value.sep}(.*?)$', may_arg):
         key = key or _kwarg[1]
         if (_key := _kwarg[1]) != key:
-            analyser.container.pushback(may_arg)
-            if analyser.fuzzy_match and levenshtein_norm(_key, key) >= config.fuzzy_threshold:
+            container.pushback(may_arg)
+            if fuzzy and levenshtein_norm(_key, key) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(config.lang.common_fuzzy_matched.format(source=_key, target=key))
             if default_val is None:
                 raise ParamsUnmatched(config.lang.common_fuzzy_matched.format(source=_key, target=key))
             result_dict[_key] = None if default_val is Empty else default_val
             return
         if not (_m_arg := _kwarg[2]):
-            may_arg, _str = analyser.container.popitem(seps)
+            may_arg, _str = container.popitem(seps)
         res = value.base(_kwarg[2], default_val)
         if res.flag != 'valid':
-            analyser.container.pushback(may_arg)
+            container.pushback(may_arg)
         if res.flag == 'error':
             if optional:
                 return
             raise ParamsUnmatched(*res.error.args)
         result_dict[_kwarg[1]] = res._value  # type: ignore
         return
-    analyser.container.pushback(may_arg)
+    container.pushback(may_arg)
     raise ParamsUnmatched(config.lang.args_key_missing.format(target=may_arg, key=key))
 
 
 def _loop_kw(
-    analyser: SubAnalyser,
+    container: DataCollectionContainer,
     _loop: int,
-    rest_arg: int,
     seps: tuple[str, ...],
     value: MultiVar,
     default: Any
 ):
     result = {}
     for _ in range(_loop):
-        _m_arg, _m_str = analyser.container.popitem(seps)
+        _m_arg, _m_str = container.popitem(seps)
         if not _m_arg:
             continue
-        if _m_str and _m_arg in analyser.container.param_ids:
-            analyser.container.pushback(_m_arg)
-            for _ in range(min(len(result), rest_arg - 1)):
-                arg = result.popitem()  # type: ignore
-                analyser.container.pushback(f'{arg[0]}={arg[1]}')
+        if _m_str and _m_arg in container.param_ids:
+            container.pushback(_m_arg)
             break
         try:
-            _handle_keyword(analyser, value.base, _m_arg, seps, result, default, False)  # type: ignore
+            _handle_keyword(container, value.base, _m_arg, seps, result, default, False)  # type: ignore
         except ParamsUnmatched:
             break
     if not result:
@@ -88,20 +85,22 @@ def _loop_kw(
 def _loop(
     container: DataCollectionContainer,
     _loop: int,
-    rest_arg: int,
     seps: tuple[str, ...],
     value: MultiVar,
-    default: Any
+    default: Any,
+    args: Args
 ):
+    kw = args[args.var_keyword].value.base if args.var_keyword else None
     result = []
     for _ in range(_loop):
         _m_arg, _m_str = container.popitem(seps)
         if not _m_arg:
             continue
-        if _m_str and (_m_arg in container.param_ids or re.match(fr'^(.+)=\s?$', _m_arg)):
+        if _m_str and (
+            _m_arg in container.param_ids or
+            (kw and re.match(fr'^([^{kw.sep}]+){kw.sep}(.*?)$', _m_arg))
+        ):
             container.pushback(_m_arg)
-            for _ in range(min(len(result), rest_arg - 1)):
-                container.pushback(result.pop(-1))
             break
         if (res := value.base(_m_arg)).flag != 'valid':
             container.pushback(_m_arg)
@@ -129,16 +128,16 @@ def multi_arg_handler(
     _m_rest_arg = nargs - len(result_dict)
     _m_rest_all_param_count = len(analyser.container.release(seps))
     if not kw and not args.var_keyword or kw and not args.var_positional:
-        loop = _m_rest_all_param_count - (_m_rest_arg - (value.flag == "+"))
+        loop = _m_rest_all_param_count - _m_rest_arg + 1
     elif not kw:
-        loop = _m_rest_all_param_count - (_m_rest_arg - (args[args.var_keyword].value.flag == "*"))
+        loop = _m_rest_all_param_count - (_m_rest_arg - 2*(args[args.var_keyword].value.flag == "*"))
     else:
-        loop = _m_rest_all_param_count - (_m_rest_arg - (args[args.var_positional].value.flag == "*"))
+        loop = _m_rest_all_param_count - (_m_rest_arg - 2*(args[args.var_positional].value.flag == "*"))
     if value.length > 0:
         loop = min(loop, value.length)
     result_dict[key] = (
-        _loop_kw(analyser, loop, _m_rest_arg, seps, value, default) if kw
-        else _loop(analyser.container, loop, _m_rest_arg, seps, value, default)
+        _loop_kw(analyser.container, loop, seps, value, default) if kw
+        else _loop(analyser.container, loop, seps, value, default, args)
     )
 
 
@@ -162,7 +161,10 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
         may_arg, _str = analyser.container.popitem(seps)
         if _str and (handler := analyser.special.get(may_arg)):
             raise SpecialOptionTriggered(handler)
-        if not may_arg or (_str and may_arg in analyser.container.param_ids):
+        if (
+            (not may_arg or (_str and may_arg in analyser.container.param_ids))
+            and (value.__class__ != MultiVar or value.__class__ is MultiVar and value.flag == '+')
+        ):
             analyser.container.pushback(may_arg)
             if default_val is not None:
                 result[key] = None if default_val is Empty else default_val
@@ -173,7 +175,9 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
             analyser.container.pushback(may_arg)
             multi_arg_handler(analyser, args, arg, result, nargs)  # type: ignore
         elif value.__class__ is KeyWordVar:
-            _handle_keyword(analyser, value, may_arg, seps, result, default_val, optional, key)  # type: ignore
+            _handle_keyword(
+                analyser.container, value, may_arg, seps, result, default_val, optional, key, analyser.fuzzy_match  # type: ignore
+            )
         elif isinstance(value, BasePattern):
             res = value(may_arg, default_val)
             if res.flag != 'valid':

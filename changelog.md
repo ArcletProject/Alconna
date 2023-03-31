@@ -14,6 +14,9 @@
 
 # Alconna 1.6.x:
 
+## Alconna 1.6.6:
+1. 修复 `MultiVar` 工作异常的错误
+
 ## Alconna 1.6.5:
 1. 调整 `Header Match` 的内部实现
 2. 格式化代码

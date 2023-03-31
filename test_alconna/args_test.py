@@ -58,8 +58,21 @@ def test_object():
 def test_multi():
     arg8 = Args().add("multi", value=Nargs(str, "+"))
     assert analyse_args(arg8, "a b c d").get('multi') == ("a", "b", "c", "d")
+    assert analyse_args(arg8, "", raise_exception=False) != {"multi": ()}
     arg8_1 = Args().add("kwargs", value=Nargs(Kw @ str, "+"))
     assert analyse_args(arg8_1, "a=b c=d").get('kwargs') == {"a": "b", "c": "d"}
+    arg8_2 = Args().add("multi", value=Nargs(int, "*"))
+    assert analyse_args(arg8_2, "1 2 3 4").get('multi') == (1, 2, 3, 4)
+    assert analyse_args(arg8_2, "").get('multi') == ()
+    arg8_3 = Args().add("multi", value=Nargs(int, 3))
+    assert analyse_args(arg8_3, "1 2 3").get('multi') == (1, 2, 3)
+    assert analyse_args(arg8_3, "1 2").get('multi') == (1, 2)
+    assert analyse_args(arg8_3, "1 2 3 4").get('multi') == (1, 2, 3)
+    arg8_4 = Args().add("multi", value=Nargs(int, "*")).add("kwargs", value=Nargs(Kw @ str, "*"))
+    assert analyse_args(arg8_4, "1 2 3 4 a=b c=d").get('multi') == (1, 2, 3, 4)
+    assert analyse_args(arg8_4, "1 2 3 4 a=b c=d").get('kwargs') == {"a": "b", "c": "d"}
+    assert analyse_args(arg8_4, "1 2 3 4").get('multi') == (1, 2, 3, 4)
+    assert analyse_args(arg8_4, "a=b c=d").get('kwargs') == {"a": "b", "c": "d"}
 
 
 def test_anti():
