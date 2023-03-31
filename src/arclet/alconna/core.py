@@ -8,10 +8,11 @@ from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, overload
 from typing_extensions import Self
 
 from .action import ArgAction, exec_, exec_args
-from .analyser import Analyser, TAnalyser
+from .analyser import Analyser
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior
 from .base import Option, Subcommand
+from .completion import CompInterface
 from .config import Namespace, config
 from .duplication import Duplication
 from .exceptions import PauseTriggered
@@ -64,7 +65,7 @@ class CommandMeta:
     keep_crlf: bool = field(default=False)
 
 
-class Alconna(Subcommand, Generic[TAnalyser]):
+class Alconna(Subcommand, Generic[TDataCollection]):
     """
     更加精确的命令解析
 
@@ -86,7 +87,7 @@ class Alconna(Subcommand, Generic[TAnalyser]):
     """
     headers: THeader
     command: str | Any
-    analyser_type: type[TAnalyser]
+    analyser_type: type[Analyser]
     formatter: TextFormatter
     namespace: str
     meta: CommandMeta
@@ -94,11 +95,11 @@ class Alconna(Subcommand, Generic[TAnalyser]):
 
     global_analyser_type: type[Analyser] = Analyser
 
-    def compile(self) -> TAnalyser:
+    def compile(self) -> Analyser:
         return self.analyser_type.compile(self)
 
     @classmethod
-    def default_analyser(cls, __t: type[TAnalyser] | None = None) -> type[Alconna[TAnalyser]]:
+    def default_analyser(cls, __t: type[Analyser] | None = None):
         """配置 Alconna 的默认解析器"""
         if __t is not None:
             cls.global_analyser_type = __t
@@ -111,7 +112,7 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         meta: CommandMeta | None = None,
         namespace: str | Namespace | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
-        analyser_type: type[TAnalyser] | None = None,
+        analyser_type: type[Analyser] | None = None,
         behaviors: list[ArparmaBehavior] | None = None,
         formatter_type: type[TextFormatter] | None = None
     ):
@@ -270,15 +271,24 @@ class Alconna(Subcommand, Generic[TAnalyser]):
         analyser = command_manager.require(self)
         analyser.container.build(message)
         return analyser.process(interrupt=interrupt)
+
     @overload
-    def parse(self, message: TDataCollection) -> Arparma[TDataCollection]: ...
+    def parse(self, message: TDataCollection) -> Arparma[TDataCollection]:
+        ...
+
     @overload
-    def parse(self, message, *, duplication: type[T_Duplication]) -> T_Duplication: ...
+    def parse(self, message, *, duplication: type[T_Duplication]) -> T_Duplication:
+        ...
+
     @overload
-    def parse(self, message: TDataCollection, *, interrupt: Literal[True]) -> Arparma[TDataCollection] | TAnalyser: ...
+    def parse(
+            self, message: TDataCollection, *, interrupt: Literal[True]
+    ) -> Arparma[TDataCollection] | CompInterface:
+        ...
+
     def parse(
         self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None, interrupt: bool = False
-    ) -> TAnalyser | Arparma[TDataCollection] | T_Duplication:
+    ) -> CompInterface | Arparma[TDataCollection] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         try:
             arp = self._parse(message, interrupt)

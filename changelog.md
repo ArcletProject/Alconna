@@ -1,4 +1,23 @@
+# Alconna 1.7.x:
+
+## Alconna 1.7.0:
+1. 使用 `NEPattern` 0.5 以上版本
+2. `compile` 函数现在作为 `Analyser` 的类方法
+3. `Containter.text_sign` 现在是 `Container.to_text`, 其返回值为 `str | None`
+4. `Namespace` 新增 `to_text` 方法, 其与 `Container.to_text` 一致
+5. shortcut 使用方法改变:
+   - `ShortcutArgs` 不再需要 `options`, 其合并至 `args`
+   - 可以通过 `{%X_n}` 来引用传入的快捷命令的第 n 个参数
+   - 可以通过 `{*(SEP)}` 来引用传入的快捷命令的所有参数, 其中 SEP 为可选的分隔符
+6. 加入 `CompletionSession`, 用于补全会话
+
+
 # Alconna 1.6.x:
+
+## Alconna 1.6.5:
+1. 调整 `Header Match` 的内部实现
+2. 格式化代码
+3. 更改测试文件
 
 ## Alconna 1.6.4:
 1. 修复 shortcut 的功能错误

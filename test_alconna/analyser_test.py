@@ -90,6 +90,7 @@ def test_unhashable_unit():
     print(ana3_1.parse(["ana3_1", "--foo", "--comp", Segment.at(123)]))
     print(ana3_1.parse(["ana3_1", "--comp", Segment.at(123)]))
 
+
 if __name__ == '__main__':
     import pytest
     pytest.main([__file__, "-vs"])

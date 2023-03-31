@@ -16,7 +16,7 @@ class DataCollection(Protocol[DataUnit]):
     def __len__(self) -> int: ...
 
 
-TDataCollection = TypeVar("TDataCollection", bound=DataCollection[Union[str, Any]])
+TDataCollection = TypeVar("TDataCollection", bound=DataCollection[Any])
 
 
 class KeyWordVar(BasePattern):

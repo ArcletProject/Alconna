@@ -17,7 +17,7 @@ from .typing import DataCollection, TDataCollection
 from .util import LruCache
 
 if TYPE_CHECKING:
-    from .analyser import Analyser, TAnalyser
+    from .analyser import Analyser
     from .core import Alconna, CommandMeta
 
 
@@ -114,7 +114,7 @@ class CommandManager:
             namespace[command.name] = command
             self.current_count += 1
 
-    def require(self, command: Alconna[TAnalyser]) -> TAnalyser:
+    def require(self, command: Alconna) -> Analyser:
         """获取命令解析器"""
         try:
             return self.__analysers[command]  # type: ignore
