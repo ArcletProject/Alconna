@@ -6,6 +6,7 @@ from .util import split_once, split, LruCache
 from .typing import MultiVar, KeyWordVar, Kw, Nargs
 from .args import Args, Field, ArgFlag, Arg
 from .base import CommandNode, Option, Subcommand
+from .completion import CompInterface
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .analyser import Analyser
 from .container import DataCollectionContainer

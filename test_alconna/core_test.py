@@ -9,7 +9,8 @@ from arclet.alconna import (
     MultiVar,
     KeyWordVar,
     Arg,
-    store_true
+    store_true,
+    CompInterface
 )
 from nepattern import IP, URL
 
@@ -426,15 +427,19 @@ def test_completion():
     alc20_1.parse("core20_1 -cp")
 
 
-def test_interrupt():
+def test_completion_interface():
     alc21 = Alconna("core21", Args.foo[int], Args.bar[str])
-    print("\n", "no interrupt [failed]:", alc21.parse("core21"))
-    print("\n", "interrupt [pending]:", ana := alc21.parse("core21", interrupt=True))
-    ana.container.rebuild("1", "a")
-    assert ana.process().matched
-    print("\n", "interrupt [pending]:", ana := alc21.parse("core21 123", interrupt=True))
-    ana.container.rebuild("a")
-    assert ana.process().matched
+    print("\n", "no interface [failed]:", alc21.parse("core21"))
+    print("\n", "interface [pending]:")
+    with CompInterface(alc21) as comp:
+        alc21.parse("core21")
+    if comp.available:
+        print("\n", "current completion:", comp.current())
+        print("\n", "next completion:", comp.tab())
+        with comp:
+            comp.enter("1")
+        print("\n", "current completion:", comp.current())
+        assert comp.enter("a").matched
 
 
 def test_call():

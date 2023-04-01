@@ -22,12 +22,13 @@ from .exceptions import (
 from .args import Args
 from .header import handle_header, Pair, Double
 from .base import Option, Subcommand
+from .completion import comp_ctx
 from .model import Sentence, HeadResult, OptionResult, SubcommandResult
 from .arparma import Arparma
 from .typing import TDataCollection
 from .config import config, Namespace
 from .output import output_manager
-from .handlers import analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion
+from .handlers import analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
 from .container import DataCollectionContainer, TContainer
 
 if TYPE_CHECKING:
@@ -242,7 +243,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             self.container.temp_token = self.container.generate_token(self.container.raw_data)
         return self.process()
 
-    def process(self, message: TDataCollection | None = None, interrupt: bool = False) -> Arparma[TDataCollection]:
+    def process(self, message: TDataCollection | None = None) -> Arparma[TDataCollection]:
         """主体解析函数, 应针对各种情况进行解析"""
         if command_manager.is_disable(self.command):
             return self.export(fail=True)
@@ -282,7 +283,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             output_manager.send(self.command.name, lambda: str(Fuzzy))
             return self.export(fail=True)
 
-        if fail := self.analyse(interrupt):
+        if fail := self.analyse():
             return fail
 
         if self.container.done and (not self.need_main_args or self.args_result):
@@ -295,13 +296,13 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.container.popitem(move=False)[0]))
         else:
             exc = ArgumentMissing(config.lang.analyser_param_missing)
-        if interrupt and isinstance(exc, ArgumentMissing):
-            raise PauseTriggered(self)
+        if isinstance(exc, ArgumentMissing) and comp_ctx.get(None):
+            raise PauseTriggered(prompt(self, self.container.context))
         if self.command.meta.raise_exception:
             raise exc
         return self.export(fail=True, exception=exc)
 
-    def analyse(self, interrupt: bool = False) -> Arparma[TDataCollection] | None:
+    def analyse(self) -> Arparma[TDataCollection] | None:
         for _ in self.part_len:
             try:
                 analyse_param(self, *self.container.popitem(move=False))
@@ -316,8 +317,8 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                         return handle_completion(self)
                     if handler := self.special.get(rest[-1]):
                         return handler(self)
-                if interrupt and isinstance(e1, ArgumentMissing):
-                    raise PauseTriggered(self) from e1
+                if isinstance(e1, ArgumentMissing) and comp_ctx.get(None):
+                    raise PauseTriggered(prompt(self, self.container.context)) from e1
                 if self.command.meta.raise_exception:
                     raise
                 return self.export(fail=True, exception=e1)

@@ -3,7 +3,6 @@
   "zh-CN": {
     "common.fuzzy_matched": "无法解析 {target}。您想要输入的是不是 \"{source}\" ?",
     "common.custom_type_error": "自定义参数类型传入的不是类型而是 {target}, 这是有意而为之的吗?",
-    "common.completion_arg": "下一个参数：",
     "common.completion_node": "以下是建议的输入：",
     "lang.name_error": "{target} 不是合法的 Alconna 语言配置名称",
     "lang.type_error": "{target} 不是合法的 Alconna 语言配置类型",
@@ -68,7 +67,6 @@
   "en-US": {
     "common.fuzzy_matched": "{target} is not matched. Do you mean \"{source}\"?",
     "common.custom_type_error": "The custom parameter type {target} can't be a type.",
-    "common.completion_arg": "next arg:",
     "common.completion_node": "suggest input follows:",
     "lang.name_error": "{target} is not a valid Alconna Lang Config name",
     "lang.type_error": "{target} is not a valid Alconna Lang Config type",

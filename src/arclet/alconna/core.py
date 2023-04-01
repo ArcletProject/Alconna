@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from dataclasses import InitVar, dataclass, field
 from functools import reduce
-from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, overload
+from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 from typing_extensions import Self
 from tarina import init_spec
 
@@ -13,10 +13,8 @@ from .analyser import Analyser
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior
 from .base import Option, Subcommand
-from .completion import CompInterface
 from .config import Namespace, config
 from .duplication import Duplication
-from .exceptions import PauseTriggered
 from .executor import ArparmaExecutor, T
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
@@ -262,15 +260,15 @@ class Alconna(Subcommand, Generic[TDataCollection]):
     def subcommand(self, sub: Subcommand) -> Self:
         return self.add(sub)
 
-    def _parse(self, message: TDataCollection, interrupt: bool = False) -> Arparma[TDataCollection]:
+    def _parse(self, message: TDataCollection) -> Arparma[TDataCollection]:
         if self.union:
             for ana in command_manager.requires(*self.union):
                 ana.container.build(message)
-                if (res := ana.process(interrupt=interrupt)).matched:
+                if (res := ana.process()).matched:
                     return res
         analyser = command_manager.require(self)
         analyser.container.build(message)
-        return analyser.process(interrupt=interrupt)
+        return analyser.process()
 
     @overload
     def parse(self, message: TDataCollection) -> Arparma[TDataCollection]:
@@ -280,20 +278,11 @@ class Alconna(Subcommand, Generic[TDataCollection]):
     def parse(self, message, *, duplication: type[T_Duplication]) -> T_Duplication:
         ...
 
-    @overload
     def parse(
-            self, message: TDataCollection, *, interrupt: Literal[True]
-    ) -> Arparma[TDataCollection] | CompInterface:
-        ...
-
-    def parse(
-        self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None, interrupt: bool = False
-    ) -> CompInterface | Arparma[TDataCollection] | T_Duplication:
+        self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None
+    ) ->  Arparma[TDataCollection] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
-        try:
-            arp = self._parse(message, interrupt)
-        except PauseTriggered as e:
-            return e.args[0]
+        arp = self._parse(message)
         if arp.matched:
             self.behaviors[0].operate(arp)
             arp = arp.execute()

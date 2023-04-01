@@ -10,6 +10,7 @@ from .args import Arg, Args
 from .header import Double
 from .base import Option, Subcommand
 from .config import config
+from .completion import Prompt
 from .exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered
 from .model import OptionResult, Sentence, HeadResult
 from .output import output_manager
@@ -367,24 +368,21 @@ def handle_shortcut(analyser: Analyser):
     return analyser.export(fail=True)
 
 
-def _handle_unit(analyser: Analyser, trigger: Arg):
+def _prompt_unit(analyser: Analyser, trigger: Arg):
     if gen := trigger.field.completion:
         comp = gen()
         if isinstance(comp, str):
-            return output_manager.send(analyser.command.name, lambda: comp)
-        target = str(analyser.container.release(recover=True)[-2])
-        o = "\n- ".join(list(filter(lambda x: target in x, comp)) or comp)
-        return output_manager.send(
-            analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n- {o}"
-        )
+            return [Prompt(comp, False)]
+        releases = analyser.container.release(recover=True)
+        target = str(releases[-2]) if isinstance(releases[-1], str) and releases[-1] in analyser.completion_names else str(releases[-1])
+        o = list(filter(lambda x: target in x, comp)) or comp
+        return [Prompt(i, False, target) for i in o]
     default = trigger.field.default_gen
     o = f"[{trigger.name}]{trigger.value}{'' if default is None else f' default:({None if default is Empty else default})'}"
-    return output_manager.send(
-        analyser.command.name, lambda: f"{config.lang.common_completion_arg}\n{o}"
-    )
+    return [Prompt(o, False)]
 
 
-def _handle_sentence(analyser: Analyser):
+def _prompt_sentence(analyser: Analyser):
     res: list[str] = []
     s_len = len(stc := analyser.sentences)
     for opt in filter(
@@ -395,66 +393,59 @@ def _handle_sentence(analyser: Analyser):
             res.append(opt.requires[s_len])
         else:
             res.extend(opt.aliases if isinstance(opt, Option) else [opt.name])
-    return res
+    return [Prompt(i) for i in res]
 
 
-def _handle_none(analyser: Analyser, got: list[str]):
-    res: list[str] = []
+def _prompt_none(analyser: Analyser, got: list[str]):
+    res: list[Prompt] = []
     if not analyser.args_result and analyser.self_args.argument:
         unit = analyser.self_args.argument[0]
         if gen := unit.field.completion:
-            res.append(comp if isinstance(comp := gen(), str) else "\n- ".join(comp))
+            res.extend([Prompt(comp, False)] if isinstance(comp := gen(), str) else [Prompt(i, False) for i in comp])
         else:
             default = unit.field.default_gen
             res.append(
-                f"[{unit.name}]{unit.value}{'' if default is None else f' ({None if default is Empty else default})'}"
+                Prompt(
+                    f"[{unit.name}]{unit.value}{'' if default is None else f' ({None if default is Empty else default})'}",
+                    False
+                )
             )
     for opt in filter(
         lambda x: x.name not in analyser.completion_names,
         analyser.command.options,
     ):
         if opt.requires and all(opt.requires[0] not in i for i in got):
-            res.append(opt.requires[0])
+            res.append(Prompt(opt.requires[0]))
         elif opt.dest not in got:
-            res.extend(opt.aliases if isinstance(opt, Option) else [opt.name])
+            res.extend([Prompt(al) for al in opt.aliases] if isinstance(opt, Option) else [Prompt(opt.name)])
     return res
 
 
-def handle_completion(analyser: Analyser, trigger: str | None = None):
+def prompt(analyser: Analyser, trigger: str | None = None):
     trigger = trigger or analyser.container.context
     got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
     if isinstance(trigger, Arg):
-        _handle_unit(analyser, trigger)
+        return _prompt_unit(analyser, trigger)
     elif isinstance(trigger, Subcommand):
-        output_manager.send(
-            analyser.command.name,
-            lambda: f"{config.lang.common_completion_node}\n- " +
-                    "\n- ".join(analyser.get_sub_analyser(trigger).compile_params),
-        )
+        return [Prompt(i) for i in analyser.get_sub_analyser(trigger).compile_params]
     elif isinstance(trigger, str):
         res = list(filter(lambda x: trigger in x, analyser.compile_params))
         if not res:
-            return analyser.export(
-                fail=True,
-                exception=ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=trigger)),
-            )
+            return []
         out = [i for i in res if i not in got]
+        return [Prompt(i) for i in (out or res)]
+    target = str(analyser.container.release(recover=True)[-1])
+    if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):
+        out = [i for i in _res if i not in got]
+        return [Prompt(i, True, target) for i in (out or _res)]
+    res = _prompt_sentence(analyser) if analyser.sentences else _prompt_none(analyser, got)
+    return list(set(res))
+
+
+def handle_completion(analyser: Analyser, trigger: str | None = None):
+    if res := prompt(analyser, trigger):
         output_manager.send(
             analyser.command.name,
-            lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(out or res),
+            f"{config.lang.common_completion_node}\n* " + "\n* ".join(i.text for i in res),
         )
-    else:
-        target = str(analyser.container.release(recover=True)[-1])
-        if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):
-            out = [i for i in _res if i not in got]
-            output_manager.send(
-                analyser.command.name,
-                lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(out or _res),
-            )
-        else:
-            res = _handle_sentence(analyser) if analyser.sentences else _handle_none(analyser, got)
-            output_manager.send(
-                analyser.command.name,
-                lambda: f"{config.lang.common_completion_node}\n- " + "\n- ".join(set(res)),
-            )
     return analyser.export(fail=True, exception='NoneType: None\n')  # type: ignore
