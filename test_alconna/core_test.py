@@ -10,7 +10,7 @@ from arclet.alconna import (
     KeyWordVar,
     Arg,
     store_true,
-    CompInterface
+    CompInterface,
 )
 from nepattern import IP, URL
 
@@ -39,7 +39,7 @@ def test_alconna_multi_match():
         Option("-n|--num", Args["count", int, 123], help_text="输入数字"),
         Option("-u", Args(id=int), help_text="输入需要At的用户"),
         Args["IP", IP],
-        meta=CommandMeta(description="测试指令1")
+        meta=CommandMeta(description="测试指令1"),
     )
     assert len(alc1.options) == 6
     print("")
@@ -55,13 +55,7 @@ def test_alconna_multi_match():
     assert res3.head_matched is True
 
     alc1_1 = Alconna(
-        "core1_1",
-        Subcommand(
-            "foo",
-            Option("bar"),
-            Subcommand("foo"),
-            Args["qux", str]
-        )
+        "core1_1", Subcommand("foo", Option("bar"), Subcommand("foo"), Args["qux", str])
     )
     assert alc1_1.parse("core1_1 foo abc").matched
     assert alc1_1.parse("core1_1 foo foo abc").matched
@@ -115,7 +109,9 @@ def test_alconna_special_help():
             Args(num_a=int, num_b=int),
             help_text="除法计算",
         ),
-        meta=CommandMeta(description="计算器", usage="Cal <expression>", example="Cal -sum 1 2"),
+        meta=CommandMeta(
+            description="计算器", usage="Cal <expression>", example="Cal -sum 1 2"
+        ),
     )
     print("")
     print(alc4.get_help())
@@ -160,8 +156,8 @@ def test_alconna_multi_header():
     assert alc6_2.parse("c.core6_2").head_matched is False
     assert alc6_2.parse([123, "dcore6_2"]).head_matched is True
     assert alc6_2.parse(["123.0", "dcore6_2"]).head_matched is True
-    assert alc6_2.parse(['aaa', "dcore6_2"]).head_matched is False
-    assert alc6_2.parse('123dcore6_2').head_matched is False
+    assert alc6_2.parse(["aaa", "dcore6_2"]).head_matched is False
+    assert alc6_2.parse("123dcore6_2").head_matched is False
     assert alc6_2.parse("/core6_2").head_matched is False
     # 只有纯元素类头
     alc6_3 = Alconna(A)
@@ -187,7 +183,7 @@ def test_alconna_multi_header():
     assert alc6_7.parse([123, "core6_7"]).head_matched is True
     assert alc6_7.parse("123core6_7").head_matched is False
     # 混合头
-    alc6_8 = Alconna("core6_8", [A, '/'])
+    alc6_8 = Alconna("core6_8", [A, "/"])
     assert alc6_8.parse([a, "core6_8"]).head_matched is True
     assert alc6_8.parse([b, "core6_8"]).head_matched is True
     assert alc6_8.parse("/core6_8").head_matched is True
@@ -247,8 +243,9 @@ def test_alconna_action():
 
 def test_alconna_synthesise():
     from typing import List
+
     alc10 = Alconna(
-        Arg("min",  r".*(\d+)张.*", seps="到"),
+        Arg("min", r".*(\d+)张.*", seps="到"),
         Arg("max;?", r".*(\d+)张.*"),
         ["发涩图", "来点涩图", "来点好康的"],
         Option("从", Args["tags", MultiVar(str, 5)] / ("和", "与"), separators=""),
@@ -260,18 +257,10 @@ def test_alconna_synthesise():
     assert res.tags == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
 
     alc10_1 = Alconna(
-        "cpp",
-        Args["match", MultiVar(int, "+")],
-        Arg("lines", AllParam, seps="\n")
+        "cpp", Args["match", MultiVar(int, "+")], Arg("lines", AllParam, seps="\n")
     )
     print("")
-    print(
-        msg := (
-            "cpp 1 2\n"
-            "#include <iostream>\n"
-            "int main() {...}"
-        )
-    )
+    print(msg := ("cpp 1 2\n" "#include <iostream>\n" "int main() {...}"))
     print((res := alc10_1.parse(msg)))
     print("\n".join(res.query_with(List[str], "lines", [])))
 
@@ -290,12 +279,8 @@ def test_requires():
         Args["target", int],
         Option("user perm set", Args["foo", str], help_text="set user permission"),
         Option("user perm del", Args["foo", str], help_text="del user permission"),
-        Option(
-            "group perm set", Args["foo", str], help_text="set group permission"
-        ),
-        Option(
-            "group perm del", Args["foo", str], help_text="del group permission"
-        ),
+        Option("group perm set", Args["foo", str], help_text="set group permission"),
+        Option("group perm del", Args["foo", str], help_text="del group permission"),
         Option("test"),
     )
 
@@ -303,7 +288,7 @@ def test_requires():
     assert alc12.parse("core12 123 user perm del 123").find("user_perm_del") is True
     assert alc12.parse("core12 123 group perm set 123").find("group_perm_set") is True
     assert (
-            alc12.parse("core12 123 group perm del 123 test").find("group_perm_del") is True
+        alc12.parse("core12 123 group perm del 123 test").find("group_perm_del") is True
     )
     print("\n------------------------")
     print(alc12.get_help())
@@ -322,8 +307,9 @@ def test_wildcard():
 
 
 def test_alconna_group():
-    alc14 = Alconna("core14", Option("--foo"), Option("--bar", Args["num", int])) | \
-            Alconna("core14", Option("--baz"), Option("--qux", Args["num", int]))
+    alc14 = Alconna(
+        "core14", Option("--foo"), Option("--bar", Args["num", int])
+    ) | Alconna("core14", Option("--baz"), Option("--qux", Args["num", int]))
     assert alc14.parse("core14 --foo --bar 123").matched is True
     assert alc14.parse("core14 --baz --qux 123").matched is True
     print("\n---------------------------")
@@ -371,7 +357,6 @@ def test_shortcut():
     assert res6.content == "print('123\n456\n789')"
 
 
-
 def test_help():
     alc17 = Alconna("core17") + Option("foo", Args["bar", str])
     alc17.parse("core17 --help")
@@ -380,7 +365,6 @@ def test_help():
         "core17_1",
         Option("foo bar abc baz", Args["qux", int]),
         Option("foo qux bar", Args["baz", str]),
-
     )
     alc17_1.parse("core17_1 --help")
     alc17_1.parse("core17_1 --help aaa")
@@ -403,17 +387,19 @@ def test_args_notice():
 
 def test_completion():
     alc20 = (
-        "core20" +
-        Option("fool") +
-        Option(
+        "core20"
+        + Option("fool")
+        + Option(
             "foo",
-            Args.bar["a|b|c", Field(completion=lambda: "test completion; choose a, b or c")]
-        ) +
-        Option(
+            Args.bar[
+                "a|b|c", Field(completion=lambda: "test completion; choose a, b or c")
+            ],
+        )
+        + Option(
             "off",
-            Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])]
-        ) +
-        Args["test", int, Field(1, completion=lambda: "try -1 ?")]
+            Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])],
+        )
+        + Args["test", int, Field(1, completion=lambda: "try -1 ?")]
     )
 
     alc20.parse("core20 --comp")
@@ -441,16 +427,25 @@ def test_completion_interface():
         print("\n", "current completion:", comp.current())
         assert comp.enter("a").matched
 
+    with CompInterface(alc21) as comp:
+        alc21.parse("core21 1 a --comp")
+    if comp.available:
+        print(comp)
+        comp.tab()
+        print(comp)
+        assert not comp.enter("-h").matched
+
 
 def test_call():
     import asyncio
+
     alc22 = Alconna("core22", Args.foo[int], Args.bar[str])
     alc22.parse("core22 123 abc")
 
     @alc22.bind
     def cb(foo: int, bar: str):
-        print('')
-        print('core22: ')
+        print("")
+        print("core22: ")
         print(foo, bar)
         return 2 * foo
 
@@ -463,8 +458,8 @@ def test_call():
 
     async def cb1(foo: int, bar: str):
         await asyncio.sleep(0.1)
-        print('')
-        print('core22_1: ')
+        print("")
+        print("core22_1: ")
         print(foo, bar)
         return 2
 
@@ -482,53 +477,49 @@ def test_nest_subcommand():
         Subcommand(
             "bar",
             Subcommand(
-                "baz",
-                Option("--qux"),
-                help_text="test nest subcommand; deep 2"
+                "baz", Option("--qux"), help_text="test nest subcommand; deep 2"
             ),
             Args["abc", str],
-            help_text="test nest subcommand; deep 1"
+            help_text="test nest subcommand; deep 1",
         ),
-        meta=CommandMeta("test nest subcommand")
+        meta=CommandMeta("test nest subcommand"),
     )
     assert alc23.parse("core23 123").matched
     assert alc23.parse("core23 bar baz a 123").matched
     assert alc23.parse("core23 bar baz --qux a 123").matched
     assert not alc23.parse("core23 bar baz a --qux 123").matched
-    assert alc23.parse("core23 bar baz --qux a 123").query("bar.baz.qux.value") is Ellipsis
+    assert (
+        alc23.parse("core23 bar baz --qux a 123").query("bar.baz.qux.value") is Ellipsis
+    )
     print("")
-    #alc23.parse("core23 --help")
+    # alc23.parse("core23 --help")
     alc23.parse("core23 bar baz --help")
 
     alc23_1 = Alconna(
         "core23_1",
         Subcommand(
             "bar",
-            [
-                Subcommand("qux", Args["def", bool]),
-                Option("baz", Args["abc", str])
-            ]
-        )
+            [Subcommand("qux", Args["def", bool]), Option("baz", Args["abc", str])],
+        ),
     )
     assert alc23_1.parse("core23_1 bar qux false baz hhh").query("bar.qux.def") is False
 
+
 def test_action():
     alc24 = Alconna(
-        "core24",
-        Option("--yes|-y", action=store_true),
-        Args["module", AllParam]
+        "core24", Option("--yes|-y", action=store_true), Args["module", AllParam]
     )
     res = alc24.parse("core24 -y abc def")
     assert res.query("yes.value") is True
     assert res.module == ["abc", "def"]
 
     alc24_1 = Alconna(
-        "core24",
-        Args["yes", {"--yes": True, "-y": True}, False]["module", AllParam]
+        "core24", Args["yes", {"--yes": True, "-y": True}, False]["module", AllParam]
     )
     assert alc24_1.parse("core24 -y abc def").yes
     assert not alc24_1.parse("core24 abc def").yes
     assert alc24_1.parse("core24 abc def").module == ["abc", "def"]
+
 
 if __name__ == "__main__":
     import pytest

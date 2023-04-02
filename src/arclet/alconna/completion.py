@@ -49,14 +49,10 @@ class CompInterface:
     prompts: list[Prompt]
 
     def __init__(self, source: Alconna):
-        self._source = source
+        self.source = command_manager.require(source)
         self.index = 0
         self.prompts = []
         self._token = None
-
-    @property
-    def source(self):
-        return command_manager.require(self._source)
 
     @property
     def available(self):
@@ -85,7 +81,8 @@ class CompInterface:
         if not prompt.can_use:
             raise ValueError("This prompt cannot be used.")
         if prompt.removal_prefix:
-            self.source.container.bak_data[-1].replace(prompt.removal_prefix, "")
+            last = self.source.container.bak_data[-1]
+            self.source.container.bak_data[-1] = last[:last.rfind(prompt.removal_prefix)]
         self.source.container.rebuild(prompt.text)
         self.clear()
         return self.source.process()
@@ -97,16 +94,21 @@ class CompInterface:
     def clear(self):
         self.index = 0
         self.prompts.clear()
+        self.source.reset()
         return self
 
     def __repr__(self):
+        lines = [
+            f"{'>' if self.index == index else '*'} {sug.text}"
+            for index, sug in enumerate(self.prompts)
+        ]
         return (
-            f"{config.lang.common_completion_node}\n* "
-            + "\n* ".join([sug.text for sug in self.prompts])
+            f"{config.lang.common_completion_node}\n"
+            + "\n".join(lines)
         )
 
     def send_prompt(self):
-        return output_manager.send(self._source.name, lambda: self.__repr__())
+        return output_manager.send(self.source.command.name, lambda: self.__repr__())
 
     def __enter__(self):
         self._token = comp_ctx.set(self)
@@ -114,8 +116,8 @@ class CompInterface:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         comp_ctx.reset(self._token)
-        self.clear()
         if exc_type is PauseTriggered:
+            self.clear()
             self.push(*exc_val.args[0])
             return True
 

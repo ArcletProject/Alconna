@@ -10,8 +10,8 @@ from .args import Arg, Args
 from .header import Double
 from .base import Option, Subcommand
 from .config import config
-from .completion import Prompt
-from .exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered
+from .completion import Prompt, comp_ctx
+from .exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered, PauseTriggered
 from .model import OptionResult, Sentence, HeadResult
 from .output import output_manager
 from .typing import KeyWordVar, MultiVar
@@ -214,6 +214,7 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
         result['$varargs'] = (varargs, args.var_positional)
     if args.keyword_only:
         result['$kwonly'] = {k: v for k, v in result.items() if k in args.keyword_only}
+    analyser.container.context = None
     return result
 
 
@@ -278,6 +279,9 @@ def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionRes
 
 def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
     if handler := analyser.special.get(_text if _str else Ellipsis):
+        if _text in analyser.completion_names:
+            last = analyser.container.bak_data[-1]
+            analyser.container.bak_data[-1] = last[:last.rfind(_text)]
         raise SpecialOptionTriggered(handler)
     if not _str or not _text:
         _param = Ellipsis
@@ -304,6 +308,7 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
     elif _param not in (None, Ellipsis):
         _param.process()
         analyser.subcommands_result.setdefault(_param.command.dest, _param.export())
+    analyser.container.context = None
 
 
 def analyse_header(analyser: Analyser) -> HeadResult:
@@ -369,12 +374,12 @@ def handle_shortcut(analyser: Analyser):
 
 
 def _prompt_unit(analyser: Analyser, trigger: Arg):
-    if gen := trigger.field.completion:
-        comp = gen()
+    if trigger.field.completion:
+        comp = trigger.field.completion()
         if isinstance(comp, str):
             return [Prompt(comp, False)]
         releases = analyser.container.release(recover=True)
-        target = str(releases[-2]) if isinstance(releases[-1], str) and releases[-1] in analyser.completion_names else str(releases[-1])
+        target = str(releases[-1]) or str(releases[-2])
         o = list(filter(lambda x: target in x, comp)) or comp
         return [Prompt(i, False, target) for i in o]
     default = trigger.field.default_gen
@@ -444,8 +449,10 @@ def prompt(analyser: Analyser, trigger: str | None = None):
 
 def handle_completion(analyser: Analyser, trigger: str | None = None):
     if res := prompt(analyser, trigger):
+        if comp_ctx.get(None):
+            raise PauseTriggered(res)
         output_manager.send(
             analyser.command.name,
-            f"{config.lang.common_completion_node}\n* " + "\n* ".join(i.text for i in res),
+            lambda: f"{config.lang.common_completion_node}\n* " + "\n* ".join(i.text for i in res),
         )
     return analyser.export(fail=True, exception='NoneType: None\n')  # type: ignore

@@ -292,12 +292,14 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         rest = self.container.release()
         if len(rest) > 0:
             if isinstance(rest[-1], str) and rest[-1] in self.completion_names:
+                last = self.container.bak_data[-1]
+                self.container.bak_data[-1] = last[:last.rfind(rest[-1])]
                 return handle_completion(self, rest[-2])
             exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.container.popitem(move=False)[0]))
         else:
             exc = ArgumentMissing(config.lang.analyser_param_missing)
         if isinstance(exc, ArgumentMissing) and comp_ctx.get(None):
-            raise PauseTriggered(prompt(self, self.container.context))
+            raise PauseTriggered(prompt(self))
         if self.command.meta.raise_exception:
             raise exc
         return self.export(fail=True, exception=exc)
@@ -314,11 +316,13 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             except (ParamsUnmatched, ArgumentMissing) as e1:
                 if (rest := self.container.release()) and isinstance(rest[-1], str):
                     if rest[-1] in self.completion_names:
+                        last = self.container.bak_data[-1]
+                        self.container.bak_data[-1] = last[:last.rfind(rest[-1])]
                         return handle_completion(self)
                     if handler := self.special.get(rest[-1]):
                         return handler(self)
                 if isinstance(e1, ArgumentMissing) and comp_ctx.get(None):
-                    raise PauseTriggered(prompt(self, self.container.context)) from e1
+                    raise PauseTriggered(prompt(self)) from e1
                 if self.command.meta.raise_exception:
                     raise
                 return self.export(fail=True, exception=e1)
