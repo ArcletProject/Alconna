@@ -36,13 +36,9 @@ class Field(Generic[_T]):
     alias: str | None = dc_field(default=None)
     completion: Callable[[], str | list[str]] | None = dc_field(default=None)
 
-    @property
-    def display(self):
-        return self.alias or self.default_gen
-
-    @property
-    def default_gen(self) -> _T:
-        return self.default if self.default is not None else self.default_factory()
+    def __post_init__(self):
+        self.default_gen = self.default if self.default is not None else self.default_factory()
+        self.display = self.alias or self.default_gen
 
 
 @dataclass(**_safe_dcs_args(init=False, eq=True, unsafe_hash=True, slots=True))
@@ -88,19 +84,14 @@ class Arg:
             flags.extend(ArgFlag(c) for c in res["flag"])
             self.name = self.name.replace(f";{res['flag']}", "")
         self.flag = set(flags)
+        self.optional = ArgFlag.OPTIONAL in self.flag
+        self.hidden = ArgFlag.HIDDEN in self.flag
+        self.anonymous = self.name.startswith("_key_")
 
     def __repr__(self):
         return (n if (n := f"'{self.name}'") == (v := str(self.value)) else f"{n}: {v}") + (
             f" = '{self.field.display}'" if self.field.display is not None else ""
         )
-
-    @property
-    def optional(self):
-        return ArgFlag.OPTIONAL in self.flag
-
-    @property
-    def hidden(self):
-        return ArgFlag.HIDDEN in self.flag
 
 
 class ArgsMeta(type):

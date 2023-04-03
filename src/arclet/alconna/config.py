@@ -26,7 +26,7 @@ class Namespace:
         default_factory=lambda: {
             "help": {"--help", "-h"},
             "shortcut": {"--shortcut", "-sct"},
-            "completion": {"--comp", "-cp"},
+            "completion": {"--comp", "-cp", "?", "？"},
         }
     )
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)

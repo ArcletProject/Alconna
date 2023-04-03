@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import contextlib
 import sys
-from collections import OrderedDict
+from _collections import OrderedDict
 from functools import lru_cache
 from typing import Any, Generic, Hashable, Iterator, TypeVar, overload
 

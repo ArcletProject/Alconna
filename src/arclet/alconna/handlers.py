@@ -187,7 +187,7 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
                 if optional:
                     continue
                 raise ParamsUnmatched(*res.error.args)
-            if not key.startswith('_key'):
+            if not arg.anonymous:
                 result[key] = res._value  # type: ignore
         elif value is AllParam:
             analyser.container.pushback(may_arg)
@@ -280,6 +280,8 @@ def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionRes
 def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
     if handler := analyser.special.get(_text if _str else Ellipsis):
         if _text in analyser.completion_names:
+            if analyser.container.current_index < analyser.container.ndata:
+                analyser.container.bak_data = analyser.container.bak_data[:analyser.container.current_index+1]
             last = analyser.container.bak_data[-1]
             analyser.container.bak_data[-1] = last[:last.rfind(_text)]
         raise SpecialOptionTriggered(handler)

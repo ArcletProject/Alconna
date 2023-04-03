@@ -9,6 +9,7 @@ from copy import copy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload
 from typing_extensions import NotRequired
+from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from .arparma import Arparma
 from .config import Namespace, config
@@ -37,8 +38,8 @@ class CommandManager:
     current_count: int
     max_count: int
 
-    __commands: dict[str, dict[str, Alconna]]
-    __analysers: dict[Alconna, Analyser]
+    __commands: dict[str, WeakValueDictionary[str, Alconna]]
+    __analysers: WeakKeyDictionary[Alconna, Analyser]
     __abandons: list[Alconna]
     __record: LruCache[int, Arparma]
     __shortcuts: dict[str, Union[Arparma, ShortcutArgs]]
@@ -50,7 +51,7 @@ class CommandManager:
         self.current_count = 0
 
         self.__commands = {}
-        self.__analysers = {}
+        self.__analysers = WeakKeyDictionary()
         self.__abandons = []
         self.__shortcuts = {}
         self.__record = LruCache(config.message_max_cache)
@@ -103,7 +104,7 @@ class CommandManager:
             raise ExceedMaxCount
         self.__analysers.pop(command, None)
         self.__analysers[command] = command.compile()
-        namespace = self.__commands.setdefault(command.namespace, {})
+        namespace = self.__commands.setdefault(command.namespace, WeakValueDictionary())
         if _cmd := namespace.get(command.name):
             if _cmd == command:
                 return
