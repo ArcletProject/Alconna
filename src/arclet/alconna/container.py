@@ -79,12 +79,12 @@ class DataCollectionContainer:
                 continue
             if (proc := self.preprocessors.get(uname)) and (res := proc(unit)):
                 unit = res
-            if text := self.to_text(unit):
-                if not (res := text.strip()):
-                    continue
-                raw_data.append(res)
-            else:
+            if (text := self.to_text(unit)) is None:
                 raw_data.append(unit)
+            elif not (res := text.strip()):
+                continue
+            else:
+                raw_data.append(res)
             i += 1
         if i < 1:
             raise NullMessage(config.lang.analyser_handle_null_message.format(target=data))

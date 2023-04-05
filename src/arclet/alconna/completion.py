@@ -22,29 +22,21 @@ class Prompt:
 
 class CompInterface:
     """
-
-    ```python
-    from arclet.alconna import Alconna, CompInterface
-
-    alc = Alconna(...)
-
-    with CompInterface(alc) as comp:
-        res = alc.parse("test")
-
-    if comp.available:
-        print(comp.current())
-        print(comp.tab())
-        with comp:
-            res = comp.enter()
-        if comp.available:
-            print(comp.current())
-            print(comp.tab())
-            with comp:
-                res = comp.enter()
-            ...
-    ```
-
+    Examples:
+        >>> from arclet.alconna import Alconna, CompInterface
+        >>> alc = Alconna(...)
+        >>> with CompInterface(alc) as comp:
+        ...     res = alc.parse("test")
+        ...
+        >>> if comp.available:
+        ...     print(comp.current())
+        ...     print(comp.tab())
+        ...     with comp:
+        ...         res = comp.enter()
+        ...
+        >>> print(res)
     """
+
     index: int
     prompts: list[Prompt]
 
@@ -82,7 +74,9 @@ class CompInterface:
             raise ValueError("This prompt cannot be used.")
         if prompt.removal_prefix:
             last = self.source.container.bak_data[-1]
-            self.source.container.bak_data[-1] = last[:last.rfind(prompt.removal_prefix)]
+            self.source.container.bak_data[-1] = last[
+                : last.rfind(prompt.removal_prefix)
+            ]
         self.source.container.rebuild(prompt.text)
         self.clear()
         return self.source.process()
@@ -97,15 +91,14 @@ class CompInterface:
         self.source.reset()
         return self
 
-    def __repr__(self):
-        lines = [
+    def lines(self):
+        return [
             f"{'>' if self.index == index else '*'} {sug.text}"
             for index, sug in enumerate(self.prompts)
         ]
-        return (
-            f"{config.lang.common_completion_node}\n"
-            + "\n".join(lines)
-        )
+
+    def __repr__(self):
+        return f"{config.lang.common_completion_node}\n" + "\n".join(self.lines())
 
     def send_prompt(self):
         return output_manager.send(self.source.command.name, lambda: self.__repr__())

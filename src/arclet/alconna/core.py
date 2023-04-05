@@ -5,8 +5,9 @@ import sys
 from dataclasses import InitVar, dataclass, field
 from functools import reduce
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
-from typing_extensions import Self
+
 from tarina import init_spec
+from typing_extensions import Self
 
 from .action import ArgAction, exec_, exec_args
 from .analyser import Analyser
@@ -15,6 +16,7 @@ from .arparma import Arparma, ArparmaBehavior
 from .base import Option, Subcommand
 from .config import Namespace, config
 from .duplication import Duplication
+from .exceptions import NullMessage
 from .executor import ArparmaExecutor, T
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
@@ -280,9 +282,14 @@ class Alconna(Subcommand, Generic[TDataCollection]):
 
     def parse(
         self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None
-    ) ->  Arparma[TDataCollection] | T_Duplication:
+    ) -> Arparma[TDataCollection] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
-        arp = self._parse(message)
+        try:
+            arp = self._parse(message)
+        except NullMessage as e:
+            if self.meta.raise_exception:
+                raise e
+            return Arparma(self.path, message, False, error_info=e)
         if arp.matched:
             self.behaviors[0].operate(arp)
             arp = arp.execute()

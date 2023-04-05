@@ -440,13 +440,13 @@ def prompt(analyser: Analyser, trigger: str | None = None):
         if not res:
             return []
         out = [i for i in res if i not in got]
-        return [Prompt(i) for i in (out or res)]
-    target = str(analyser.container.release(recover=True)[-1])
+        return [Prompt(i, True, trigger) for i in (out or res)]
+    releases = analyser.container.release(recover=True)
+    target = str(releases[-1]) or str(releases[-2])
     if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):
         out = [i for i in _res if i not in got]
         return [Prompt(i, True, target) for i in (out or _res)]
-    res = _prompt_sentence(analyser) if analyser.sentences else _prompt_none(analyser, got)
-    return list(set(res))
+    return _prompt_sentence(analyser) if analyser.sentences else _prompt_none(analyser, got)
 
 
 def handle_completion(analyser: Analyser, trigger: str | None = None):
