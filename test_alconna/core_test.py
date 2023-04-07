@@ -25,6 +25,13 @@ def test_alconna_create():
     assert alc.path == "Alconna::core"
     assert alc.parse("!core abc bar 123").matched is True
 
+    alc_1 = Alconna(
+        "core_1",
+        Args["foo", str]["bar;!", int]
+    )
+    assert alc_1.parse("core_1 abc 123").matched is False
+    assert alc_1.parse("core_1 abc abc").matched is True
+
 
 def test_alconna_multi_match():
     alc1 = Alconna(

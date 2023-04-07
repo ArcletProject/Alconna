@@ -87,6 +87,8 @@ class Arg:
         self.optional = ArgFlag.OPTIONAL in self.flag
         self.hidden = ArgFlag.HIDDEN in self.flag
         self.anonymous = self.name.startswith("_key_")
+        if ArgFlag.ANTI in self.flag and self.value not in (AnyOne, AllParam):
+            self.value = deepcopy(self.value).reverse()
 
     def __repr__(self):
         return (n if (n := f"'{self.name}'") == (v := str(self.value)) else f"{n}: {v}") + (
@@ -204,8 +206,6 @@ class Args(metaclass=ArgsMeta):
                 continue
             self._visit.add(arg.name)
             _limit = False
-            if ArgFlag.ANTI in arg.flag and arg.value not in (AnyOne, AllParam):
-                arg.value = deepcopy(arg.value).reverse()
             if isinstance(arg.value, MultiVar) and not _limit:
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.var_keyword:
