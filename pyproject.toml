@@ -11,7 +11,7 @@ authors = [
 dependencies = [
     "typing-extensions>=4.5.0",
     "nepattern<0.6.0, >=0.5.2",
-    "tarina>=0.1.0",
+    "tarina>=0.1.1",
 ]
 dynamic = ["version"]
 requires-python = ">=3.8"
@@ -42,7 +42,7 @@ documentation = "https://arcletproject.github.io/docs/alconna/tutorial"
 repository = "https://github.com/ArcletProject/Alconna"
 
 [project.optional-dependencies]
-lru = ["lru-dict>=1.1.8"]
+lru = ["tarina[lru]>=0.1.1"]
 full = ["arclet-alconna-tools>=0.2.0"]
 cli = ["arclet-alconna-cli>=0.3.0"]
 graia = ["arclet-alconna-graia>=0.9.0"]
@@ -60,7 +60,6 @@ dev = [
     "pydeps~=1.11.0",
     "fix-future-annotations>=0.4.0",
     "viztracer>=0.15.6",
-    "lru-dict>=1.1.8",
 ]
 
 [tool.pdm.scripts]

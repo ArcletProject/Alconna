@@ -9,13 +9,14 @@ from copy import copy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload
 from typing_extensions import NotRequired
+from tarina import LRU
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from .arparma import Arparma
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
 from .typing import DataCollection, TDataCollection
-from .lru import LRU
+
 
 if TYPE_CHECKING:
     from .analyser import Analyser
@@ -295,11 +296,13 @@ class CommandManager:
     @property
     def recent_message(self) -> DataCollection[str | Any] | None:
         if rct := self.__record.peek_first_item():
+            rct: tuple[int, Arparma]
             return rct[1].origin
 
     @property
     def last_using(self):
         if rct := self.__record.peek_first_item():
+            rct: tuple[int, Arparma]
             return rct[1].source
 
     @property

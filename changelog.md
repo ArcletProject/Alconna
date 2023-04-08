@@ -9,8 +9,10 @@
    - `ShortcutArgs` 不再需要 `options`, 其合并至 `args`
    - 可以通过 `{%X_n}` 来引用传入的快捷命令的第 n 个参数
    - 可以通过 `{*(SEP)}` 来引用传入的快捷命令的所有参数, 其中 SEP 为可选的分隔符
-6. 加入 `CompletionSession`, 用于补全会话
-
+6. 加入 `CompInteface`, 用于交互式命令补全
+7. `Alconna.parse` 移除参数 `interrupt`, 原功能由 `CompInteface` 替代
+8. 使用 `tarina` 替代部分功能
+9. 修复 `anti args` 的 bug
 
 # Alconna 1.6.x:
 
