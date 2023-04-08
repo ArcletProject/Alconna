@@ -1,5 +1,5 @@
 from arclet.alconna.typing import DataCollection
-from arclet.alconna.util import split_once, split, LruCache
+from arclet.alconna.util import split_once, split
 
 
 def test_split_once():
@@ -25,19 +25,6 @@ def test_split():
     assert split("") == []
     assert split("  ") == []
 
-
-def test_lru():
-    """测试 LRU缓存"""
-    cache: LruCache[str, str] = LruCache(3)
-    cache.set("a", "a")
-    cache.set("b", "b")
-    cache.set("c", "c")
-    assert cache.recent == "c"
-    _ = cache.get("a")
-    print(f"\n{cache}")
-    assert cache.recent == "a"
-    cache.set("d", "d")
-    assert cache.get("b", Ellipsis) == Ellipsis
 
 
 def test_collection():

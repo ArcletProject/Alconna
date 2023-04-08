@@ -117,8 +117,12 @@ class SubAnalyser(Generic[TContainer]):
 
     def reset(self):
         """重置分析器"""
-        self.args_result, self.options_result, self.subcommands_result = {}, {}, {}
-        self.sentences, self.value_result, self.header_result = [], None, None
+        self.args_result = {}
+        self.options_result = {}
+        self.subcommands_result = {}
+        self.sentences = []
+        self.value_result = None
+        self.header_result = None
 
     def __handle_args__(self):
         if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
@@ -151,7 +155,7 @@ class SubAnalyser(Generic[TContainer]):
         for _ in self.part_len:
             analyse_param(self, *self.container.popitem(self.command.separators, move=False))
         if self.default_main_only and not self.args_result:
-            self.args_result = analyse_args(self, self.self_args, self.command.nargs)
+            self.args_result = analyse_args(self, self.self_args)
         if not self.args_result and self.need_main_args:
             raise ArgumentMissing(config.lang.subcommand_args_missing.format(name=self.command.dest))
         return self
@@ -245,9 +249,6 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
 
     def process(self, message: TDataCollection | None = None) -> Arparma[TDataCollection]:
         """主体解析函数, 应针对各种情况进行解析"""
-        if command_manager.is_disable(self.command):
-            return self.export(fail=True)
-
         if self.container.ndata == 0:
             if not message:
                 raise NullMessage(config.lang.analyser_handle_null_message.format(target=message))
@@ -330,7 +331,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                 break
 
         if self.default_main_only and not self.args_result:
-            self.args_result = analyse_args(self, self.self_args, self.command.nargs)
+            self.args_result = analyse_args(self, self.self_args)
 
     def export(self, exception: BaseException | None = None, fail: bool = False) -> Arparma[TDataCollection]:
         """创建arpamar, 其一定是一次解析的最后部分"""
@@ -339,7 +340,10 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
             result.error_info = repr(exception or traceback.format_exc(limit=1))
             result.error_data = self.container.release()
         else:
-            result.encapsulate_result(self.args_result, self.options_result, self.subcommands_result)
+            result.main_args = self.args_result
+            result.options = self.options_result
+            result.subcommands = self.subcommands_result
+            result.unpack()
             if self.container.message_cache:
                 command_manager.record(self.container.temp_token, result)
                 self.used_tokens.add(self.container.temp_token)

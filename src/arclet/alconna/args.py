@@ -3,11 +3,10 @@ from __future__ import annotations
 import inspect
 import re
 from copy import deepcopy
-from dataclasses import dataclass
 from dataclasses import field as dc_field
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
+from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, TYPE_CHECKING
 from tarina import Empty
 from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, type_parser
 from typing_extensions import Self
@@ -16,7 +15,11 @@ from tarina import get_signature
 from .config import config
 from .exceptions import InvalidParam
 from .typing import KeyWordVar, MultiVar
-from .util import _safe_dcs_args
+
+if TYPE_CHECKING:
+    from dataclasses import dataclass
+else:
+    from .util import dataclass
 
 _T = TypeVar("_T")
 TAValue = Union[BasePattern, AllParam.__class__, type, str]
@@ -28,7 +31,7 @@ class ArgFlag(str, Enum):
     ANTI = "!"
 
 
-@dataclass(**_safe_dcs_args(slots=True))
+@dataclass(slots=True)
 class Field(Generic[_T]):
     """标识参数单元字段"""
     default: _T = dc_field(default=None)
@@ -43,10 +46,10 @@ class Field(Generic[_T]):
         self.display = self.alias or self.default_gen
 
 
-@dataclass(**_safe_dcs_args(init=False, eq=True, unsafe_hash=True, slots=True))
+@dataclass(init=False, eq=True, unsafe_hash=True, slots=True)
 class Arg:
     name: str = dc_field(compare=True, hash=True)
-    value: TAValue = dc_field(compare=False, hash=True)
+    value: Union[BasePattern, AllParam.__class__] = dc_field(compare=False, hash=True)
     field: Field[_T] = dc_field(compare=False, hash=False)
     notice: str | None = dc_field(compare=False, hash=False)
     flag: set[ArgFlag] = dc_field(compare=False, hash=False)

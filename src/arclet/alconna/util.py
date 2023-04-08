@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import sys
+import dataclasses
 from functools import lru_cache
 
 
-def _safe_dcs_args(**kwargs):
+def dataclass(*args, **kwargs):
     if sys.version_info < (3, 10):
         kwargs.pop('slots')
-    return kwargs
+    return dataclasses.dataclass(*args, **kwargs)
 
 
 QUOTATION = {"'", '"', "’", "“"}

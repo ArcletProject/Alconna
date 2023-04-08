@@ -7,10 +7,12 @@ import traceback
 from arclet.alconna.analyser import Analyser, default_compiler
 from arclet.alconna.container import DataCollectionContainer
 from arclet.alconna.handlers import analyse_args as ala, analyse_header as alh, analyse_option as alo
+from arclet.alconna.header import handle_header
 from arclet.alconna.typing import DataCollection
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.args import Args
 from arclet.alconna.config import config
+
 
 class AnalyseError(Exception):
     """分析时发生错误"""
@@ -34,14 +36,15 @@ class _DummyAnalyser(Analyser):
         return super().__new__(cls)
 
 
-def analyse_args(args: Args, command: DataCollection[str | Any], raise_exception: bool = True):
+def analyse_args(args: Args, command: list[str | Any], raise_exception: bool = True):
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.need_main_args = True
     _analyser.raise_exception = True
     try:
-        _analyser.container.build(command)
-        return ala(_analyser, args, len(args))
+        _analyser.container.build(["test"] + command)
+        _analyser.container.popitem()
+        return ala(_analyser, args)
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -59,7 +62,7 @@ def analyse_header(
     _analyser.reset()
     _analyser.container.separators = (sep, )
     _analyser.need_main_args = False
-    _analyser.__init_header__(command_name, headers)
+    _analyser.command_header = handle_header(command_name, headers)
     try:
         _analyser.container.build(command)
         return alh(_analyser)

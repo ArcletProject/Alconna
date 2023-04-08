@@ -30,8 +30,9 @@ class DataCollectionContainer:
     ndata: int = field(init=False)  # 原始数据的长度
     bak_data: list[str | Any] = field(init=False)
     raw_data: list[str | Any] = field(init=False)
-    temporary_data: dict[str, Any] = field(init=False)  # 临时数据
     temp_token: int = field(init=False)  # 临时token
+    origin: DataCollection[Any] = field(init=False)
+    _sep: tuple[str, ...] | None = field(init=False)
 
     @classmethod
     def config(
@@ -50,18 +51,18 @@ class DataCollectionContainer:
             self.to_text = __cache["to_text"] or self.to_text
 
     def reset(self):
-        self.current_index, self.ndata, self.temp_token = 0, 0, 0
-        self.temporary_data = {}
-        self.raw_data, self.bak_data = [], []
+        self.current_index = 0
+        self.ndata = 0
+        self.bak_data = []
+        self.raw_data = []
+        self.temp_token = 0
+        self.origin = "None"
+        self._sep = None
         self.context = None
 
     @staticmethod
     def generate_token(data: list[Any | list[str]]) -> int:
         return hash(str(data))
-
-    @property
-    def origin(self) -> DataCollection:
-        return self.temporary_data.get("origin", "None")
 
     @property
     def done(self) -> bool:
@@ -70,7 +71,7 @@ class DataCollectionContainer:
     def build(self, data: DataCollection[str | Any]) -> Self:
         """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
         self.reset()
-        self.temporary_data["origin"] = data
+        self.origin = data
         if isinstance(data, str):
             data = [data]
         i, raw_data = 0, self.raw_data
@@ -112,8 +113,8 @@ class DataCollectionContainer:
 
     def popitem(self, separate: tuple[str, ...] | None = None, move: bool = True) -> tuple[str | Any, bool]:
         """获取解析需要的下个数据"""
-        if 'sep' in self.temporary_data:
-            del self.temporary_data['sep']
+        if self._sep:
+            self._sep = None
         if self.current_index == self.ndata:
             return "", True
         separate = separate or self.separators
@@ -122,7 +123,7 @@ class DataCollectionContainer:
             _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)
             if move:
                 if _rest_text:
-                    self.temporary_data['sep'] = separate
+                    self._sep = separate
                     self.raw_data[self.current_index] = _rest_text
                 else:
                     self.current_index += 1
@@ -135,9 +136,9 @@ class DataCollectionContainer:
         """把 pop的数据放回 (实际只是‘指针’移动)"""
         if data in ("", None):
             return
-        if 'sep' in self.temporary_data:
+        if self._sep:
             _current_data = self.raw_data[self.current_index]
-            self.raw_data[self.current_index] = f"{data}{self.temporary_data['sep'][0]}{_current_data}"
+            self.raw_data[self.current_index] = f"{data}{self._sep[0]}{_current_data}"
             return
         if self.current_index >= 1:
             self.current_index -= 1

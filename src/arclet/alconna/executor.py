@@ -21,9 +21,9 @@ class ArparmaExecutor(Generic[T]):
         if not self.binding:
             raise ExecuteFailed(None)
         arps = self.binding()
-        if not arps or not arps[-1].matched:
+        if not arps or not arps[0].matched:
             raise ExecuteFailed("Unmatched")
         try:
-            return arps[-1].call(self.target)
+            return arps[0].call(self.target)
         except Exception as e:
             raise ExecuteFailed(e) from e

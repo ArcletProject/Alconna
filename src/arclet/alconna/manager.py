@@ -283,9 +283,8 @@ class CommandManager:
         self.__record[token] = result
 
     def get_record(self, token: int) -> Arparma | None:
-        if not token:
-            return
-        return self.__record.get(token, None)
+        if token in self.__record:
+            return self.__record[token]
 
     def get_token(self, result: Arparma) -> int:
         return next((token for token, res in self.__record.items() if res == result), 0)

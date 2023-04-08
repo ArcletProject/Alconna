@@ -368,7 +368,7 @@ summary = "A list of Python Standard Libraries (2.6-7, 3.2-9)."
 
 [[package]]
 name = "tarina"
-version = "0.1.1"
+version = "0.1.2"
 requires_python = ">=3.8"
 summary = "A collection of common utils for Arclet"
 dependencies = [
@@ -377,13 +377,13 @@ dependencies = [
 
 [[package]]
 name = "tarina"
-version = "0.1.1"
+version = "0.1.2"
 extras = ["lru"]
 requires_python = ">=3.8"
 summary = "A collection of common utils for Arclet"
 dependencies = [
     "lru-dict>=1.1.8",
-    "tarina==0.1.1",
+    "tarina==0.1.2",
 ]
 
 [[package]]
@@ -437,7 +437,7 @@ summary = "Backport of pathlib-compatible object wrapper for zip files"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:d3b5cbfd029a0b4bb129294e1a624c3ea93645560a12da4458dc6b9ba13452e9"
+content_hash = "sha256:18ae47eb94f696ac7afa24254a2c5ab75b31b6caa71b00410f0dfc49d8cc6a76"
 
 [metadata.files]
 "aiohttp 3.8.3" = [
@@ -935,9 +935,9 @@ content_hash = "sha256:d3b5cbfd029a0b4bb129294e1a624c3ea93645560a12da4458dc6b9ba
     {url = "https://files.pythonhosted.org/packages/7a/b1/52f59dcf31ead2f0ceff8976288449608d912972b911f55dff712cef5719/stdlib_list-0.8.0-py3-none-any.whl", hash = "sha256:2ae0712a55b68f3fbbc9e58d6fa1b646a062188f49745b495f94d3310a9fdd3e"},
     {url = "https://files.pythonhosted.org/packages/bb/01/237cea071fd305f162ebbe1db18a59b56b0b5fdff19533c9a1beea0bdee7/stdlib-list-0.8.0.tar.gz", hash = "sha256:a1e503719720d71e2ed70ed809b385c60cd3fb555ba7ec046b96360d30b16d9f"},
 ]
-"tarina 0.1.1" = [
-    {url = "https://files.pythonhosted.org/packages/3a/44/b3c91271576d73ee821216ae0dde2abd356cce5af31ac0fff55b7e20d126/tarina-0.1.1-py3-none-any.whl", hash = "sha256:845d0bd876356da41b21806f3436c3659a557a2592c22778ff8c4f28657c08a0"},
-    {url = "https://files.pythonhosted.org/packages/4f/39/9ab2e929ae234dbf0202eef01b916741045d64e90a4956a59fc05b58904b/tarina-0.1.1.tar.gz", hash = "sha256:9f982f64db5fded25e5c23569742e62cd17df430908a26056f55ec737e9545f4"},
+"tarina 0.1.2" = [
+    {url = "https://files.pythonhosted.org/packages/11/e8/9bcec4328dfe990bf5d76002fb08dc9d4179cf059b86fd8782b44fd2210a/tarina-0.1.2-py3-none-any.whl", hash = "sha256:4a00191de94f4c990f3480c233324bcfbfad657d38a49775058ee04a93bb6fa6"},
+    {url = "https://files.pythonhosted.org/packages/a2/a7/56b96c059519f371ed4ff17db64f41bc46c431d8db690938133a38a443ad/tarina-0.1.2.tar.gz", hash = "sha256:0355a9ff87d84f8c2cb63686fccf5c4f99b1bed61670ff15940c34c315d03e9b"},
 ]
 "tokenize-rt 5.0.0" = [
     {url = "https://files.pythonhosted.org/packages/40/01/fb40ea8c465f680bf7aa3f5bee39c62ba8b7f52c38048c27aa95aff4f779/tokenize_rt-5.0.0.tar.gz", hash = "sha256:3160bc0c3e8491312d0485171dea861fc160a240f5f5766b72a1165408d10740"},

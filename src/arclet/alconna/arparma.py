@@ -4,7 +4,6 @@ from abc import ABCMeta, abstractmethod
 from contextlib import suppress
 from dataclasses import dataclass, field
 from functools import lru_cache
-from inspect import Signature
 from types import MappingProxyType
 from typing import Any, Callable, Generic, Mapping, TypeVar, overload
 from tarina import get_signature, generic_isinstance, Empty
@@ -69,7 +68,10 @@ class Arparma(Generic[TDataCollection]):
         matched: bool = False,
         header_match: HeadResult | None = None,
         error_info: type[BaseException] | BaseException | str = '',
-        error_data: list[str | Any] | None = None
+        error_data: list[str | Any] | None = None,
+        main_args: dict[str, Any] | None = None,
+        options: dict[str, OptionResult] | None = None,
+        subcommands: dict[str, SubcommandResult] | None = None,
     ):
         self._source = source
         self.origin = origin
@@ -77,10 +79,10 @@ class Arparma(Generic[TDataCollection]):
         self.header_match = header_match or HeadResult()
         self.error_info = error_info
         self.error_data = error_data or []
-        self.main_args = {}
+        self.main_args = main_args or {}
         self.other_args = {}
-        self.options = {}
-        self.subcommands = {}
+        self.options = options or {}
+        self.subcommands = subcommands or {}
 
     def _clr(self):
         ks = list(self.__dict__.keys())
@@ -135,15 +137,12 @@ class Arparma(Generic[TDataCollection]):
             if _v.subcommands:
                 self._unpack_subs(_v.subcommands)
 
-    def encapsulate_result(
-        self, main_args: dict[str, Any], options: dict[str, OptionResult], subcommands: dict[str, SubcommandResult]
+    def unpack(
+        self,
     ) -> None:
         """处理 Arparma 中的数据"""
-        self.main_args = main_args.copy()
-        self.options = options.copy()
-        self.subcommands = subcommands.copy()
-        self._unpack_opts(options)
-        self._unpack_subs(subcommands)
+        self._unpack_opts(self.options)
+        self._unpack_subs(self.subcommands)
 
     @staticmethod
     def behave_cancel():
@@ -275,13 +274,13 @@ class ArparmaBehavior(metaclass=ABCMeta):
             if source is None:
                 continue
             if isinstance(source, dict):
-                if past != Signature.empty:
+                if past != Empty:
                     source[end] = past
-                elif source.get(end, Signature.empty) != current:
+                elif source.get(end, Empty) != current:
                     source.pop(end)
-            elif past != Signature.empty:
+            elif past != Empty:
                 setattr(source, end, past)
-            elif getattr(source, end, Signature.empty) != current:
+            elif getattr(source, end, Empty) != current:
                 delattr(source, end)
         _record.clear()
 
@@ -293,10 +292,10 @@ class ArparmaBehavior(metaclass=ABCMeta):
         def _update(tkn, src, pth, ep, val):
             _record = self.record.setdefault(tkn, {})
             if isinstance(src, dict):
-                _record[pth] = (src.get(ep, Signature.empty), val)
+                _record[pth] = (src.get(ep, Empty), val)
                 src[ep] = val
             else:
-                _record[pth] = (getattr(src, ep, Signature.empty), val)
+                _record[pth] = (getattr(src, ep, Empty), val)
                 setattr(src, ep, val)
 
         source, end = interface.__require__(path.split("."))

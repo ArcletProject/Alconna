@@ -146,39 +146,38 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         self.meta = meta or CommandMeta()
         self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
         self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
-        super().__init__(
-            command_manager.sign,
-            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            action=action,
-            separators=separators or np_config.separators,
-        )
-        self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
-        self.options.append(
+        options = [i for i in args if isinstance(i, (Option, Subcommand))]
+        options.append(
             Option("|".join(np_config.builtin_option_name['help']), help_text=config.lang.builtin_option_help),
         )
-        self.options.append(
+        options.append(
             Option(
                 "|".join(np_config.builtin_option_name['shortcut']),
                 Args["delete;?", "delete"]["name", str]["command", str, "_"],
                 help_text=config.lang.builtin_option_shortcut
             )
         )
-        self.options.append(
+        options.append(
             Option(
                 "|".join(np_config.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
             )
         )
+        name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
+        self.path = f"{self.namespace}::{name}"
+        super().__init__(
+            "ALCONNA::",
+            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
+            *options,
+            dest=name,
+            action=action,
+            separators=separators or np_config.separators,
+        )
+        self.name = name
         self.behaviors = behaviors or []
         self.behaviors.insert(0, ActionHandler(self))
-        self.name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
-        self._hash = self._calc_hash()
         command_manager.register(self)
         self._executors: list[ArparmaExecutor] = []
         self.union = set()
-
-    @property
-    def path(self) -> str:
-        return f"{self.namespace}::{self.name.replace(command_manager.sign, '')}"
 
     @property
     def namespace_config(self) -> Namespace:
@@ -190,6 +189,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         if isinstance(namespace, str):
             namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
         self.namespace = namespace.name
+        self.path = f"{self.namespace}::{self.name}"
         if header:
             self.headers = namespace.headers.copy()
         self.options[-3] = Option(

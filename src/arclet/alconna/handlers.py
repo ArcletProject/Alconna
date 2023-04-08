@@ -119,14 +119,13 @@ def multi_arg_handler(
     args: Args,
     arg: Arg,
     result_dict: dict[str, Any],
-    nargs: int
 ):
     seps = arg.separators
     value = arg.value
     key = arg.name
     default = arg.field.default_gen
     kw = value.base.__class__ == KeyWordVar
-    _m_rest_arg = nargs - len(result_dict)
+    _m_rest_arg = len(args) - len(result_dict)
     _m_rest_all_param_count = len(analyser.container.release(seps))
     if not kw and not args.var_keyword or kw and not args.var_positional:
         loop = _m_rest_all_param_count - _m_rest_arg + 1
@@ -142,14 +141,13 @@ def multi_arg_handler(
     )
 
 
-def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any]:
+def analyse_args(analyser: SubAnalyser, args: Args) -> dict[str, Any]:
     """
     分析 Args 部分
 
     Args:
         analyser: 使用的分析器
         args: 目标Args
-        nargs: 目标Args的参数个数
 
     Returns:
         Dict: 解析结果
@@ -157,11 +155,14 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
     result: dict[str, Any] = {}
     for arg in args.argument:
         analyser.container.context = arg
-        key, value, default_val, optional = arg.name, arg.value, arg.field.default_gen, arg.optional
+        key = arg.name
+        value = arg.value
+        default_val = arg.field.default_gen
+        optional = arg.optional
         seps = arg.separators
         may_arg, _str = analyser.container.popitem(seps)
-        if _str and (handler := analyser.special.get(may_arg)):
-            raise SpecialOptionTriggered(handler)
+        if _str and may_arg in analyser.special:
+            raise SpecialOptionTriggered(analyser.special[may_arg])
         if (
             (not may_arg or (_str and may_arg in analyser.container.param_ids))
             and (value.__class__ != MultiVar or value.__class__ is MultiVar and value.flag == '+')
@@ -174,13 +175,22 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
             continue
         if value.__class__ is MultiVar:
             analyser.container.pushback(may_arg)
-            multi_arg_handler(analyser, args, arg, result, nargs)  # type: ignore
+            multi_arg_handler(analyser, args, arg, result)  # type: ignore
         elif value.__class__ is KeyWordVar:
             _handle_keyword(
                 analyser.container, value, may_arg, seps, result, default_val, optional, key, analyser.fuzzy_match  # type: ignore
             )
-        elif isinstance(value, BasePattern):
-            res = value(may_arg, default_val)
+        elif value is AllParam:
+            analyser.container.pushback(may_arg)
+            result[key] = analyser.container.release(seps)
+            analyser.container.current_index = analyser.container.ndata
+            return result
+        else:
+            res = (
+                value.invalidate(may_arg, default_val)
+                if value.anti
+                else value.validate(may_arg, default_val)
+            )
             if res.flag != 'valid':
                 analyser.container.pushback(may_arg)
             if res.flag == 'error':
@@ -189,17 +199,6 @@ def analyse_args(analyser: SubAnalyser, args: Args, nargs: int) -> dict[str, Any
                 raise ParamsUnmatched(*res.error.args)
             if not arg.anonymous:
                 result[key] = res._value  # type: ignore
-        elif value is AllParam:
-            analyser.container.pushback(may_arg)
-            result[key] = analyser.container.release(seps)
-            analyser.container.current_index = analyser.container.ndata
-            return result
-        elif may_arg == value:
-            result[key] = may_arg
-        elif default_val is not None:
-            result[key] = None if default_val is Empty else default_val
-        elif not optional:
-            raise ParamsUnmatched(config.lang.args_error.format(target=may_arg))
     if args.var_keyword:
         kwargs = result[args.var_keyword]
         if not isinstance(kwargs, dict):
@@ -274,23 +273,25 @@ def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionRes
     name = param.dest
     if param.nargs == 0:
         return name, OptionResult()
-    return name, OptionResult(None, analyse_args(analyser, param.args, param.nargs))
+    return name, OptionResult(None, analyse_args(analyser, param.args))
 
 
 def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
-    if handler := analyser.special.get(_text if _str else Ellipsis):
+    if _str and _text in analyser.special:
         if _text in analyser.completion_names:
             if analyser.container.current_index < analyser.container.ndata:
                 analyser.container.bak_data = analyser.container.bak_data[:analyser.container.current_index+1]
             last = analyser.container.bak_data[-1]
             analyser.container.bak_data[-1] = last[:last.rfind(_text)]
-        raise SpecialOptionTriggered(handler)
+        raise SpecialOptionTriggered(analyser.special[_text])
     if not _str or not _text:
-        _param = Ellipsis
-    elif not (_param := analyser.compile_params.get(_text)):
+        _param = None
+    elif _text in analyser.compile_params:
+        _param = analyser.compile_params[_text]
+    else:
         _param = None if analyser.container.default_separate else analyse_unmatch_params(analyser, _text)
-    if (not _param or _param is Ellipsis) and not analyser.args_result:
-        analyser.args_result = analyse_args(analyser, analyser.self_args, analyser.command.nargs)
+    if not _param and not analyser.args_result:
+        analyser.args_result = analyse_args(analyser, analyser.self_args)
     elif isinstance(_param, list):
         for opt in _param:
             _data, _index = analyser.container.data_set()
@@ -307,7 +308,7 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
             raise exc  # type: ignore  # noqa
     elif isinstance(_param, Sentence):
         analyser.sentences.append(analyser.container.popitem()[0])
-    elif _param not in (None, Ellipsis):
+    elif _param:
         _param.process()
         analyser.subcommands_result.setdefault(_param.command.dest, _param.export())
     analyser.container.context = None
@@ -362,7 +363,7 @@ def handle_help(analyser: Analyser):
 
 def handle_shortcut(analyser: Analyser):
     analyser.container.popitem()
-    opt_v = analyse_args(analyser, Args["delete;?", "delete"]["name", str]["command", str, "_"], 3)
+    opt_v = analyse_args(analyser, Args["delete;?", "delete"]["name", str]["command", str, "_"])
     try:
         msg = analyser.command.shortcut(
             opt_v["name"],

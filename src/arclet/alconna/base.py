@@ -41,8 +41,6 @@ class CommandNode:
         """
         if not name:
             raise InvalidParam(config.lang.node_name_empty)
-        if re.match(r"^[`~?/.,<>;\':\"|!@#$%^&*()_+=\[\]}{]+.*$", name):
-            raise InvalidParam(config.lang.node_name_error)
         _parts = name.split(" ")
         self.name = _parts[-1]
         self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []
