@@ -15,7 +15,7 @@ from .arparma import Arparma
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
 from .typing import DataCollection, TDataCollection
-from .util import LruCache
+from .lru import LRU
 
 if TYPE_CHECKING:
     from .analyser import Analyser
@@ -41,7 +41,7 @@ class CommandManager:
     __commands: dict[str, WeakValueDictionary[str, Alconna]]
     __analysers: WeakKeyDictionary[Alconna, Analyser]
     __abandons: list[Alconna]
-    __record: LruCache[int, Arparma]
+    __record: LRU[int, Arparma]
     __shortcuts: dict[str, Union[Arparma, ShortcutArgs]]
 
     def __init__(self):
@@ -54,7 +54,7 @@ class CommandManager:
         self.__analysers = WeakKeyDictionary()
         self.__abandons = []
         self.__shortcuts = {}
-        self.__record = LruCache(config.message_max_cache)
+        self.__record = LRU(config.message_max_cache)
 
         def _del():
             self.__commands.clear()
@@ -279,12 +279,12 @@ class CommandManager:
             return cmd.get_help()
 
     def record(self, token: int, result: Arparma):
-        self.__record.set(token, result)
+        self.__record[token] = result
 
     def get_record(self, token: int) -> Arparma | None:
         if not token:
             return
-        return self.__record.get(token)
+        return self.__record.get(token, None)
 
     def get_token(self, result: Arparma) -> int:
         return next((token for token, res in self.__record.items() if res == result), 0)
@@ -294,20 +294,20 @@ class CommandManager:
 
     @property
     def recent_message(self) -> DataCollection[str | Any] | None:
-        if rct := self.__record.recent:
-            return rct.origin
+        if rct := self.__record.peek_first_item():
+            return rct[1].origin
 
     @property
     def last_using(self):
-        if rct := self.__record.recent:
-            return rct.source
+        if rct := self.__record.peek_first_item():
+            return rct[1].source
 
     @property
-    def records(self) -> LruCache:
+    def records(self) -> LRU[int, Arparma]:
         return self.__record
 
     def reuse(self, index: int = -1):
-        key = list(self.__record.cache.keys())[index]
+        key = self.__record.keys()[index]
         return self.__record[key]
 
     def __repr__(self):
@@ -318,7 +318,7 @@ class CommandManager:
             "\nShortcuts:\n" +
             "\n".join([f" {k} => {v}" for k, v in self.__shortcuts.items()]) +
             "\nRecords:\n" +
-            "\n".join([f" [{k}]: {v[1].origin}" for k, v in enumerate(self.__record.items(20))]) +
+            "\n".join([f" [{k}]: {v[1].origin}" for k, v in enumerate(self.__record.items()[:20])]) +
             "\nDisabled Commands:\n" +
             f"[{', '.join(map(lambda x: x.path, self.__abandons))}]"
         )

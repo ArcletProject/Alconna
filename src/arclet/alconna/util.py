@@ -1,11 +1,8 @@
 """杂物堆"""
 from __future__ import annotations
 
-import contextlib
 import sys
-from collections import OrderedDict
 from functools import lru_cache
-from typing import Any, Generic, Hashable, Iterator, TypeVar, overload
 
 
 def _safe_dcs_args(**kwargs):
@@ -93,83 +90,3 @@ def levenshtein_norm(source: str, target: str) -> float:
             matrix[i][j] = min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, sub_distance)
 
     return 1 - float(matrix[l_s][l_t]) / max(l_s, l_t)
-
-
-_K = TypeVar("_K", bound=Hashable)
-_V = TypeVar("_V")
-_T = TypeVar("_T")
-
-
-class LruCache(Generic[_K, _V]):
-    cache: OrderedDict[_K, _V]
-
-    __slots__ = ("max_size", "cache", "__size")
-
-    def __init__(self, max_size: int = -1) -> None:
-        self.max_size = max_size
-        self.cache = OrderedDict()
-        self.__size = 0
-
-    @overload
-    def get(self, key: _K) -> _V | None:
-        ...
-
-    @overload
-    def get(self, key: _K, default: _T) -> _V | _T:
-        ...
-
-    def get(self, key: _K, default: _T | None = None) -> _V | _T | None:
-        if key in self.cache:
-            self.cache.move_to_end(key)
-            return self.cache[key]
-        return default
-
-    def __getitem__(self, item: _K) -> _V:
-        return self.cache[item]
-
-    def set(self, key: _K, value: Any) -> None:
-        if key in self.cache:
-            return
-        self.cache[key] = value
-        self.__size += 1
-        if 0 < self.max_size < self.__size:
-            _k = self.cache.popitem(last=False)[0]
-            self.__size -= 1
-
-    def delete(self, key: _K) -> None:
-        self.cache.pop(key)
-
-    def has(self, key: _K) -> bool:
-        return key in self.cache
-
-    def clear(self) -> None:
-        self.cache.clear()
-
-    def __len__(self) -> int:
-        return len(self.cache)
-
-    __contains__ = has
-
-    def __iter__(self) -> Iterator[_K]:
-        return iter(self.cache)
-
-    def __repr__(self) -> str:
-        return repr(self.cache)
-
-    @property
-    def recent(self) -> _V | None:
-        with contextlib.suppress(KeyError, IndexError):
-            return self.cache[list(self.cache.keys())[-1]]
-        return None
-
-    def keys(self):
-        return self.cache.keys()
-
-    def values(self):
-        return self.cache.values()
-
-    def items(self, size: int = -1) -> Iterator[tuple[_K, _V]]:
-        if size > 0:
-            with contextlib.suppress(IndexError, KeyError):
-                return iter(list(self.cache.items())[:-size - 1:-1])
-        return iter(self.cache.items())

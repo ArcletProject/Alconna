@@ -35,6 +35,8 @@ class Field(Generic[_T]):
     default_factory: Callable[[], _T] = dc_field(default=lambda: None)
     alias: str | None = dc_field(default=None)
     completion: Callable[[], str | list[str]] | None = dc_field(default=None)
+    display: Any = dc_field(init=False)
+    default_gen: _T = dc_field(init=False)
 
     def __post_init__(self):
         self.default_gen = self.default if self.default is not None else self.default_factory()
@@ -49,6 +51,9 @@ class Arg:
     notice: str | None = dc_field(compare=False, hash=False)
     flag: set[ArgFlag] = dc_field(compare=False, hash=False)
     separators: tuple[str, ...] = dc_field(compare=False, hash=False)
+    optional: bool = dc_field(compare=False, hash=False)
+    hidden: bool = dc_field(compare=False, hash=False)
+    anonymous: bool = dc_field(compare=False, hash=False)
 
     def __init__(
         self,

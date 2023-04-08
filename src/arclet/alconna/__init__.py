@@ -2,7 +2,7 @@
 
 from nepattern import AllParam as AllParam, AnyOne as AnyOne  # noqa
 from tarina import Empty as Empty # noqa
-from .util import split_once, split, LruCache
+from .util import split_once, split
 from .typing import MultiVar, KeyWordVar, Kw, Nargs
 from .args import Args, Field, ArgFlag, Arg
 from .base import CommandNode, Option, Subcommand
