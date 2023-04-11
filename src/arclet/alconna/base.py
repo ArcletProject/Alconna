@@ -1,7 +1,6 @@
 """Alconna 的基础内容相关"""
 from __future__ import annotations
 
-import re
 from functools import reduce
 from typing import Callable, Iterable, Sequence, overload
 from typing_extensions import Self

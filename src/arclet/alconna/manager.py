@@ -1,4 +1,5 @@
 """Alconna 负责记录命令的部分"""
+
 from __future__ import annotations
 
 import contextlib
@@ -7,7 +8,7 @@ import shelve
 import weakref
 from copy import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload
+from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload, Generic
 from typing_extensions import NotRequired
 from tarina import LRU
 from weakref import WeakKeyDictionary, WeakValueDictionary
@@ -23,9 +24,13 @@ if TYPE_CHECKING:
     from .core import Alconna, CommandMeta
 
 
-class ShortcutArgs(TypedDict):
-    command: NotRequired[DataCollection[Any]]
-    args: NotRequired[list[Any]]
+    class ShortcutArgs(TypedDict, Generic[TDataCollection]):
+        command: NotRequired[TDataCollection]
+        args: NotRequired[list[Any]]
+else:
+    class ShortcutArgs(TypedDict):
+        command: NotRequired[DataCollection[Any]]
+        args: NotRequired[list[Any]]
 
 
 class CommandManager:
@@ -165,14 +170,18 @@ class CommandManager:
             raise ValueError(config.lang.manager_incorrect_shortcut.format(target=f"{key}"))
 
     @overload
-    def find_shortcut(self, target: Alconna) -> list[Union[Arparma, ShortcutArgs]]:
+    def find_shortcut(
+        self, target: Alconna[TDataCollection]
+    ) -> list[Union[Arparma[TDataCollection], ShortcutArgs[TDataCollection]]]:
         ...
 
     @overload
-    def find_shortcut(self, target: Alconna, query: str) -> tuple[Arparma | ShortcutArgs, Match | None]:
+    def find_shortcut(
+        self, target: Alconna[TDataCollection], query: str
+    ) -> tuple[Arparma[TDataCollection] | ShortcutArgs[TDataCollection], Match[str] | None]:
         ...
 
-    def find_shortcut(self, target: Alconna, query: str | None = None):
+    def find_shortcut(self, target: Alconna[TDataCollection], query: str | None = None):
         """查找快捷命令"""
         namespace, name = self._command_part(target.path)
         if query:
@@ -295,14 +304,12 @@ class CommandManager:
     @property
     def recent_message(self) -> DataCollection[str | Any] | None:
         if rct := self.__record.peek_first_item():
-            rct: tuple[int, Arparma]
-            return rct[1].origin
+            return rct[1].origin  # type: ignore
 
     @property
     def last_using(self):
         if rct := self.__record.peek_first_item():
-            rct: tuple[int, Arparma]
-            return rct[1].source
+            return rct[1].source  # type: ignore
 
     @property
     def records(self) -> LRU[int, Arparma]:

@@ -218,7 +218,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         """返回该命令的帮助信息"""
         return self.formatter.format_node()
 
-    def shortcut(self, key: str, args: ShortcutArgs | None = None, delete: bool = False):
+    def shortcut(self, key: str, args: ShortcutArgs[TDataCollection] | None = None, delete: bool = False):
         """添加快捷命令"""
         try:
             if delete:

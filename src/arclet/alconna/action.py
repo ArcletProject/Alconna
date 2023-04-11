@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from types import LambdaType
 from typing import Any, Callable, Dict
 from nepattern import AllParam, AnyOne
-from tarina import is_async
+from tarina import is_coroutinefunction
 
 from .args import Args
 from .exceptions import InvalidParam
@@ -30,7 +30,7 @@ class ArgAction:
         _varargs = list(params.values()) + (varargs or [])
         kwargs = kwargs or {}
         try:
-            if is_async(self.action):
+            if is_coroutinefunction(self.action):
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
                     loop.create_task(self.action(*_varargs, **kwargs))

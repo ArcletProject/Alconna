@@ -34,12 +34,12 @@ class ArgFlag(str, Enum):
 @dataclass(slots=True)
 class Field(Generic[_T]):
     """标识参数单元字段"""
-    default: _T = dc_field(default=None)
-    default_factory: Callable[[], _T] = dc_field(default=lambda: None)
+    default: _T | None = dc_field(default=None)
+    default_factory: Callable[[], _T | None] = dc_field(default=lambda: None)
     alias: str | None = dc_field(default=None)
     completion: Callable[[], str | list[str]] | None = dc_field(default=None)
     display: Any = dc_field(init=False)
-    default_gen: _T = dc_field(init=False)
+    default_gen: _T | None = dc_field(init=False)
 
     def __post_init__(self):
         self.default_gen = self.default if self.default is not None else self.default_factory()
@@ -50,7 +50,7 @@ class Field(Generic[_T]):
 class Arg:
     name: str = dc_field(compare=True, hash=True)
     value: Union[BasePattern, AllParam.__class__] = dc_field(compare=False, hash=True)
-    field: Field[_T] = dc_field(compare=False, hash=False)
+    field: Field[Any] = dc_field(compare=False, hash=False)
     notice: str | None = dc_field(compare=False, hash=False)
     flag: set[ArgFlag] = dc_field(compare=False, hash=False)
     separators: tuple[str, ...] = dc_field(compare=False, hash=False)
@@ -248,9 +248,9 @@ class Args(metaclass=ArgsMeta):
             return res
         data = item if isinstance(item, tuple) else (item,)
         if isinstance(data[0], Arg):
-            self.argument.extend(data)
+            self.argument.extend(data)  # type: ignore
         else:
-            self.argument.append(Arg(*data))
+            self.argument.append(Arg(*data))  # type: ignore
         self.__check_vars__()
         return self
 

@@ -160,7 +160,7 @@ class SubAnalyser(Generic[TContainer]):
             raise ArgumentMissing(config.lang.subcommand_args_missing.format(name=self.command.dest))
         return self
 
-    def get_sub_analyser(self, target: Subcommand):
+    def get_sub_analyser(self, target: Subcommand) -> SubAnalyser[TContainer] | None:
         if target == self.command:
             return self
         for param in self.compile_params.values():
@@ -212,7 +212,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     def shortcut(self, data: list[Any], short: Arparma | ShortcutArgs, reg: Match | None) -> Arparma[TDataCollection]:
         if isinstance(short, Arparma):
             return short
-        self.container.build(short['command'])
+        self.container.build(short.get('command', self.command.command or self.command.name))
         data_index = 0
         for i, unit in enumerate(self.container.raw_data):
             if not data:
@@ -353,10 +353,10 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     @classmethod
     def compile(
         cls: type[TAnalyser],
-        command: Alconna[TAnalyser],
+        command: Alconna[Any],
         compiler: Callable[[TAnalyser, Namespace], None] = default_compiler
     ) -> TAnalyser:
-        _analyser = command.analyser_type(command)
+        _analyser = cls(command)
         compiler(_analyser, command.namespace_config)
         return _analyser
 

@@ -13,6 +13,7 @@
 7. `Alconna.parse` 移除参数 `interrupt`, 原功能由 `CompInteface` 替代
 8. 使用 `tarina` 替代部分功能
 9. 修复 `anti args` 的 bug
+10. 性能优化
 
 # Alconna 1.6.x:
 

@@ -3,13 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, TypeVar
 from typing_extensions import Self
+from tarina import split, split_once
 
 from .args import Arg
 from .base import Option, Subcommand
 from .config import config
 from .exceptions import NullMessage
 from .typing import DataCollection
-from .util import split, split_once
+# from .util import split, split_once
 
 _cache: dict[type, dict[str, Any]] = {}
 
@@ -38,7 +39,7 @@ class DataCollectionContainer:
     def config(
         cls,
         preprocessors: dict[str, Callable[..., Any]] | None = None,
-        to_text: Callable[[Any], str | None] = None,
+        to_text: Callable[[Any], str | None] | None = None,
         filter_out: list[str] | None = None
     ):
         _cache.setdefault(cls, {}).update(locals())
@@ -150,7 +151,7 @@ class DataCollectionContainer:
         data = self.bak_data if recover else self.raw_data[self.current_index:]
         for _data in data:
             if isinstance(_data, str):
-                _result.extend(split(_data, separate))
+                _result.extend(split(_data, separate or (' ',)))
             else:
                 _result.append(_data)
         return _result

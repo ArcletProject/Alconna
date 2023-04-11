@@ -108,7 +108,8 @@ class CompInterface:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        comp_ctx.reset(self._token)
+        if self._token:
+            comp_ctx.reset(self._token)
         if exc_type is PauseTriggered:
             self.clear()
             self.push(*exc_val.args[0])

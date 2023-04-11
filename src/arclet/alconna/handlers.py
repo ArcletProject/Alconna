@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING, Any, Iterable
-from tarina import Empty
+from tarina import Empty, split_once
 from nepattern import AllParam, BasePattern
 from nepattern.util import TPattern
 
@@ -15,7 +15,7 @@ from .exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, Spe
 from .model import OptionResult, Sentence, HeadResult
 from .output import output_manager
 from .typing import KeyWordVar, MultiVar
-from .util import levenshtein_norm, split_once
+from .util import levenshtein_norm
 
 if TYPE_CHECKING:
     from .analyser import SubAnalyser, DataCollectionContainer, Analyser
@@ -43,8 +43,8 @@ def _handle_keyword(
             result_dict[_key] = None if default_val is Empty else default_val
             return
         if not (_m_arg := _kwarg[2]):
-            may_arg, _str = container.popitem(seps)
-        res = value.base(_kwarg[2], default_val)
+            _m_arg, _ = container.popitem(seps)
+        res = value.base(_m_arg, default_val)
         if res.flag != 'valid':
             container.pushback(may_arg)
         if res.flag == 'error':

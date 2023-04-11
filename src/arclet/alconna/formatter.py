@@ -85,7 +85,7 @@ class TextFormatter:
         self.ignore_names.update(base.namespace_config.builtin_option_name['completion'])
         hds = base.headers.copy()
         if base.name in hds:
-            hds.remove(base.name)
+            hds.remove(base.name)  # type: ignore
         res = Trace(
             {
                 'name': base.name, 'header': hds or [], 'description': base.meta.description,

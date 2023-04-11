@@ -11,7 +11,7 @@ authors = [
 dependencies = [
     "typing-extensions>=4.5.0",
     "nepattern<0.6.0, >=0.5.2",
-    "tarina>=0.1.2",
+    "tarina>=0.2.0",
 ]
 dynamic = ["version"]
 requires-python = ">=3.8"
@@ -42,7 +42,6 @@ documentation = "https://arcletproject.github.io/docs/alconna/tutorial"
 repository = "https://github.com/ArcletProject/Alconna"
 
 [project.optional-dependencies]
-lru = ["tarina[lru]>=0.1.1"]
 full = ["arclet-alconna-tools>=0.2.0"]
 cli = ["arclet-alconna-cli>=0.3.0"]
 graia = ["arclet-alconna-graia>=0.9.0"]
