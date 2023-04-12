@@ -315,22 +315,24 @@ def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
 
 
 def analyse_header(analyser: Analyser) -> HeadResult:
-    command = analyser.command_header
+    header = analyser.command_header
+    content = header.content
+    mapping = header.mapping
     head_text, _str = analyser.container.popitem()
-    if isinstance(command, TPattern) and _str and (mat := command.fullmatch(head_text)):
-        return HeadResult(head_text, head_text, True, mat.groupdict())
-    elif isinstance(command, BasePattern) and (val := command(head_text, Empty)).success:
-        return HeadResult(head_text, val.value, True)
+    if isinstance(content, TPattern) and _str and (mat := content.fullmatch(head_text)):
+        return HeadResult(head_text, head_text, True, mat.groupdict(), mapping)
+    elif isinstance(content, BasePattern) and (val := content(head_text, Empty)).success:
+        return HeadResult(head_text, val.value, True, fixes=mapping)
 
     may_command, _m_str = analyser.container.popitem()
-    if isinstance(command, list) and _m_str:
-        for pair in command:
+    if isinstance(content, list) and _m_str:
+        for pair in content:
             if res := pair.match(head_text, may_command):
-                return HeadResult(*res)
-    if isinstance(command, Double) and (
-        res := command.match(head_text, may_command, _str, _m_str, analyser.container.pushback)
+                return HeadResult(*res, fixes=mapping)
+    if isinstance(content, Double) and (
+        res := content.match(head_text, may_command, _str, _m_str, analyser.container.pushback)
     ):
-        return HeadResult(*res)
+        return HeadResult(*res, fixes=mapping)
 
     if _str and analyser.fuzzy_match:
         headers_text = []
@@ -338,7 +340,7 @@ def analyse_header(analyser: Analyser) -> HeadResult:
             headers_text.extend(f"{i}{analyser.command.command}" for i in analyser.command.headers)
         elif analyser.command.command:
             headers_text.append(str(analyser.command.command))
-        if isinstance(command, (TPattern, BasePattern)):
+        if isinstance(content, (TPattern, BasePattern)):
             source = head_text
         else:
             source = head_text + analyser.container.separators[0] + str(may_command)

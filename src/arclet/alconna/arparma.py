@@ -95,7 +95,7 @@ class Arparma(Generic[TDataCollection]):
         return command_manager.get_command(self._source)
 
     @property
-    def header(self) -> dict[str, str]:
+    def header(self) -> dict[str, Any]:
         """返回可能解析到的命令头中的信息"""
         return self.header_match.groups
 

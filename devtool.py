@@ -7,7 +7,7 @@ import traceback
 from arclet.alconna.analyser import Analyser, default_compiler
 from arclet.alconna.container import DataCollectionContainer
 from arclet.alconna.handlers import analyse_args as ala, analyse_header as alh, analyse_option as alo
-from arclet.alconna.header import handle_header
+from arclet.alconna.header import Header
 from arclet.alconna.typing import DataCollection
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.args import Args
@@ -62,7 +62,7 @@ def analyse_header(
     _analyser.reset()
     _analyser.container.separators = (sep, )
     _analyser.need_main_args = False
-    _analyser.command_header = handle_header(command_name, headers)
+    _analyser.command_header = Header.generate(command_name, headers)
     try:
         _analyser.container.build(command)
         return alh(_analyser)

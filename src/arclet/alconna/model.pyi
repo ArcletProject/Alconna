@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Any
+from nepattern import BasePattern
 
 class Sentence:
     name: str
@@ -28,7 +29,12 @@ class HeadResult:
     origin: Any
     result: Any
     matched: bool
-    groups: dict[str, str]
+    groups: dict[str, Any]
     def __init__(
-        self, origin: Any = ..., result: Any = ..., matched: bool = ..., groups: dict[str, str] | None = ...
+        self,
+        origin: Any = ...,
+        result: Any = ...,
+        matched: bool = ...,
+        groups: dict[str, str] | None = ...,
+        fixes: dict[str, BasePattern] | None = ...
     ) -> None: ...

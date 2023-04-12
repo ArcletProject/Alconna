@@ -75,8 +75,8 @@ def test_special_header():
     alc2 = Alconna("RD{r:int}?=={e:int}")
     res = alc2.parse("RD100==36")
     assert res.matched is True
-    assert res.header["r"] == "100"
-    assert res.header["e"] == "36"
+    assert res.header["r"] == 100
+    assert res.header["e"] == 36
 
 
 def test_formatter():
@@ -214,6 +214,7 @@ def test_alconna_multi_header():
     assert alc6_11.parse([b, a]).head_matched is True
     assert alc6_11.parse([b]).head_matched is False
     assert alc6_11.parse([b, "abc"]).head_matched is False
+
 
 
 def test_alconna_namespace():

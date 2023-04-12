@@ -7,9 +7,6 @@ from typing import TYPE_CHECKING, Any, Generic, Callable
 from dataclasses import dataclass, field, InitVar
 from typing_extensions import Self, TypeVar
 
-from nepattern import BasePattern
-from nepattern.util import TPattern
-
 from .manager import command_manager, ShortcutArgs
 from .exceptions import (
     ParamsUnmatched,
@@ -20,7 +17,7 @@ from .exceptions import (
     NullMessage
 )
 from .args import Args
-from .header import handle_header, Pair, Double
+from .header import Header
 from .base import Option, Subcommand
 from .completion import comp_ctx
 from .model import Sentence, HeadResult, OptionResult, SubcommandResult
@@ -172,7 +169,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
     command: Alconna  # Alconna实例
     used_tokens: set[int]  # 已使用的token
     # 命令头部
-    command_header: TPattern | BasePattern | list[Pair] | Double
+    command_header: Header
     _global_container_type = DataCollectionContainer
 
     def __init__(self, alconna: Alconna, container_type: type[TContainer] | None = None):
@@ -189,7 +186,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         )
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.used_tokens = set()
-        self.command_header = handle_header(alconna.command, alconna.headers)
+        self.command_header = Header.generate(alconna.command, alconna.headers)
 
     @classmethod
     def default_container(cls, __t: type[TContainer] | None = None) -> type[Analyser[TContainer, TDataCollection]]:
