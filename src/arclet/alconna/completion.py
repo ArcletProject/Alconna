@@ -7,7 +7,7 @@ from tarina import ContextModel
 from .exceptions import PauseTriggered
 from .manager import command_manager
 from .output import output_manager
-from .config import config
+from .lang import lang
 
 if TYPE_CHECKING:
     from .core import Alconna
@@ -98,7 +98,7 @@ class CompInterface:
         ]
 
     def __repr__(self):
-        return f"{config.lang.common_completion_node}\n" + "\n".join(self.lines())
+        return f"{lang.common.completion_node}\n" + "\n".join(self.lines())
 
     def send_prompt(self):
         return output_manager.send(self.source.command.name, lambda: self.__repr__())

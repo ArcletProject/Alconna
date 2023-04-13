@@ -7,7 +7,7 @@ from typing_extensions import Self
 
 from .action import ArgAction
 from .args import Arg, Args
-from .config import config
+from .lang import lang
 from .exceptions import InvalidParam
 
 
@@ -39,7 +39,7 @@ class CommandNode:
             help_text(str): 命令帮助信息
         """
         if not name:
-            raise InvalidParam(config.lang.node_name_empty)
+            raise InvalidParam(lang.node.name_empty)
         _parts = name.split(" ")
         self.name = _parts[-1]
         self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []
@@ -81,6 +81,7 @@ class CommandNode:
 
 class Option(CommandNode):
     """命令选项, 可以使用别名"""
+    aliases: list[str]
     priority: int
 
     def __init__(
@@ -92,7 +93,7 @@ class Option(CommandNode):
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
         priority: int = 0
     ):
-        self.aliases: list[str] = list(alias or [])
+        self.aliases = list(alias or [])
         _name = name.split(" ")[-1]
         if "|" in _name:
             _aliases = _name.split('|')

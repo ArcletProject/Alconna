@@ -144,7 +144,7 @@ class TextFormatter:
                 ))
             return self.format(trace)
 
-        return "\n".join(map(_handle, self.data.values()))
+        return "\n".join([_handle(v) for v in self.data.values()])
 
     def format(self, trace: Trace) -> str:
         """help text的生成入口"""

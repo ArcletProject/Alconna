@@ -23,7 +23,8 @@ from .completion import comp_ctx
 from .model import Sentence, HeadResult, OptionResult, SubcommandResult
 from .arparma import Arparma
 from .typing import TDataCollection
-from .config import config, Namespace
+from .config import Namespace
+from .lang import lang
 from .output import output_manager
 from .handlers import analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
 from .container import DataCollectionContainer, TContainer
@@ -154,7 +155,7 @@ class SubAnalyser(Generic[TContainer]):
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(self, self.self_args)
         if not self.args_result and self.need_main_args:
-            raise ArgumentMissing(config.lang.subcommand_args_missing.format(name=self.command.dest))
+            raise ArgumentMissing(lang.subcommand.args_missing.format(name=self.command.dest))
         return self
 
     def get_sub_analyser(self, target: Subcommand) -> SubAnalyser[TContainer] | None:
@@ -248,7 +249,7 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         """主体解析函数, 应针对各种情况进行解析"""
         if self.container.ndata == 0:
             if not message:
-                raise NullMessage(config.lang.analyser_handle_null_message.format(target=message))
+                raise NullMessage(lang.analyser.handle_null_message.format(target=message))
             try:
                 self.container.build(message)
             except Exception as e:
@@ -293,9 +294,9 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
                 last = self.container.bak_data[-1]
                 self.container.bak_data[-1] = last[:last.rfind(rest[-1])]
                 return handle_completion(self, rest[-2])
-            exc = ParamsUnmatched(config.lang.analyser_param_unmatched.format(target=self.container.popitem(move=False)[0]))
+            exc = ParamsUnmatched(lang.analyser.param_unmatched.format(target=self.container.popitem(move=False)[0]))
         else:
-            exc = ArgumentMissing(config.lang.analyser_param_missing)
+            exc = ArgumentMissing(lang.analyser.param_missing)
         if isinstance(exc, ArgumentMissing) and comp_ctx.get(None):
             raise PauseTriggered(prompt(self))
         if self.command.meta.raise_exception:

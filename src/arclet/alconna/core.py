@@ -15,6 +15,7 @@ from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior
 from .base import Option, Subcommand
 from .config import Namespace, config
+from .lang import lang
 from .duplication import Duplication
 from .exceptions import NullMessage
 from .executor import ArparmaExecutor, T
@@ -148,18 +149,18 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
         options.append(
-            Option("|".join(np_config.builtin_option_name['help']), help_text=config.lang.builtin_option_help),
+            Option("|".join(np_config.builtin_option_name['help']), help_text=lang.builtin.option_help),
         )
         options.append(
             Option(
                 "|".join(np_config.builtin_option_name['shortcut']),
                 Args["delete;?", "delete"]["name", str]["command", str, "_"],
-                help_text=config.lang.builtin_option_shortcut
+                help_text=lang.builtin.option_shortcut
             )
         )
         options.append(
             Option(
-                "|".join(np_config.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
+                "|".join(np_config.builtin_option_name['completion']), help_text=lang.builtin.option_completion
             )
         )
         name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
@@ -193,15 +194,15 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         if header:
             self.headers = namespace.headers.copy()
         self.options[-3] = Option(
-            "|".join(namespace.builtin_option_name['help']), help_text=config.lang.builtin_option_help
+            "|".join(namespace.builtin_option_name['help']), help_text=lang.builtin.option_help
         )
         self.options[-2] = Option(
             "|".join(namespace.builtin_option_name['shortcut']),
             Args["delete;?", "delete"]["name", str]["command", str, "_"],
-            help_text=config.lang.builtin_option_shortcut
+            help_text=lang.builtin.option_shortcut
         )
         self.options[-1] = Option(
-            "|".join(namespace.builtin_option_name['completion']), help_text=config.lang.builtin_option_completion
+            "|".join(namespace.builtin_option_name['completion']), help_text=lang.builtin.option_completion
         )
         self.meta.fuzzy_match = namespace.fuzzy_match or self.meta.fuzzy_match
         self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
@@ -223,21 +224,20 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         try:
             if delete:
                 command_manager.delete_shortcut(self, key)
-                return config.lang.shortcut_delete_success.format(shortcut=key, target=self.path)
+                return lang.shortcut.delete_success.format(shortcut=key, target=self.path)
             if args:
                 command_manager.add_shortcut(self, key, args)
-                return config.lang.shortcut_add_success.format(shortcut=key, target=self.path)
+                return lang.shortcut.add_success.format(shortcut=key, target=self.path)
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
                     command_manager.add_shortcut(self, key, {"command": cmd})
-                    return config.lang.shortcut_add_success.format(shortcut=key, target=self.path)
+                    return lang.shortcut.add_success.format(shortcut=key, target=self.path)
                 raise ValueError(
-                    config.lang.shortcut_recent_command_error.format(
-                        target=self.path, source=getattr(alc, "path", "Unknown"))
+                    lang.shortcut.recent_command_error.format(target=self.path, source=getattr(alc, "path", "Unknown"))
                 )
             else:
-                raise ValueError(config.lang.shortcut_no_recent_command)
+                raise ValueError(lang.shortcut.no_recent_command)
         except Exception as e:
             if self.meta.raise_exception:
                 raise e

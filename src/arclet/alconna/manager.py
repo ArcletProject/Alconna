@@ -15,6 +15,7 @@ from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from .arparma import Arparma
 from .config import Namespace, config
+from .lang import lang
 from .exceptions import ExceedMaxCount
 from .typing import DataCollection, TDataCollection
 
@@ -127,7 +128,7 @@ class CommandManager:
             return self.__analysers[command]  # type: ignore
         except KeyError as e:
             namespace, name = self._command_part(command.path)
-            raise ValueError(config.lang.manager_undefined_command.format(target=f"{namespace}.{name}")) from e
+            raise ValueError(lang.manager.undefined_command.format(target=f"{namespace}.{name}")) from e
 
     def requires(self, *paths: str) -> list[Analyser]:
         return [v for k, v in self.__analysers.items() if k.path in paths]
@@ -167,7 +168,7 @@ class CommandManager:
         elif source.matched:
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
         else:
-            raise ValueError(config.lang.manager_incorrect_shortcut.format(target=f"{key}"))
+            raise ValueError(lang.manager.incorrect_shortcut.format(target=f"{key}"))
 
     @overload
     def find_shortcut(
@@ -192,7 +193,7 @@ class CommandManager:
                     if mat := re.match(k.split("::")[1], query):
                         return self.__shortcuts[k], mat
                 raise ValueError(
-                    config.lang.manager_target_command_error.format(target=f"{namespace}.{name}", shortcut=query)
+                    lang.manager.target_command_error.format(target=f"{namespace}.{name}", shortcut=query)
                 ) from e
         return [self.__shortcuts[k] for k in self.__shortcuts.keys() if f"{namespace}.{name}" in k]
 
@@ -247,9 +248,9 @@ class CommandManager:
             max_length: 单个页面展示的最大长度
             page: 当前页码
         """
-        pages = pages or config.lang.manager_help_pages
+        pages = pages or lang.manager.help_pages
         cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
-        header = header or config.lang.manager_help_header
+        header = header or lang.manager.help_header
         if max_length < 1:
             command_string = "\n".join(
                 f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
@@ -275,7 +276,7 @@ class CommandManager:
         help_names = set()
         for i in cmds:
             help_names.update(i.namespace_config.builtin_option_name['help'])
-        footer = footer or config.lang.manager_help_footer.format(help="|".join(help_names))
+        footer = footer or lang.manager.help_footer.format(help="|".join(help_names))
         return f"{header}\n{command_string}\n{footer}"
 
     def all_command_raw_help(self, namespace: str | Namespace | None = None) -> dict[str, CommandMeta]:
@@ -323,7 +324,7 @@ class CommandManager:
         return (
             f"Current: {hex(id(self))} in {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}\n" +
             "Commands:\n" +
-            f"[{', '.join(map(lambda x: x.path, self.get_commands()))}]" +
+            f"[{', '.join([cmd.path for cmd in self.get_commands()])}]" +
             "\nShortcuts:\n" +
             "\n".join([f" {k} => {v}" for k, v in self.__shortcuts.items()]) +
             "\nRecords:\n" +

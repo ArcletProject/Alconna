@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import ContextManager, Final, TypedDict, Callable, Any
+from typing import ContextManager, TypedDict, Callable, Any, TYPE_CHECKING
 from .typing import THeader
+
+if TYPE_CHECKING:
+    from .formatter import TextFormatter
 
 
 class OptionNames(TypedDict):
@@ -18,7 +19,7 @@ class Namespace:
     name: str
     headers: THeader = field(default_factory=list)
     separators: tuple[str, ...] = field(default_factory=lambda: (" ",))
-    formatter_type: type["TextFormatter"] | None = field(default=None)  # type: ignore
+    formatter_type: type[TextFormatter] | None = field(default=None)  # type: ignore
     fuzzy_match: bool = field(default=False)
     raise_exception: bool = field(default=False)
     enable_message_cache: bool = field(default=True)
@@ -66,61 +67,10 @@ class namespace(ContextManager[Namespace]):
         del self.np
 
 
-class _LangConfig:
-    path: Final[Path] = Path(__file__).parent / "default.lang"
-    __slots__ = "__config", "__file"
 
-    def __init__(self):
-        with self.path.open("r", encoding="utf-8") as f:
-            self.__file = json.load(f)
-        self.__config: dict[str, str] = self.__file[self.__file["$default"]]
-
-    @property
-    def types(self):
-        return [key for key in self.__file if key != "$default"]
-
-    def change_type(self, name: str):
-        if name != "$default" and name in self.__file:
-            self.__config = self.__file[name]
-            self.__file["$default"] = name
-            with self.path.open("w", encoding="utf-8") as f:
-                json.dump(
-                    self.__file, f, ensure_ascii=False, indent=2
-                )
-            return
-        raise ValueError(self.__config["lang.type_error"].format(target=name))
-
-    def reload(self, path: str | Path, lang_type: str | None = None):
-        if isinstance(path, str):
-            path = Path(path)
-        with path.open("r", encoding="utf-8") as f:
-            content = json.load(f)
-        if not lang_type:
-            self.__config.update(content)
-        elif lang_type in self.__file:
-            self.__file[lang_type].update(content)
-            self.__config = self.__file[lang_type]
-        else:
-            self.__file[lang_type] = content
-            self.__config = self.__file[lang_type]
-
-    def require(self, name: str) -> str:
-        return self.__config.get(name, name)
-
-    def set(self, name: str, lang_content: str):
-        if not self.__config.get(name):
-            raise ValueError(self.__config["lang.name_error"].format(target=name))
-        self.__config[name] = lang_content
-
-    def __getattr__(self, item: str) -> str:
-        item = item.replace("_", ".", 1)
-        if not self.__config.get(item):
-            raise AttributeError(self.__config["lang.name_error"].format(target=item))
-        return self.__config[item]
 
 
 class _AlconnaConfig:
-    lang: _LangConfig = _LangConfig()
     command_max_count: int = 200
     message_max_cache: int = 100
     fuzzy_threshold: float = 0.6
@@ -145,6 +95,6 @@ class _AlconnaConfig:
 
 
 config = _AlconnaConfig()
-load_lang_file = config.lang.reload
 
-__all__ = ["config", "load_lang_file", "Namespace", "namespace"]
+
+__all__ = ["config", "Namespace", "namespace"]

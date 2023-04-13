@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-_repr_ = lambda self: "(" + " ".join(f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__) + ")"
+_repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__]) + ")"
 
 
 @dataclass(init=False, eq=True)

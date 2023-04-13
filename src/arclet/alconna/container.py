@@ -7,10 +7,9 @@ from tarina import split, split_once
 
 from .args import Arg
 from .base import Option, Subcommand
-from .config import config
+from .lang import lang
 from .exceptions import NullMessage
 from .typing import DataCollection
-# from .util import split, split_once
 
 _cache: dict[type, dict[str, Any]] = {}
 
@@ -70,7 +69,7 @@ class DataCollectionContainer:
         return self.current_index == self.ndata
 
     def build(self, data: DataCollection[str | Any]) -> Self:
-        """命令分析功能, 传入字符串或消息链, 应当在失败时返回fail的arpamar"""
+        """命令分析功能, 传入字符串或消息链"""
         self.reset()
         self.origin = data
         if isinstance(data, str):
@@ -89,7 +88,7 @@ class DataCollectionContainer:
                 raw_data.append(res)
             i += 1
         if i < 1:
-            raise NullMessage(config.lang.analyser_handle_null_message.format(target=data))
+            raise NullMessage(lang.analyser_handle_null_message.format(target=data))
         self.ndata = i
         self.bak_data = raw_data.copy()
         if self.message_cache:

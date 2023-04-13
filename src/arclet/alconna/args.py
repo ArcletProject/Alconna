@@ -12,7 +12,7 @@ from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, type_parser
 from typing_extensions import Self
 from tarina import get_signature
 
-from .config import config
+from .lang import lang
 from .exceptions import InvalidParam
 from .typing import KeyWordVar, MultiVar
 
@@ -68,9 +68,9 @@ class Arg:
         flags: list[ArgFlag] | None = None,
     ):
         if not isinstance(name, str) or name.startswith('$'):
-            raise InvalidParam(config.lang.args_name_error)
+            raise InvalidParam(lang.args.name_error)
         if not name.strip():
-            raise InvalidParam(config.lang.args_name_empty)
+            raise InvalidParam(lang.args.name_empty)
         self.name = name
         _value = type_parser(value or name)
         default = field if isinstance(field, Field) else Field(field)
@@ -79,7 +79,7 @@ class Arg:
         if default.default == "...":
             default.default = Empty
         if _value is Empty:
-            raise InvalidParam(config.lang.args_value_error.format(target=name))
+            raise InvalidParam(lang.args.value_error.format(target=name))
         self.value = _value
         self.field = default
         self.notice = notice
@@ -217,23 +217,23 @@ class Args(metaclass=ArgsMeta):
             if isinstance(arg.value, MultiVar) and not _limit:
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.var_keyword:
-                        raise InvalidParam(config.lang.args_duplicate_kwargs)
+                        raise InvalidParam(lang.args.duplicate_kwargs)
                     self.var_keyword = arg.name
                 elif self.var_positional:
-                    raise InvalidParam(config.lang.args_duplicate_varargs)
+                    raise InvalidParam(lang.args.duplicate_varargs)
                 else:
                     self.var_positional = arg.name
                 _limit = True
             if isinstance(arg.value, KeyWordVar):
                 if self.var_keyword or self.var_positional:
-                    raise InvalidParam(config.lang.args_exclude_mutable_args)
+                    raise InvalidParam(lang.args.exclude_mutable_args)
                 self.keyword_only.append(arg.name)
                 if arg.value.sep in arg.separators:
                     _tmp.insert(-1, Arg(f"_key_{arg.name}", value=f"-*{arg.name}"))
                     _tmp[-1].value = arg.value.base
             if ArgFlag.OPTIONAL in arg.flag:
                 if self.var_keyword or self.var_positional:
-                    raise InvalidParam(config.lang.args_exclude_mutable_args)
+                    raise InvalidParam(lang.args.exclude_mutable_args)
                 self.optional_count += 1
         self.argument.clear()
         self.argument.extend(_tmp)
@@ -280,7 +280,7 @@ class Args(metaclass=ArgsMeta):
 
     def __repr__(self):
         return (
-            f"Args({', '.join([f'{arg}' for arg in self.argument if not arg.name.startswith('_key_')])})"
+            f"Args({', '.join([f'{arg}' for arg in self.argument if not arg.anonymous])})"
             if self.argument else "Empty"
         )
 

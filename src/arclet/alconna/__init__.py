@@ -12,7 +12,8 @@ from .container import DataCollectionContainer
 from .core import Alconna, CommandMeta
 from .arparma import Arparma, ArparmaBehavior
 from .manager import command_manager, ShortcutArgs
-from .config import config, load_lang_file, namespace, Namespace
+from .config import config, namespace, Namespace
+from .lang import load_lang_file
 
 from .builtin import store_value, set_default, store_true, store_false
 from .output import output_manager
