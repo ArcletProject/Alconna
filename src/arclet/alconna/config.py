@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import ContextManager, TypedDict, Callable, Any, TYPE_CHECKING
+from tarina.lang import lang
+from pathlib import Path
+
 from .typing import THeader
 
 if TYPE_CHECKING:
@@ -67,9 +70,6 @@ class namespace(ContextManager[Namespace]):
         del self.np
 
 
-
-
-
 class _AlconnaConfig:
     command_max_count: int = 200
     message_max_cache: int = 100
@@ -95,6 +95,6 @@ class _AlconnaConfig:
 
 
 config = _AlconnaConfig()
+lang.load(Path(__file__).parent / "i18n")
 
-
-__all__ = ["config", "Namespace", "namespace"]
+__all__ = ["config", "Namespace", "namespace", "lang"]

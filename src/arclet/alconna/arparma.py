@@ -7,10 +7,9 @@ from functools import lru_cache
 from types import MappingProxyType
 from typing import Any, Callable, Generic, Mapping, TypeVar, overload
 from tarina import get_signature, generic_isinstance, Empty
-
+from tarina.lang import lang
 from typing_extensions import Self
 
-from .lang import lang
 from .exceptions import BehaveCancelled, OutBoundsBehave
 from .model import HeadResult, OptionResult, SubcommandResult
 from .typing import TDataCollection

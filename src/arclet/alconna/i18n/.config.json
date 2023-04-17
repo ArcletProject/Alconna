@@ -1,0 +1,6 @@
+{
+  "default": "zh-CN",
+  "immutable": [
+    "builtin"
+  ]
+}

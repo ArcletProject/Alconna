@@ -7,12 +7,11 @@ from dataclasses import field as dc_field
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, TYPE_CHECKING
-from tarina import Empty
+from tarina import Empty, get_signature
+from tarina.lang import lang
 from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, type_parser
 from typing_extensions import Self
-from tarina import get_signature
 
-from .lang import lang
 from .exceptions import InvalidParam
 from .typing import KeyWordVar, MultiVar
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, Iterable
 from tarina import Empty, split_once
+from tarina.lang import lang
 from nepattern import AllParam, BasePattern
 from nepattern.util import TPattern
 
@@ -10,7 +11,6 @@ from .args import Arg, Args
 from .header import Double
 from .base import Option, Subcommand
 from .config import config
-from .lang import lang
 from .completion import Prompt, comp_ctx
 from .exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered, PauseTriggered
 from .model import OptionResult, Sentence, HeadResult
@@ -364,9 +364,12 @@ def handle_help(analyser: Analyser):
     return analyser.export(fail=True)
 
 
+_args = Args["delete;?", "delete"]["name", str]["command", str, "_"]
+
+
 def handle_shortcut(analyser: Analyser):
     analyser.container.popitem()
-    opt_v = analyse_args(analyser, Args["delete;?", "delete"]["name", str]["command", str, "_"])
+    opt_v = analyse_args(analyser, _args)
     try:
         msg = analyser.command.shortcut(
             opt_v["name"],

@@ -7,6 +7,7 @@ from functools import reduce
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 
 from tarina import init_spec
+from tarina.lang import lang
 from typing_extensions import Self
 
 from .action import ArgAction, exec_, exec_args
@@ -15,7 +16,6 @@ from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior
 from .base import Option, Subcommand
 from .config import Namespace, config
-from .lang import lang
 from .duplication import Duplication
 from .exceptions import NullMessage
 from .executor import ArparmaExecutor, T

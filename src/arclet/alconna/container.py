@@ -7,7 +7,7 @@ from tarina import split, split_once
 
 from .args import Arg
 from .base import Option, Subcommand
-from .lang import lang
+from tarina.lang import lang
 from .exceptions import NullMessage
 from .typing import DataCollection
 

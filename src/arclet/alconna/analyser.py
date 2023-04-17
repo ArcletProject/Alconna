@@ -6,6 +6,7 @@ from re import Match
 from typing import TYPE_CHECKING, Any, Generic, Callable
 from dataclasses import dataclass, field, InitVar
 from typing_extensions import Self, TypeVar
+from tarina.lang import lang
 
 from .manager import command_manager, ShortcutArgs
 from .exceptions import (
@@ -24,7 +25,6 @@ from .model import Sentence, HeadResult, OptionResult, SubcommandResult
 from .arparma import Arparma
 from .typing import TDataCollection
 from .config import Namespace
-from .lang import lang
 from .output import output_manager
 from .handlers import analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
 from .container import DataCollectionContainer, TContainer

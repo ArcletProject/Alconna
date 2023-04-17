@@ -11,11 +11,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload, Generic
 from typing_extensions import NotRequired
 from tarina import LRU
+from tarina.lang import lang
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from .arparma import Arparma
 from .config import Namespace, config
-from .lang import lang
 from .exceptions import ExceedMaxCount
 from .typing import DataCollection, TDataCollection
 

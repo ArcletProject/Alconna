@@ -1,0 +1,73 @@
+{
+  "common": {
+    "fuzzy_matched": "无法解析 {target}。您想要输入的是不是 \"{source}\" ?",
+    "custom_type_error": "自定义参数类型传入的不是类型而是 {target}, 这是有意而为之的吗?",
+    "completion_node": "以下是建议的输入："
+  },
+  "node": {
+    "name_error": "该指令的名字含有非法字符",
+    "name_empty": "该指令的名字不能为空"
+  },
+  "header": {
+    "error": "命令头部 {target} 匹配失败"
+  },
+  "subcommand": {
+    "args_missing": "子命令 \"{name}\" 缺少必要参数"
+  },
+  "action": {
+    "length_error": "该 action 接受的参数个数必须与 Args 里的一致",
+    "args_error": "{target} 的类型 与 Args 中 '{key}' 接受的类型 {source} 不一致",
+    "args_not_same": "{target} 指定的消息元素类型不是 {source}",
+    "args_empty": "{target} 的类型不能指定为 {source}"
+  },
+  "analyser": {
+    "filter_missing": "Analyser 的子类必须实现 filter_out 属性",
+    "handle_null_message": "传入了一个无法获取文本的消息: {target}",
+    "handle_unexpect_type": "传入的消息中有非法类型的元素 {target}",
+    "param_unmatched": "参数 {target} 匹配失败",
+    "param_missing": "你应当传入更多的参数来完成解析!"
+  },
+  "args": {
+    "name_error": "参数的名字只能是字符串",
+    "name_empty": "该参数的指示名不能为空",
+    "value_error": "{target} 的参数值不能为Empty",
+    "duplicate_kwargs": "不能同时设置多个键值对可变参数",
+    "duplicate_varargs": "不能同时设置多个非键值对可变参数",
+    "exclude_mutable_args": "该选项不能与可变参数同时使用",
+    "key_not_found": "参数 {name} 不存在",
+    "missing": "参数 {key} 丢失",
+    "key_missing": "{target} 缺少键. 你是不是忘了带上 '{key}=' ?"
+  },
+  "shortcut": {
+    "delete_success": "{target} 的快截指令: \"{shortcut}\" 删除成功",
+    "add_success": "{target} 的快截指令: \"{shortcut}\" 添加成功",
+    "recent_command_error": "历史记录对应的命令 {source} 与 本命令 {target} 不一致"
+  },
+  "manager": {
+    "undefined_command": "命令 {target} 不存在",
+    "incorrect_shortcut": "快捷命令 {target} 无法使用",
+    "undefined_shortcut": "快捷命令 {target} 不存在",
+    "target_command_error": "{shortcut} 的目标命令 {target} 错误",
+    "help_header": "# 当前可用的命令有:",
+    "help_pages": "第 {current}/{total} 页",
+    "help_footer": "# 输入'命令名 {help}' 查看特定命令的语法"
+  },
+  "arpamar": {
+    "ambiguous_name": "名称 {target} 存在歧义\n请添加前缀 'options.' 或 'subcommands.'"
+  },
+  "stub": {
+    "key_error": "不支持 {target}"
+  },
+  "duplication": {
+    "stub_type_error": "{value} 不是一个合法的 Stub 子类"
+  },
+  "behavior": {
+    "exclude_matched": "{target} 与 {other} 不能同时存在",
+    "cooldown_matched": "操作过于频繁"
+  },
+  "builtin": {
+    "option_help": "显示帮助信息",
+    "option_shortcut": "设置快捷命令",
+    "option_completion": "补全当前命令"
+  }
+}

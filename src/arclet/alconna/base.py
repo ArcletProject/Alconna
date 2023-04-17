@@ -4,10 +4,10 @@ from __future__ import annotations
 from functools import reduce
 from typing import Callable, Iterable, Sequence, overload
 from typing_extensions import Self
+from tarina.lang import lang
 
 from .action import ArgAction
 from .args import Arg, Args
-from .lang import lang
 from .exceptions import InvalidParam
 
 
