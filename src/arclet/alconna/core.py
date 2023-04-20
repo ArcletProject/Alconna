@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import InitVar, dataclass, field
-from functools import reduce
+from functools import reduce, partial
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 
 from tarina import init_spec
@@ -11,7 +11,7 @@ from tarina.lang import lang
 from typing_extensions import Self
 
 from .action import ArgAction, exec_, exec_args
-from .analyser import Analyser
+from .analyser import TCompile, Analyser
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior
 from .base import Option, Subcommand
@@ -96,8 +96,9 @@ class Alconna(Subcommand, Generic[TDataCollection]):
 
     global_analyser_type: type[Analyser] = Analyser
 
-    def compile(self) -> Analyser:
-        return self.analyser_type.compile(self)
+    @property
+    def compile(self) -> Callable[[TCompile | None], Analyser[TDataCollection]]:
+        return partial(self.analyser_type, self)
 
     @classmethod
     def default_analyser(cls, __t: type[Analyser] | None = None):
@@ -264,13 +265,14 @@ class Alconna(Subcommand, Generic[TDataCollection]):
 
     def _parse(self, message: TDataCollection) -> Arparma[TDataCollection]:
         if self.union:
-            for ana in command_manager.requires(*self.union):
-                ana.container.build(message)
-                if (res := ana.process()).matched:
+            for ana, argv in command_manager.requires(*self.union):
+                argv.build(message)
+                if (res := ana.process(argv)).matched:
                     return res
         analyser = command_manager.require(self)
-        analyser.container.build(message)
-        return analyser.process()
+        argv = command_manager.resolve(self)
+        argv.build(message)
+        return analyser.process(argv)
 
     @overload
     def parse(self, message: TDataCollection) -> Arparma[TDataCollection]:

@@ -1,26 +1,28 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, TypeVar
+from dataclasses import dataclass, field, InitVar
+from typing import Any, Callable, Generic
 from typing_extensions import Self
 from tarina import split, split_once
 from tarina.lang import lang
 
 from .args import Arg
+from .config import Namespace, config
 from .base import Option, Subcommand
 from .exceptions import NullMessage
-from .typing import DataCollection
+from .typing import TDataCollection
 
 _cache: dict[type, dict[str, Any]] = {}
 
 
 @dataclass(repr=True)
-class DataCollectionContainer:
+class Argv(Generic[TDataCollection]):
+    namespace: InitVar[Namespace] = field(default=config.default_namespace)
+    fuzzy_match: bool = field(default=False)
     preprocessors: dict[str, Callable[..., Any]] = field(default_factory=dict)
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
     separators: tuple[str, ...] = field(default=(' ',))  # 分隔符
     filter_out: list[str] = field(default_factory=list)  # 元素黑名单
-    default_separate: bool = field(default=True)
     filter_crlf: bool = field(default=True)
     message_cache: bool = field(default=True)
     param_ids: set[str] = field(default_factory=set)
@@ -30,8 +32,8 @@ class DataCollectionContainer:
     ndata: int = field(init=False)  # 原始数据的长度
     bak_data: list[str | Any] = field(init=False)
     raw_data: list[str | Any] = field(init=False)
-    temp_token: int = field(init=False)  # 临时token
-    origin: DataCollection[Any] = field(init=False)
+    token: int = field(init=False)  # 临时token
+    origin: TDataCollection = field(init=False)
     _sep: tuple[str, ...] | None = field(init=False)
 
     @classmethod
@@ -43,8 +45,15 @@ class DataCollectionContainer:
     ):
         _cache.setdefault(cls, {}).update(locals())
 
-    def __post_init__(self):
+    def __post_init__(self, namespace: Namespace):
         self.reset()
+        self.special: dict[str, str] = {}
+        self.special.update(
+            [(i, "help") for i in namespace.builtin_option_name['help']] +
+            [(i, "completion") for i in namespace.builtin_option_name['completion']] +
+            [(i, "shortcut") for i in namespace.builtin_option_name['shortcut']]
+        )
+        self.completion_names = namespace.builtin_option_name['completion']
         if __cache := _cache.get(self.__class__, {}):
             self.preprocessors.update(__cache["preprocessors"] or {})
             self.filter_out.extend(__cache["filter_out"] or [])
@@ -55,7 +64,7 @@ class DataCollectionContainer:
         self.ndata = 0
         self.bak_data = []
         self.raw_data = []
-        self.temp_token = 0
+        self.token = 0
         self.origin = "None"
         self._sep = None
         self.context = None
@@ -68,7 +77,7 @@ class DataCollectionContainer:
     def done(self) -> bool:
         return self.current_index == self.ndata
 
-    def build(self, data: DataCollection[str | Any]) -> Self:
+    def build(self, data: TDataCollection) -> Self:
         """命令分析功能, 传入字符串或消息链"""
         self.reset()
         self.origin = data
@@ -92,7 +101,7 @@ class DataCollectionContainer:
         self.ndata = i
         self.bak_data = raw_data.copy()
         if self.message_cache:
-            self.temp_token = self.generate_token(raw_data)
+            self.token = self.generate_token(raw_data)
         return self
 
     def rebuild(self, *data: str | Any) -> Self:
@@ -108,7 +117,7 @@ class DataCollectionContainer:
         self.current_index = 0
         self.bak_data = self.raw_data.copy()
         if self.message_cache:
-            self.temp_token = self.generate_token(self.raw_data)
+            self.token = self.generate_token(self.raw_data)
         return self
 
     def popitem(self, separate: tuple[str, ...] | None = None, move: bool = True) -> tuple[str | Any, bool]:
@@ -161,6 +170,3 @@ class DataCollectionContainer:
     def data_reset(self, data: list[str | Any], index: int):
         self.raw_data = data
         self.current_index = index
-
-
-TContainer = TypeVar("TContainer", bound=DataCollectionContainer)

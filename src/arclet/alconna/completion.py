@@ -64,23 +64,24 @@ class CompInterface:
         return self.prompts[self.index].text
 
     def enter(self, content: Any | None = None):
+        argv = command_manager.resolve(self.source.command)
         if content:
-            self.source.container.rebuild(content)
+            argv.rebuild(content)
             self.clear()
-            return self.source.process()
+            return self.source.process(argv)
         if not self.prompts:
             raise ValueError("No prompt available.")
         prompt = self.prompts[self.index]
         if not prompt.can_use:
             raise ValueError("This prompt cannot be used.")
         if prompt.removal_prefix:
-            last = self.source.container.bak_data[-1]
-            self.source.container.bak_data[-1] = last[
+            last = argv.bak_data[-1]
+            argv.bak_data[-1] = last[
                 : last.rfind(prompt.removal_prefix)
             ]
-        self.source.container.rebuild(prompt.text)
+        argv.rebuild(prompt.text)
         self.clear()
-        return self.source.process()
+        return self.source.process(argv)
 
     def push(self, *suggests: Prompt):
         self.prompts.extend(suggests)

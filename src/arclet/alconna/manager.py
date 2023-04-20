@@ -14,6 +14,7 @@ from tarina import LRU
 from tarina.lang import lang
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
+from .argv import Argv
 from .arparma import Arparma
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
@@ -49,6 +50,7 @@ class CommandManager:
 
     __commands: dict[str, WeakValueDictionary[str, Alconna]]
     __analysers: WeakKeyDictionary[Alconna, Analyser]
+    __argv: WeakKeyDictionary[Alconna, Argv]
     __abandons: list[Alconna]
     __record: LRU[int, Arparma]
     __shortcuts: dict[str, Union[Arparma, ShortcutArgs]]
@@ -60,6 +62,7 @@ class CommandManager:
         self.current_count = 0
 
         self.__commands = {}
+        self.__argv = WeakKeyDictionary()
         self.__analysers = WeakKeyDictionary()
         self.__abandons = []
         self.__shortcuts = {}
@@ -111,8 +114,17 @@ class CommandManager:
         """注册命令解析器, 会同时记录解析器对应的命令"""
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
+        self.__argv.pop(command, None)
+        self.__argv[command] = Argv(
+            command.namespace_config,
+            fuzzy_match=command.meta.fuzzy_match,
+            to_text=command.namespace_config.to_text,
+            separators=command.separators,
+            message_cache=command.namespace_config.enable_message_cache,
+            filter_crlf=not command.meta.keep_crlf,
+        )
         self.__analysers.pop(command, None)
-        self.__analysers[command] = command.compile()
+        self.__analysers[command] = command.compile(None)
         namespace = self.__commands.setdefault(command.namespace, WeakValueDictionary())
         if _cmd := namespace.get(command.name):
             if _cmd == command:
@@ -124,7 +136,15 @@ class CommandManager:
             namespace[command.name] = command
             self.current_count += 1
 
-    def require(self, command: Alconna) -> Analyser:
+    def resolve(self, command: Alconna[TDataCollection]) -> Argv[TDataCollection]:
+        """获取命令解析器的参数解析器"""
+        try:
+            return self.__argv[command]
+        except KeyError as e:
+            namespace, name = self._command_part(command.path)
+            raise ValueError(lang.manager.undefined_command.format(target=f"{namespace}.{name}")) from e
+
+    def require(self, command: Alconna[TDataCollection]) -> Analyser[TDataCollection]:
         """获取命令解析器"""
         try:
             return self.__analysers[command]  # type: ignore
@@ -132,8 +152,11 @@ class CommandManager:
             namespace, name = self._command_part(command.path)
             raise ValueError(lang.manager.undefined_command.format(target=f"{namespace}.{name}")) from e
 
-    def requires(self, *paths: str) -> list[Analyser]:
-        return [v for k, v in self.__analysers.items() if k.path in paths]
+    def requires(self, *paths: str) -> zip[tuple[Analyser, Argv]]:  # type: ignore
+        return zip(
+            [v for k, v in self.__analysers.items() if k.path in paths],
+            [v for k, v in self.__argv.items() if k.path in paths],
+        )
 
     def delete(self, command: Alconna | str) -> None:
         """删除命令"""
@@ -141,6 +164,7 @@ class CommandManager:
         try:
             base = self.__commands[namespace][name]
             base.formatter.remove(base)
+            del self.__argv[base]
             del self.__analysers[base]
             del self.__commands[namespace][name]
             self.current_count -= 1

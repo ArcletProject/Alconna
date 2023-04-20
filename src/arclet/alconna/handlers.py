@@ -8,7 +8,7 @@ from nepattern import AllParam, BasePattern
 from nepattern.util import TPattern
 
 from .args import Arg, Args
-from .header import Double
+from .header import Double, Header
 from .base import Option, Subcommand
 from .config import config
 from .completion import Prompt, comp_ctx
@@ -19,11 +19,13 @@ from .typing import KeyWordVar, MultiVar
 from .util import levenshtein_norm
 
 if TYPE_CHECKING:
-    from .analyser import SubAnalyser, DataCollectionContainer, Analyser
+    from .argv import Argv
+    from .core import Alconna
+    from .analyser import SubAnalyser, Analyser
 
 
 def _handle_keyword(
-    container: DataCollectionContainer,
+    argv: Argv,
     value: KeyWordVar,
     may_arg: Any,
     seps: tuple[str, ...],
@@ -36,7 +38,7 @@ def _handle_keyword(
     if _kwarg := re.match(fr'^([^{value.sep}]+){value.sep}(.*?)$', may_arg):
         key = key or _kwarg[1]
         if (_key := _kwarg[1]) != key:
-            container.pushback(may_arg)
+            argv.pushback(may_arg)
             if fuzzy and levenshtein_norm(_key, key) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(source=_key, target=key))
             if default_val is None:
@@ -44,22 +46,22 @@ def _handle_keyword(
             result_dict[_key] = None if default_val is Empty else default_val
             return
         if not (_m_arg := _kwarg[2]):
-            _m_arg, _ = container.popitem(seps)
+            _m_arg, _ = argv.popitem(seps)
         res = value.base(_m_arg, default_val)
         if res.flag != 'valid':
-            container.pushback(may_arg)
+            argv.pushback(may_arg)
         if res.flag == 'error':
             if optional:
                 return
             raise ParamsUnmatched(*res.error.args)
         result_dict[_kwarg[1]] = res._value  # type: ignore
         return
-    container.pushback(may_arg)
+    argv.pushback(may_arg)
     raise ParamsUnmatched(lang.args.key_missing.format(target=may_arg, key=key))
 
 
 def _loop_kw(
-    container: DataCollectionContainer,
+    argv: Argv,
     _loop: int,
     seps: tuple[str, ...],
     value: MultiVar,
@@ -67,14 +69,14 @@ def _loop_kw(
 ):
     result = {}
     for _ in range(_loop):
-        _m_arg, _m_str = container.popitem(seps)
+        _m_arg, _m_str = argv.popitem(seps)
         if not _m_arg:
             continue
-        if _m_str and _m_arg in container.param_ids:
-            container.pushback(_m_arg)
+        if _m_str and _m_arg in argv.param_ids:
+            argv.pushback(_m_arg)
             break
         try:
-            _handle_keyword(container, value.base, _m_arg, seps, result, default, False)  # type: ignore
+            _handle_keyword(argv, value.base, _m_arg, seps, result, default, False)  # type: ignore
         except ParamsUnmatched:
             break
     if not result:
@@ -85,7 +87,7 @@ def _loop_kw(
 
 
 def _loop(
-    container: DataCollectionContainer,
+    argv: Argv,
     _loop: int,
     seps: tuple[str, ...],
     value: MultiVar,
@@ -95,17 +97,17 @@ def _loop(
     kw = args[args.var_keyword].value.base if args.var_keyword else None
     result = []
     for _ in range(_loop):
-        _m_arg, _m_str = container.popitem(seps)
+        _m_arg, _m_str = argv.popitem(seps)
         if not _m_arg:
             continue
         if _m_str and (
-            _m_arg in container.param_ids or
+            _m_arg in argv.param_ids or
             (kw and re.match(fr'^([^{kw.sep}]+){kw.sep}(.*?)$', _m_arg))
         ):
-            container.pushback(_m_arg)
+            argv.pushback(_m_arg)
             break
         if (res := value.base(_m_arg)).flag != 'valid':
-            container.pushback(_m_arg)
+            argv.pushback(_m_arg)
             break
         result.append(res._value)  # type: ignore
     if not result:
@@ -116,7 +118,7 @@ def _loop(
 
 
 def multi_arg_handler(
-    analyser: SubAnalyser,
+    argv: Argv,
     args: Args,
     arg: Arg,
     result_dict: dict[str, Any],
@@ -127,7 +129,7 @@ def multi_arg_handler(
     default = arg.field.default_gen
     kw = value.base.__class__ == KeyWordVar
     _m_rest_arg = len(args) - len(result_dict)
-    _m_rest_all_param_count = len(analyser.container.release(seps))
+    _m_rest_all_param_count = len(argv.release(seps))
     if not kw and not args.var_keyword or kw and not args.var_positional:
         loop = _m_rest_all_param_count - _m_rest_arg + 1
     elif not kw:
@@ -137,36 +139,35 @@ def multi_arg_handler(
     if value.length > 0:
         loop = min(loop, value.length)
     result_dict[key] = (
-        _loop_kw(analyser.container, loop, seps, value, default) if kw
-        else _loop(analyser.container, loop, seps, value, default, args)
+        _loop_kw(argv, loop, seps, value, default) if kw
+        else _loop(argv, loop, seps, value, default, args)
     )
 
 
-def analyse_args(analyser: SubAnalyser, args: Args) -> dict[str, Any]:
+def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
     分析 Args 部分
 
     Args:
-        analyser: 使用的分析器
+        argv: 使用的分析器
         args: 目标Args
 
     Returns:
         Dict: 解析结果
     """
     result: dict[str, Any] = {}
-    cont = analyser.container
     for arg in args.argument:
-        cont.context = arg
+        argv.context = arg
         key = arg.name
         value = arg.value
         default_val = arg.field.default_gen
         optional = arg.optional
         seps = arg.separators
-        may_arg, _str = cont.popitem(seps)
-        if _str and may_arg in analyser.special:
-            raise SpecialOptionTriggered(analyser.special[may_arg])
-        if not may_arg or (_str and may_arg in cont.param_ids):
-            cont.pushback(may_arg)
+        may_arg, _str = argv.popitem(seps)
+        if _str and may_arg in argv.special:
+            raise SpecialOptionTriggered(argv.special[may_arg])
+        if not may_arg or (_str and may_arg in argv.param_ids):
+            argv.pushback(may_arg)
             if default_val is not None:
                 result[key] = None if default_val is Empty else default_val
             elif value.__class__ is MultiVar and value.flag == '*':
@@ -175,16 +176,16 @@ def analyse_args(analyser: SubAnalyser, args: Args) -> dict[str, Any]:
                 raise ArgumentMissing(lang.args.missing.format(key=key))
             continue
         if value.__class__ is MultiVar:
-            cont.pushback(may_arg)
-            multi_arg_handler(analyser, args, arg, result)  # type: ignore
+            argv.pushback(may_arg)
+            multi_arg_handler(argv, args, arg, result)  # type: ignore
         elif value.__class__ is KeyWordVar:
             _handle_keyword(
-                cont, value, may_arg, seps, result, default_val, optional, key, analyser.fuzzy_match  # type: ignore
+                argv, value, may_arg, seps, result, default_val, optional, key, analyser.fuzzy_match  # type: ignore
             )
         elif value is AllParam:
-            cont.pushback(may_arg)
-            result[key] = cont.release(seps)
-            cont.current_index = cont.ndata
+            argv.pushback(may_arg)
+            result[key] = argv.release(seps)
+            argv.current_index = argv.ndata
             return result
         else:
             res = (
@@ -193,7 +194,7 @@ def analyse_args(analyser: SubAnalyser, args: Args) -> dict[str, Any]:
                 else value.validate(may_arg, default_val)
             )
             if res.flag != 'valid':
-                cont.pushback(may_arg)
+                argv.pushback(may_arg)
             if res.flag == 'error':
                 if optional:
                     continue
@@ -214,11 +215,11 @@ def analyse_args(analyser: SubAnalyser, args: Args) -> dict[str, Any]:
         result['$varargs'] = (varargs, args.var_positional)
     if args.keyword_only:
         result['$kwonly'] = {k: v for k, v in result.items() if k in args.keyword_only}
-    cont.context = None
+    argv.context = None
     return result
 
 
-def analyse_unmatch_params(analyser: SubAnalyser, text: str):
+def analyse_unmatch_params(analyser: SubAnalyser, argv: Argv, text: str):
     for _p in analyser.compile_params.values():
         if isinstance(_p, list):
             res = []
@@ -228,7 +229,7 @@ def analyse_unmatch_params(analyser: SubAnalyser, text: str):
                     analyser.compile_params.setdefault(text, res)
                     res.append(_o)
                     continue
-                if analyser.fuzzy_match and levenshtein_norm(_may_param, _o.name) >= config.fuzzy_threshold:
+                if argv.fuzzy_match and levenshtein_norm(_may_param, _o.name) >= config.fuzzy_threshold:
                     raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(source=_may_param, target=_o.name))
             if res:
                 return res
@@ -236,18 +237,18 @@ def analyse_unmatch_params(analyser: SubAnalyser, text: str):
             if (_may_param := split_once(text, _p.separators)[0]) == _p.name:
                 analyser.compile_params.setdefault(text, _p)
                 return _p
-            if analyser.fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
+            if argv.fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(source=_may_param, target=_p.name))
         else:
             _may_param, _ = split_once(text, _p.command.separators)
             if _may_param == _p.command.name or _may_param.startswith(_p.command.name):
                 analyser.compile_params.setdefault(text, _p)
                 return _p
-            if analyser.fuzzy_match and levenshtein_norm(_may_param, _p.command.name) >= config.fuzzy_threshold:
+            if argv.fuzzy_match and levenshtein_norm(_may_param, _p.command.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(source=_may_param, target=_p.command.name))
 
 
-def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionResult]:
+def analyse_option(analyser: SubAnalyser, argv: Argv, param: Option) -> tuple[str, OptionResult]:
     """
     分析 Option 部分
 
@@ -255,121 +256,118 @@ def analyse_option(analyser: SubAnalyser, param: Option) -> tuple[str, OptionRes
         analyser: 使用的分析器
         param: 目标Option
     """
-    analyser.container.context = param
+    argv.context = param
     if param.requires and analyser.sentences != param.requires:
         raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
     analyser.sentences = []
     if param.is_compact:
-        name, _ = analyser.container.popitem()
+        name, _ = argv.popitem()
         for al in param.aliases:
             if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
-                analyser.container.pushback(mat.groupdict()['rest'], replace=True)
+                argv.pushback(mat.groupdict()['rest'], replace=True)
                 break
         else:
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     else:
-        name, _ = analyser.container.popitem(param.separators)
+        name, _ = argv.popitem(param.separators)
         if name not in param.aliases:  # 先匹配选项名称
             raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
     name = param.dest
     if param.nargs == 0:
         return name, OptionResult()
-    return name, OptionResult(None, analyse_args(analyser, param.args))
+    return name, OptionResult(None, analyse_args(argv, param.args))
 
 
-def analyse_param(analyser: SubAnalyser, _text: Any, _str: bool):
-    if _str and _text in analyser.special:
-        if _text in analyser.completion_names:
-            if analyser.container.current_index < analyser.container.ndata:
-                analyser.container.bak_data = analyser.container.bak_data[:analyser.container.current_index+1]
-            last = analyser.container.bak_data[-1]
-            analyser.container.bak_data[-1] = last[:last.rfind(_text)]
-        raise SpecialOptionTriggered(analyser.special[_text])
+def analyse_param(analyser: SubAnalyser, argv: Argv, _text: Any, _str: bool):
+    if _str and _text in argv.special:
+        if _text in argv.completion_names:
+            if argv.current_index < argv.ndata:
+                argv.bak_data = argv.bak_data[:argv.current_index+1]
+            last = argv.bak_data[-1]
+            argv.bak_data[-1] = last[:last.rfind(_text)]
+        raise SpecialOptionTriggered(argv.special[_text])
     if not _str or not _text:
         _param = None
     elif _text in analyser.compile_params:
         _param = analyser.compile_params[_text]
     else:
-        _param = None if analyser.container.default_separate else analyse_unmatch_params(analyser, _text)
+        _param = None if analyser.default_separate else analyse_unmatch_params(analyser, argv, _text)
     if not _param and not analyser.args_result:
-        analyser.args_result = analyse_args(analyser, analyser.self_args)
+        analyser.args_result = analyse_args(argv, analyser.self_args)
     elif isinstance(_param, list):
         for opt in _param:
-            _data, _index = analyser.container.data_set()
+            _data, _index = argv.data_set()
             try:
-                opt_n, opt_v = analyse_option(analyser, opt)
+                opt_n, opt_v = analyse_option(analyser, argv, opt)
                 analyser.options_result[opt_n] = opt_v
                 _data.clear()
                 break
             except Exception as e:
                 exc = e
-                analyser.container.data_reset(_data, _index)
+                argv.data_reset(_data, _index)
                 continue
         else:
             raise exc  # type: ignore  # noqa
     elif isinstance(_param, Sentence):
-        analyser.sentences.append(analyser.container.popitem()[0])
+        analyser.sentences.append(argv.popitem()[0])
     elif _param:
-        _param.process()
-        analyser.subcommands_result.setdefault(_param.command.dest, _param.export())
-    analyser.container.context = None
+        _param.process(argv)
+        analyser.subcommands_result.setdefault(_param.command.dest, _param.result())
+    argv.context = None
 
 
-def analyse_header(analyser: Analyser) -> HeadResult:
-    header = analyser.command_header
+def analyse_header(header: Header, argv: Argv, command: Alconna) -> HeadResult:
     content = header.content
     mapping = header.mapping
-    head_text, _str = analyser.container.popitem()
+    head_text, _str = argv.popitem()
     if isinstance(content, TPattern) and _str and (mat := content.fullmatch(head_text)):
         return HeadResult(head_text, head_text, True, mat.groupdict(), mapping)
     elif isinstance(content, BasePattern) and (val := content(head_text, Empty)).success:
         return HeadResult(head_text, val.value, True, fixes=mapping)
 
-    may_command, _m_str = analyser.container.popitem()
+    may_command, _m_str = argv.popitem()
     if isinstance(content, list) and _m_str:
         for pair in content:
             if res := pair.match(head_text, may_command):
                 return HeadResult(*res, fixes=mapping)
     if isinstance(content, Double) and (
-        res := content.match(head_text, may_command, _str, _m_str, analyser.container.pushback)
+        res := content.match(head_text, may_command, _str, _m_str, argv.pushback)
     ):
         return HeadResult(*res, fixes=mapping)
 
-    if _str and analyser.fuzzy_match:
+    if _str and argv.fuzzy_match:
         headers_text = []
-        if analyser.command.headers and analyser.command.headers != [""]:
-            headers_text.extend(f"{i}{analyser.command.command}" for i in analyser.command.headers)
-        elif analyser.command.command:
-            headers_text.append(str(analyser.command.command))
+        if command.headers and command.headers != [""]:
+            headers_text.extend(f"{i}{command.command}" for i in command.headers)
+        elif command.command:
+            headers_text.append(str(command.command))
         if isinstance(content, (TPattern, BasePattern)):
             source = head_text
         else:
-            source = head_text + analyser.container.separators[0] + str(may_command)
-        if source == analyser.command.command:
-            analyser.header_result = HeadResult(source, source, False)
+            source = head_text + argv.separators[0] + str(may_command)
+        if source == command.command:
             raise ParamsUnmatched(lang.header.error.format(target=head_text))
         for ht in headers_text:
             if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
-                analyser.header_result = HeadResult(source, ht, True)
                 raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(target=source, source=ht))
     raise ParamsUnmatched(lang.header.error.format(target=head_text))
 
 
-def handle_help(analyser: Analyser):
-    _help_param = [str(i) for i in analyser.container.release(recover=True) if str(i) not in analyser.special]
+def handle_help(analyser: Analyser, argv: Argv):
+    _help_param = [str(i) for i in argv.release(recover=True) if str(i) not in argv.special]
     output_manager.send(
         analyser.command.name,
         lambda: analyser.command.formatter.format_node(_help_param),
     )
-    return analyser.export(fail=True)
+    return analyser.export(argv, True)
 
 
 _args = Args["delete;?", "delete"]["name", str]["command", str, "_"]
 
 
-def handle_shortcut(analyser: Analyser):
-    analyser.container.popitem()
-    opt_v = analyse_args(analyser, _args)
+def handle_shortcut(analyser: Analyser, argv: Argv):
+    argv.popitem()
+    opt_v = analyse_args(argv, _args)
     try:
         msg = analyser.command.shortcut(
             opt_v["name"],
@@ -379,15 +377,15 @@ def handle_shortcut(analyser: Analyser):
         output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
         output_manager.send(analyser.command.name, lambda: str(e))
-    return analyser.export(fail=True)
+    return analyser.export(argv, True)
 
 
-def _prompt_unit(analyser: Analyser, trigger: Arg):
+def _prompt_unit(argv: Argv, trigger: Arg):
     if trigger.field.completion:
         comp = trigger.field.completion()
         if isinstance(comp, str):
             return [Prompt(comp, False)]
-        releases = analyser.container.release(recover=True)
+        releases = argv.release(recover=True)
         target = str(releases[-1]) or str(releases[-2])
         o = list(filter(lambda x: target in x, comp)) or comp
         return [Prompt(i, False, target) for i in o]
@@ -410,7 +408,7 @@ def _prompt_sentence(analyser: Analyser):
     return [Prompt(i) for i in res]
 
 
-def _prompt_none(analyser: Analyser, got: list[str]):
+def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
     res: list[Prompt] = []
     if not analyser.args_result and analyser.self_args.argument:
         unit = analyser.self_args.argument[0]
@@ -425,7 +423,7 @@ def _prompt_none(analyser: Analyser, got: list[str]):
                 )
             )
     for opt in filter(
-        lambda x: x.name not in analyser.completion_names,
+        lambda x: x.name not in argv.completion_names,
         analyser.command.options,
     ):
         if opt.requires and all(opt.requires[0] not in i for i in got):
@@ -435,11 +433,11 @@ def _prompt_none(analyser: Analyser, got: list[str]):
     return res
 
 
-def prompt(analyser: Analyser, trigger: str | None = None):
-    trigger = trigger or analyser.container.context
+def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
+    trigger = trigger or argv.context
     got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
     if isinstance(trigger, Arg):
-        return _prompt_unit(analyser, trigger)
+        return _prompt_unit(argv, trigger)
     elif isinstance(trigger, Subcommand):
         return [Prompt(i) for i in analyser.get_sub_analyser(trigger).compile_params]
     elif isinstance(trigger, str):
@@ -448,16 +446,16 @@ def prompt(analyser: Analyser, trigger: str | None = None):
             return []
         out = [i for i in res if i not in got]
         return [Prompt(i, True, trigger) for i in (out or res)]
-    releases = analyser.container.release(recover=True)
+    releases = argv.release(recover=True)
     target = str(releases[-1]) or str(releases[-2])
     if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):
         out = [i for i in _res if i not in got]
         return [Prompt(i, True, target) for i in (out or _res)]
-    return _prompt_sentence(analyser) if analyser.sentences else _prompt_none(analyser, got)
+    return _prompt_sentence(analyser) if analyser.sentences else _prompt_none(analyser, argv, got)
 
 
-def handle_completion(analyser: Analyser, trigger: str | None = None):
-    if res := prompt(analyser, trigger):
+def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None):
+    if res := prompt(analyser, argv, trigger):
         if comp_ctx.get(None):
             raise PauseTriggered(res)
         output_manager.send(

@@ -66,7 +66,7 @@
 1. 加入 `HeadResult`, 表示头部匹配的结果
 2. 加入 `SubAnalyser`, 负责部分原 `Analyser` 的部分功能
 3. `Arparma.header_match` 现在返回 `HeadResult` 类型
-4. 新增 `DataCollectionContainer` 类, 负责原 `Analyser` 的数据操作
+4. 新增 `Argv` 类, 负责原 `Analyser` 的数据操作
 5. 因为 [2], 现在支持子命令嵌套
 6. 部分 api 改动: 
    - `Analyser.process` -> `Analyser.container.build`

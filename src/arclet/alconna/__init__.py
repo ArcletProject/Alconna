@@ -9,7 +9,7 @@ from .base import CommandNode, Option, Subcommand
 from .completion import CompInterface
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .analyser import Analyser
-from .container import DataCollectionContainer
+from .argv import Argv
 from .core import Alconna, CommandMeta
 from .arparma import Arparma, ArparmaBehavior
 from .manager import command_manager, ShortcutArgs
