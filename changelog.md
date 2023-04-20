@@ -2,7 +2,7 @@
 
 ## Alconna 1.7.0:
 1. 使用 `NEPattern` 0.5 以上版本
-2. `compile` 函数现在作为 `Analyser` 的类方法
+2. `compile` 函数现在作为 `Alconna` 的方法
 3. `Containter.text_sign` 现在是 `Container.to_text`, 其返回值为 `str | None`
 4. `Namespace` 新增 `to_text` 方法, 其与 `Container.to_text` 一致
 5. shortcut 使用方法改变:
@@ -14,8 +14,9 @@
 7. `Alconna.parse` 移除参数 `interrupt`, 原功能由 `CompInteface` 替代
 8. 使用 `tarina` 替代部分功能
 9. 修复 `anti args` 的 bug
-10. bracket header 可以进行类型转换
-11. 性能优化
+10. bracket header 现在支持进行类型转换
+11. `DataCollectionContainer` 改为 `Argv`
+12. 性能优化
 
 # Alconna 1.6.x:
 
@@ -66,7 +67,7 @@
 1. 加入 `HeadResult`, 表示头部匹配的结果
 2. 加入 `SubAnalyser`, 负责部分原 `Analyser` 的部分功能
 3. `Arparma.header_match` 现在返回 `HeadResult` 类型
-4. 新增 `Argv` 类, 负责原 `Analyser` 的数据操作
+4. 新增 `DataCollectionContainer` 类, 负责原 `Analyser` 的数据操作
 5. 因为 [2], 现在支持子命令嵌套
 6. 部分 api 改动: 
    - `Analyser.process` -> `Analyser.container.build`
