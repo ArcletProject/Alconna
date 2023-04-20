@@ -7,6 +7,7 @@
 4. `Namespace` 新增 `to_text` 方法, 其与 `Container.to_text` 一致
 5. shortcut 使用方法改变:
    - `ShortcutArgs` 不再需要 `options`, 其合并至 `args`
+   - 增加 `fuzzy` 参数, 用于指定该快捷命令是否允许后随参数, 默认为 `True`
    - 可以通过 `{%X_n}` 来引用传入的快捷命令的第 n 个参数
    - 可以通过 `{*(SEP)}` 来引用传入的快捷命令的所有参数, 其中 SEP 为可选的分隔符
 6. 加入 `CompInteface`, 用于交互式命令补全

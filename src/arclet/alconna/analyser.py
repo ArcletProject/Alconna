@@ -26,7 +26,9 @@ from .arparma import Arparma
 from .typing import TDataCollection
 from .config import Namespace
 from .output import output_manager
-from .handlers import analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
+from .handlers import (
+    analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
+)
 from .container import DataCollectionContainer, TContainer
 
 if TYPE_CHECKING:
@@ -211,6 +213,11 @@ class Analyser(SubAnalyser[TContainer], Generic[TContainer, TDataCollection]):
         if isinstance(short, Arparma):
             return short
         self.container.build(short.get('command', self.command.command or self.command.name))
+        if not short.get('fuzzy') and data:
+            exc = ParamsUnmatched(lang.analyser.param_unmatched.format(target=data[0]))
+            if self.command.meta.raise_exception:
+                raise exc
+            return self.export(exc, True)
         data_index = 0
         for i, unit in enumerate(self.container.raw_data):
             if not data:

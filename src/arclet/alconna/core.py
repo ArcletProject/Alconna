@@ -331,5 +331,8 @@ class Alconna(Subcommand, Generic[TDataCollection]):
             (self.path + str(self.headers), self.meta, *self.options, *self.args.argument)
         )
 
+    def __call__(self, *args, **kwargs):
+        return self.parse(list(args)) if args else self.parse(sys.argv[1:])
+
 
 __all__ = ["Alconna", "CommandMeta"]

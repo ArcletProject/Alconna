@@ -97,25 +97,35 @@ read.parse(["read", Path("test_fire.py")])
 
 模糊匹配示范:
 ```python
+# fuzzy.py
 from arclet.alconna import Alconna, CommandMeta, Arg
 
 alc = Alconna('!test_fuzzy', Arg("foo", str), meta=CommandMeta(fuzzy_match=True))
-alc.parse("！test_fuzy foo bar")
+
+if __name__ == '__main__':
+    alc()
 
 '''
-！test_fuzy not matched. Are you mean "!test_fuzzy"?
+$ fuzzy.py /test_fuzzy foo bar
+/test_fuzy not matched. Are you mean "!test_fuzzy"?
 '''
 ```
 
 快捷命令示范:
 ```python
+# shortcut.py
 from arclet.alconna import Alconna, Args
 
 alc = Alconna("eval", Args["content", str], action=lambda x: eval(x, {}, {}))
 alc.shortcut("echo", {"command": "eval print(\\'{*}\\')"})
-alc.parse("echo Hello World!")
+
+if __name__ == '__main__':
+    alc()
 
 '''
+$ shortcut.py eval print("Hello World!")
+Hello World!
+$ shortcut.py echo Hello World!
 Hello World!
 '''
 ```
@@ -137,12 +147,16 @@ ParamsUnmatched: 参数 3 不正确
 
 命令补全示范:
 ```python
+# complete.py
 from arclet.alconna import Alconna, Args, Option
 
 alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
-alc.parse("test --comp")
+
+if __name__ == '__main__':
+    alc()
 
 '''
+$ complete.py test ?
 下一个输入可能是以下：
 > fool
 > -h

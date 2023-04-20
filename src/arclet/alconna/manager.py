@@ -28,10 +28,12 @@ if TYPE_CHECKING:
     class ShortcutArgs(TypedDict, Generic[TDataCollection]):
         command: NotRequired[TDataCollection]
         args: NotRequired[list[Any]]
+        fuzzy: NotRequired[bool]
 else:
     class ShortcutArgs(TypedDict):
         command: NotRequired[DataCollection[Any]]
         args: NotRequired[list[Any]]
+        fuzzy: NotRequired[bool]
 
 
 class CommandManager:
@@ -164,6 +166,7 @@ class CommandManager:
         namespace, name = self._command_part(target.path)
         if isinstance(source, dict):
             source['command'] = source.get('command', target.command or target.name)
+            source.setdefault('fuzzy', True)
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
         elif source.matched:
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source

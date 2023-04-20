@@ -154,37 +154,37 @@ def analyse_args(analyser: SubAnalyser, args: Args) -> dict[str, Any]:
         Dict: 解析结果
     """
     result: dict[str, Any] = {}
+    cont = analyser.container
     for arg in args.argument:
-        analyser.container.context = arg
+        cont.context = arg
         key = arg.name
         value = arg.value
         default_val = arg.field.default_gen
         optional = arg.optional
         seps = arg.separators
-        may_arg, _str = analyser.container.popitem(seps)
+        may_arg, _str = cont.popitem(seps)
         if _str and may_arg in analyser.special:
             raise SpecialOptionTriggered(analyser.special[may_arg])
-        if (
-            (not may_arg or (_str and may_arg in analyser.container.param_ids))
-            and (value.__class__ != MultiVar or value.__class__ is MultiVar and value.flag == '+')
-        ):
-            analyser.container.pushback(may_arg)
+        if not may_arg or (_str and may_arg in cont.param_ids):
+            cont.pushback(may_arg)
             if default_val is not None:
                 result[key] = None if default_val is Empty else default_val
+            elif value.__class__ is MultiVar and value.flag == '*':
+                result[key] = ()
             elif not optional:
                 raise ArgumentMissing(lang.args.missing.format(key=key))
             continue
         if value.__class__ is MultiVar:
-            analyser.container.pushback(may_arg)
+            cont.pushback(may_arg)
             multi_arg_handler(analyser, args, arg, result)  # type: ignore
         elif value.__class__ is KeyWordVar:
             _handle_keyword(
-                analyser.container, value, may_arg, seps, result, default_val, optional, key, analyser.fuzzy_match  # type: ignore
+                cont, value, may_arg, seps, result, default_val, optional, key, analyser.fuzzy_match  # type: ignore
             )
         elif value is AllParam:
-            analyser.container.pushback(may_arg)
-            result[key] = analyser.container.release(seps)
-            analyser.container.current_index = analyser.container.ndata
+            cont.pushback(may_arg)
+            result[key] = cont.release(seps)
+            cont.current_index = cont.ndata
             return result
         else:
             res = (
@@ -193,7 +193,7 @@ def analyse_args(analyser: SubAnalyser, args: Args) -> dict[str, Any]:
                 else value.validate(may_arg, default_val)
             )
             if res.flag != 'valid':
-                analyser.container.pushback(may_arg)
+                cont.pushback(may_arg)
             if res.flag == 'error':
                 if optional:
                     continue
@@ -214,7 +214,7 @@ def analyse_args(analyser: SubAnalyser, args: Args) -> dict[str, Any]:
         result['$varargs'] = (varargs, args.var_positional)
     if args.keyword_only:
         result['$kwonly'] = {k: v for k, v in result.items() if k in args.keyword_only}
-    analyser.container.context = None
+    cont.context = None
     return result
 
 

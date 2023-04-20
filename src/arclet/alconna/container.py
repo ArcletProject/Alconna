@@ -4,10 +4,10 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, TypeVar
 from typing_extensions import Self
 from tarina import split, split_once
+from tarina.lang import lang
 
 from .args import Arg
 from .base import Option, Subcommand
-from tarina.lang import lang
 from .exceptions import NullMessage
 from .typing import DataCollection
 
@@ -119,8 +119,8 @@ class DataCollectionContainer:
             return "", True
         separate = separate or self.separators
         _current_data = self.raw_data[self.current_index]
-        if isinstance(_current_data, str):
-            _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)
+        if _current_data.__class__ == str:
+            _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)  # type: ignore
             if move:
                 if _rest_text:
                     self._sep = separate
