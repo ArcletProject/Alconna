@@ -10,6 +10,8 @@ from nepattern import BasePattern, UnionPattern, all_patterns, type_parser
 from nepattern.util import TPattern
 from tarina import Empty
 
+from .typing import TPrefixes
+
 
 def handle_bracket(name: str):
     pattern_map = all_patterns()
@@ -110,6 +112,7 @@ class Double:
 
 @dataclass
 class Header:
+    origin: tuple[str | type | BasePattern, TPrefixes]
     content: TPattern | BasePattern | list[Pair] | Double
     mapping: dict[str, BasePattern] = field(default_factory=dict)
 
@@ -117,7 +120,7 @@ class Header:
     def generate(
         cls,
         command: str | type | BasePattern,
-        headers: list[Any] | list[tuple[Any, str]],
+        prefixes: TPrefixes,
     ):
         mapping = {}
         if isinstance(command, str):
@@ -129,17 +132,18 @@ class Header:
             if isinstance(command, str)
             else (deepcopy(type_parser(command)), str(command))
         )
-        if not headers:
-            return cls(_cmd_name, mapping)
-        if isinstance(headers[0], tuple):
+        if not prefixes:
+            return cls((command, prefixes), _cmd_name, mapping)
+        if isinstance(prefixes[0], tuple):
             return cls(
-                [Pair(h[0], re.compile(re.escape(h[1]) + _cmd_str)) for h in headers],
+                (command, prefixes),
+                [Pair(h[0], re.compile(re.escape(h[1]) + _cmd_str)) for h in prefixes],
                 mapping,
             )
         elements = []
         patterns = []
         ch_text = ""
-        for h in headers:
+        for h in prefixes:
             if isinstance(h, str):
                 ch_text += f"{re.escape(h)}|"
             elif isinstance(h, BasePattern):
@@ -148,11 +152,12 @@ class Header:
                 elements.append(h)
         if not elements and not patterns:
             if isinstance(_cmd_name, TPattern):
-                return cls(re.compile(f"(?:{ch_text[:-1]}){_cmd_str}"), mapping)
+                return cls((command, prefixes), re.compile(f"(?:{ch_text[:-1]}){_cmd_str}"), mapping)
             _cmd_name.pattern = f"(?:{ch_text[:-1]}){_cmd_name.pattern}"  # type: ignore
             _cmd_name.regex_pattern = re.compile(_cmd_name.pattern)  # type: ignore
-            return cls(_cmd_name)
+            return cls((command, prefixes), _cmd_name)
         return cls(
+            (command, prefixes),
             Double(
                 elements,
                 UnionPattern(patterns) if patterns else None,

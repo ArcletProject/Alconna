@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Tuple, Dict, List
 from nepattern import BasePattern, type_parser, MatchMode
 
-THeader = Union[List[Union[str, object]], List[Tuple[object, str]]]
+TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
 
 
@@ -71,4 +71,4 @@ class MultiVar(BasePattern):
 Nargs = MultiVar
 Kw = _Kw()
 
-__all__ = ["DataCollection", "TDataCollection", "MultiVar", "Nargs", "Kw", "KeyWordVar", "THeader"]
+__all__ = ["DataCollection", "TDataCollection", "MultiVar", "Nargs", "Kw", "KeyWordVar", "TPrefixes"]

@@ -167,7 +167,7 @@ class Analyser(SubAnalyser[TDataCollection], Generic[TDataCollection]):
         super().__init__(alconna)
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.used_tokens = set()
-        self.command_header = Header.generate(alconna.command, alconna.headers)
+        self.command_header = Header.generate(alconna.command, alconna.prefixes)
         compiler = compiler or default_compiler
         compiler(
             self,
@@ -243,7 +243,7 @@ class Analyser(SubAnalyser[TDataCollection], Generic[TDataCollection]):
         ):
             return res
         try:
-            self.header_result = analyse_header(self.command_header, argv, self.command)
+            self.header_result = analyse_header(self.command_header, argv)
         except ParamsUnmatched as e:
             argv.raw_data = argv.bak_data.copy()
             argv.current_index = 0
@@ -275,7 +275,7 @@ class Analyser(SubAnalyser[TDataCollection], Generic[TDataCollection]):
             if isinstance(rest[-1], str) and rest[-1] in argv.completion_names:
                 last = argv.bak_data[-1]
                 argv.bak_data[-1] = last[:last.rfind(rest[-1])]
-                return handle_completion(self, rest[-2])
+                return handle_completion(self, argv, rest[-2])
             exc = ParamsUnmatched(lang.analyser.param_unmatched.format(target=argv.popitem(move=False)[0]))
         else:
             exc = ArgumentMissing(lang.analyser.param_missing)

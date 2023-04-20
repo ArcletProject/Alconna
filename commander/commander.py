@@ -130,11 +130,11 @@ class Commander(BaseModule):
         def __wrapper(func):
             cmd = CommandParser(alc, func)
             try:
-                __commander_self__.command_parsers.parsers.setdefault(alc.headers[0], cmd)
+                __commander_self__.command_parsers.parsers.setdefault(alc.prefixes[0], cmd)
             except AttributeError:
                 if not __commander_self__.local_storage.get(__commander_self__.__class__):
                     __commander_self__.local_storage.setdefault(__commander_self__.__class__, {})
-                __commander_self__.local_storage[__commander_self__.__class__].setdefault(alc.headers[0], cmd)
+                __commander_self__.local_storage[__commander_self__.__class__].setdefault(alc.prefixes[0], cmd)
             return command
 
         return __wrapper

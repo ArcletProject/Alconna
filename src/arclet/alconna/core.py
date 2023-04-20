@@ -21,7 +21,7 @@ from .exceptions import NullMessage
 from .executor import ArparmaExecutor, T
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDataCollection, THeader
+from .typing import TDataCollection, TPrefixes
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
@@ -75,7 +75,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         >>> from arclet.alconna import Alconna
         >>> alc = Alconna(
         ...     "name",
-        ...     ["h1", "h2"],
+        ...     ["p1", "p2"],
         ...     Option("opt", Args["opt_arg", "opt_arg"]),
         ...     Subcommand(
         ...         "sub_name",
@@ -86,7 +86,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         ...  )
         >>> alc.parse("name opt opt_arg")
     """
-    headers: THeader
+    prefixes: TPrefixes
     command: str | Any
     analyser_type: type[Analyser]
     formatter: TextFormatter
@@ -109,7 +109,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
 
     def __init__(
         self,
-        *args: Option | Subcommand | str | THeader | Any | Args | Arg,
+        *args: Option | Subcommand | str | TPrefixes | Any | Args | Arg,
         action: ArgAction | Callable | None = None,
         meta: CommandMeta | None = None,
         namespace: str | Namespace | None = None,
@@ -137,11 +137,11 @@ class Alconna(Subcommand, Generic[TDataCollection]):
             np_config = config.namespaces.setdefault(namespace.name, namespace)
         else:
             np_config = config.namespaces.setdefault(namespace, Namespace(namespace))
-        self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers.copy(),)))  # type: ignore
+        self.prefixes = next(filter(lambda x: isinstance(x, list), args + (np_config.prefixes.copy(),)))  # type: ignore
         try:
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
-            self.command = "" if self.headers else sys.argv[0]
+            self.command = "" if self.prefixes else sys.argv[0]
         self.namespace = np_config.name
         self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
         self.formatter = (formatter_type or np_config.formatter_type or TextFormatter)()
@@ -164,7 +164,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
                 "|".join(np_config.builtin_option_name['completion']), help_text=lang.builtin.option_completion
             )
         )
-        name = f"{self.command or self.headers[0]}".replace(command_manager.sign, "")  # type: ignore
+        name = f"{self.command or self.prefixes[0]}".replace(command_manager.sign, "")  # type: ignore
         self.path = f"{self.namespace}::{name}"
         super().__init__(
             "ALCONNA::",
@@ -193,7 +193,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         self.namespace = namespace.name
         self.path = f"{self.namespace}::{self.name}"
         if header:
-            self.headers = namespace.headers.copy()
+            self.prefixes = namespace.prefixes.copy()
         self.options[-3] = Option(
             "|".join(namespace.builtin_option_name['help']), help_text=lang.builtin.option_help
         )
@@ -330,7 +330,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
 
     def _calc_hash(self):
         return hash(
-            (self.path + str(self.headers), self.meta, *self.options, *self.args.argument)
+            (self.path + str(self.prefixes), self.meta, *self.options, *self.args.argument)
         )
 
     def __call__(self, *args, **kwargs):

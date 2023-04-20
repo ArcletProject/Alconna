@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, Union
 
 from arclet.alconna import Alconna, Args, Option
-from arclet.alconna.container import DataCollectionContainer
+from arclet.alconna.argv import Argv
 from nepattern import BasePattern, MatchMode
 
 
@@ -43,27 +43,27 @@ At = gen_unit("at")
 
 
 def test_filter_out():
-    DataCollectionContainer.config(filter_out=["int"])
+    Argv.config(filter_out=["int"])
     ana = Alconna("ana", Args["foo", str])
     assert ana.parse(["ana", 123, "bar"]).matched is True
     assert ana.parse("ana bar").matched is True
-    DataCollectionContainer.config(filter_out=[])
+    Argv.config(filter_out=[])
     ana_1 = Alconna("ana", Args["foo", str])
     assert ana_1.parse(["ana", 123, "bar"]).matched is False
 
 
 def test_preprocessor():
-    DataCollectionContainer.config(preprocessors={"float": lambda x: int(x)})
+    Argv.config(preprocessors={"float": lambda x: int(x)})
     ana1 = Alconna("ana1", Args["bar", int])
     assert ana1.parse(["ana1", 123.06]).matched is True
     assert ana1.parse(["ana1", 123.06]).bar == 123
-    DataCollectionContainer.config(preprocessors={})
+    Argv.config(preprocessors={})
     ana1_1 = Alconna("ana1", Args["bar", int])
     assert ana1_1.parse(["ana1", 123.06]).matched is False
 
 
 def test_with_set_unit():
-    DataCollectionContainer.config(
+    Argv.config(
         preprocessors={"Segment": lambda x: str(x) if x.type == "text" else None}
     )
 
@@ -72,11 +72,11 @@ def test_with_set_unit():
     assert res.matched is True
     assert res.foo.data['qq'] == '123456'
     assert not ana2.parse([Segment.text("ana2"), Segment.face(103), Segment.at(123456)]).matched
-    DataCollectionContainer.config()
+    Argv.config()
 
 
 def test_unhashable_unit():
-    DataCollectionContainer.config(
+    Argv.config(
         preprocessors={"Segment": lambda x: str(x) if x.type == "text" else None}
     )
 

@@ -8,7 +8,7 @@ def test_config():
         assert cfg.parse("cfg foo").matched is False
         assert cfg.parse("cfg;foo").matched is True
     with namespace("cfg2") as np:
-        np.headers = ["!"]
+        np.prefixes = ["!"]
         cfg1 = Alconna("cfg1")
         assert cfg1.parse("cfg1").matched is False
         assert cfg1.parse("!cfg1").matched is True
@@ -22,15 +22,15 @@ def test_config():
 
 
 def test_namespace():
-    config.default_namespace.headers = [...]
+    config.default_namespace.prefixes = [...]
 
-    np = Namespace("xxx", headers=[...])
+    np = Namespace("xxx", prefixes=[...])
     config.default_namespace = np
 
     with namespace(config.default_namespace.name) as np:
-        np.headers = [...]
+        np.prefixes = [...]
 
-    config.default_namespace.headers = []
+    config.default_namespace.prefixes = []
 
 
 if __name__ == '__main__':

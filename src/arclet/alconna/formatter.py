@@ -64,9 +64,9 @@ class Trace:
             return self
         if others[0] == self:
             return self.union(others[1:])
-        hds = self.head.copy()
-        hds['header'] = list({*self.head['header'], *others[0].head['header']})
-        return Trace(hds, self.args, self.separators, list({*self.body, *others[0].body})).union(others[1:])
+        pfs = self.head.copy()
+        pfs['prefix'] = list({*self.head['prefix'], *others[0].head['prefix']})
+        return Trace(pfs, self.args, self.separators, list({*self.body, *others[0].body})).union(others[1:])
 
 
 class TextFormatter:
@@ -83,12 +83,12 @@ class TextFormatter:
         self.ignore_names.update(base.namespace_config.builtin_option_name['help'])
         self.ignore_names.update(base.namespace_config.builtin_option_name['shortcut'])
         self.ignore_names.update(base.namespace_config.builtin_option_name['completion'])
-        hds = base.headers.copy()
-        if base.name in hds:
-            hds.remove(base.name)  # type: ignore
+        pfs = base.prefixes.copy()
+        if base.name in pfs:
+            pfs.remove(base.name)  # type: ignore
         res = Trace(
             {
-                'name': base.name, 'header': hds or [], 'description': base.meta.description,
+                'name': base.name, 'prefix': pfs or [], 'description': base.meta.description,
                 'usage': base.meta.usage, 'example': base.meta.example
             },
             base.args, base.separators, base.options.copy()
@@ -129,17 +129,17 @@ class TextFormatter:
                             _opts.append(i)
                             _visited.add(i)
                     return self.format(Trace(
-                        {"name": _parts[-1], 'header': [], 'description': _parts[-1]}, Args(), trace.separators,
+                        {"name": _parts[-1], 'prefix': [], 'description': _parts[-1]}, Args(), trace.separators,
                         _opts
                     ))
             if isinstance(_cache, Option):
                 return self.format(Trace(
-                    {"name": "", "header": list(_cache.aliases), "description": _cache.help_text}, _cache.args,
+                    {"name": "", "prefix": list(_cache.aliases), "description": _cache.help_text}, _cache.args,
                     _cache.separators, []
                 ))
             if isinstance(_cache, Subcommand):
                 return self.format(Trace(
-                    {"name": _cache.name, "header": [], "description": _cache.help_text}, _cache.args,
+                    {"name": _cache.name, "prefix": [], "description": _cache.help_text}, _cache.args,
                     _cache.separators, _cache.options  # type: ignore
                 ))
             return self.format(trace)
@@ -148,10 +148,10 @@ class TextFormatter:
 
     def format(self, trace: Trace) -> str:
         """help text的生成入口"""
-        header = self.header(trace.head, trace.separators)
+        prefix = self.header(trace.head, trace.separators)
         param = self.parameters(trace.args)
         body = self.body(trace.body)
-        return header % (param, body)
+        return prefix % (param, body)
 
     def param(self, parameter: Arg) -> str:
         """对单个参数的描述"""
@@ -187,8 +187,8 @@ class TextFormatter:
         help_string = f"\n{desc}" if (desc := root.get('description')) else ""
         usage = f"\n用法:\n{usage}" if (usage := root.get('usage')) else ""
         example = f"\n使用示例:\n{example}" if (example := root.get('example')) else ""
-        headers = f"[{''.join(map(str, headers))}]" if (headers := root.get('header', [])) != [] else ""
-        cmd = f"{headers}{root.get('name', '')}"
+        prefixs = f"[{''.join(map(str, prefixs))}]" if (prefixs := root.get('prefix', [])) != [] else ""
+        cmd = f"{prefixs}{root.get('name', '')}"
         command_string = cmd or (root['name'] + separators[0])
         return f"{command_string} %s{help_string}{usage}\n%s{example}"
 

@@ -20,7 +20,6 @@ from .util import levenshtein_norm
 
 if TYPE_CHECKING:
     from .argv import Argv
-    from .core import Alconna
     from .analyser import SubAnalyser, Analyser
 
 
@@ -180,7 +179,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             multi_arg_handler(argv, args, arg, result)  # type: ignore
         elif value.__class__ is KeyWordVar:
             _handle_keyword(
-                argv, value, may_arg, seps, result, default_val, optional, key, analyser.fuzzy_match  # type: ignore
+                argv, value, may_arg, seps, result, default_val, optional, key, argv.fuzzy_match  # type: ignore
             )
         elif value is AllParam:
             argv.pushback(may_arg)
@@ -316,7 +315,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, _text: Any, _str: bool):
     argv.context = None
 
 
-def analyse_header(header: Header, argv: Argv, command: Alconna) -> HeadResult:
+def analyse_header(header: Header, argv: Argv) -> HeadResult:
     content = header.content
     mapping = header.mapping
     head_text, _str = argv.popitem()
@@ -336,16 +335,17 @@ def analyse_header(header: Header, argv: Argv, command: Alconna) -> HeadResult:
         return HeadResult(*res, fixes=mapping)
 
     if _str and argv.fuzzy_match:
+        command, prefixes = header.origin
         headers_text = []
-        if command.headers and command.headers != [""]:
-            headers_text.extend(f"{i}{command.command}" for i in command.headers)
-        elif command.command:
-            headers_text.append(str(command.command))
+        if prefixes and prefixes != [""]:
+            headers_text.extend(f"{i}{command}" for i in prefixes)
+        elif command:
+            headers_text.append(str(command))
         if isinstance(content, (TPattern, BasePattern)):
             source = head_text
         else:
             source = head_text + argv.separators[0] + str(may_command)
-        if source == command.command:
+        if source == command:
             raise ParamsUnmatched(lang.header.error.format(target=head_text))
         for ht in headers_text:
             if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
@@ -462,4 +462,4 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
             analyser.command.name,
             lambda: f"{lang.common.completion_node}\n* " + "\n* ".join([i.text for i in res]),
         )
-    return analyser.export(fail=True, exception='NoneType: None\n')  # type: ignore
+    return analyser.export(argv, True, 'NoneType: None\n')  # type: ignore

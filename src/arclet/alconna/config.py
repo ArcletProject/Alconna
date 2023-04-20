@@ -5,7 +5,7 @@ from typing import ContextManager, TypedDict, Callable, Any, TYPE_CHECKING
 from tarina.lang import lang
 from pathlib import Path
 
-from .typing import THeader
+from .typing import TPrefixes
 
 if TYPE_CHECKING:
     from .formatter import TextFormatter
@@ -20,7 +20,7 @@ class OptionNames(TypedDict):
 @dataclass(init=True, repr=True)
 class Namespace:
     name: str
-    headers: THeader = field(default_factory=list)
+    prefixes: TPrefixes = field(default_factory=list)
     separators: tuple[str, ...] = field(default_factory=lambda: (" ",))
     formatter_type: type[TextFormatter] | None = field(default=None)  # type: ignore
     fuzzy_match: bool = field(default=False)
@@ -40,6 +40,14 @@ class Namespace:
 
     def __hash__(self):
         return hash(self.name)
+
+    @property
+    def headers(self):
+        return self.prefixes
+
+    @headers.setter
+    def headers(self, value):
+        self.prefixes = value
 
 
 class namespace(ContextManager[Namespace]):
