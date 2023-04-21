@@ -11,6 +11,9 @@ class Plain:
     def __init__(self, t: str):
         self.text = t
 
+    def __repr__(self):
+        return self.text
+
 
 class At:
     type = "At"
@@ -19,9 +22,12 @@ class At:
     def __init__(self, t: int):
         self.target = t
 
+    def __repr__(self):
+        return f"At:{self.target}"
+
 
 with namespace("test") as np:
-    np.enable_message_cache = False
+    np.enable_message_cache = True
     np.to_text = lambda x: x.text if isinstance(x, Plain) else None
     alc = Alconna(
         ["."],

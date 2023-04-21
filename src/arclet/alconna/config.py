@@ -5,7 +5,7 @@ from typing import ContextManager, TypedDict, Callable, Any, TYPE_CHECKING
 from tarina.lang import lang
 from pathlib import Path
 
-from .typing import TPrefixes
+from .typing import TPrefixes, DataCollection
 
 if TYPE_CHECKING:
     from .formatter import TextFormatter
@@ -34,6 +34,7 @@ class Namespace:
         }
     )
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
+    converter: Callable[[Any], DataCollection[Any]] | None = field(default=lambda x: x)
 
     def __eq__(self, other):
         return isinstance(other, Namespace) and other.name == self.name

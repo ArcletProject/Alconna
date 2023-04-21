@@ -11,7 +11,7 @@ class Segment:
     type: str
     data: dict = field(default_factory=dict)
 
-    def __repr__(self):
+    def __str__(self):
         data = self.data.copy()
         if self.type == "text":
             return data.get("text", "")
@@ -89,6 +89,18 @@ def test_unhashable_unit():
     print(ana3_1.parse(["ana3_1", Segment.face(123)]))
     print(ana3_1.parse(["ana3_1", "--foo", "--comp", Segment.at(123)]))
     print(ana3_1.parse(["ana3_1", "--comp", Segment.at(123)]))
+
+
+def test_checker():
+    Argv.config(
+        checker=lambda x: isinstance(x, list)
+    )
+    ana4 = Alconna("ana4", Args["foo", int])
+    print(ana4.parse(["ana4", "123"]))
+    try:
+        print(ana4.parse("ana4 123"))
+    except TypeError as e:
+        print(e)
 
 
 if __name__ == '__main__':

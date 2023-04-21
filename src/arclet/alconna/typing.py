@@ -16,7 +16,7 @@ class DataCollection(Protocol[DataUnit]):
     def __len__(self) -> int: ...
 
 
-TDataCollection = TypeVar("TDataCollection", bound=DataCollection[Any])
+TDC = TypeVar("TDC", bound=DataCollection[Any])
 
 
 class KeyWordVar(BasePattern):
@@ -71,4 +71,4 @@ class MultiVar(BasePattern):
 Nargs = MultiVar
 Kw = _Kw()
 
-__all__ = ["DataCollection", "TDataCollection", "MultiVar", "Nargs", "Kw", "KeyWordVar", "TPrefixes"]
+__all__ = ["DataCollection", "TDC", "MultiVar", "Nargs", "Kw", "KeyWordVar", "TPrefixes"]

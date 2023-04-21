@@ -21,7 +21,7 @@ from .exceptions import NullMessage
 from .executor import ArparmaExecutor, T
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDataCollection, TPrefixes
+from .typing import TDC, TPrefixes
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 
@@ -66,7 +66,7 @@ class CommandMeta:
     keep_crlf: bool = field(default=False)
 
 
-class Alconna(Subcommand, Generic[TDataCollection]):
+class Alconna(Subcommand, Generic[TDC]):
     """
     更加精确的命令解析
 
@@ -97,7 +97,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
     global_analyser_type: type[Analyser] = Analyser
 
     @property
-    def compile(self) -> Callable[[TCompile | None], Analyser[TDataCollection]]:
+    def compile(self) -> Callable[[TCompile | None], Analyser[TDC]]:
         return partial(self.analyser_type, self)
 
     @classmethod
@@ -220,7 +220,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         """返回该命令的帮助信息"""
         return self.formatter.format_node()
 
-    def shortcut(self, key: str, args: ShortcutArgs[TDataCollection] | None = None, delete: bool = False):
+    def shortcut(self, key: str, args: ShortcutArgs[TDC] | None = None, delete: bool = False):
         """添加快捷命令"""
         try:
             if delete:
@@ -263,7 +263,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
     def subcommand(self, sub: Subcommand) -> Self:
         return self.add(sub)
 
-    def _parse(self, message: TDataCollection) -> Arparma[TDataCollection]:
+    def _parse(self, message: TDC) -> Arparma[TDC]:
         if self.union:
             for ana, argv in command_manager.requires(*self.union):
                 argv.build(message)
@@ -275,7 +275,7 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         return analyser.process(argv)
 
     @overload
-    def parse(self, message: TDataCollection) -> Arparma[TDataCollection]:
+    def parse(self, message: TDC) -> Arparma[TDC]:
         ...
 
     @overload
@@ -283,8 +283,8 @@ class Alconna(Subcommand, Generic[TDataCollection]):
         ...
 
     def parse(
-        self, message: TDataCollection, *, duplication: type[T_Duplication] | None = None
-    ) -> Arparma[TDataCollection] | T_Duplication:
+        self, message: TDC, *, duplication: type[T_Duplication] | None = None
+    ) -> Arparma[TDC] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
         try:
             arp = self._parse(message)

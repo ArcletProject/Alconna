@@ -66,7 +66,7 @@ class CompInterface:
     def enter(self, content: Any | None = None):
         argv = command_manager.resolve(self.source.command)
         if content:
-            argv.rebuild(content)
+            argv.addon(content)
             self.clear()
             return self.source.process(argv)
         if not self.prompts:
@@ -79,7 +79,7 @@ class CompInterface:
             argv.bak_data[-1] = last[
                 : last.rfind(prompt.removal_prefix)
             ]
-        argv.rebuild(prompt.text)
+        argv.addon(prompt.text)
         self.clear()
         return self.source.process(argv)
 

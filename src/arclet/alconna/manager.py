@@ -18,7 +18,7 @@ from .argv import Argv
 from .arparma import Arparma
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
-from .typing import DataCollection, TDataCollection
+from .typing import DataCollection, TDC
 
 
 if TYPE_CHECKING:
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from .core import Alconna, CommandMeta
 
 
-    class ShortcutArgs(TypedDict, Generic[TDataCollection]):
-        command: NotRequired[TDataCollection]
+    class ShortcutArgs(TypedDict, Generic[TDC]):
+        command: NotRequired[TDC]
         args: NotRequired[list[Any]]
         fuzzy: NotRequired[bool]
 else:
@@ -119,6 +119,7 @@ class CommandManager:
             command.namespace_config,
             fuzzy_match=command.meta.fuzzy_match,
             to_text=command.namespace_config.to_text,
+            converter=command.namespace_config.converter,
             separators=command.separators,
             message_cache=command.namespace_config.enable_message_cache,
             filter_crlf=not command.meta.keep_crlf,
@@ -136,7 +137,7 @@ class CommandManager:
             namespace[command.name] = command
             self.current_count += 1
 
-    def resolve(self, command: Alconna[TDataCollection]) -> Argv[TDataCollection]:
+    def resolve(self, command: Alconna[TDC]) -> Argv[TDC]:
         """获取命令解析器的参数解析器"""
         try:
             return self.__argv[command]
@@ -144,7 +145,7 @@ class CommandManager:
             namespace, name = self._command_part(command.path)
             raise ValueError(lang.manager.undefined_command.format(target=f"{namespace}.{name}")) from e
 
-    def require(self, command: Alconna[TDataCollection]) -> Analyser[TDataCollection]:
+    def require(self, command: Alconna[TDC]) -> Analyser[TDC]:
         """获取命令解析器"""
         try:
             return self.__analysers[command]  # type: ignore
@@ -199,17 +200,17 @@ class CommandManager:
 
     @overload
     def find_shortcut(
-        self, target: Alconna[TDataCollection]
-    ) -> list[Union[Arparma[TDataCollection], ShortcutArgs[TDataCollection]]]:
+        self, target: Alconna[TDC]
+    ) -> list[Union[Arparma[TDC], ShortcutArgs[TDC]]]:
         ...
 
     @overload
     def find_shortcut(
-        self, target: Alconna[TDataCollection], query: str
-    ) -> tuple[Arparma[TDataCollection] | ShortcutArgs[TDataCollection], Match[str] | None]:
+        self, target: Alconna[TDC], query: str
+    ) -> tuple[Arparma[TDC] | ShortcutArgs[TDC], Match[str] | None]:
         ...
 
-    def find_shortcut(self, target: Alconna[TDataCollection], query: str | None = None):
+    def find_shortcut(self, target: Alconna[TDC], query: str | None = None):
         """查找快捷命令"""
         namespace, name = self._command_part(target.path)
         if query:
@@ -247,7 +248,7 @@ class CommandManager:
             return []
         return list(self.__commands[namespace].values())
 
-    def broadcast(self, message: TDataCollection, namespace: str | Namespace = '') -> Arparma[TDataCollection] | None:
+    def broadcast(self, message: TDC, namespace: str | Namespace = '') -> Arparma[TDC] | None:
         """将一段命令广播给当前空间内的所有命令"""
         for cmd in self.get_commands(namespace):
             if (res := cmd.parse(message)) and res.matched:

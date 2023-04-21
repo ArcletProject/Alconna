@@ -10,19 +10,21 @@ from .args import Arg
 from .config import Namespace, config
 from .base import Option, Subcommand
 from .exceptions import NullMessage
-from .typing import TDataCollection
+from .typing import TDC
 
 _cache: dict[type, dict[str, Any]] = {}
 
 
 @dataclass(repr=True)
-class Argv(Generic[TDataCollection]):
+class Argv(Generic[TDC]):
     namespace: InitVar[Namespace] = field(default=config.default_namespace)
     fuzzy_match: bool = field(default=False)
     preprocessors: dict[str, Callable[..., Any]] = field(default_factory=dict)
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
     separators: tuple[str, ...] = field(default=(' ',))  # 分隔符
     filter_out: list[str] = field(default_factory=list)  # 元素黑名单
+    checker: Callable[[Any], bool] | None = field(default=None)
+    converter: Callable[[Any], TDC] | None = field(default=lambda x: x)
     filter_crlf: bool = field(default=True)
     message_cache: bool = field(default=True)
     param_ids: set[str] = field(default_factory=set)
@@ -33,7 +35,7 @@ class Argv(Generic[TDataCollection]):
     bak_data: list[str | Any] = field(init=False)
     raw_data: list[str | Any] = field(init=False)
     token: int = field(init=False)  # 临时token
-    origin: TDataCollection = field(init=False)
+    origin: TDC = field(init=False)
     _sep: tuple[str, ...] | None = field(init=False)
 
     @classmethod
@@ -41,7 +43,9 @@ class Argv(Generic[TDataCollection]):
         cls,
         preprocessors: dict[str, Callable[..., Any]] | None = None,
         to_text: Callable[[Any], str | None] | None = None,
-        filter_out: list[str] | None = None
+        filter_out: list[str] | None = None,
+        checker: Callable[[Any], bool] | None = None,
+        converter: Callable[[Any], TDC] | None = None
     ):
         _cache.setdefault(cls, {}).update(locals())
 
@@ -58,6 +62,8 @@ class Argv(Generic[TDataCollection]):
             self.preprocessors.update(__cache["preprocessors"] or {})
             self.filter_out.extend(__cache["filter_out"] or [])
             self.to_text = __cache["to_text"] or self.to_text
+            self.checker = __cache["checker"] or self.checker
+            self.converter = __cache["converter"] or self.converter
 
     def reset(self):
         self.current_index = 0
@@ -70,16 +76,18 @@ class Argv(Generic[TDataCollection]):
         self.context = None
 
     @staticmethod
-    def generate_token(data: list[Any | list[str]]) -> int:
-        return hash(str(data))
+    def generate_token(data: list) -> int:
+        return hash(repr(data))
 
     @property
     def done(self) -> bool:
         return self.current_index == self.ndata
 
-    def build(self, data: TDataCollection) -> Self:
+    def build(self, data: TDC) -> Self:
         """命令分析功能, 传入字符串或消息链"""
         self.reset()
+        if self.checker and not self.checker(data):
+            raise TypeError(data)
         self.origin = data
         if isinstance(data, str):
             data = [data]
@@ -104,7 +112,7 @@ class Argv(Generic[TDataCollection]):
             self.token = self.generate_token(raw_data)
         return self
 
-    def rebuild(self, *data: str | Any) -> Self:
+    def addon(self, *data: str | Any) -> Self:
         self.raw_data = self.bak_data.copy()
         for i, d in enumerate(data):
             if not d:
@@ -120,7 +128,7 @@ class Argv(Generic[TDataCollection]):
             self.token = self.generate_token(self.raw_data)
         return self
 
-    def popitem(self, separate: tuple[str, ...] | None = None, move: bool = True) -> tuple[str | Any, bool]:
+    def next(self, separate: tuple[str, ...] | None = None, move: bool = True) -> tuple[str | Any, bool]:
         """获取解析需要的下个数据"""
         if self._sep:
             self._sep = None
@@ -141,7 +149,7 @@ class Argv(Generic[TDataCollection]):
             self.current_index += 1
         return _current_data, False
 
-    def pushback(self, data: str | Any, replace: bool = False):
+    def rollback(self, data: str | Any, replace: bool = False):
         """把 pop的数据放回 (实际只是‘指针’移动)"""
         if data in ("", None):
             return

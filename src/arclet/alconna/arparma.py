@@ -12,7 +12,7 @@ from typing_extensions import Self
 
 from .exceptions import BehaveCancelled, OutBoundsBehave
 from .model import HeadResult, OptionResult, SubcommandResult
-from .typing import TDataCollection
+from .typing import TDC
 
 T = TypeVar('T')
 D = TypeVar('D')
@@ -54,7 +54,7 @@ def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult])
     return __src.args, _end
 
 
-class Arparma(Generic[TDataCollection]):
+class Arparma(Generic[TDC]):
     """承载解析结果与操作数据的接口类"""
     header_match: HeadResult
     options: dict[str, OptionResult]
@@ -63,7 +63,7 @@ class Arparma(Generic[TDataCollection]):
     def __init__(
         self,
         source: str,
-        origin: TDataCollection,
+        origin: TDC,
         matched: bool = False,
         header_match: HeadResult | None = None,
         error_info: type[BaseException] | BaseException | str = '',

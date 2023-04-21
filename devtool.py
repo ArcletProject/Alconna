@@ -36,7 +36,7 @@ def analyse_args(args: Args, command: list[str | Any], raise_exception: bool = T
     argv = Argv(config.default_namespace, message_cache=False, filter_crlf=True)
     try:
         argv.build(["test"] + command)
-        argv.popitem()
+        argv.next()
         return ala(argv, args)
     except Exception as e:
         if raise_exception:
