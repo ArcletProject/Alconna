@@ -10,8 +10,7 @@ from copy import copy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload, Generic
 from typing_extensions import NotRequired
-from tarina import LRU
-from tarina.lang import lang
+from tarina import LRU, lang
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from .argv import Argv
@@ -143,7 +142,7 @@ class CommandManager:
             return self.__argv[command]
         except KeyError as e:
             namespace, name = self._command_part(command.path)
-            raise ValueError(lang.manager.undefined_command.format(target=f"{namespace}.{name}")) from e
+            raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
     def require(self, command: Alconna[TDC]) -> Analyser[TDC]:
         """获取命令解析器"""
@@ -151,7 +150,7 @@ class CommandManager:
             return self.__analysers[command]  # type: ignore
         except KeyError as e:
             namespace, name = self._command_part(command.path)
-            raise ValueError(lang.manager.undefined_command.format(target=f"{namespace}.{name}")) from e
+            raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
     def requires(self, *paths: str) -> zip[tuple[Analyser, Argv]]:  # type: ignore
         return zip(
@@ -196,7 +195,7 @@ class CommandManager:
         elif source.matched:
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
         else:
-            raise ValueError(lang.manager.incorrect_shortcut.format(target=f"{key}"))
+            raise ValueError(lang.require("manager", "incorrect_shortcut").format(target=f"{key}"))
 
     @overload
     def find_shortcut(
@@ -221,7 +220,7 @@ class CommandManager:
                     if mat := re.match(k.split("::")[1], query):
                         return self.__shortcuts[k], mat
                 raise ValueError(
-                    lang.manager.target_command_error.format(target=f"{namespace}.{name}", shortcut=query)
+                    lang.require("manager", "target_command_error").format(target=f"{namespace}.{name}", shortcut=query)
                 ) from e
         return [self.__shortcuts[k] for k in self.__shortcuts.keys() if f"{namespace}.{name}" in k]
 
@@ -276,9 +275,9 @@ class CommandManager:
             max_length: 单个页面展示的最大长度
             page: 当前页码
         """
-        pages = pages or lang.manager.help_pages
+        pages = pages or lang.require("manager", "help_pages")
         cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
-        header = header or lang.manager.help_header
+        header = header or lang.require("manager", "help_header")
         if max_length < 1:
             command_string = "\n".join(
                 f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
@@ -304,7 +303,7 @@ class CommandManager:
         help_names = set()
         for i in cmds:
             help_names.update(i.namespace_config.builtin_option_name['help'])
-        footer = footer or lang.manager.help_footer.format(help="|".join(help_names))
+        footer = footer or lang.require("manager", "help_footer").format(help="|".join(help_names))
         return f"{header}\n{command_string}\n{footer}"
 
     def all_command_raw_help(self, namespace: str | Namespace | None = None) -> dict[str, CommandMeta]:

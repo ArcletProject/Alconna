@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, InitVar
 from typing import Any, Callable, Generic
 from typing_extensions import Self
-from tarina import split, split_once
-from tarina.lang import lang
+from tarina import split, split_once, lang
 
 from .args import Arg
 from .config import Namespace, config
@@ -105,7 +104,7 @@ class Argv(Generic[TDC]):
                 raw_data.append(res)
             i += 1
         if i < 1:
-            raise NullMessage(lang.analyser_handle_null_message.format(target=data))
+            raise NullMessage(lang.require("argv", "null_message").format(target=data))
         self.ndata = i
         self.bak_data = raw_data.copy()
         if self.message_cache:

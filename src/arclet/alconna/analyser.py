@@ -6,7 +6,7 @@ from re import Match
 from typing import TYPE_CHECKING, Any, Generic, Callable
 from dataclasses import dataclass, field
 from typing_extensions import Self, TypeAlias
-from tarina.lang import lang
+from tarina import lang
 
 from .manager import command_manager, ShortcutArgs
 from .exceptions import (
@@ -152,7 +152,7 @@ class SubAnalyser(Generic[TDC]):
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)
         if not self.args_result and self.need_main_args:
-            raise ArgumentMissing(lang.subcommand.args_missing.format(name=self.command.dest))
+            raise ArgumentMissing(lang.require("subcommand", "args_missing").format(name=self.command.dest))
         return self
 
     def get_sub_analyser(self, target: Subcommand) -> SubAnalyser[TDC] | None:
@@ -197,7 +197,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             return short
         argv.build(short.get('command', self.command.command or self.command.name))
         if not short.get('fuzzy') and data:
-            exc = ParamsUnmatched(lang.analyser.param_unmatched.format(target=data[0]))
+            exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=data[0]))
             if self.command.meta.raise_exception:
                 raise exc
             return self.export(argv, True, exc)
@@ -277,9 +277,9 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 last = argv.bak_data[-1]
                 argv.bak_data[-1] = last[:last.rfind(rest[-1])]
                 return handle_completion(self, argv, rest[-2])
-            exc = ParamsUnmatched(lang.analyser.param_unmatched.format(target=argv.next(move=False)[0]))
+            exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next(move=False)[0]))
         else:
-            exc = ArgumentMissing(lang.analyser.param_missing)
+            exc = ArgumentMissing(lang.require("analyser", "param_missing"))
         if isinstance(exc, ArgumentMissing) and comp_ctx.get(None):
             raise PauseTriggered(prompt(self, argv))
         if self.command.meta.raise_exception:

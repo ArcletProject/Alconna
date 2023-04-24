@@ -6,8 +6,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from types import MappingProxyType
 from typing import Any, Callable, Generic, Mapping, TypeVar, overload
-from tarina import get_signature, generic_isinstance, Empty
-from tarina.lang import lang
+from tarina import get_signature, generic_isinstance, Empty, lang
 from typing_extensions import Self
 
 from .exceptions import BehaveCancelled, OutBoundsBehave
@@ -44,11 +43,11 @@ def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult])
     if _end == 'args':
         return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
     if _end == "options" and (_end in __src.options or not _parts):
-        raise RuntimeError(lang.arpamar.ambiguous_name.format(target=f"{_pf}.{_end}"))
+        raise RuntimeError(lang.require("arparma", "ambiguous_name").format(target=f"{_pf}.{_end}"))
     if _end == "options" or _end in __src.options:
         return _handle_opt(_end, _parts, __src.options)
     if _end == "subcommands" and (_end in __src.subcommands or not _parts):
-        raise RuntimeError(lang.arpamar.ambiguous_name.format(target=f"{_pf}.{_end}"))
+        raise RuntimeError(lang.require("arparma", "ambiguous_name").format(target=f"{_pf}.{_end}"))
     if _end == "subcommands" or _end in __src.subcommands:
         return _handle_sub(_end, _parts, __src.subcommands)
     return __src.args, _end
@@ -188,7 +187,7 @@ class Arparma(Generic[TDC]):
             return (self.all_matched_args, '') if part == "args" else (None, part)
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
-            raise RuntimeError(lang.arpamar.ambiguous_name.format(target=prefix))
+            raise RuntimeError(lang.require("arparma", "ambiguous_name").format(target=prefix))
         if prefix == "options" or prefix in self.options:
             return _handle_opt(prefix, parts, self.options)
         if prefix == "subcommands" or prefix in self.subcommands:

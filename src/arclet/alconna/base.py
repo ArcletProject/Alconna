@@ -4,7 +4,7 @@ from __future__ import annotations
 from functools import reduce
 from typing import Callable, Iterable, Sequence, overload
 from typing_extensions import Self
-from tarina.lang import lang
+from tarina import lang
 
 from .action import ArgAction
 from .args import Arg, Args
@@ -39,7 +39,7 @@ class CommandNode:
             help_text(str): 命令帮助信息
         """
         if not name:
-            raise InvalidParam(lang.node.name_empty)
+            raise InvalidParam(lang.require("common", "name_empty"))
         _parts = name.split(" ")
         self.name = _parts[-1]
         self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []

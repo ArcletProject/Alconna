@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import ContextManager, TypedDict, Callable, Any, TYPE_CHECKING
-from tarina.lang import lang
+from tarina import lang
 from pathlib import Path
 
 from .typing import TPrefixes, DataCollection

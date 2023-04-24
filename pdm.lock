@@ -268,11 +268,11 @@ summary = "multidict implementation"
 
 [[package]]
 name = "nepattern"
-version = "0.5.3"
+version = "0.5.4"
 requires_python = ">=3.8"
 summary = "a complex pattern, support typing"
 dependencies = [
-    "tarina>=0.3.0",
+    "tarina>=0.3.3",
     "typing-extensions>=4.5.0",
 ]
 
@@ -363,7 +363,7 @@ summary = "A list of Python Standard Libraries (2.6-7, 3.2-9)."
 
 [[package]]
 name = "tarina"
-version = "0.3.0"
+version = "0.3.3"
 requires_python = ">=3.8"
 summary = "A collection of common utils for Arclet"
 dependencies = [
@@ -420,8 +420,9 @@ requires_python = ">=3.7"
 summary = "Backport of pathlib-compatible object wrapper for zip files"
 
 [metadata]
-lock_version = "4.1"
-content_hash = "sha256:58f38a508f1dcaf9c77062216b8fd56958200fb2273b9230406366257f6da11f"
+lock_version = "4.2"
+groups = ["default", "all", "cli", "dev", "full", "graia"]
+content_hash = "sha256:6c06e5b4f13f8fed2eddb6c4fe9627020beadd0fa6219ae88618b6dadbec280d"
 
 [metadata.files]
 "aiohttp 3.8.3" = [
@@ -787,9 +788,9 @@ content_hash = "sha256:58f38a508f1dcaf9c77062216b8fd56958200fb2273b9230406366257
     {url = "https://files.pythonhosted.org/packages/f6/2c/2f48aa1fd3b89fb632de50c0567f8168e2b75d0b92326ca6ac991aecb0ee/multidict-6.0.2-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:05f6949d6169878a03e607a21e3b862eaf8e356590e8bdae4227eedadacf6e51"},
     {url = "https://files.pythonhosted.org/packages/fa/a7/71c253cdb8a1528802bac7503bf82fe674367e4055b09c28846fdfa4ab90/multidict-6.0.2.tar.gz", hash = "sha256:5ff3bd75f38e4c43f1f470f2df7a4d430b821c4ce22be384e1459cb57d6bb013"},
 ]
-"nepattern 0.5.3" = [
-    {url = "https://files.pythonhosted.org/packages/07/04/4bdcbdf4438fcbd0bb41f74f72dbcb84fb39c4b14ee5157c00e0e7800723/nepattern-0.5.3-py3-none-any.whl", hash = "sha256:0c8c9165506ef343acca03b545b5872e811ff0612d546c5a39cfc3e96da2cb39"},
-    {url = "https://files.pythonhosted.org/packages/54/26/04b6ebe65926e88aa33479b87c08648a2efed3a2b40dc92311dcbdb2edf2/nepattern-0.5.3.tar.gz", hash = "sha256:c404674b9d5a2215c2240bd44858937f02ba809c10ec42ba9ebb9696f8377cb9"},
+"nepattern 0.5.4" = [
+    {url = "https://files.pythonhosted.org/packages/4a/2e/3bc87ea594df82e7f183b1660caf2f3708f1fb89a589124b91a70fbab5fa/nepattern-0.5.4.tar.gz", hash = "sha256:ed74abf77d503772489ee3ddeefb50f6c4a2071486783fb0246b05aa1bc148b3"},
+    {url = "https://files.pythonhosted.org/packages/f9/64/01cbeaaf956fcd19142b7fd20c489f7d8e9a59ee42331a2f7cb345a2d2bb/nepattern-0.5.4-py3-none-any.whl", hash = "sha256:898457d9a8856adc9fad70b42ecc9707c3ef054eef0c320e25dda15e4718f0ba"},
 ]
 "objprint 0.2.2" = [
     {url = "https://files.pythonhosted.org/packages/63/dd/0cf12f53744fd319d3e0e9b9497133e43241adde95e9f7d58c49ba405f69/objprint-0.2.2.tar.gz", hash = "sha256:90f2f3c19dfda1b5eb50d87d82ccbc20511ca4f02c4878553c56edc711e39689"},
@@ -869,44 +870,45 @@ content_hash = "sha256:58f38a508f1dcaf9c77062216b8fd56958200fb2273b9230406366257
     {url = "https://files.pythonhosted.org/packages/7a/b1/52f59dcf31ead2f0ceff8976288449608d912972b911f55dff712cef5719/stdlib_list-0.8.0-py3-none-any.whl", hash = "sha256:2ae0712a55b68f3fbbc9e58d6fa1b646a062188f49745b495f94d3310a9fdd3e"},
     {url = "https://files.pythonhosted.org/packages/bb/01/237cea071fd305f162ebbe1db18a59b56b0b5fdff19533c9a1beea0bdee7/stdlib-list-0.8.0.tar.gz", hash = "sha256:a1e503719720d71e2ed70ed809b385c60cd3fb555ba7ec046b96360d30b16d9f"},
 ]
-"tarina 0.3.0" = [
-    {url = "https://files.pythonhosted.org/packages/02/d0/0754aa2242797e8dad90d3b59d3a54e2de4d332dd53b25055bc10ba06f54/tarina-0.3.0-cp311-cp311-win32.whl", hash = "sha256:3c367d94b59a4dccdc9daabf7db0ea3c329151b24194de301a5b9ab72a52148a"},
-    {url = "https://files.pythonhosted.org/packages/03/99/01170f91c0adec5d43fcbab6a9954c79649f07d69f3c9459e7a357068d53/tarina-0.3.0-cp39-cp39-win_amd64.whl", hash = "sha256:cceb97386460605d733b15bfff8219498f1220b04d9b27c5247f9c82196004c8"},
-    {url = "https://files.pythonhosted.org/packages/0c/13/e39a67bc223bc47e1eb21cadd55f1c02d7f154b79a2419bd6500ff264fc8/tarina-0.3.0-cp38-cp38-win_amd64.whl", hash = "sha256:acc3f37b5e99b6f870988411723c46367780af82f2f2e1c32ea14bcbcc0b8e2d"},
-    {url = "https://files.pythonhosted.org/packages/0e/11/2ba94ded33433abaa32c2869ac0eadd4bc594db3be1fa1541d5604abbda7/tarina-0.3.0-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:2f9f61b0a3c01f27c7c5c7dc9dbbb89e26a8defbad8654db90a8cd86c8bfb1b2"},
-    {url = "https://files.pythonhosted.org/packages/12/12/a9cdf2871b0830c43872fc189485b5a35148f26388d35dbb357cd3f2c7d5/tarina-0.3.0-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:416305b0dcb8776d83de362906bd9437ce70ce6671ead7e6bcbefd0b76af0ec7"},
-    {url = "https://files.pythonhosted.org/packages/16/d2/54b5c988f7326fc12382adb5bac92b5633c65463e579a2fd73ceacbf1c02/tarina-0.3.0-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:11e364424f46e565f5a6f23668161f1707230092292356427b7194cabbc90e13"},
-    {url = "https://files.pythonhosted.org/packages/1a/26/68b3b54d5200379a2c40dbfea4f7bd60967d0775aa89f87d59749edda4b0/tarina-0.3.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:f48039150e53020bcaa044168e99352a478102e98924679f7d4b72f51579b273"},
-    {url = "https://files.pythonhosted.org/packages/1d/77/18fc654f57f722b9ff27262d3e8c0c802575782f3722b8845a58a29b59cd/tarina-0.3.0-cp38-cp38-win32.whl", hash = "sha256:9c34b7774f864eeaddecbc92d045f31831fda0d534e364a42fd384d29be8ddf2"},
-    {url = "https://files.pythonhosted.org/packages/23/cb/ead38c050f694b8857d5a73983cb60abcf85a824520904596ca6135bd0bb/tarina-0.3.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:777fcb7bea636ffe7a5f047a7a42996f7476d828b4bcd3271af8ec132ea11844"},
-    {url = "https://files.pythonhosted.org/packages/2d/19/45c7c3c7509973f2dec5d14872bc969a832e8a758be0dd1e3ebab1b72843/tarina-0.3.0-cp38-cp38-macosx_10_9_universal2.whl", hash = "sha256:8ec0b2254f4c3facac3e13a28d01d0b65bee655021eabc7eb81ac46a1361c90d"},
-    {url = "https://files.pythonhosted.org/packages/35/5f/2391a603144233e42452fd7c3a5971c90d61e037b59cb9e629d9bd85f696/tarina-0.3.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:7d49d264a080f83edcc4b3e2e84e8b3a5efad2b2328a6c867ab0402da0653441"},
-    {url = "https://files.pythonhosted.org/packages/45/5d/155d7e1d7baf9b230d0850b7b7d886b0dcd0148c154d9ca4406c65d5644c/tarina-0.3.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:c4fbb1deb2bd66f71dcb528923472b44862966802c21e060445954e21ee76405"},
-    {url = "https://files.pythonhosted.org/packages/47/f0/8494969c2f68a259c6dce0f0971e6d0a0a7b7d7f130862f42fdfa27d8e91/tarina-0.3.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:7b84abf91eae2484e2f623a4bf9672b881c6f60fd8c67c34cd6ab2bcd9f8397c"},
-    {url = "https://files.pythonhosted.org/packages/5d/6f/9e16fb84e6fb2d13f01e14282ad1857cc222c5ab60ab004b27f5bb454fa9/tarina-0.3.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:f1016836d219e520b36b252081a99f98b527b914a335dd6a21991e4691eeb4ae"},
-    {url = "https://files.pythonhosted.org/packages/5f/08/ff81ace6f41bd634ad13936c8260e1e5541afe1a50a6f4902007c171df6d/tarina-0.3.0-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:9182373dcd35bae9c916d38b82cc58a9d5e8f4ec5c1158fcb1aa632463812674"},
-    {url = "https://files.pythonhosted.org/packages/64/10/cfb57e9af84528fb07520f063fedef99c36f7c8f7f90b3d47e7ad0aa3144/tarina-0.3.0-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:89e20c2fc62f4b3bdeb397653b9f17d8183c5a80a378b74b5669c7ae9c43dfd3"},
-    {url = "https://files.pythonhosted.org/packages/6a/80/125ee926adbd25ad7808bda07bc78d6193ee43f79c01d47bb77b4b89d11d/tarina-0.3.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:140d0b10b92535ce5f3714b1e4e67f9f1eea5482294ef05cee739de749761062"},
-    {url = "https://files.pythonhosted.org/packages/6f/41/7847411906ed07c7309268c751dd9c6a0877cd7f7da0ea755563c5416af2/tarina-0.3.0-cp311-cp311-win_amd64.whl", hash = "sha256:78453406757bb2843a238ed7d7ec106412f8372b54201ee203c5c7cc00b1436a"},
-    {url = "https://files.pythonhosted.org/packages/6f/f0/1749495eb5b45b4ea96ea02fc5fbde12bf7e57868158b0f4884db9a56bdf/tarina-0.3.0-cp310-cp310-win_amd64.whl", hash = "sha256:80b3f0f6610cabc1bc5ee814d11858c89620a3c5641fa0ee87d1bcd0ee58675c"},
-    {url = "https://files.pythonhosted.org/packages/7b/47/542568f1b39b44febaf9b7aeb9be4f905c5fee067c2145e8c2f0a6048ae4/tarina-0.3.0-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:dc59ebc9f448c8d6531315bcc137e6efa6a7dd83c1baf526975b50de3032da38"},
-    {url = "https://files.pythonhosted.org/packages/81/5a/c5ba63726a4c6c6cffc8939439524c4a8d8787796e535cde49e80f08a6b8/tarina-0.3.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7329e13cb4052fdba35e387b08523c1332d2a07ea897cc13477fb579b9b4de90"},
-    {url = "https://files.pythonhosted.org/packages/8a/4d/c155a6338a08d835a44787c545c9b2de3e083852634e4a3bb2811e60dda4/tarina-0.3.0-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:5a73a101b46d3f1394e4d4d14e1a39191ca7a5e1d3e96829e7cc41d6ad2c4bea"},
-    {url = "https://files.pythonhosted.org/packages/8c/70/ec11ab276b315af4dbbcce014edb25c1ecab00c9dd5aca4a6a2a6773524a/tarina-0.3.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:c54e437d7c0efb2cda18bec6af650480a5a3bc5c521f1c48f93fd0b9fb066625"},
-    {url = "https://files.pythonhosted.org/packages/8c/d3/25dc8f3dcb736b7c7571a54069257f36e61492b34a5122405d0b3e07c93d/tarina-0.3.0.tar.gz", hash = "sha256:a0a780f631b0d6cac40633d867c0ff6b9bf3db6f69acee31e71bb2a0a8fb6a1e"},
-    {url = "https://files.pythonhosted.org/packages/8e/90/e8535a9a563d46ea35f86d7bb6c60bd20321d09877f6843d6f62754dc254/tarina-0.3.0-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:dd370e81da6afd86b9384f23eddeaa6df966cbbf8534366438e1f9a0e7e3342f"},
-    {url = "https://files.pythonhosted.org/packages/92/7b/c44dd79bed284d579124a25ba8a38e7a64531d4996e74b29aa21a55990b6/tarina-0.3.0-cp310-cp310-win32.whl", hash = "sha256:fdd2c2ce45aba5981bc6dad4819b52496bcd94ca67019f6c58b41ebc90c77a23"},
-    {url = "https://files.pythonhosted.org/packages/9c/78/d5aa96c35c281de87f7dca1e5d240979492bbad74783f6fed13ad9a47cd7/tarina-0.3.0-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:96d03841b1c0f77dd8d3ba5cf3ff52d3566ba033e5a1bb7b7cdd6ff8725f8c91"},
-    {url = "https://files.pythonhosted.org/packages/b4/d8/a0444987d1a5f5713d44dbb8556be01e1125e1a4c3c5f7b4cce0037a91f3/tarina-0.3.0-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ce4086a4203d2c2a6d296e73ec1fdbbfee4d03669129068fb443651d2b600d23"},
-    {url = "https://files.pythonhosted.org/packages/b6/ae/fe4f7df5e14927b5075038039c671ec192342f6f3bf5fbf40a432a62d49b/tarina-0.3.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:d3e40f801c956bf61403dd47ddeb4c0dc483c60e82ffc88423be6addca923e8a"},
-    {url = "https://files.pythonhosted.org/packages/c2/26/9e866ad1de95ec10e27ec6258b325eadbe46a1adecd4d38e71ede12766e2/tarina-0.3.0-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:3e9e46650af8e00f048f003020c0a215f7659e73c1b55c57605cd38e1d1e67f0"},
-    {url = "https://files.pythonhosted.org/packages/cc/94/e6a5a36e93bdaad874d5ade3d62c20982523a0cdc3feb37e574d3b94deff/tarina-0.3.0-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:30d62403c1f5c02ca81aa7f21cedfad891c7831358701048b5bef689d4ccc07c"},
-    {url = "https://files.pythonhosted.org/packages/d2/a2/fd86804ffe3b9be34f495c1498f89bd186e5783bbb321645f047aab71a49/tarina-0.3.0-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:06c6b65437b887353ff4d5e5c81010c3f3be792b551b0bdefe358099195de233"},
-    {url = "https://files.pythonhosted.org/packages/d8/c2/44090784165c445dd4fe36ad3a524dea5547825ffdddaeddeb5880d0d84b/tarina-0.3.0-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:2b7fb090f5e3aaeb4716d9175e52ec8dd856e57ad4420549fa51b9490d9e89d6"},
-    {url = "https://files.pythonhosted.org/packages/e1/cc/a0379df0eba1027b6374a3ef68941f7f5527135535b15480eb6f8b1c687d/tarina-0.3.0-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:0a126fb99c46454d674fd6b8336db053c4006c056b1e30f1f6cef58dd3a43c46"},
-    {url = "https://files.pythonhosted.org/packages/e5/d8/3eaa579ff296bae91fc83d897db406c811c4b55ea624a7dca5a427008c63/tarina-0.3.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:771e5318ee16de6af29127ffd684549caf558294382ed496dd27916735f8d8a7"},
-    {url = "https://files.pythonhosted.org/packages/ed/fc/81502ff63c012790bfe6aa70f1b6c682aafb935ade285b2c4b34528f93e3/tarina-0.3.0-cp39-cp39-win32.whl", hash = "sha256:3c57ca2417c0478cefa5897ea68333a326b3bf6a653b2f10a6e242f01059e80f"},
-    {url = "https://files.pythonhosted.org/packages/f6/92/fc09e4693135410c776b19a8f98892418c00675d66c8fb5f24821b217076/tarina-0.3.0-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:9cccac0ce4723f3a735a0d727471f32dd61b5b724f0b0af714c8158730abd376"},
+"tarina 0.3.3" = [
+    {url = "https://files.pythonhosted.org/packages/11/37/7948ddeb644212875fe18a8bb4e68dc3f1fc16fc18e4ecf51b79a0036a8d/tarina-0.3.3-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:934d970d4f355fe0042325f1c50c4ff885fa6d114c9c4b062a293f8d378b70f8"},
+    {url = "https://files.pythonhosted.org/packages/11/d5/d686f2ae369c58c70a0eced645a9e6bd4fb4cf4f38cebb7a5cbd91f878f8/tarina-0.3.3-cp38-cp38-macosx_10_9_universal2.whl", hash = "sha256:3cfb1cb0b6eabcd745d083d6031bab3319e46da94ca1df62cea1bbcc1abe3159"},
+    {url = "https://files.pythonhosted.org/packages/12/22/a5ef2ad9cec1c23fce161817f10596c03c01af70cf248c7060702dbc7321/tarina-0.3.3.tar.gz", hash = "sha256:ac9faf7569021cfa137a9cee1be5185bae9ff4e4e6a5b93c66abdf056d1e04fa"},
+    {url = "https://files.pythonhosted.org/packages/19/a3/3f79a4afaaac21c52785b60101a89ec79dbb645daa51e3b7f08dffc0c659/tarina-0.3.3-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:d2c3c7808a3984f00b16f101c36443a042d3abc8ff5d5e84b9cb3fabebb330b1"},
+    {url = "https://files.pythonhosted.org/packages/1b/a6/3005c325cdd7ba5eaa9b619b182cf8b75264ea409759dadf6d261d615c6d/tarina-0.3.3-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:e1d28e974fe5915dde245019430f248ddbdd91e8df1dec53306448cc24f4d9a8"},
+    {url = "https://files.pythonhosted.org/packages/1c/ad/376ad6150ad45039876f61984420535cdfe5c5db3433804d68dae995a167/tarina-0.3.3-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:3efce03c7a46118afd009dc56169030dc8b698f6da20fce25cd0139530525d80"},
+    {url = "https://files.pythonhosted.org/packages/20/4f/774bef8e456859529cb1bcabaf1639cc33fb8f5dd4c024f8a27a2f7a5e48/tarina-0.3.3-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:3c4cec6381869116c7a8f7d9b0cb7433967f5b324faa9fc2e4784fdb9bab79f8"},
+    {url = "https://files.pythonhosted.org/packages/2b/2c/2d1501948a95a45187d5add6f468ea46f5ec23e5fb713661fb5a3ed5cc10/tarina-0.3.3-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:5195c7f9fa2313bdf422c24b8ed0b8d9549c4e46afc0c96eeaefdf1d2caa30e9"},
+    {url = "https://files.pythonhosted.org/packages/2c/1f/124aeff1910a9393b9823594f17468fcd591e1e85e60c5f8be27a7f12e07/tarina-0.3.3-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:788001d26cb84a752df569aef900387ac4d9b2273b38b9ed26f6d56b4644aa06"},
+    {url = "https://files.pythonhosted.org/packages/2c/f0/bdb27f86f0cb2ece0acb3e626ceaee508dcc261e16722a43f688058dfbe0/tarina-0.3.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2c643c1e384e206af3ba2eb7142f6b3680d51d0b51e01a61bbf1f3350040c791"},
+    {url = "https://files.pythonhosted.org/packages/2e/07/e03e5fec539279d7cca66f883fc1e13fc4fb188c1df3f107b6b74de98e5c/tarina-0.3.3-py3-none-any.whl", hash = "sha256:0547c75e3e53ca202c420e6d829d5bcf5758e478fc5964b92f9de2f838cfb12a"},
+    {url = "https://files.pythonhosted.org/packages/3a/39/abeb158b7c1b94542b4b68f0a07f7739ca0ff0be7064bfcbb138f85282fa/tarina-0.3.3-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d33bcfaad022214a5a534c065b69c14ad9f2e53aa03198d6de0216e173fec98b"},
+    {url = "https://files.pythonhosted.org/packages/3a/8d/bb611259872326280f5b97fbb864c2739a76399a3c52e4d633d3dbc67b78/tarina-0.3.3-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:aa2897e7cad66be833c2e392181ecff33e59038bf85cf18000c3e48c2ee85fde"},
+    {url = "https://files.pythonhosted.org/packages/42/11/97465d907f8b2e26358b07d3b67b568557990efc04995a0e2a303dca6e1b/tarina-0.3.3-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dd778f324c512403afa3973661c480d6529a403435d205ee7bf7fc586894f4c1"},
+    {url = "https://files.pythonhosted.org/packages/51/7a/6cb5efb75d526e72e9846e6fb71dae96e6e27470a965b0770c29a3c5a83a/tarina-0.3.3-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:de2429a632f31b09bdb2d5f668311d7de4882f1ac3ebc5022decf647f900af5a"},
+    {url = "https://files.pythonhosted.org/packages/5b/6a/be6bf22769ef3e55e8afc4c256080613a5ec97d7a6f6787c9414c86b0061/tarina-0.3.3-cp310-cp310-win32.whl", hash = "sha256:ca4b1978614dbb5f30c4378be1ad4f4aa6fb227cdf32740964ee9760d6a8e3a9"},
+    {url = "https://files.pythonhosted.org/packages/5e/32/30fae8ac68095dd919c0435c8ee744ed50a7f4b3942288a3294a8f3fa3f2/tarina-0.3.3-cp39-cp39-win32.whl", hash = "sha256:f6b7fc1799a70cc14548086602a2343562de722c490649c4bf2e74eb7c542c04"},
+    {url = "https://files.pythonhosted.org/packages/62/cd/2f3722c02cf93cf68d92567efa7c5f632af3d15a686127241b52216b207a/tarina-0.3.3-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:a14079252a54501285956f1e96004477af8b9ae64a575f561b99bfa778c01707"},
+    {url = "https://files.pythonhosted.org/packages/67/67/e4f5bbe1bc4c696ac09a1325bcc3a9a464185914f0a2302e695e68f42757/tarina-0.3.3-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:4dcc7112b927a023a635528566b62beb7a99f72f2b9e88fde29fafb61136a579"},
+    {url = "https://files.pythonhosted.org/packages/69/ef/b24dc2963cb1b788e3331bc703f7c1d1963fc8b4a8c99b82f78c78fc0528/tarina-0.3.3-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:fbcaa4a6c57528ed23199f778445d20215cc2421c1d494dedbe671164bd29dc5"},
+    {url = "https://files.pythonhosted.org/packages/6e/4b/f0bacb8118a30193150dd7d078a398bac5739ffbc3270652492dd656193d/tarina-0.3.3-cp38-cp38-win32.whl", hash = "sha256:5ec78f0d8bc5b529502e1be20bb8dc628ff1a6c5e31941f9572c105c6fe591b1"},
+    {url = "https://files.pythonhosted.org/packages/72/7f/17d999c886905a0672337adb9501400c8a2ab209feaae0bb3eba7627cba1/tarina-0.3.3-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:35dc66fb6baac12fca363380ff12fd27164481f281f82ac2282e500b53fef961"},
+    {url = "https://files.pythonhosted.org/packages/78/92/b24dddc1b836beaa6733c9b2caf51410a6cce0873ae6d55344f2d22db26b/tarina-0.3.3-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:1f78d6f75da0d34061ade10d0e1aeec3018a4d36836568085a4eb79fef65bb7e"},
+    {url = "https://files.pythonhosted.org/packages/80/20/2c8303ab730af65a79a8cae869b463936bac2236519595c5e4259b72f4b8/tarina-0.3.3-cp39-cp39-win_amd64.whl", hash = "sha256:9f8a0a505a9b226d1d45483fac105c55407c13a95449e15562601128dc2359d1"},
+    {url = "https://files.pythonhosted.org/packages/8c/06/b864bceb1597ba142d729c34798aa6251879bb276d3b3f965b18c673fcad/tarina-0.3.3-cp310-cp310-win_amd64.whl", hash = "sha256:efa6e1ab03c1948e3efd4645b8960dd312407e029462726a9e77822261a6be3d"},
+    {url = "https://files.pythonhosted.org/packages/8f/ca/472e18aa2bbef0bb83526089012f2628a69a8b0213c1bb6cbd51c11f736c/tarina-0.3.3-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:ccb1090fccd3dea3596bdea5ac80b7379663741dd5023b97840dca968f4081bd"},
+    {url = "https://files.pythonhosted.org/packages/91/1f/1d7a52e8558eac6d5dd9ade3e88a2458e224178e018d9e602896cea20b05/tarina-0.3.3-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:ecb4cbe65fe9b4e4c91ededb9d6941aae80b6827f07827e12e7ba3f7c3109c02"},
+    {url = "https://files.pythonhosted.org/packages/c5/55/65ab39d0fd1c6010c7ae874d8c659b7d95ef415b5dd2489cda246ceff669/tarina-0.3.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:f56b904a451e287e6251c1312be628afddf670bfa87841b5b1c32d324a1c7c43"},
+    {url = "https://files.pythonhosted.org/packages/c6/f5/1180b80fe98bf86e0e7e7defdbf6fa7859795b77f7bf91cdb368e8d5b0cf/tarina-0.3.3-cp311-cp311-win_amd64.whl", hash = "sha256:730a8fc6dc71adf09197a73ef1e39978e5fe7ec3b7be9a5060905fe48baf27ec"},
+    {url = "https://files.pythonhosted.org/packages/d2/8a/7a922a79e2f6ae6bf0f3bac63e5f1cdfa39abf987b5a122a70bc327144e6/tarina-0.3.3-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:9b9a99acff1e6391c593f449ae76848471d34688f04eecf7d3ba0725157563c7"},
+    {url = "https://files.pythonhosted.org/packages/d3/eb/bbbc5e5666382a55ab6e5d7c4dc68833af6126db2eb96a2836b8afe86d3c/tarina-0.3.3-cp311-cp311-win32.whl", hash = "sha256:87da7c87f448180712c02f6345c686742d9e755d58bb32f70c1bf680e1ae0684"},
+    {url = "https://files.pythonhosted.org/packages/d8/55/2f96d10417cf96a6667d3a5d68bcfd9cf0dde7452d69a8970694529ae7eb/tarina-0.3.3-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:6471aef032461a6917a24af1fb9952bfb5c9bbe26999ea87455bf43157687097"},
+    {url = "https://files.pythonhosted.org/packages/de/14/2224da3ba13fb3d63d9a1da7747a55c43f4f3436344e03cd91bcdecb2fed/tarina-0.3.3-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:201e31c7b694132ce67662f63142b33e45835223a753fd5f4d301da5ac021b5e"},
+    {url = "https://files.pythonhosted.org/packages/e6/21/78f9911125401d8256563bd94cb0d8b5a4a63fac1ecbdcfd5c4b9bff9c03/tarina-0.3.3-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:c5e2e0f5a3760823b23cc3fe49d01c0a75d482560c60934764e2142d187e553b"},
+    {url = "https://files.pythonhosted.org/packages/ec/d4/9643018bb37a2c4e87331633d7c232d2fab3d6017c1f6fb580c87c10a988/tarina-0.3.3-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:7546e4cefadcc5f163611b0af8af2391b711c337d7a0d32a3977ec0bf3e8c87d"},
+    {url = "https://files.pythonhosted.org/packages/f6/a1/afd77bdf28621f3e9771288a9c866f5685610fc6ae4bdc6b4a34ea74d3e2/tarina-0.3.3-cp38-cp38-win_amd64.whl", hash = "sha256:ff5e49a37d6d72a392f8a84c6808f7cc00494352d9e459a0a3921e587b2ecb3f"},
+    {url = "https://files.pythonhosted.org/packages/f8/b8/a7ab3d3e0281c2135c53ffb43e703653359374a5696057c55fbff8bc779a/tarina-0.3.3-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:ae87c40c09a62b0898267fb4cbeaece3ca2d7bd8cd2f50c8ecb19583cca3fa64"},
+    {url = "https://files.pythonhosted.org/packages/f8/cd/be747301ea89ee45b5c38b0144a70ac5ed0abc0c3fe98842f528f8797da5/tarina-0.3.3-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:6c1ff19bf0b6e554d2fb3d6db35d74553a02b3781167370d11bc950f92fb33ba"},
 ]
 "tokenize-rt 5.0.0" = [
     {url = "https://files.pythonhosted.org/packages/40/01/fb40ea8c465f680bf7aa3f5bee39c62ba8b7f52c38048c27aa95aff4f779/tokenize_rt-5.0.0.tar.gz", hash = "sha256:3160bc0c3e8491312d0485171dea861fc160a240f5f5766b72a1165408d10740"},

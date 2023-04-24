@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, TYPE_CHECKING
-from tarina import ContextModel
-from tarina.lang import lang
+from tarina import ContextModel, lang
 
 from .exceptions import PauseTriggered
 from .manager import command_manager
@@ -100,7 +99,7 @@ class CompInterface:
         ]
 
     def __repr__(self):
-        return f"{lang.common.completion_node}\n" + "\n".join(self.lines())
+        return f"{lang.require('completion', 'node')}\n" + "\n".join(self.lines())
 
     def send_prompt(self):
         return output_manager.send(self.source.command.name, lambda: self.__repr__())

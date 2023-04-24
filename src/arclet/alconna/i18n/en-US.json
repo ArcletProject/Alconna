@@ -1,18 +1,13 @@
 {
   "common": {
-    "fuzzy_matched": "{target} is not matched. Do you mean \"{source}\"?",
     "custom_type_error": "The custom parameter type {target} can't be a type.",
-    "completion_node": "suggest input follows:"
-  },
-  "node": {
-    "name_error": "There is an invalid character in the name",
     "name_empty": "You cannot give a empty name"
   },
-  "header": {
-    "error": "{target} dose not matched"
+  "completion": {
+    "node": "suggest input follows:"
   },
-  "subcommand": {
-    "args_missing": "subcommand \"{name}\" missed its args"
+  "fuzzy": {
+    "matched": "{target} is not matched. Do you mean \"{source}\"?"
   },
   "action": {
     "length_error": "The count of arguments of this action must same as the given Args",
@@ -20,12 +15,18 @@
     "args_not_same": "The target type of {target} is not {source}",
     "args_empty": "The type of {target} cannot set to {source}"
   },
+  "argv": {
+    "null_message": "You income a message without text: {target}"
+  },
   "analyser": {
-    "filter_missing": "The subclass of class Analyser must define its filter_out",
-    "handle_null_message": "You income a message without text: {target}",
-    "handle_unexpect_type": "You income a message with invalid element: {target}",
     "param_unmatched": "Unmatched params: {target}",
     "param_missing": "You need more data to analyse!"
+  },
+  "header": {
+    "error": "{target} dose not matched"
+  },
+  "subcommand": {
+    "args_missing": "subcommand \"{name}\" missed its args"
   },
   "args": {
     "name_error": "Name of arg must be a string",
@@ -53,7 +54,7 @@
     "help_pages": "Page {current} of {total}",
     "help_footer": "# Invoke '$command {help}' to see syntax"
   },
-  "arpamar": {
+  "arparma": {
     "ambiguous_name": "Name called  {target} is ambiguous\nplease add prefix 'options.' or 'subcommands.'"
   },
   "stub": {

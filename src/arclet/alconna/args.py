@@ -7,8 +7,7 @@ from dataclasses import field as dc_field
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, TYPE_CHECKING
-from tarina import Empty, get_signature
-from tarina.lang import lang
+from tarina import Empty, get_signature, lang
 from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, type_parser
 from typing_extensions import Self
 
@@ -67,9 +66,9 @@ class Arg:
         flags: list[ArgFlag] | None = None,
     ):
         if not isinstance(name, str) or name.startswith('$'):
-            raise InvalidParam(lang.args.name_error)
+            raise InvalidParam(lang.require("args", "name_error"))
         if not name.strip():
-            raise InvalidParam(lang.args.name_empty)
+            raise InvalidParam(lang.require("args", "name_empty"))
         self.name = name
         _value = type_parser(value or name)
         default = field if isinstance(field, Field) else Field(field)
@@ -78,7 +77,7 @@ class Arg:
         if default.default == "...":
             default.default = Empty
         if _value is Empty:
-            raise InvalidParam(lang.args.value_error.format(target=name))
+            raise InvalidParam(lang.require("args", "value_error").format(target=name))
         self.value = _value
         self.field = default
         self.notice = notice
@@ -216,23 +215,23 @@ class Args(metaclass=ArgsMeta):
             if isinstance(arg.value, MultiVar) and not _limit:
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.var_keyword:
-                        raise InvalidParam(lang.args.duplicate_kwargs)
+                        raise InvalidParam(lang.require("args", "duplicate_kwargs"))
                     self.var_keyword = arg.name
                 elif self.var_positional:
-                    raise InvalidParam(lang.args.duplicate_varargs)
+                    raise InvalidParam(lang.require("args", "duplicate_varargs"))
                 else:
                     self.var_positional = arg.name
                 _limit = True
             if isinstance(arg.value, KeyWordVar):
                 if self.var_keyword or self.var_positional:
-                    raise InvalidParam(lang.args.exclude_mutable_args)
+                    raise InvalidParam(lang.require("args", "exclude_mutable_args"))
                 self.keyword_only.append(arg.name)
                 if arg.value.sep in arg.separators:
                     _tmp.insert(-1, Arg(f"_key_{arg.name}", value=f"-*{arg.name}"))
                     _tmp[-1].value = arg.value.base
             if ArgFlag.OPTIONAL in arg.flag:
                 if self.var_keyword or self.var_positional:
-                    raise InvalidParam(lang.args.exclude_mutable_args)
+                    raise InvalidParam(lang.require("args", "exclude_mutable_args"))
                 self.optional_count += 1
         self.argument.clear()
         self.argument.extend(_tmp)

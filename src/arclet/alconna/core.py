@@ -6,8 +6,7 @@ from dataclasses import InitVar, dataclass, field
 from functools import reduce, partial
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 
-from tarina import init_spec
-from tarina.lang import lang
+from tarina import init_spec, lang
 from typing_extensions import Self
 
 from .action import ArgAction, exec_, exec_args
@@ -150,18 +149,19 @@ class Alconna(Subcommand, Generic[TDC]):
         self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
         options.append(
-            Option("|".join(np_config.builtin_option_name['help']), help_text=lang.builtin.option_help),
+            Option("|".join(np_config.builtin_option_name['help']), help_text=lang.require("builtin", "option_help")),
         )
         options.append(
             Option(
                 "|".join(np_config.builtin_option_name['shortcut']),
                 Args["delete;?", "delete"]["name", str]["command", str, "_"],
-                help_text=lang.builtin.option_shortcut
+                help_text=lang.require("builtin", "option_shortcut")
             )
         )
         options.append(
             Option(
-                "|".join(np_config.builtin_option_name['completion']), help_text=lang.builtin.option_completion
+                "|".join(np_config.builtin_option_name['completion']),
+                help_text=lang.require("builtin", "option_completion")
             )
         )
         name = f"{self.command or self.prefixes[0]}".replace(command_manager.sign, "")  # type: ignore
@@ -195,15 +195,16 @@ class Alconna(Subcommand, Generic[TDC]):
         if header:
             self.prefixes = namespace.prefixes.copy()
         self.options[-3] = Option(
-            "|".join(namespace.builtin_option_name['help']), help_text=lang.builtin.option_help
+            "|".join(namespace.builtin_option_name['help']), help_text=lang.require("builtin", "option_help")
         )
         self.options[-2] = Option(
             "|".join(namespace.builtin_option_name['shortcut']),
             Args["delete;?", "delete"]["name", str]["command", str, "_"],
-            help_text=lang.builtin.option_shortcut
+            help_text=lang.require("builtin", "option_shortcut")
         )
         self.options[-1] = Option(
-            "|".join(namespace.builtin_option_name['completion']), help_text=lang.builtin.option_completion
+            "|".join(namespace.builtin_option_name['completion']),
+            help_text=lang.require("builtin", "option_completion")
         )
         self.meta.fuzzy_match = namespace.fuzzy_match or self.meta.fuzzy_match
         self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
@@ -225,20 +226,21 @@ class Alconna(Subcommand, Generic[TDC]):
         try:
             if delete:
                 command_manager.delete_shortcut(self, key)
-                return lang.shortcut.delete_success.format(shortcut=key, target=self.path)
+                return lang.require("shortcut", "delete_success").format(shortcut=key, target=self.path)
             if args:
                 command_manager.add_shortcut(self, key, args)
-                return lang.shortcut.add_success.format(shortcut=key, target=self.path)
+                return lang.require("shortcut", "add_success").format(shortcut=key, target=self.path)
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
                     command_manager.add_shortcut(self, key, {"command": cmd})
-                    return lang.shortcut.add_success.format(shortcut=key, target=self.path)
+                    return lang.require("shortcut", "add_success").format(shortcut=key, target=self.path)
                 raise ValueError(
-                    lang.shortcut.recent_command_error.format(target=self.path, source=getattr(alc, "path", "Unknown"))
+                    lang.require("shortcut", "recent_command_error")
+                    .format(target=self.path, source=getattr(alc, "path", "Unknown"))
                 )
             else:
-                raise ValueError(lang.shortcut.no_recent_command)
+                raise ValueError(lang.require("shortcut", "no_recent_command"))
         except Exception as e:
             if self.meta.raise_exception:
                 raise e

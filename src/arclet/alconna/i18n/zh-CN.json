@@ -1,18 +1,13 @@
 {
   "common": {
-    "fuzzy_matched": "无法解析 {target}。您想要输入的是不是 \"{source}\" ?",
     "custom_type_error": "自定义参数类型传入的不是类型而是 {target}, 这是有意而为之的吗?",
-    "completion_node": "以下是建议的输入："
+    "name_empty": "名字不能为空"
   },
-  "node": {
-    "name_error": "该指令的名字含有非法字符",
-    "name_empty": "该指令的名字不能为空"
+  "completion": {
+    "node": "以下是建议的输入："
   },
-  "header": {
-    "error": "命令头部 {target} 匹配失败"
-  },
-  "subcommand": {
-    "args_missing": "子命令 \"{name}\" 缺少必要参数"
+  "fuzzy": {
+    "matched": "无法解析 {target}。您想要输入的是不是 \"{source}\" ?"
   },
   "action": {
     "length_error": "该 action 接受的参数个数必须与 Args 里的一致",
@@ -20,12 +15,18 @@
     "args_not_same": "{target} 指定的消息元素类型不是 {source}",
     "args_empty": "{target} 的类型不能指定为 {source}"
   },
+  "argv": {
+    "null_message": "传入了一个无法获取文本的消息: {target}"
+  },
   "analyser": {
-    "filter_missing": "Analyser 的子类必须实现 filter_out 属性",
-    "handle_null_message": "传入了一个无法获取文本的消息: {target}",
-    "handle_unexpect_type": "传入的消息中有非法类型的元素 {target}",
     "param_unmatched": "参数 {target} 匹配失败",
     "param_missing": "你应当传入更多的参数来完成解析!"
+  },
+  "header": {
+    "error": "命令头部 {target} 匹配失败"
+  },
+  "subcommand": {
+    "args_missing": "子命令 \"{name}\" 缺少必要参数"
   },
   "args": {
     "name_error": "参数的名字只能是字符串",
@@ -52,7 +53,7 @@
     "help_pages": "第 {current}/{total} 页",
     "help_footer": "# 输入'命令名 {help}' 查看特定命令的语法"
   },
-  "arpamar": {
+  "arparma": {
     "ambiguous_name": "名称 {target} 存在歧义\n请添加前缀 'options.' 或 'subcommands.'"
   },
   "stub": {

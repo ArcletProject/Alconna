@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING, Any, Iterable
-from tarina import Empty, split_once
-from tarina.lang import lang
+from tarina import Empty, split_once, lang
 from nepattern import AllParam, BasePattern
 from nepattern.util import TPattern
 
@@ -39,9 +38,9 @@ def _handle_keyword(
         if (_key := _kwarg[1]) != key:
             argv.rollback(may_arg)
             if fuzzy and levenshtein_norm(_key, key) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(source=_key, target=key))
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_key, target=key))
             if default_val is None:
-                raise ParamsUnmatched(lang.common.fuzzy_matched.format(source=_key, target=key))
+                raise ParamsUnmatched(lang.require("fuzzy", "matched").format(source=_key, target=key))
             result_dict[_key] = None if default_val is Empty else default_val
             return
         if not (_m_arg := _kwarg[2]):
@@ -56,7 +55,7 @@ def _handle_keyword(
         result_dict[_kwarg[1]] = res._value  # type: ignore
         return
     argv.rollback(may_arg)
-    raise ParamsUnmatched(lang.args.key_missing.format(target=may_arg, key=key))
+    raise ParamsUnmatched(lang.require("args", "key_missing").format(target=may_arg, key=key))
 
 
 def _loop_kw(
@@ -172,7 +171,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             elif value.__class__ is MultiVar and value.flag == '*':
                 result[key] = ()
             elif not optional:
-                raise ArgumentMissing(lang.args.missing.format(key=key))
+                raise ArgumentMissing(lang.require("args", "missing").format(key=key))
             continue
         if value.__class__ is MultiVar:
             argv.rollback(may_arg)
@@ -229,7 +228,7 @@ def analyse_unmatch_params(analyser: SubAnalyser, argv: Argv, text: str):
                     res.append(_o)
                     continue
                 if argv.fuzzy_match and levenshtein_norm(_may_param, _o.name) >= config.fuzzy_threshold:
-                    raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(source=_may_param, target=_o.name))
+                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=_o.name))
             if res:
                 return res
         elif isinstance(_p, Option):
@@ -238,20 +237,20 @@ def analyse_unmatch_params(analyser: SubAnalyser, argv: Argv, text: str):
                 analyser.compile_params.setdefault(text, _p)
                 return _p
             if argv.fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(source=_may_param, target=_p.name))
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=_p.name))
         elif isinstance(_p, Sentence):
             if (_may_param := split_once(text, _p.separators)[0]) == _p.name:
                 analyser.compile_params.setdefault(text, _p)
                 return _p
             if argv.fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(source=_may_param, target=_p.name))
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=_p.name))
         else:
             _may_param, _ = split_once(text, _p.command.separators)
             if _may_param == _p.command.name or _may_param.startswith(_p.command.name):
                 analyser.compile_params.setdefault(text, _p)
                 return _p
             if argv.fuzzy_match and levenshtein_norm(_may_param, _p.command.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(source=_may_param, target=_p.command.name))
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=_p.command.name))
 
 
 def analyse_option(analyser: SubAnalyser, argv: Argv, param: Option) -> tuple[str, OptionResult]:
@@ -358,11 +357,11 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
         else:
             source = head_text + argv.separators[0] + str(may_command)
         if source == command:
-            raise ParamsUnmatched(lang.header.error.format(target=head_text))
+            raise ParamsUnmatched(lang.require("header", "error").format(target=head_text))
         for ht in headers_text:
             if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.common.fuzzy_matched.format(target=source, source=ht))
-    raise ParamsUnmatched(lang.header.error.format(target=head_text))
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(target=source, source=ht))
+    raise ParamsUnmatched(lang.require("header", "error").format(target=head_text))
 
 
 def handle_help(analyser: Analyser, argv: Argv):
@@ -472,6 +471,6 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
             raise PauseTriggered(res)
         output_manager.send(
             analyser.command.name,
-            lambda: f"{lang.common.completion_node}\n* " + "\n* ".join([i.text for i in res]),
+            lambda: f"{lang.require('completion', 'node')}\n* " + "\n* ".join([i.text for i in res]),
         )
     return analyser.export(argv, True, 'NoneType: None\n')  # type: ignore
