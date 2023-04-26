@@ -182,7 +182,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             )
         elif value is AllParam:
             argv.rollback(may_arg)
-            result[key] = argv.release(seps)
+            result[key] = argv.converter(argv.release(seps))
             argv.current_index = argv.ndata
             return result
         else:

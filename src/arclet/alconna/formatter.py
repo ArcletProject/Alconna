@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-from tarina import Empty
+from tarina import Empty, lang
 from nepattern import AllParam, BasePattern
 
 from .args import Arg, Args
@@ -180,49 +180,67 @@ class TextFormatter:
                 sep = f"[{'|'.join(arg.separators)!r}]"
             res += self.param(arg) + sep
         notice = [(arg.name, arg.notice) for arg in args.argument if arg.notice]
-        return f"{res}\n## 注释\n  " + "\n  ".join([f"{v[0]}: {v[1]}" for v in notice]) if notice else res
+        return (
+            f"{res}\n## {lang.require('format', 'notice')}\n  " +
+            "\n  ".join([f"{v[0]}: {v[1]}" for v in notice])
+        ) if notice else res
+
 
     def header(self, root: dict[str, Any], separators: tuple[str, ...]) -> str:
         """头部节点的描述"""
         help_string = f"\n{desc}" if (desc := root.get('description')) else ""
-        usage = f"\n用法:\n{usage}" if (usage := root.get('usage')) else ""
-        example = f"\n使用示例:\n{example}" if (example := root.get('example')) else ""
+        usage = f"\n{lang.require('format', 'usage')}:\n{usage}" if (usage := root.get('usage')) else ""
+        example = f"\n{lang.require('format', 'example')}:\n{example}" if (example := root.get('example')) else ""
         prefixs = f"[{''.join(map(str, prefixs))}]" if (prefixs := root.get('prefix', [])) != [] else ""
         cmd = f"{prefixs}{root.get('name', '')}"
         command_string = cmd or (root['name'] + separators[0])
-        return f"{command_string} %s{help_string}{usage}\n%s{example}"
+        return f"{command_string} %s{help_string}{usage}\n\n%s{example}"
 
-    def part(self, node: Subcommand | Option) -> str:
-        """每个子节点的描述"""
-        if isinstance(node, Subcommand):
-            name = " ".join(node.requires) + (' ' if node.requires else '') + node.name
-            option_string = "".join([self.part(i).replace("\n", "\n ") for i in node.options])
-            option_help = "## 该子命令内可用的选项有:\n " if option_string else ""
-            return (
-                f"# {node.help_text}\n"
-                f"  {name}{tuple(node.separators)[0]}"
-                f"{self.parameters(node.args)}\n"
-                f"{option_help}{option_string}"
-            )
-        elif isinstance(node, Option):
-            alias_text = " ".join(node.requires) + (' ' if node.requires else '') + ", ".join(node.aliases)
-            return (
-                f"# {node.help_text}\n"
-                f"  {alias_text}{tuple(node.separators)[0]}"
-                f"{self.parameters(node.args)}\n"
-            )
-        else:
-            raise TypeError(f"{node} is not a valid node")
+    def opt(self, node: Option) -> str:
+        """对单个选项的描述"""
+        alias_text = " ".join(node.requires) + (' ' if node.requires else '') + "|".join(node.aliases)
+        return (
+            f"* {node.help_text}\n"
+            f"  {alias_text}{node.separators[0]}{self.parameters(node.args)}\n"
+        )
+
+    def sub(self, node: Subcommand) -> str:
+        """对单个子命令的描述"""
+        name = " ".join(node.requires) + (' ' if node.requires else '') + node.name
+        opt_string = "".join(
+            [
+                self.opt(opt).replace("\n", "\n  ").replace("# ", "* ")
+                for opt in filter(lambda x: isinstance(x, Option), node.options)
+            ]
+        )
+        sub_string = "".join(
+            [
+                self.opt(sub).replace("\n", "\n  ").replace("# ", "* ")  # type: ignore
+                for sub in filter(lambda x: isinstance(x, Subcommand), node.options)
+            ]
+        )
+        opt_help = f"  {lang.require('format', 'subcommands.opts')}:\n  " if opt_string else ""
+        sub_help = f"  {lang.require('format', 'subcommands.subs')}:\n  " if sub_string else ""
+        return (
+            f"* {node.help_text}\n"
+            f"  {name}{tuple(node.separators)[0]}{self.parameters(node.args)}\n"
+            f"{sub_help}{sub_string}"
+            f"{opt_help}{opt_string}"
+        ).rstrip(' ')
 
     def body(self, parts: list[Option | Subcommand]) -> str:
         """子节点列表的描述"""
         option_string = "".join(
-            [self.part(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
-            if opt.name not in self.ignore_names]
+            [
+                self.opt(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
+                if opt.name not in self.ignore_names
+            ]
         )
-        subcommand_string = "".join([self.part(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts)])
-        option_help = "可用的选项有:\n" if option_string else ""
-        subcommand_help = "可用的子命令有:\n" if subcommand_string else ""
+        subcommand_string = "".join(
+            [self.sub(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts)]
+        )
+        option_help = f"{lang.require('format', 'options')}:\n" if option_string else ""
+        subcommand_help = f"{lang.require('format', 'subcommands')}:\n" if subcommand_string else ""
         return f"{subcommand_help}{subcommand_string}{option_help}{option_string}"
 
 

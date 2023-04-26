@@ -70,5 +70,14 @@
     "option_help": "显示帮助信息",
     "option_shortcut": "设置快捷命令",
     "option_completion": "补全当前命令"
+  },
+  "format": {
+    "notice": "注释",
+    "usage": "用法",
+    "example": "使用示例",
+    "subcommands": "可用的子命令有",
+    "subcommands.subs": "该子命令内可用的子命令有",
+    "subcommands.opts": "该子命令内可用的选项有",
+    "options": "可用的选项有"
   }
 }

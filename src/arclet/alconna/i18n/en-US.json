@@ -71,5 +71,14 @@
     "option_help": "show the help information",
     "option_shortcut": "set a shortcut command",
     "option_completion": "give a next input suggestion of current command"
+  },
+  "format": {
+    "notice": "Notice",
+    "usage": "Usage",
+    "example": "Example",
+    "subcommands": "Commands",
+    "subcommands.subs": "Commands in above command",
+    "subcommands.opts": "Options in above command",
+    "options": "General Options"
   }
 }

@@ -23,7 +23,7 @@ class Argv(Generic[TDC]):
     separators: tuple[str, ...] = field(default=(' ',))  # 分隔符
     filter_out: list[str] = field(default_factory=list)  # 元素黑名单
     checker: Callable[[Any], bool] | None = field(default=None)
-    converter: Callable[[Any], TDC] | None = field(default=lambda x: x)
+    converter: Callable[[str | list], TDC] | None = field(default=lambda x: x)
     filter_crlf: bool = field(default=True)
     message_cache: bool = field(default=True)
     param_ids: set[str] = field(default_factory=set)
@@ -44,7 +44,7 @@ class Argv(Generic[TDC]):
         to_text: Callable[[Any], str | None] | None = None,
         filter_out: list[str] | None = None,
         checker: Callable[[Any], bool] | None = None,
-        converter: Callable[[Any], TDC] | None = None
+        converter: Callable[[str | list], TDC] | None = None
     ):
         _cache.setdefault(cls, {}).update(locals())
 

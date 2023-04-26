@@ -34,7 +34,7 @@ class Namespace:
         }
     )
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
-    converter: Callable[[Any], DataCollection[Any]] | None = field(default=lambda x: x)
+    converter: Callable[[str | list], DataCollection[Any]] | None = field(default=lambda x: x)
 
     def __eq__(self, other):
         return isinstance(other, Namespace) and other.name == self.name

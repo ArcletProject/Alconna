@@ -80,6 +80,7 @@ def test_special_header():
 
 
 def test_formatter():
+    from tarina import lang
     alc3 = Alconna(
         "/pip",
         Subcommand(
@@ -97,6 +98,9 @@ def test_formatter():
     )
     print("")
     print(alc3.get_help())
+    lang.select("en-US")
+    print(alc3.get_help())
+    lang.select("zh-CN")
     res = alc3.parse(
         "/pip install alconna --upgrade -i https://pypi.douban.com/simple -t 6 --trusted-host pypi.douban.com"
     )
