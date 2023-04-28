@@ -64,15 +64,38 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## 特点
 
-* 高效. 在 i5-10210U 处理器上, 性能大约为 `71000~289000 msg/s`; 测试脚本: [benchmark](benchmark.py) 
-* 精简、多样的构造方法
+* 高效. 在 i5-10210U 处理器上, 性能大约为 `71000~289000 msg/s`; 测试脚本: [benchmark](benchmark.py)
 * 强大的类型解析与类型转换功能
-* 可传入同步与异步的 action 函数
-* 高度自定义的帮助信息格式、命令解析器
-* 自定义语言文件, 支持 i18n
+* 自定义的帮助信息格式与命令解析控制
+* i18n
 * 命令输入缓存, 以保证重复命令的快速响应
 * 易用的快捷命令创建与使用
-* 模糊匹配、命令补全等一众特性
+* 可以绑定回调函数, 以便于在命令解析完成后执行
+* 可创建命令补全会话, 以实现多轮连续的补全提示
+* 模糊匹配、输出捕获等一众特性
+
+执行回调示范:
+```python
+# callback.py
+from arclet.alconna import Alconna, Args
+
+alc = Alconna("test", Args["foo", int]["bar", str])
+
+@alc.bind()
+def cb(foo: int, bar: str):
+    print(foo, bar)
+    print(bar * foo)
+
+if __name__ == '__main__':
+    alc()
+
+    
+```
+```shell
+$ python callback.py test 2 hello
+2 hello
+hellohello
+```
 
 类型转换示范:
 ```python
@@ -95,22 +118,6 @@ read.parse(["read", Path("test_fire.py")])
 '''
 ```
 
-模糊匹配示范:
-```python
-# fuzzy.py
-from arclet.alconna import Alconna, CommandMeta, Arg
-
-alc = Alconna('!test_fuzzy', Arg("foo", str), meta=CommandMeta(fuzzy_match=True))
-
-if __name__ == '__main__':
-    alc()
-
-'''
-$ fuzzy.py /test_fuzzy foo bar
-/test_fuzy not matched. Are you mean "!test_fuzzy"?
-'''
-```
-
 快捷命令示范:
 ```python
 # shortcut.py
@@ -121,13 +128,34 @@ alc.shortcut("echo", {"command": "eval print(\\'{*}\\')"})
 
 if __name__ == '__main__':
     alc()
+```
 
-'''
-$ shortcut.py eval print("Hello World!")
-Hello World!
-$ shortcut.py echo Hello World!
-Hello World!
-'''
+```shell
+$ python shortcut.py eval print(\"hello world\")
+hello world
+$ python shortcut.py echo hello world!
+hello world!
+```
+
+命令补全示范:
+```python
+# complete.py
+from arclet.alconna import Alconna, Args, Option
+
+alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
+
+if __name__ == '__main__':
+    alc()
+```
+
+```shell
+$ python completion.py test ?
+next input maybe:
+> foo
+> int
+> -h
+> --help
+> fool
 ```
 
 typing 支持示范:
@@ -145,25 +173,20 @@ ParamsUnmatched: 参数 3 不正确
 '''
 ```
 
-命令补全示范:
+模糊匹配示范:
 ```python
-# complete.py
-from arclet.alconna import Alconna, Args, Option
+# fuzzy.py
+from arclet.alconna import Alconna, CommandMeta, Arg
 
-alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
+alc = Alconna('!test_fuzzy', Arg("foo", str), meta=CommandMeta(fuzzy_match=True))
 
 if __name__ == '__main__':
     alc()
+```
 
-'''
-$ complete.py test ?
-下一个输入可能是以下：
-> fool
-> -h
-> int
-> foo
-> --help
-'''
+```shell
+$ python fuzzy.py /test_fuzzy foo bar
+/test_fuzy not matched. Are you mean "!test_fuzzy"?
 ```
 
 ## 许可

@@ -10,7 +10,7 @@ from arclet.alconna import (
     KeyWordVar,
     Arg,
     store_true,
-    CompInterface,
+    CompSession,
 )
 from nepattern import IP, URL
 
@@ -429,7 +429,7 @@ def test_completion_interface():
     alc21 = Alconna("core21", Args.foo[int], Args.bar[str])
     print("\n", "no interface [failed]:", alc21.parse("core21"))
     print("\n", "interface [pending]:")
-    with CompInterface(alc21) as comp:
+    with CompSession(alc21) as comp:
         alc21.parse("core21")
     if comp.available:
         print("\n", "current completion:", comp.current())
@@ -439,7 +439,7 @@ def test_completion_interface():
         print("\n", "current completion:", comp.current())
         assert comp.enter("a").matched
 
-    with CompInterface(alc21) as comp:
+    with CompSession(alc21) as comp:
         alc21.parse("core21 1 a --comp")
     if comp.available:
         print(comp)
@@ -452,9 +452,9 @@ def test_call():
     import asyncio
 
     alc22 = Alconna("core22", Args.foo[int], Args.bar[str])
-    alc22.parse("core22 123 abc")
+    alc22("core22 123 abc")
 
-    @alc22.bind
+    @alc22.bind(False)
     def cb(foo: int, bar: str):
         print("")
         print("core22: ")

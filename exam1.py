@@ -1,4 +1,4 @@
-from arclet.alconna import Alconna, Option, Subcommand, Args, CompInterface
+from arclet.alconna import Alconna, Option, Subcommand, Args, CompSession
 
 alc = Alconna(
     "setting",
@@ -6,7 +6,7 @@ alc = Alconna(
     Subcommand("group", Args["name", int]),
 
 )
-interface = CompInterface(alc)
+interface = CompSession(alc)
 
 with interface:
     res = alc.parse(input(">>> "))

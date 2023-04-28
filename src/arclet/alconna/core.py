@@ -16,13 +16,33 @@ from .arparma import Arparma, ArparmaBehavior
 from .base import Option, Subcommand
 from .config import Namespace, config
 from .duplication import Duplication
-from .exceptions import NullMessage
-from .executor import ArparmaExecutor, T
+from .exceptions import NullMessage, ExecuteFailed
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
 from .typing import TDC, TPrefixes
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
+T = TypeVar("T")
+
+
+@dataclass(init=True, unsafe_hash=True)
+class ArparmaExecutor(Generic[T]):
+    target: Callable[..., T]
+    binding: Callable[..., list[Arparma]] = field(default=lambda: [], repr=False)
+
+    __call__ = lambda self, *args, **kwargs: self.target(*args, **kwargs)
+
+    @property
+    def result(self) -> T:
+        if not self.binding:
+            raise ExecuteFailed(None)
+        arps = self.binding()
+        if not arps or not arps[0].matched:
+            raise ExecuteFailed("Unmatched")
+        try:
+            return arps[0].call(self.target)
+        except Exception as e:
+            raise ExecuteFailed(e) from e
 
 
 @dataclass
@@ -268,8 +288,7 @@ class Alconna(Subcommand, Generic[TDC]):
     def _parse(self, message: TDC) -> Arparma[TDC]:
         if self.union:
             for ana, argv in command_manager.requires(*self.union):
-                argv.build(message)
-                if (res := ana.process(argv)).matched:
+                if (res := ana.process(argv.build(message))).matched:
                     return res
         analyser = command_manager.require(self)
         argv = command_manager.resolve(self)
@@ -297,13 +316,18 @@ class Alconna(Subcommand, Generic[TDC]):
         if arp.matched:
             self.behaviors[0].operate(arp)
             arp = arp.execute()
+            if self._executors:
+                for ext in self._executors:
+                    arp.call(ext.target)
         return duplication(arp) if duplication else arp
 
-    def bind(self, target: Callable[..., T]) -> ArparmaExecutor[T]:
-        ext = ArparmaExecutor(target)
-        ext.binding = lambda: command_manager.get_result(self)
-        self._executors.append(ext)
-        return self._executors[-1]
+    def bind(self, active: bool = True):
+        def wrapper(target: Callable[..., T]) -> ArparmaExecutor[T]:
+            ext = ArparmaExecutor(target, lambda: command_manager.get_result(self))
+            if active:
+                self._executors.append(ext)
+            return ext
+        return wrapper
 
     def __truediv__(self, other) -> Self:
         return self.reset_namespace(other)
@@ -331,9 +355,7 @@ class Alconna(Subcommand, Generic[TDC]):
         return self
 
     def _calc_hash(self):
-        return hash(
-            (self.path + str(self.prefixes), self.meta, *self.options, *self.args.argument)
-        )
+        return hash((self.path + str(self.prefixes), self.meta, *self.options, *self.args))
 
     def __call__(self, *args, **kwargs):
         return self.parse(list(args)) if args else self.parse(sys.argv[1:])

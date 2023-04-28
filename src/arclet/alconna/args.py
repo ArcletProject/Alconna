@@ -268,6 +268,7 @@ class Args(metaclass=ArgsMeta):
     __add__ = __merge__
     __iadd__ = __merge__
     __lshift__ = __merge__
+    __iter__ = lambda self: iter(self.argument)
 
     def __truediv__(self, other) -> Self:
         self.separate(*other if isinstance(other, (list, tuple, set)) else other)

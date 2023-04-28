@@ -168,7 +168,7 @@ class Arparma(Generic[TDC]):
 
     def call(self, target: Callable[..., T], **additional):
         if self.matched:
-            names = tuple(p.name for p in get_signature(target))
+            names = {p.name for p in get_signature(target)}
             return target(**{k: v for k, v in {**self.all_matched_args, **additional}.items() if k in names})
         raise RuntimeError
 

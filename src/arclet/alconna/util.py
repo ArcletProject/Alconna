@@ -6,7 +6,7 @@ import dataclasses
 
 
 def dataclass(*args, **kwargs):
-    if sys.version_info < (3, 10):
+    if sys.version_info < (3, 10):  # pragma: no cover
         kwargs.pop('slots')
     return dataclasses.dataclass(*args, **kwargs)
 

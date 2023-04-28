@@ -57,7 +57,7 @@ class MultiVar(BasePattern):
             alias = f"({self.base}+)[:{flag}]"
             self.flag = "+"
             self.length = flag
-        else:
+        else:  # pragma: no cover
             alias = str(self.base)
             self.flag = "+"
             self.length = 1

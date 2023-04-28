@@ -61,15 +61,41 @@ QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## Features
 
-* High Performance. On i5-10210U, performance is about `71000~289000 msg/s`; test script: [benchmark](benchmark.py) 
-* Simple and Flexible Constructor 
+* High Performance. On i5-10210U, performance is about `71000~289000 msg/s`; test script: [benchmark](benchmark.py)
 * Powerful Automatic Type Parse and Conversion
-* Support Synchronous and Asynchronous Actions
-* Customizable Help Text Formatter, Command Analyser, etc.
-* Customizable Language File, Support i18n
+* Customizable Help Text Formatter and Control of Command Analyser
+* i18n Support
 * Cache of input command for quick response of repeated command
 * Easy-to-use Construct and Usage of Command Shortcut
-* Various Features (FuzzyMatch, Command Completion, etc.)
+* Can bind callback function to execute after command parsing
+* Can create command completion session to implement multi-round continuous completion prompt
+* Various Features (FuzzyMatch, Output Capture, etc.)
+
+Example of Callback Executor:
+
+```python
+# callback.py
+from arclet.alconna import Alconna, Args
+
+alc = Alconna("test", Args["foo", int]["bar", str])
+
+@alc.bind()
+def callback(foo: int, bar: str):
+    print(f"foo: {foo}")
+    print(f"bar: {bar}")
+    print(bar * foo)
+    
+if __name__ == "__main__":
+    alc()
+```
+
+```shell
+$ python callback.py test 3 hello
+foo: 3
+bar: hello
+hellohellohello
+```
+
 
 Example of Type Conversion:
 
@@ -93,30 +119,44 @@ read.parse(["read", Path("test_fire.py")])
 '''
 ```
 
-Example of FuzzyMatch:
-
-```python
-from arclet.alconna import Alconna, CommandMeta, Arg
-
-alc = Alconna('!test_fuzzy', Arg("foo", str), meta=CommandMeta(fuzzy_match=True))
-alc.parse("！test_fuzy foo bar")
-
-'''
-！test_fuzy not matched. Are you mean "!test_fuzzy"?
-'''
-```
-
 Example of Command Shortcut:
 ```python
+# shortcut.py
 from arclet.alconna import Alconna, Args
 
 alc = Alconna("eval", Args["content", str], action=lambda x: eval(x, {}, {}))
 alc.shortcut("echo", {"command": "eval print(\\'{*}\\')"})
-alc.parse("echo Hello World!")
 
-'''
-Hello World!
-'''
+if __name__ == "__main__":
+    alc()
+```
+
+```shell
+$ python shortcut.py eval print(\"hello world\")
+hello world
+$ python shortcut.py echo hello world!
+hello world!
+```
+
+Example of Command Completion:
+```python
+# completion.py
+from arclet.alconna import Alconna, Args, Option
+
+alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
+
+if __name__ == "__main__":
+    alc.completion()
+```
+
+```shell
+$ python completion.py test ?
+next input maybe:
+> foo
+> int
+> -h
+> --help
+> fool
 ```
 
 Example of `typing` Support:
@@ -134,23 +174,28 @@ ParamsUnmatched: param 3 is incorrect
 '''
 ```
 
+Example of FuzzyMatch:
 
-Example of Command Completion:
 ```python
-from arclet.alconna import Alconna, Args, Option
+# fuzzy.py
+from arclet.alconna import Alconna, CommandMeta, Arg
 
-alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
-alc.parse("test --comp")
+alc = Alconna('!test_fuzzy', Arg("foo", str), meta=CommandMeta(fuzzy_match=True))
 
-'''
-next input maybe:
-> foo
-> int
-> -h
-> --help
-> fool
-'''
+if __name__ == "__main__":
+    alc()
+
 ```
+
+```shell
+$ python fuzzy.py /test_fuzzy foo bar
+/test_fuzy not matched. Are you mean "!test_fuzzy"?
+```
+
+
+
+
+
 
 ## License
 

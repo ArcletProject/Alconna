@@ -20,12 +20,12 @@ class Prompt:
     removal_prefix: str | None = field(default=None, hash=False)
 
 
-class CompInterface:
+class CompSession:
     """
     Examples:
-        >>> from arclet.alconna import Alconna, CompInterface
+        >>> from arclet.alconna import Alconna, CompSession
         >>> alc = Alconna(...)
-        >>> with CompInterface(alc) as comp:
+        >>> with CompSession(alc) as comp:
         ...     res = alc.parse("test")
         ...
         >>> if comp.available:
@@ -117,4 +117,4 @@ class CompInterface:
             return True
 
 
-comp_ctx: ContextModel[CompInterface] = ContextModel("comp_ctx")
+comp_ctx: ContextModel[CompSession] = ContextModel("comp_ctx")
