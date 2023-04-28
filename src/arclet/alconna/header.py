@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from copy import deepcopy
-from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Any, Callable
 
@@ -39,13 +38,12 @@ def handle_bracket(name: str):
     return "".join(parts), mapping
 
 
-@dataclass
 class Pair:
-    prefix: Any
-    pattern: TPattern
-    is_prefix_pat: bool = field(default=False, init=False)
+    __slots__ = ("prefix", "pattern", "is_prefix_pat")
 
-    def __post_init__(self):
+    def __init__(self, prefix: Any, pattern: TPattern):
+        self.prefix = prefix
+        self.pattern = pattern
         self.is_prefix_pat = isinstance(self.prefix, BasePattern)
 
     def match(self, prefix: Any, command: str):
@@ -60,12 +58,14 @@ class Pair:
                 return (prefix, command), (prefix, command), True, mat.groupdict()
 
 
-@dataclass
 class Double:
-    elements: list[Any]
-    patterns: UnionPattern | None
-    prefix: TPattern | None
-    command: BasePattern | TPattern
+    __slots__ = ("elements", "patterns", "prefix", "command")
+
+    def __init__(self, es: list, pats: UnionPattern | None, prefix: TPattern | None, command: BasePattern | TPattern):
+        self.elements = es
+        self.patterns = pats
+        self.prefix = prefix
+        self.command = command
 
     def match(
         self,
@@ -84,7 +84,7 @@ class Double:
                 elif mat := pat.fullmatch(name := (prefix + command)):
                     return name, name, True, mat.groupdict()
             if (mat := self.prefix.fullmatch(prefix)) and (
-                _val := self.command(command, Empty)
+                _val := self.command.exec(command, Empty)
             ).success:
                 return (prefix, command), (prefix, _val.value), True, mat.groupdict()
         if self.patterns and (val := self.patterns.validate(prefix, Empty)).success:
@@ -105,16 +105,23 @@ class Double:
             return (_po, command), (_pr, command), True, mat.groupdict()
         elif (
             isinstance(self.command, BasePattern)
-            and (_val := self.command(command, Empty)).success
+            and (_val := self.command.exec(command, Empty)).success
         ):
             return (_po, command), (_pr, _val.value), True
 
 
-@dataclass
 class Header:
-    origin: tuple[str | type | BasePattern, TPrefixes]
-    content: TPattern | BasePattern | list[Pair] | Double
-    mapping: dict[str, BasePattern] = field(default_factory=dict)
+    __slots__ = ("origin", "content", "mapping")
+
+    def __init__(
+        self,
+        origin: tuple[str | type | BasePattern, TPrefixes],
+        content: TPattern | BasePattern | list[Pair] | Double,
+        mapping: dict[str, BasePattern] | None = None,
+    ):
+        self.origin = origin
+        self.content = content
+        self.mapping = mapping or {}
 
     @classmethod
     def generate(

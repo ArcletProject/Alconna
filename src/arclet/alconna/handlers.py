@@ -45,7 +45,7 @@ def _handle_keyword(
             return
         if not (_m_arg := _kwarg[2]):
             _m_arg, _ = argv.next(seps)
-        res = value.base(_m_arg, default_val)
+        res = value.base.exec(_m_arg, default_val)
         if res.flag != 'valid':
             argv.rollback(may_arg)
         if res.flag == 'error':
@@ -104,7 +104,7 @@ def _loop(
         ):
             argv.rollback(_m_arg)
             break
-        if (res := value.base(_m_arg)).flag != 'valid':
+        if (res := value.base.exec(_m_arg)).flag != 'valid':
             argv.rollback(_m_arg)
             break
         result.append(res._value)  # type: ignore
@@ -159,9 +159,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
         key = arg.name
         value = arg.value
         default_val = arg.field.default_gen
-        optional = arg.optional
-        seps = arg.separators
-        may_arg, _str = argv.next(seps)
+        may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
             raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids):
@@ -170,7 +168,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
                 result[key] = None if default_val is Empty else default_val
             elif value.__class__ is MultiVar and value.flag == '*':
                 result[key] = ()
-            elif not optional:
+            elif not arg.optional:
                 raise ArgumentMissing(lang.require("args", "missing").format(key=key))
             continue
         if value.__class__ is MultiVar:
@@ -178,11 +176,11 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             multi_arg_handler(argv, args, arg, result)  # type: ignore
         elif value.__class__ is KeyWordVar:
             _handle_keyword(
-                argv, value, may_arg, seps, result, default_val, optional, key, argv.fuzzy_match  # type: ignore
+                argv, value, may_arg, arg.separators, result, default_val, arg.optional, key, argv.fuzzy_match  # type: ignore
             )
         elif value is AllParam:
             argv.rollback(may_arg)
-            result[key] = argv.converter(argv.release(seps))
+            result[key] = argv.converter(argv.release(arg.separators))
             argv.current_index = argv.ndata
             return result
         else:
@@ -194,7 +192,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             if res.flag != 'valid':
                 argv.rollback(may_arg)
             if res.flag == 'error':
-                if optional:
+                if arg.optional:
                     continue
                 raise ParamsUnmatched(*res.error.args)
             if not arg.anonymous:
@@ -301,10 +299,10 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         _param = None if analyser.default_separate else analyse_unmatch_params(analyser, argv, _text)
     if not _param and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
-    elif isinstance(_param, Option):
+    elif _param.__class__ is Option:
         opt_n, opt_v = analyse_option(analyser, argv, _param)
         analyser.options_result[opt_n] = opt_v
-    elif isinstance(_param, list):
+    elif _param.__class__ is list:
         for opt in _param:
             _data, _index = argv.data_set()
             try:
@@ -318,9 +316,9 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
                 continue
         else:
             raise exc  # type: ignore  # noqa
-    elif isinstance(_param, Sentence):
+    elif _param.__class__ is Sentence:
         analyser.sentences.append(argv.next()[0])
-    elif _param:
+    elif _param is not None:
         _param.process(argv)
         analyser.subcommands_result.setdefault(_param.command.dest, _param.result())
     argv.context = None
@@ -330,17 +328,17 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
     content = header.content
     mapping = header.mapping
     head_text, _str = argv.next()
-    if isinstance(content, TPattern) and _str and (mat := content.fullmatch(head_text)):
+    if content.__class__ is TPattern and _str and (mat := content.fullmatch(head_text)):
         return HeadResult(head_text, head_text, True, mat.groupdict(), mapping)
-    elif isinstance(content, BasePattern) and (val := content(head_text, Empty)).success:
+    elif isinstance(content, BasePattern) and (val := content.exec(head_text, Empty)).success:
         return HeadResult(head_text, val.value, True, fixes=mapping)
 
     may_command, _m_str = argv.next()
-    if isinstance(content, list) and _m_str:
+    if content.__class__ is list and _m_str:
         for pair in content:
             if res := pair.match(head_text, may_command):
                 return HeadResult(*res, fixes=mapping)
-    if isinstance(content, Double) and (
+    if content.__class__ is Double and (
         res := content.match(head_text, may_command, _str, _m_str, argv.rollback)
     ):
         return HeadResult(*res, fixes=mapping)

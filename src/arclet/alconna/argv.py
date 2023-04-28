@@ -88,7 +88,7 @@ class Argv(Generic[TDC]):
         if self.checker and not self.checker(data):
             raise TypeError(data)
         self.origin = data
-        if isinstance(data, str):
+        if data.__class__ is str:
             data = [data]
         i, raw_data = 0, self.raw_data
         for unit in data:
@@ -135,7 +135,7 @@ class Argv(Generic[TDC]):
             return "", True
         separate = separate or self.separators
         _current_data = self.raw_data[self.current_index]
-        if _current_data.__class__ == str:
+        if _current_data.__class__ is str:
             _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)  # type: ignore
             if move:
                 if _rest_text:
@@ -150,7 +150,7 @@ class Argv(Generic[TDC]):
 
     def rollback(self, data: str | Any, replace: bool = False):
         """把 pop的数据放回 (实际只是‘指针’移动)"""
-        if data in ("", None):
+        if data == "" or data is None:
             return
         if self._sep:
             _current_data = self.raw_data[self.current_index]
@@ -165,7 +165,7 @@ class Argv(Generic[TDC]):
         _result = []
         data = self.bak_data if recover else self.raw_data[self.current_index:]
         for _data in data:
-            if isinstance(_data, str):
+            if _data.__class__ is str:
                 _result.extend(split(_data, separate or (' ',)))
             else:
                 _result.append(_data)

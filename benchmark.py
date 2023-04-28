@@ -28,7 +28,7 @@ class At:
 
 with namespace("test") as np:
     np.enable_message_cache = True
-    np.to_text = lambda x: x.text if isinstance(x, Plain) else None
+    np.to_text = lambda x: x.text if x.__class__ is Plain else None
     alc = Alconna(
         ["."],
         "test",
