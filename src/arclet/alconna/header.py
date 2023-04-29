@@ -48,7 +48,7 @@ class Pair:
 
     def match(self, prefix: Any, command: str):
         if mat := self.pattern.fullmatch(command):
-            if self.is_prefix_pat and (val := self.prefix(prefix, Empty)).success:
+            if self.is_prefix_pat and (val := self.prefix.exec(prefix, Empty)).success:
                 return (prefix, command), (val.value, command), True, mat.groupdict()
             if (
                 not isclass(prefix)
@@ -67,16 +67,9 @@ class Double:
         self.prefix = prefix
         self.command = command
 
-    def match(
-        self,
-        prefix: Any,
-        command: Any,
-        prefix_str: bool,
-        command_str: bool,
-        pushback_fn: Callable[[str], ...],
-    ):
-        if self.prefix and prefix_str:
-            if command_str:
+    def match(self, prefix: Any, command: Any, p_str: bool, c_str: bool, pushback_fn: Callable[[str], ...]):
+        if self.prefix and p_str:
+            if c_str:
                 pat = re.compile(self.prefix.pattern + self.command.pattern)
                 if mat := pat.fullmatch(prefix):
                     pushback_fn(command)
@@ -99,7 +92,7 @@ class Double:
             return
         if (
             isinstance(self.command, TPattern)
-            and command_str
+            and c_str
             and (mat := self.command.fullmatch(command))
         ):
             return (_po, command), (_pr, command), True, mat.groupdict()

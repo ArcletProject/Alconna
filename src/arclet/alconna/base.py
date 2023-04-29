@@ -81,7 +81,7 @@ class CommandNode:
 
 class Option(CommandNode):
     """命令选项, 可以使用别名"""
-    aliases: list[str]
+    aliases: frozenset[str]
     priority: int
 
     def __init__(
@@ -93,15 +93,16 @@ class Option(CommandNode):
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
         priority: int = 0
     ):
-        self.aliases = list(alias or [])
+        aliases = list(alias or [])
         _name = name.split(" ")[-1]
         if "|" in _name:
             _aliases = _name.split('|')
             _aliases.sort(key=len, reverse=True)
             name = name.replace(_name, _aliases[0])
             _name = _aliases[0]
-            self.aliases.extend(_aliases[1:])
-        self.aliases.insert(0, _name)
+            aliases.extend(_aliases[1:])
+        aliases.insert(0, _name)
+        self.aliases = frozenset(aliases)
         self.priority = priority
         super().__init__(
             name, args, dest, action, separators, help_text, requires

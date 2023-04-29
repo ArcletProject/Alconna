@@ -215,40 +215,39 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     return result
 
 
+def _match_or_fuzzy(text: str, param: Any, name: str, seps: tuple[str, ...], argv: Argv, analyser: SubAnalyser):
+    _may_param, _ = split_once(text, seps)
+    if _may_param == name or _may_param.startswith(name):
+        analyser.compile_params.setdefault(text, param)
+        return param
+    if argv.fuzzy_match and levenshtein_norm(_may_param, name) >= config.fuzzy_threshold:
+        raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=name))
+
+
+def _match_or_fuzzy_opt(text: str, opt: Option, argv: Argv, analyser: SubAnalyser):
+    _may_param, _ = split_once(text, opt.separators)
+    if _may_param in opt.aliases or any(map(_may_param.startswith, opt.aliases)):
+        analyser.compile_params.setdefault(text, opt)
+        return opt
+    if argv.fuzzy_match and levenshtein_norm(_may_param, opt.name) >= config.fuzzy_threshold:
+        raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=opt.name))
+
+
 def analyse_unmatch_params(analyser: SubAnalyser, argv: Argv, text: str):
     for _p in analyser.compile_params.values():
         if isinstance(_p, list):
             res = []
             for _o in _p:
-                _may_param, _ = split_once(text, _o.separators)
-                if _may_param in _o.aliases or any(map(_may_param.startswith, _o.aliases)):
-                    analyser.compile_params.setdefault(text, res)
-                    res.append(_o)
-                    continue
-                if argv.fuzzy_match and levenshtein_norm(_may_param, _o.name) >= config.fuzzy_threshold:
-                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=_o.name))
+                if _r := _match_or_fuzzy_opt(text, _o, argv, analyser):
+                    res.append(_r)
             if res:
                 return res
         elif isinstance(_p, Option):
-            _may_param, _ = split_once(text, _p.separators)
-            if _may_param in _p.aliases or any(map(_may_param.startswith, _p.aliases)):
-                analyser.compile_params.setdefault(text, _p)
-                return _p
-            if argv.fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=_p.name))
+            return _match_or_fuzzy_opt(text, _p, argv, analyser)
         elif isinstance(_p, Sentence):
-            if (_may_param := split_once(text, _p.separators)[0]) == _p.name:
-                analyser.compile_params.setdefault(text, _p)
-                return _p
-            if argv.fuzzy_match and levenshtein_norm(_may_param, _p.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=_p.name))
+            return _match_or_fuzzy(text, _p, _p.name, _p.separators, argv, analyser)
         else:
-            _may_param, _ = split_once(text, _p.command.separators)
-            if _may_param == _p.command.name or _may_param.startswith(_p.command.name):
-                analyser.compile_params.setdefault(text, _p)
-                return _p
-            if argv.fuzzy_match and levenshtein_norm(_may_param, _p.command.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=_p.command.name))
+            return _match_or_fuzzy(text, _p, _p.command.name, _p.command.separators, argv, analyser)
 
 
 def analyse_option(analyser: SubAnalyser, argv: Argv, param: Option) -> tuple[str, OptionResult]:

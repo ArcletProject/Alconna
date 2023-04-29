@@ -42,5 +42,5 @@ class HeadResult:
         self.groups = groups or {}
         if fixes:
             self.groups.update(
-                {k: v(self.groups[k])._value for k, v in fixes.items() if k in self.groups}  # noqa
+                {k: v.exec(self.groups[k])._value for k, v in fixes.items() if k in self.groups}  # noqa
             )

@@ -26,19 +26,19 @@ def test_node_requires():
 
 def test_option_aliases():
     opt = Option("test|T|t")
-    assert opt.aliases == ["test", "T", "t"]
+    assert opt.aliases == {"test", "T", "t"}
     opt_1 = Option("test", alias=["T", "t"])
-    assert opt_1.aliases == ["test", "T", "t"]
+    assert opt_1.aliases == {"test", "T", "t"}
     assert opt == opt_1
     assert opt == Option("T|t|test")
 
 
 def test_option_requires():
     opt1 = Option("foo bar test|T|t")
-    assert opt1.aliases == ["test", "T", "t"]
+    assert opt1.aliases == {"test", "T", "t"}
     assert opt1.requires == ["foo", "bar"]
     opt1_1 = Option("foo bar test| T | t")
-    assert opt1_1.aliases != ["test", "T", "t"]
+    assert opt1_1.aliases != {"test", "T", "t"}
 
 
 def test_separator():
