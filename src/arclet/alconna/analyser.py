@@ -23,11 +23,12 @@ from .completion import comp_ctx
 from .model import Sentence, HeadResult, OptionResult, SubcommandResult
 from .arparma import Arparma
 from .typing import TDC
-from .config import Namespace
+from .config import Namespace, config
 from .output import output_manager
 from .handlers import (
     analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
 )
+from .util import levenshtein_norm
 
 if TYPE_CHECKING:
     from .argv import Argv
@@ -59,6 +60,8 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
     require_len = 0
     for opts in analyser.command.options:
         if isinstance(opts, Option):
+            if opts.compact:
+                analyser.compact_params.append(opts)
             _compile_opts(opts, analyser.compile_params)  # type: ignore
             pids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
@@ -67,7 +70,7 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
             pids.add(opts.name)
             default_compiler(sub, _config, pids)
         if not set(analyser.command.separators).issuperset(opts.separators):
-            analyser.default_separate &= False
+            analyser.compact_params.append(opts)
         if opts.requires:
             pids.update(opts.requires)
             require_len = max(len(opts.requires), require_len)
@@ -84,9 +87,8 @@ class SubAnalyser(Generic[TDC]):
     default_main_only: bool = field(default=False)  # 默认只有主参数
     part_len: range = field(default=range(0))  # 分段长度
     need_main_args: bool = field(default=False)  # 是否需要主参数
-    default_separate: bool = field(default=True)
     compile_params: dict[str, Sentence | Option | list[Option] | SubAnalyser[TDC]] = field(default_factory=dict)
-
+    compact_params: list[Option | SubAnalyser[TDC]] = field(default_factory=list)
     self_args: Args = field(init=False)  # 自身参数
     subcommands_result: dict[str, SubcommandResult] = field(init=False)
     options_result: dict[str, OptionResult] = field(init=False)  # 存放解析到的所有选项
@@ -128,18 +130,11 @@ class SubAnalyser(Generic[TDC]):
 
     def process(self, argv: Argv[TDC]) -> Self:
         sub = argv.context = self.command
-        if sub.requires and self.sentences != sub.requires:
-            raise ParamsUnmatched(f"{sub.name}'s required is not '{' '.join(self.sentences)}'")
-        self.sentences = []
-        if sub.is_compact:
-            name, _ = argv.next()
-            if not name.startswith(sub.name):
-                raise ParamsUnmatched(f"{name} dose not matched with {sub.name}")
-            argv.rollback(name.lstrip(sub.name), replace=True)
-        else:
-            name, _ = argv.next(sub.separators)
-            if name != sub.name:  # 先匹配选项名称
-                raise ParamsUnmatched(f"{name} dose not matched with {sub.name}")
+        name, _ = argv.next(sub.separators)
+        if name != sub.name:  # 先匹配选项名称
+            if argv.fuzzy_match and levenshtein_norm(name, sub.name) >= config.fuzzy_threshold:
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=sub.name))
+            raise ParamsUnmatched(f"{name} dose not matched with {sub.name}")
 
         if self.part_len.stop == 0:
             self.value_result = Ellipsis
@@ -172,7 +167,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         super().__init__(alconna)
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.used_tokens = set()
-        self.command_header = Header.generate(alconna.command, alconna.prefixes)
+        self.command_header = Header.generate(alconna.command, alconna.prefixes, alconna.meta.compact)
         compiler = compiler or default_compiler
         compiler(
             self,

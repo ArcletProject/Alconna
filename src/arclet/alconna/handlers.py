@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING, Any, Iterable
-from tarina import Empty, split_once, lang
+from tarina import Empty, lang
 from nepattern import AllParam, BasePattern, AnyOne, AnyString
 from nepattern.util import TPattern
 
@@ -221,70 +221,58 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     return result
 
 
-def _match_or_fuzzy(text: str, param: Any, name: str, seps: tuple[str, ...], argv: Argv, analyser: SubAnalyser):
-    _may_param, _ = split_once(text, seps)
-    if _may_param == name or _may_param.startswith(name):
-        analyser.compile_params.setdefault(text, param)
-        return param
-    if argv.fuzzy_match and levenshtein_norm(_may_param, name) >= config.fuzzy_threshold:
-        raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=name))
+def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
+    for param in analyser.compact_params:
+        _data, _index = argv.data_set()
+        try:
+            if param.__class__ is Option:
+                if param.requires and analyser.sentences != param.requires:
+                    return f"{param.name}'s required is not '{' '.join(analyser.sentences)}'"
+                opt_n, opt_v = analyse_option(argv, param)
+                analyser.options_result[opt_n] = opt_v
+            else:
+                if param.command.requires and analyser.sentences != param.command.requires:
+                    return f"{param.command.name}'s required is not '{' '.join(analyser.sentences)}'"
+                param.process(argv)
+                analyser.subcommands_result.setdefault(param.command.dest, param.result())
+            _data.clear()
+            return True
+        except ParamsUnmatched as e:
+            if argv.context.__class__ is Arg:
+                raise e
+            argv.data_reset(_data, _index)
+            continue
 
 
-def _match_or_fuzzy_opt(text: str, opt: Option, argv: Argv, analyser: SubAnalyser):
-    _may_param, _ = split_once(text, opt.separators)
-    if _may_param in opt.aliases or any(map(_may_param.startswith, opt.aliases)):
-        analyser.compile_params.setdefault(text, opt)
-        return opt
-    if argv.fuzzy_match and levenshtein_norm(_may_param, opt.name) >= config.fuzzy_threshold:
-        raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_may_param, target=opt.name))
-
-
-def analyse_unmatch_params(analyser: SubAnalyser, argv: Argv, text: str):
-    for _p in analyser.compile_params.values():
-        if isinstance(_p, list):
-            res = []
-            for _o in _p:
-                if _r := _match_or_fuzzy_opt(text, _o, argv, analyser):
-                    res.append(_r)
-            if res:
-                return res
-        elif isinstance(_p, Option):
-            return _match_or_fuzzy_opt(text, _p, argv, analyser)
-        elif isinstance(_p, Sentence):
-            return _match_or_fuzzy(text, _p, _p.name, _p.separators, argv, analyser)
-        else:
-            return _match_or_fuzzy(text, _p, _p.command.name, _p.command.separators, argv, analyser)
-
-
-def analyse_option(analyser: SubAnalyser, argv: Argv, param: Option) -> tuple[str, OptionResult]:
+def analyse_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     """
     分析 Option 部分
 
     Args:
-        analyser: 使用的分析器
         argv: 使用的分析器
-        param: 目标Option
+        opt: 目标Option
     """
-    argv.context = param
-    if param.requires and analyser.sentences != param.requires:
-        raise ParamsUnmatched(f"{param.name}'s required is not '{' '.join(analyser.sentences)}'")
-    analyser.sentences = []
-    if param.is_compact:
+    argv.context = opt
+    if opt.compact:
         name, _ = argv.next()
-        for al in param.aliases:
+        for al in opt.aliases:
             if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
                 argv.rollback(mat.groupdict()['rest'], replace=True)
                 break
         else:
-            raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
+            if argv.fuzzy_match and levenshtein_norm(name, opt.name) >= config.fuzzy_threshold:
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
+            raise ParamsUnmatched(f"{name} dose not matched with {opt.name}")
     else:
-        name, _ = argv.next(param.separators)
-        if name not in param.aliases:  # 先匹配选项名称
-            raise ParamsUnmatched(f"{name} dose not matched with {param.name}")
-    name = param.dest
-    if param.nargs == 0:
+        name, _ = argv.next(opt.separators)
+        if name not in opt.aliases:  # 先匹配选项名称
+            if argv.fuzzy_match and levenshtein_norm(name, opt.name) >= config.fuzzy_threshold:
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
+            raise ParamsUnmatched(f"{name} dose not matched with {opt.name}")
+    name = opt.dest
+    if opt.nargs == 0:
         return name, OptionResult()
-    return name, OptionResult(None, analyse_args(argv, param.args))
+    return name, OptionResult(None, analyse_args(argv, opt.args))
 
 
 def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | None = None):
@@ -300,18 +288,33 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         _param = None
     elif _text in analyser.compile_params:
         _param = analyser.compile_params[_text]
+    elif analyser.compact_params and (res := analyse_compact_params(analyser, argv)):
+        if res.__class__ is str:
+            raise ParamsUnmatched(res)
+        argv.context = None
+        return
     else:
-        _param = None if analyser.default_separate else analyse_unmatch_params(analyser, argv, _text)
+        _param = None
     if not _param and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
-    elif _param.__class__ is Option:
-        opt_n, opt_v = analyse_option(analyser, argv, _param)
+        argv.context = None
+        return
+    if _param.__class__ is Sentence:
+        analyser.sentences.append(argv.next()[0])
+        return
+    if _param.__class__ is Option:
+        if _param.requires and analyser.sentences != _param.requires:
+            raise ParamsUnmatched(f"{_param.name}'s required is not '{' '.join(analyser.sentences)}'")
+        opt_n, opt_v = analyse_option(argv, _param)
         analyser.options_result[opt_n] = opt_v
     elif _param.__class__ is list:
         for opt in _param:
             _data, _index = argv.data_set()
             try:
-                opt_n, opt_v = analyse_option(analyser, argv, opt)
+                if opt.requires and analyser.sentences != opt.requires:
+                    raise ParamsUnmatched(f"{opt.name}'s required is not '{' '.join(analyser.sentences)}'")
+                analyser.sentences = []
+                opt_n, opt_v = analyse_option(argv, opt)
                 analyser.options_result[opt_n] = opt_v
                 _data.clear()
                 break
@@ -321,11 +324,14 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
                 continue
         else:
             raise exc  # type: ignore  # noqa
-    elif _param.__class__ is Sentence:
-        analyser.sentences.append(argv.next()[0])
     elif _param is not None:
+        if _param.command.requires and analyser.sentences != _param.command.requires:
+            raise ParamsUnmatched(f"{_param.command.name}'s required is not '{' '.join(analyser.sentences)}'")
         _param.process(argv)
         analyser.subcommands_result.setdefault(_param.command.dest, _param.result())
+    elif not _str:
+        raise ParamsUnmatched(str(_text))
+    analyser.sentences.clear()
     argv.context = None
 
 
@@ -333,20 +339,29 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
     content = header.content
     mapping = header.mapping
     head_text, _str = argv.next()
-    if content.__class__ is TPattern and _str and (mat := content.fullmatch(head_text)):
-        return HeadResult(head_text, head_text, True, mat.groupdict(), mapping)
-    elif isinstance(content, BasePattern) and (val := content.exec(head_text, Empty)).success:
-        return HeadResult(head_text, val.value, True, fixes=mapping)
-
-    may_command, _m_str = argv.next()
-    if content.__class__ is list and _m_str:
-        for pair in content:
-            if res := pair.match(head_text, may_command):
-                return HeadResult(*res, fixes=mapping)
-    if content.__class__ is Double and (
-        res := content.match(head_text, may_command, _str, _m_str, argv.rollback)
-    ):
-        return HeadResult(*res, fixes=mapping)
+    if content.__class__ is TPattern and _str:
+        if mat := content.fullmatch(head_text):
+            return HeadResult(head_text, head_text, True, mat.groupdict(), mapping)
+        if header.compact and (mat := content.match(head_text)):
+            argv.rollback(head_text[len(mat[0]):], replace=True)
+            return HeadResult(mat[0], mat[0], True, mat.groupdict(), mapping)
+    elif isinstance(content, BasePattern):
+        if (val := content.exec(head_text, Empty)).success:
+            return HeadResult(head_text, val.value, True, fixes=mapping)
+        if header.compact and (val := content.prefixed().exec(head_text, Empty)).success:
+            if _str:
+                argv.rollback(head_text[len(str(val.value)):], replace=True)
+            return HeadResult(val.value, val.value, True, fixes=mapping)
+    else:
+        may_command, _m_str = argv.next()
+        if content.__class__ is list and _m_str:
+            for pair in content:
+                if res := pair.match(head_text, may_command, argv.rollback, header.compact):
+                    return HeadResult(*res, fixes=mapping)
+        if content.__class__ is Double and (
+            res := content.match(head_text, may_command, _str, _m_str, argv.rollback, header.compact)
+        ):
+            return HeadResult(*res, fixes=mapping)
 
     if _str and argv.fuzzy_match:
         command, prefixes = header.origin
@@ -358,7 +373,7 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
         if isinstance(content, (TPattern, BasePattern)):
             source = head_text
         else:
-            source = head_text + argv.separators[0] + str(may_command)
+            source = head_text + argv.separators[0] + str(may_command)  # noqa
         if source == command:
             raise ParamsUnmatched(lang.require("header", "error").format(target=head_text))
         for ht in headers_text:

@@ -4,7 +4,7 @@
 1. 使用 `NEPattern` 0.5 以上版本
 2. `compile` 函数现在作为 `Alconna` 的方法
 3. `Containter.text_sign` 现在是 `Container.to_text`, 其返回值为 `str | None`
-4. `Namespace` 新增 `to_text` 方法, 其与 `Container.to_text` 一致
+4. `Namespace` 新增 `to_text` 属性, 其与 `Container.to_text` 一致
 5. shortcut 使用方法改变:
    - `ShortcutArgs` 不再需要 `options`, 其合并至 `args`
    - 增加 `fuzzy` 参数, 用于指定该快捷命令是否允许后随参数, 默认为 `True`
@@ -16,7 +16,9 @@
 9. 修复 `anti args` 的 bug
 10. bracket header 现在支持进行类型转换
 11. `DataCollectionContainer` 改为 `Argv`
-12. 性能优化
+12. 性能优化, 提升25% ~ 30%
+13. `CommandMeta` 与 `Namespace` 新增 `compact` 属性, 其允许命令传入的第一个参数紧随其头部
+14. 原 `CommandNode` 的 `is_compact` 属性移除，其移动到 `Option` 的 `compact` 参数，作用与 No.13 类似
 
 # Alconna 1.6.x:
 

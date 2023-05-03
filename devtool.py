@@ -29,6 +29,7 @@ class _DummyAnalyser(Analyser):
     def __new__(cls, *args, **kwargs):
         cls.command = cls._DummyALC()  # type: ignore
         cls.compile_params = {}
+        cls.compact_params = []
         return super().__new__(cls)
 
 
@@ -79,7 +80,7 @@ def analyse_option(option: Option, command: DataCollection[str | Any], raise_exc
     _analyser.command.options.clear()
     try:
         argv.build(command)
-        return alo(_analyser, argv, option)
+        return alo(argv, option)
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

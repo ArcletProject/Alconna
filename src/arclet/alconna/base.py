@@ -50,12 +50,10 @@ class CommandNode:
             (separators,) if isinstance(separators, str) else tuple(separators)
         )
         self.nargs = len(self.args.argument)
-        self.is_compact = self.separators == ('',)
         self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name).lstrip('-')
         self.help_text = help_text or self.dest
         self._hash = self._calc_hash()
 
-    is_compact: bool
     nargs: int
     _hash: int
 
@@ -83,6 +81,8 @@ class Option(CommandNode):
     """命令选项, 可以使用别名"""
     aliases: frozenset[str]
     priority: int
+    compact: bool
+    "是否允许名称与后随参数之间无分隔符"
 
     def __init__(
         self,
@@ -91,6 +91,7 @@ class Option(CommandNode):
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
+        compact: bool = False,
         priority: int = 0
     ):
         aliases = list(alias or [])
@@ -104,9 +105,13 @@ class Option(CommandNode):
         aliases.insert(0, _name)
         self.aliases = frozenset(aliases)
         self.priority = priority
+        self.compact = compact
         super().__init__(
             name, args, dest, action, separators, help_text, requires
         )
+        if self.separators == ('',):
+            self.compact = True
+            self.separators = (' ',)
 
     @overload
     def __add__(self, other: Option) -> Subcommand: ...

@@ -76,13 +76,31 @@ class ActionHandler(ArparmaBehavior):
 @dataclass(unsafe_hash=True)
 class CommandMeta:
     description: str = field(default="Unknown")
+    "命令的描述"
+
     usage: str | None = field(default=None)
+    "命令的用法"
+
     example: str | None = field(default=None)
+    "命令的使用样例"
+
     author: str | None = field(default=None)
+    "命令的作者"
+
     fuzzy_match: bool = field(default=False)
+    "命令是否开启模糊匹配"
+
     raise_exception: bool = field(default=False)
+    "命令是否抛出异常"
+
     hide: bool = field(default=False)
+    "命令是否对manager隐藏"
+
     keep_crlf: bool = field(default=False)
+    "命令是否保留换行字符"
+
+    compact: bool = field(default=False)
+    "命令是否允许第一个参数紧随头部"
 
 
 class Alconna(Subcommand, Generic[TDC]):
@@ -167,6 +185,7 @@ class Alconna(Subcommand, Generic[TDC]):
         self.meta = meta or CommandMeta()
         self.meta.fuzzy_match = self.meta.fuzzy_match or np_config.fuzzy_match
         self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
+        self.meta.compact = self.meta.compact or np_config.compact
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
         options.append(
             Option("|".join(np_config.builtin_option_name['help']), help_text=lang.require("builtin", "option_help")),

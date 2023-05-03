@@ -46,16 +46,17 @@ class Pair:
         self.pattern = pattern
         self.is_prefix_pat = isinstance(self.prefix, BasePattern)
 
-    def match(self, prefix: Any, command: str):
-        if mat := self.pattern.fullmatch(command):
-            if self.is_prefix_pat and (val := self.prefix.exec(prefix, Empty)).success:
-                return (prefix, command), (val.value, command), True, mat.groupdict()
-            if (
-                not isclass(prefix)
-                and prefix == self.prefix
-                or type(prefix) == self.prefix
-            ):
-                return (prefix, command), (prefix, command), True, mat.groupdict()
+    def match(self, prefix: Any, command: str, pbfn: Callable[..., ...], comp: bool):
+        if not (mat := self.pattern.fullmatch(command)):
+            if comp and (mat := self.pattern.match(command)):
+                pbfn(command[len(mat[0]):], replace=True)
+                command = mat[0]
+            else:
+                return
+        if self.is_prefix_pat and (val := self.prefix.exec(prefix, Empty)).success:
+            return (prefix, command), (val.value, command), True, mat.groupdict()
+        if not isclass(prefix) and prefix == self.prefix or type(prefix) == self.prefix:
+            return (prefix, command), (prefix, command), True, mat.groupdict()
 
 
 class Double:
@@ -67,60 +68,76 @@ class Double:
         self.prefix = prefix
         self.command = command
 
-    def match(self, prefix: Any, command: Any, p_str: bool, c_str: bool, pushback_fn: Callable[[str], ...]):
+    def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
         if self.prefix and p_str:
             if c_str:
                 pat = re.compile(self.prefix.pattern + self.command.pattern)
-                if mat := pat.fullmatch(prefix):
-                    pushback_fn(command)
-                    return prefix, prefix, True, mat.groupdict()
-                elif mat := pat.fullmatch(name := (prefix + command)):
+                if mat := pat.fullmatch(pf):
+                    pbfn(cmd)
+                    return pf, pf, True, mat.groupdict()
+                elif mat := pat.fullmatch(name := (pf + cmd)):
                     return name, name, True, mat.groupdict()
-            if (mat := self.prefix.fullmatch(prefix)) and (
-                _val := self.command.exec(command, Empty)
+                elif comp and (mat := pat.match(pf)):
+                    pbfn(cmd)
+                    pbfn(pf[len(mat[0]):], replace=True)
+                    return mat[0], mat[0], True, mat.groupdict()
+                elif comp and (mat := pat.match(name)):
+                    pbfn(name[len(mat[0]):], replace=True)
+                    return mat[0], mat[0], True, mat.groupdict()
+            if (mat := self.prefix.fullmatch(pf)) and (_val := self.command.exec(cmd, Empty)).success:
+                return (pf, cmd), (pf, _val.value), True, mat.groupdict()
+            elif comp and (mat := self.prefix.fullmatch(pf)) and (
+                _val := self.command.prefixed().exec(cmd, Empty)
             ).success:
-                return (prefix, command), (prefix, _val.value), True, mat.groupdict()
-        if self.patterns and (val := self.patterns.validate(prefix, Empty)).success:
-            _po, _pr = prefix, val.value
+                if c_str:
+                    pbfn(cmd[len(str(_val.value)):], replace=True)
+                return (pf, _val.value), (pf, _val.value), True, mat.groupdict()
+        if self.patterns and (val := self.patterns.validate(pf, Empty)).success:
+            _po, _pr = pf, val.value
         elif (
             self.elements
-            and not isclass(prefix)
-            and (prefix in self.elements or type(prefix) in self.elements)
+            and not isclass(pf)
+            and (pf in self.elements or type(pf) in self.elements)
         ):
-            _po, _pr = prefix, prefix
+            _po, _pr = pf, pf
         else:
             return
-        if (
-            isinstance(self.command, TPattern)
-            and c_str
-            and (mat := self.command.fullmatch(command))
-        ):
-            return (_po, command), (_pr, command), True, mat.groupdict()
-        elif (
-            isinstance(self.command, BasePattern)
-            and (_val := self.command.exec(command, Empty)).success
-        ):
-            return (_po, command), (_pr, _val.value), True
+        if self.command.__class__ is TPattern and c_str:
+            if mat := self.command.fullmatch(cmd):
+                return (_po, cmd), (_pr, cmd), True, mat.groupdict()
+            if comp and (mat := self.command.match(cmd)):
+                pbfn(cmd[len(mat[0]):], replace=True)
+                return (_po, mat[0]), (_pr, mat[0]), True, mat.groupdict()
+        elif isinstance(self.command, BasePattern):
+            if (_val := self.command.exec(cmd, Empty)).success:
+                return (_po, cmd), (_pr, _val.value), True
+            if comp and (val := self.command.prefixed().exec(cmd, Empty)).success:
+                if c_str:
+                    pbfn(cmd[len(str(val.value)):], replace=True)
+                return (_po, _val.value), (_pr, _val.value), True
 
 
 class Header:
-    __slots__ = ("origin", "content", "mapping")
+    __slots__ = ("origin", "content", "mapping", "compact")
 
     def __init__(
         self,
         origin: tuple[str | type | BasePattern, TPrefixes],
         content: TPattern | BasePattern | list[Pair] | Double,
         mapping: dict[str, BasePattern] | None = None,
+        compact: bool = False
     ):
         self.origin = origin
         self.content = content
         self.mapping = mapping or {}
+        self.compact = compact
 
     @classmethod
     def generate(
         cls,
         command: str | type | BasePattern,
         prefixes: TPrefixes,
+        compact: bool,
     ):
         mapping = {}
         if isinstance(command, str):
@@ -133,12 +150,13 @@ class Header:
             else (deepcopy(type_parser(command)), str(command))
         )
         if not prefixes:
-            return cls((command, prefixes), _cmd_name, mapping)
+            return cls((command, prefixes), _cmd_name, mapping, compact)
         if isinstance(prefixes[0], tuple):
             return cls(
                 (command, prefixes),
                 [Pair(h[0], re.compile(re.escape(h[1]) + _cmd_str)) for h in prefixes],
                 mapping,
+                compact
             )
         elements = []
         patterns = []
@@ -152,10 +170,10 @@ class Header:
                 elements.append(h)
         if not elements and not patterns:
             if isinstance(_cmd_name, TPattern):
-                return cls((command, prefixes), re.compile(f"(?:{ch_text[:-1]}){_cmd_str}"), mapping)
+                return cls((command, prefixes), re.compile(f"(?:{ch_text[:-1]}){_cmd_str}"), mapping, compact)
             _cmd_name.pattern = f"(?:{ch_text[:-1]}){_cmd_name.pattern}"  # type: ignore
             _cmd_name.regex_pattern = re.compile(_cmd_name.pattern)  # type: ignore
-            return cls((command, prefixes), _cmd_name)
+            return cls((command, prefixes), _cmd_name, compact=compact)
         return cls(
             (command, prefixes),
             Double(
@@ -165,4 +183,5 @@ class Header:
                 _cmd_name,
             ),
             mapping,
+            compact
         )

@@ -55,9 +55,8 @@ def test_subcommand():
 
 
 def test_compact():
-    opt3 = Option("foo", Args.bar[int], separators="")
-    assert opt3.is_compact is True
-    assert analyse_option(opt3, "foo123") == ("foo", OptionResult(None, {"bar": 123}))
+    opt3 = Option("-Foo", Args.bar[int], compact=True)
+    assert analyse_option(opt3, "-Foo123") == ("Foo", OptionResult(None, {"bar": 123}))
 
 
 def test_from_callable():

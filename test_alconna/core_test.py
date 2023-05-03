@@ -218,7 +218,17 @@ def test_alconna_multi_header():
     assert alc6_11.parse([b, a]).head_matched is True
     assert alc6_11.parse([b]).head_matched is False
     assert alc6_11.parse([b, "abc"]).head_matched is False
-
+    # 开启 compact 后
+    alc6_12 = Alconna("core6_12", Args["foo", str], meta=CommandMeta(compact=True))
+    assert alc6_12.parse("core6_12 abc").matched is True
+    assert alc6_12.parse("core6_12abc").matched is True
+    assert alc6_12.parse("core6_1abc").matched is False
+    alc6_13 = Alconna("core6_13", ["/", "?"], Args["foo", str], meta=CommandMeta(compact=True))
+    assert alc6_13.parse("/core6_13 abc").matched is True
+    assert alc6_13.parse("/core6_13abc").matched is True
+    alc6_14 = Alconna("core6_14", ["/", A], Args["foo", str], meta=CommandMeta(compact=True))
+    assert alc6_14.parse("/core6_14 abc").matched is True
+    assert alc6_14.parse([a, "core6_14abc"]).matched is True
 
 
 def test_alconna_namespace():
@@ -260,7 +270,7 @@ def test_alconna_synthesise():
         Arg("min", r".*(\d+)张.*", seps="到"),
         Arg("max;?", r".*(\d+)张.*"),
         ["发涩图", "来点涩图", "来点好康的"],
-        Option("从", Args["tags", MultiVar(str, 5)] / ("和", "与"), separators=""),
+        Option("从", Args["tags", MultiVar(str, 5)] / ("和", "与"), compact=True),
         action=lambda x, y=6: {"min": int(x), "max": int(y)},
     )
     res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
