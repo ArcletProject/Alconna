@@ -3,10 +3,10 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, Iterable
 from tarina import Empty, split_once, lang
-from nepattern import AllParam, BasePattern
+from nepattern import AllParam, BasePattern, AnyOne, AnyString
 from nepattern.util import TPattern
 
-from .args import Arg, Args
+from .args import Arg, Args, STRING
 from .header import Double, Header
 from .base import Option, Subcommand
 from .config import config
@@ -178,11 +178,17 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             _handle_keyword(
                 argv, value, may_arg, arg.separators, result, default_val, arg.optional, key, argv.fuzzy_match  # type: ignore
             )
-        elif value is AllParam:
+        elif value == AllParam:
             argv.rollback(may_arg)
             result[key] = argv.converter(argv.release(arg.separators))
             argv.current_index = argv.ndata
             return result
+        elif value == AnyOne:
+            result[key] = may_arg
+        elif value == AnyString:
+            result[key] = str(may_arg)
+        elif value == STRING and _str:
+            result[key] = may_arg
         else:
             res = (
                 value.invalidate(may_arg, default_val)

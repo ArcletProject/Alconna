@@ -8,7 +8,7 @@ from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, TYPE_CHECKING
 from tarina import Empty, get_signature, lang
-from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, type_parser
+from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, type_parser, all_patterns
 from typing_extensions import Self
 
 from .exceptions import InvalidParam
@@ -21,6 +21,7 @@ else:
 
 _T = TypeVar("_T")
 TAValue = Union[BasePattern, AllParam.__class__, type, str]
+STRING = all_patterns()[str]
 
 
 class ArgFlag(str, Enum):
