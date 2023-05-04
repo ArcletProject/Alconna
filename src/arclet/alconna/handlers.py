@@ -15,7 +15,7 @@ from .exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, Spe
 from .model import OptionResult, Sentence, HeadResult
 from .output import output_manager
 from .typing import KeyWordVar, MultiVar
-from .util import levenshtein_norm
+from .util import levenshtein
 
 if TYPE_CHECKING:
     from .argv import Argv
@@ -37,7 +37,7 @@ def _handle_keyword(
         key = key or _kwarg[1]
         if (_key := _kwarg[1]) != key:
             argv.rollback(may_arg)
-            if fuzzy and levenshtein_norm(_key, key) >= config.fuzzy_threshold:
+            if fuzzy and levenshtein(_key, key) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_key, target=key))
             if default_val is None:
                 raise ParamsUnmatched(lang.require("fuzzy", "matched").format(source=_key, target=key))
@@ -176,7 +176,8 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             multi_arg_handler(argv, args, arg, result)  # type: ignore
         elif value.__class__ is KeyWordVar:
             _handle_keyword(
-                argv, value, may_arg, arg.separators, result, default_val, arg.optional, key, argv.fuzzy_match  # type: ignore
+                argv, value, may_arg, arg.separators,  # type: ignore
+                result, default_val, arg.optional, key, argv.fuzzy_match  # type: ignore
             )
         elif value == AllParam:
             argv.rollback(may_arg)
@@ -227,12 +228,16 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
         try:
             if param.__class__ is Option:
                 if param.requires and analyser.sentences != param.requires:
-                    return f"{param.name}'s required is not '{' '.join(analyser.sentences)}'"
+                    return lang.require("option", "require_error").format(
+                        source=param.name, target=' '.join(analyser.sentences)
+                    )
                 opt_n, opt_v = analyse_option(argv, param)
                 analyser.options_result[opt_n] = opt_v
             else:
                 if param.command.requires and analyser.sentences != param.command.requires:
-                    return f"{param.command.name}'s required is not '{' '.join(analyser.sentences)}'"
+                    return lang.require("subcommand", "require_error").format(
+                        source=param.command.name, target=' '.join(analyser.sentences)
+                    )
                 param.process(argv)
                 analyser.subcommands_result.setdefault(param.command.dest, param.result())
             _data.clear()
@@ -260,15 +265,15 @@ def analyse_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
                 argv.rollback(mat.groupdict()['rest'], replace=True)
                 break
         else:
-            if argv.fuzzy_match and levenshtein_norm(name, opt.name) >= config.fuzzy_threshold:
+            if argv.fuzzy_match and levenshtein(name, opt.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
-            raise ParamsUnmatched(f"{name} dose not matched with {opt.name}")
+            raise ParamsUnmatched(lang.require("option", "name_error").format(source=opt.name, target=name))
     else:
         name, _ = argv.next(opt.separators)
         if name not in opt.aliases:  # 先匹配选项名称
-            if argv.fuzzy_match and levenshtein_norm(name, opt.name) >= config.fuzzy_threshold:
+            if argv.fuzzy_match and levenshtein(name, opt.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
-            raise ParamsUnmatched(f"{name} dose not matched with {opt.name}")
+            raise ParamsUnmatched(lang.require("option", "name_error").format(source=opt.name, target=name))
     name = opt.dest
     if opt.nargs == 0:
         return name, OptionResult()
@@ -304,7 +309,9 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         return
     if _param.__class__ is Option:
         if _param.requires and analyser.sentences != _param.requires:
-            raise ParamsUnmatched(f"{_param.name}'s required is not '{' '.join(analyser.sentences)}'")
+            raise ParamsUnmatched(
+                lang.require("option", "require_error").format(source=_param.name, target=' '.join(analyser.sentences))
+            )
         opt_n, opt_v = analyse_option(argv, _param)
         analyser.options_result[opt_n] = opt_v
     elif _param.__class__ is list:
@@ -312,7 +319,11 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             _data, _index = argv.data_set()
             try:
                 if opt.requires and analyser.sentences != opt.requires:
-                    raise ParamsUnmatched(f"{opt.name}'s required is not '{' '.join(analyser.sentences)}'")
+                    raise ParamsUnmatched(
+                        lang.require("option", "require_error").format(
+                            source=opt.name, target=' '.join(analyser.sentences)
+                        )
+                    )
                 analyser.sentences = []
                 opt_n, opt_v = analyse_option(argv, opt)
                 analyser.options_result[opt_n] = opt_v
@@ -326,7 +337,11 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             raise exc  # type: ignore  # noqa
     elif _param is not None:
         if _param.command.requires and analyser.sentences != _param.command.requires:
-            raise ParamsUnmatched(f"{_param.command.name}'s required is not '{' '.join(analyser.sentences)}'")
+            raise ParamsUnmatched(
+                lang.require("subcommand", "require_error").format(
+                    source=_param.command.name, target=' '.join(analyser.sentences)
+                )
+            )
         _param.process(argv)
         analyser.subcommands_result.setdefault(_param.command.dest, _param.result())
     elif not _str:
@@ -377,7 +392,7 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
         if source == command:
             raise ParamsUnmatched(lang.require("header", "error").format(target=head_text))
         for ht in headers_text:
-            if levenshtein_norm(source, ht) >= config.fuzzy_threshold:
+            if levenshtein(source, ht) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(target=source, source=ht))
     raise ParamsUnmatched(lang.require("header", "error").format(target=head_text))
 
@@ -409,17 +424,17 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
     return analyser.export(argv, True)
 
 
-def _prompt_unit(argv: Argv, trigger: Arg):
-    if trigger.field.completion:
-        comp = trigger.field.completion()
+def _prompt_unit(argv: Argv, trig: Arg):
+    if trig.field.completion:
+        comp = trig.field.completion()
         if isinstance(comp, str):
             return [Prompt(comp, False)]
         releases = argv.release(recover=True)
         target = str(releases[-1]) or str(releases[-2])
         o = list(filter(lambda x: target in x, comp)) or comp
         return [Prompt(i, False, target) for i in o]
-    default = trigger.field.default_gen
-    o = f"[{trigger.name}]{trigger.value}{'' if default is None else f' default:({None if default is Empty else default})'}"
+    default = trig.field.default_gen
+    o = f"{trig.name}: {trig.value}{'' if default is None else f' = {None if default is Empty else default}'}"
     return [Prompt(o, False)]
 
 
@@ -445,12 +460,8 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
             res.extend([Prompt(comp, False)] if isinstance(comp := gen(), str) else [Prompt(i, False) for i in comp])
         else:
             default = unit.field.default_gen
-            res.append(
-                Prompt(
-                    f"[{unit.name}]{unit.value}{'' if default is None else f' ({None if default is Empty else default})'}",
-                    False
-                )
-            )
+            o = f"{unit.name}: {unit.value}{'' if default is None else f' = {None if default is Empty else default}'}"
+            res.append(Prompt(o, False))
     for opt in filter(
         lambda x: x.name not in argv.completion_names,
         analyser.command.options,
@@ -463,18 +474,18 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
 
 
 def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
-    trigger = trigger or argv.context
+    _trigger = trigger or argv.context
     got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
-    if isinstance(trigger, Arg):
-        return _prompt_unit(argv, trigger)
-    elif isinstance(trigger, Subcommand):
-        return [Prompt(i) for i in analyser.get_sub_analyser(trigger).compile_params]
-    elif isinstance(trigger, str):
-        res = list(filter(lambda x: trigger in x, analyser.compile_params))
+    if isinstance(_trigger, Arg):
+        return _prompt_unit(argv, _trigger)
+    elif isinstance(_trigger, Subcommand):
+        return [Prompt(i) for i in analyser.get_sub_analyser(_trigger).compile_params]
+    elif isinstance(_trigger, str):
+        res = list(filter(lambda x: _trigger in x, analyser.compile_params))
         if not res:
             return []
         out = [i for i in res if i not in got]
-        return [Prompt(i, True, trigger) for i in (out or res)]
+        return [Prompt(i, True, _trigger) for i in (out or res)]
     releases = argv.release(recover=True)
     target = str(releases[-1]) or str(releases[-2])
     if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):

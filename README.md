@@ -79,11 +79,12 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 # callback.py
 from arclet.alconna import Alconna, Args
 
-alc = Alconna("test", Args["foo", int]["bar", str])
+alc = Alconna("callback", Args["foo", int]["bar", str])
 
 @alc.bind()
 def cb(foo: int, bar: str):
-    print(foo, bar)
+    print(f"foo: {foo}")
+    print(f"bar: {bar}")
     print(bar * foo)
 
 if __name__ == '__main__':
@@ -92,8 +93,9 @@ if __name__ == '__main__':
     
 ```
 ```shell
-$ python callback.py test 2 hello
-2 hello
+$ python callback.py 2 hello
+foo: 2
+bar: hello
 hellohello
 ```
 
@@ -142,20 +144,20 @@ hello world!
 # complete.py
 from arclet.alconna import Alconna, Args, Option
 
-alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
+alc = Alconna("complete", Args["bar", int]) + Option("foo") + Option("fool")
 
 if __name__ == '__main__':
     alc()
 ```
 
 ```shell
-$ python completion.py test ?
-next input maybe:
-> foo
-> int
-> -h
-> --help
-> fool
+$ python completion.py ?
+以下是建议的输入：
+* bar: int
+* --help
+* -h
+* foo
+* fool
 ```
 
 typing 支持示范:
@@ -186,7 +188,7 @@ if __name__ == '__main__':
 
 ```shell
 $ python fuzzy.py /test_fuzzy foo bar
-/test_fuzy not matched. Are you mean "!test_fuzzy"?
+无法解析 /test_fuzzy。您想要输入的是不是 "!test_fuzzy" ?
 ```
 
 ## 许可

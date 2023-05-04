@@ -28,7 +28,7 @@ from .output import output_manager
 from .handlers import (
     analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
 )
-from .util import levenshtein_norm
+from .util import levenshtein
 
 if TYPE_CHECKING:
     from .argv import Argv
@@ -44,14 +44,16 @@ _SPECIAL = {
 def _compile_opts(option: Option, data: dict[str, Sentence | Option | list[Option] | SubAnalyser]):
     for alias in option.aliases:
         if li := data.get(alias):
+            if isinstance(li, SubAnalyser):
+                continue
             if isinstance(li, list):
                 li.append(option)
+                li.sort(key=lambda x: x.priority, reverse=True)
             elif isinstance(li, Sentence):
                 data[alias] = option
                 continue
             else:
-                data[alias] = [li, option]
-            data[alias].sort(key=lambda x: x.priority, reverse=True)
+                data[alias] = sorted([li, option], key=lambda x: x.priority, reverse=True)
         else:
             data[alias] = option
 
@@ -60,7 +62,7 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
     require_len = 0
     for opts in analyser.command.options:
         if isinstance(opts, Option):
-            if opts.compact:
+            if opts.compact or not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(opts)
             _compile_opts(opts, analyser.compile_params)  # type: ignore
             pids.update(opts.aliases)
@@ -69,8 +71,8 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
             analyser.compile_params[opts.name] = sub
             pids.add(opts.name)
             default_compiler(sub, _config, pids)
-        if not set(analyser.command.separators).issuperset(opts.separators):
-            analyser.compact_params.append(opts)
+            if not set(analyser.command.separators).issuperset(opts.separators):
+                analyser.compact_params.append(sub)
         if opts.requires:
             pids.update(opts.requires)
             require_len = max(len(opts.requires), require_len)
@@ -132,9 +134,9 @@ class SubAnalyser(Generic[TDC]):
         sub = argv.context = self.command
         name, _ = argv.next(sub.separators)
         if name != sub.name:  # 先匹配选项名称
-            if argv.fuzzy_match and levenshtein_norm(name, sub.name) >= config.fuzzy_threshold:
+            if argv.fuzzy_match and levenshtein(name, sub.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=sub.name))
-            raise ParamsUnmatched(f"{name} dose not matched with {sub.name}")
+            raise ParamsUnmatched(lang.require("subcommand", "name_error").format(target=name, source=sub.name))
 
         if self.part_len.stop == 0:
             self.value_result = Ellipsis
@@ -303,7 +305,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 if self.command.meta.raise_exception:
                     raise
                 return self.export(argv, True, e1)
-            if argv.done:
+            if argv.current_index == argv.ndata:
                 break
 
         if self.default_main_only and not self.args_result:

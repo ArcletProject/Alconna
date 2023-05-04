@@ -25,7 +25,13 @@
   "header": {
     "error": "命令头部 {target} 匹配失败"
   },
+  "option": {
+    "name_error": "{target} 与选项 {source} 不匹配",
+    "require_error": "选项 {source} 需求的前置文字并非 {target}"
+  },
   "subcommand": {
+    "name_error": "{target} 与子命令 {source} 不匹配",
+    "require_error": "子命令 {source} 需求的前置文字并非 {target}",
     "args_missing": "子命令 \"{name}\" 缺少必要参数"
   },
   "args": {

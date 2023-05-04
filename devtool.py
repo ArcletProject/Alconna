@@ -50,6 +50,7 @@ def analyse_header(
     command_name: str,
     command: DataCollection[str | Any],
     sep: str = " ",
+    compact: bool = False,
     raise_exception: bool = True
 ):
     argv = Argv(
@@ -58,7 +59,7 @@ def analyse_header(
         filter_crlf=True,
         separators=(sep, )
     )
-    command_header = Header.generate(command_name, headers)
+    command_header = Header.generate(command_name, headers, compact=compact)
     try:
         argv.build(command)
         return alh(command_header, argv)

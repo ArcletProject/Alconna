@@ -11,7 +11,7 @@ def dataclass(*args, **kwargs):
     return dataclasses.dataclass(*args, **kwargs)
 
 
-def levenshtein_norm(source: str, target: str) -> float:
+def levenshtein(source: str, target: str) -> float:
     """编辑距离算法, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似"""
     l_s, l_t = len(source), len(target)
     s_range, t_range = range(l_s + 1), range(l_t + 1)

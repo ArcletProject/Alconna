@@ -77,7 +77,7 @@ Example of Callback Executor:
 # callback.py
 from arclet.alconna import Alconna, Args
 
-alc = Alconna("test", Args["foo", int]["bar", str])
+alc = Alconna("callback", Args["foo", int]["bar", str])
 
 @alc.bind()
 def callback(foo: int, bar: str):
@@ -90,7 +90,7 @@ if __name__ == "__main__":
 ```
 
 ```shell
-$ python callback.py test 3 hello
+$ python callback.py 3 hello
 foo: 3
 bar: hello
 hellohellohello
@@ -143,20 +143,20 @@ Example of Command Completion:
 # completion.py
 from arclet.alconna import Alconna, Args, Option
 
-alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
+alc = Alconna("complete", Args["bar", int]) + Option("foo") + Option("fool")
 
 if __name__ == "__main__":
-    alc.completion()
+    alc()
 ```
 
 ```shell
-$ python completion.py test ?
-next input maybe:
-> foo
-> int
-> -h
-> --help
-> fool
+$ python completion.py ?
+suggest input follows:
+* bar: int
+* --help
+* -h
+* foo
+* fool
 ```
 
 Example of `typing` Support:
@@ -191,11 +191,6 @@ if __name__ == "__main__":
 $ python fuzzy.py /test_fuzzy foo bar
 /test_fuzy not matched. Are you mean "!test_fuzzy"?
 ```
-
-
-
-
-
 
 ## License
 

@@ -25,7 +25,13 @@
   "header": {
     "error": "{target} dose not matched"
   },
+  "option": {
+    "name_error": "{target} not matched with option {source}",
+    "require_error": "Option {source}'s required is not {target}"
+  },
   "subcommand": {
+    "name_error": "{target} not matched with subcommand {source}",
+    "require_error": "Subcommand {source}'s required is not {target}",
     "args_missing": "subcommand \"{name}\" missed its args"
   },
   "args": {

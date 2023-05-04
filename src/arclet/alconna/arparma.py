@@ -215,17 +215,27 @@ class Arparma(Generic[TDC]):
         return source.get(endpoint, default) if endpoint else MappingProxyType(source)
 
     @overload
-    def query_with(self, arg_type: type[T], path: str | None = None) -> T | None: ...
+    def query_with(self, arg_type: type[T]) -> T | None:
+        ...
+
     @overload
-    def query_with(self, arg_type: type[T], *, default: D) -> T | D: ...
+    def query_with(self, arg_type: type[T], path: str) -> T | None:
+        ...
+
     @overload
-    def query_with(self, arg_type: type[T], path: str, default: D) -> T | D: ...
+    def query_with(self, arg_type: type[T], *, default: D) -> T | D:
+        ...
+
+    @overload
+    def query_with(self, arg_type: type[T], path: str, default: D) -> T | D:
+        ...
+
     def query_with(self, arg_type: type[T], path: str | None = None, default: D | None = None) -> T | D | None:
         """根据类型查询参数"""
         if path:
             return res if generic_isinstance(res := self.query(path, Empty), arg_type) else default
-        with suppress(IndexError):
-            return [v for v in self.all_matched_args.values() if generic_isinstance(v, arg_type)][0]
+        with suppress(StopIteration):
+            return next(v for v in self.all_matched_args.values() if generic_isinstance(v, arg_type))
         return default
 
     def find(self, path: str) -> bool:
@@ -233,9 +243,13 @@ class Arparma(Generic[TDC]):
         return self.query(path, Empty) != Empty
 
     @overload
-    def __getitem__(self, item: type[T]) -> T | None: ...
+    def __getitem__(self, item: type[T]) -> T | None:
+        ...
+
     @overload
-    def __getitem__(self, item: str) -> Any:  ...
+    def __getitem__(self, item: str) -> Any:
+        ...
+
     def __getitem__(self, item: str | type[T]) -> T | Any | None:
         if isinstance(item, str):
             return self.query(item)

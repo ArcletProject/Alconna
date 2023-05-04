@@ -17,13 +17,13 @@ class Duplication:
         self.header = target.header.copy()
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):
-                if value == ArgsStub:
+                if value is ArgsStub:
                     setattr(self, key, ArgsStub(target.source.args).set_result(target.main_args))
-                elif value == SubcommandStub:
+                elif value is SubcommandStub:
                     for subcommand in filter(lambda x: isinstance(x, Subcommand), target.source.options):
                         if subcommand.dest == key:
                             setattr(self, key, SubcommandStub(subcommand).set_result(target.subcommands.get(key, None)))
-                elif value == OptionStub:
+                elif value is OptionStub:
                     for option in filter(lambda x: isinstance(x, Option), target.source.options):
                         if option.dest == key:
                             setattr(self, key, OptionStub(option).set_result(target.options.get(key, None)))

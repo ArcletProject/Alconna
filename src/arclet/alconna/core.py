@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import os
 from dataclasses import InitVar, dataclass, field
 from functools import reduce, partial
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
@@ -178,7 +179,7 @@ class Alconna(Subcommand, Generic[TDC]):
         try:
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
-            self.command = "" if self.prefixes else sys.argv[0]
+            self.command = "" if self.prefixes else sys.argv[0].split(os.sep)[-1].rsplit(".", 1)[0]
         self.namespace = np_config.name
         self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
         self.formatter = (formatter_type or np_config.formatter_type or TextFormatter)()
@@ -377,7 +378,12 @@ class Alconna(Subcommand, Generic[TDC]):
         return hash((self.path + str(self.prefixes), self.meta, *self.options, *self.args))
 
     def __call__(self, *args, **kwargs):
-        return self.parse(list(args)) if args else self.parse(sys.argv[1:])
+        if args:
+            return self.parse(list(args))  # type: ignore
+        head = sys.argv[0].split(os.sep)[-1].rsplit(".", 1)[0]
+        if head != self.command:
+            return self.parse(sys.argv[1:])  # type: ignore
+        return self.parse([head, *sys.argv[1:]])  # type: ignore
 
 
 __all__ = ["Alconna", "CommandMeta"]

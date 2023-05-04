@@ -5,7 +5,7 @@ from tarina import Empty as Empty # noqa
 from .config import config, namespace, Namespace
 from .typing import MultiVar, KeyWordVar, Kw, Nargs
 from .args import Args, Field, ArgFlag, Arg
-from .base import CommandNode, Option, Subcommand
+from .base import Option, Subcommand
 from .completion import CompSession
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .analyser import Analyser
@@ -20,6 +20,6 @@ from .formatter import TextFormatter
 from .duplication import Duplication
 from .stub import ArgsStub, OptionStub, SubcommandStub
 
-__version__ = "1.7.0rc4"
+__version__ = "1.7.0"
 
 Arpamar = Arparma
