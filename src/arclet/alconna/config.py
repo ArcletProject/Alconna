@@ -82,7 +82,6 @@ class namespace(ContextManager[Namespace]):
 
 class _AlconnaConfig:
     command_max_count: int = 200
-    message_max_cache: int = 100
     fuzzy_threshold: float = 0.6
     _default_namespace = "Alconna"
     namespaces: dict[str, Namespace] = {_default_namespace: Namespace(_default_namespace)}

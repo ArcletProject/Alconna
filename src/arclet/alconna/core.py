@@ -2,22 +2,22 @@
 from __future__ import annotations
 
 import sys
-import os
 from dataclasses import InitVar, dataclass, field
-from functools import reduce, partial
+from functools import partial, reduce
+from pathlib import Path
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 
 from tarina import init_spec, lang
 from typing_extensions import Self
 
 from .action import ArgAction, exec_, exec_args
-from .analyser import TCompile, Analyser
+from .analyser import Analyser, TCompile
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior
 from .base import Option, Subcommand
 from .config import Namespace, config
 from .duplication import Duplication
-from .exceptions import NullMessage, ExecuteFailed
+from .exceptions import ExecuteFailed, NullMessage
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
 from .typing import TDC, TPrefixes
@@ -179,7 +179,11 @@ class Alconna(Subcommand, Generic[TDC]):
         try:
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
-            self.command = "" if self.prefixes else sys.argv[0].split(os.sep)[-1].rsplit(".", 1)[0]
+            if self.prefixes:
+                self.command = ""
+            else:
+                path = Path(sys.argv[0])
+                self.command = path.parent.stem if str(path.parent) not in (".", "/", "\\") else path.stem
         self.namespace = np_config.name
         self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
         self.formatter = (formatter_type or np_config.formatter_type or TextFormatter)()
@@ -380,10 +384,11 @@ class Alconna(Subcommand, Generic[TDC]):
     def __call__(self, *args, **kwargs):
         if args:
             return self.parse(list(args))  # type: ignore
-        head = sys.argv[0].split(os.sep)[-1].rsplit(".", 1)[0]
+        path = Path(sys.argv[0])
+        head = path.parent.stem if str(path.parent) not in (".", "/", "\\") else path.stem
         if head != self.command:
             return self.parse(sys.argv[1:])  # type: ignore
         return self.parse([head, *sys.argv[1:]])  # type: ignore
 
 
-__all__ = ["Alconna", "CommandMeta"]
+__all__ = ["Alconna", "CommandMeta", "ArparmaExecutor"]

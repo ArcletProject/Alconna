@@ -19,7 +19,8 @@
 12. 性能优化, 提升25% ~ 30%
 13. `CommandMeta` 与 `Namespace` 新增 `compact` 属性, 其允许命令传入的第一个参数紧随其头部
 14. 原 `CommandNode` 的 `is_compact` 属性移除，其移动到 `Option` 的 `compact` 参数，作用与 No.13 类似
-
+15. `Alconna` 的名字与前缀无传入时，取用 sys.argv[0] 作为其名字
+16. `Alconna` 现支持 `__call__`, 即直接调用实例; 当命令名与 sys.argv[0] 接近时, 传入命令不需要输入命令头
 # Alconna 1.6.x:
 
 ## Alconna 1.6.6:

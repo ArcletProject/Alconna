@@ -160,8 +160,8 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
         value = arg.value
         default_val = arg.field.default_gen
         may_arg, _str = argv.next(arg.separators)
-        if _str and may_arg in argv.special:
-            raise SpecialOptionTriggered(argv.special[may_arg])
+        if _str and may_arg in argv.completion_names:
+            raise SpecialOptionTriggered("completion")
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             if default_val is not None:
@@ -411,7 +411,10 @@ _args = Args["delete;?", "delete"]["name", str]["command", str, "_"]
 
 def handle_shortcut(analyser: Analyser, argv: Argv):
     argv.next()
-    opt_v = analyse_args(argv, _args)
+    try:
+        opt_v = analyse_args(argv, _args)
+    except SpecialOptionTriggered as e:
+        return handle_completion(analyser, argv)
     try:
         msg = analyser.command.shortcut(
             opt_v["name"],
@@ -424,7 +427,7 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
     return analyser.export(argv, True)
 
 
-def _prompt_unit(argv: Argv, trig: Arg):
+def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
     if trig.field.completion:
         comp = trig.field.completion()
         if isinstance(comp, str):
@@ -433,9 +436,7 @@ def _prompt_unit(argv: Argv, trig: Arg):
         target = str(releases[-1]) or str(releases[-2])
         o = list(filter(lambda x: target in x, comp)) or comp
         return [Prompt(i, False, target) for i in o]
-    default = trig.field.default_gen
-    o = f"{trig.name}: {trig.value}{'' if default is None else f' = {None if default is Empty else default}'}"
-    return [Prompt(o, False)]
+    return [Prompt(analyser.command.formatter.param(trig), False)]
 
 
 def _prompt_sentence(analyser: Analyser):
@@ -459,9 +460,7 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
         if gen := unit.field.completion:
             res.extend([Prompt(comp, False)] if isinstance(comp := gen(), str) else [Prompt(i, False) for i in comp])
         else:
-            default = unit.field.default_gen
-            o = f"{unit.name}: {unit.value}{'' if default is None else f' = {None if default is Empty else default}'}"
-            res.append(Prompt(o, False))
+            res.append(Prompt(analyser.command.formatter.param(unit), False))
     for opt in filter(
         lambda x: x.name not in argv.completion_names,
         analyser.command.options,
@@ -477,7 +476,7 @@ def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
     _trigger = trigger or argv.context
     got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
     if isinstance(_trigger, Arg):
-        return _prompt_unit(argv, _trigger)
+        return _prompt_unit(analyser, argv, _trigger)
     elif isinstance(_trigger, Subcommand):
         return [Prompt(i) for i in analyser.get_sub_analyser(_trigger).compile_params]
     elif isinstance(_trigger, str):

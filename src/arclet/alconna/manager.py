@@ -65,7 +65,7 @@ class CommandManager:
         self.__analysers = WeakKeyDictionary()
         self.__abandons = []
         self.__shortcuts = {}
-        self.__record = LRU(config.message_max_cache)
+        self.__record = LRU(128)
 
         def _del():
             self.__commands.clear()
@@ -247,11 +247,19 @@ class CommandManager:
             return []
         return list(self.__commands[namespace].values())
 
-    def broadcast(self, message: TDC, namespace: str | Namespace = '') -> Arparma[TDC] | None:
-        """将一段命令广播给当前空间内的所有命令"""
+    def test(self, message: TDC, namespace: str | Namespace = '') -> Arparma[TDC] | None:
+        """将一段命令给当前空间内的所有命令测试匹配"""
         for cmd in self.get_commands(namespace):
             if (res := cmd.parse(message)) and res.matched:
                 return res
+
+    def broadcast(self, message: TDC, namespace: str | Namespace = '') -> WeakValueDictionary[str, Arparma[TDC]]:
+        """将一段命令给当前空间内的所有命令测试匹配"""
+        data = WeakValueDictionary()
+        for cmd in self.get_commands(namespace):
+            if (res := cmd.parse(message)) and res.matched:
+                data[cmd.path] = res
+        return data
 
     def all_command_help(
         self,
@@ -346,6 +354,9 @@ class CommandManager:
     def reuse(self, index: int = -1):
         key = self.__record.keys()[index]
         return self.__record[key]
+
+    def set_record_size(self, size: int):
+        self.__record.set_size(size)
 
     def __repr__(self):
         return (
