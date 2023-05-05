@@ -21,12 +21,18 @@ class _StoreValue(ArgAction):
 
 
 def store_value(value: Any):
-    """存储一个值"""
+    """存储一个值
+
+    Args:
+        value (Any): 待存储的值
+    """
     return _StoreValue(value)
 
 
 store_true = store_value(True)
+"""存储 True"""
 store_false = store_value(False)
+"""存储 False"""
 
 
 @dataclass(init=True, eq=True, unsafe_hash=True)
@@ -99,14 +105,14 @@ def set_default(
     """
     设置一个选项的默认值, 在无该选项时会被设置
 
-    当option与subcommand同时传入时, 则会被设置为该subcommand内option的默认值
+    当 option 与 subcommand 同时传入时, 则会被设置为该 subcommand 内 option 的默认值
 
     Args:
-        value: 默认值
-        factory: 默认值生成函数
-        arg: 参数名称
-        option: 选项名
-        subcommand: 子命令名
+        value (Any): 默认值
+        factory (Callable[..., Any]): 默认值工厂
+        arg (str | None): 参数名
+        option (str | None): 选项名
+        subcommand (str | None): 子命令名
     """
     if value is not MISSING and factory is not MISSING:
         raise ValueError('cannot specify both value and factory')

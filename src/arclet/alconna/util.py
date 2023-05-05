@@ -12,7 +12,16 @@ def dataclass(*args, **kwargs):
 
 
 def levenshtein(source: str, target: str) -> float:
-    """编辑距离算法, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似"""
+    """ `编辑距离算法`_, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似
+
+    Args:
+        source (str): 源字符串
+        target (str): 目标字符串
+
+    .. _编辑距离算法:
+        https://en.wikipedia.org/wiki/Levenshtein_distance
+
+    """
     l_s, l_t = len(source), len(target)
     s_range, t_range = range(l_s + 1), range(l_t + 1)
     matrix = [[(i if j == 0 else j) for j in t_range] for i in s_range]

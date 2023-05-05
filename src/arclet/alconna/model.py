@@ -4,11 +4,10 @@ _repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in 
 
 @dataclass(init=False, eq=True)
 class Sentence:
-    __slots__ = ("name", "separators")
+    __slots__ = ("name")
     __repr__ = _repr_
-    def __init__(self, name, separators=None):
+    def __init__(self, name):
         self.name = name
-        self.separators = separators or (" ",)
 
 
 @dataclass(init=False, eq=True)

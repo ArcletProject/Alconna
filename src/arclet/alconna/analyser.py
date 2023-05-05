@@ -42,6 +42,12 @@ _SPECIAL = {
 
 
 def _compile_opts(option: Option, data: dict[str, Sentence | Option | list[Option] | SubAnalyser]):
+    """处理选项
+
+    Args:
+        option (Option): 选项
+        data (dict[str, Sentence | Option | list[Option] | SubAnalyser]): 编译的节点
+    """
     for alias in option.aliases:
         if li := data.get(alias):
             if isinstance(li, SubAnalyser):
@@ -59,6 +65,13 @@ def _compile_opts(option: Option, data: dict[str, Sentence | Option | list[Optio
 
 
 def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
+    """默认的编译方法
+
+    Args:
+        analyser (SubAnalyser): 任意子解析器
+        _config (Namespace): 命名空间配置
+        pids (set[str]): 节点名集合
+    """
     require_len = 0
     for opts in analyser.command.options:
         if isinstance(opts, Option):
@@ -85,21 +98,37 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
 
 @dataclass
 class SubAnalyser(Generic[TDC]):
+    """子解析器, 用于子命令的解析"""
+
     command: Subcommand
-    default_main_only: bool = field(default=False)  # 默认只有主参数
-    part_len: range = field(default=range(0))  # 分段长度
-    need_main_args: bool = field(default=False)  # 是否需要主参数
+    """子命令"""
+    default_main_only: bool = field(default=False)
+    """命令是否只有主参数"""
+    part_len: range = field(default=range(0))
+    """分段长度"""
+    need_main_args: bool = field(default=False)
+    """是否需要主参数"""
     compile_params: dict[str, Sentence | Option | list[Option] | SubAnalyser[TDC]] = field(default_factory=dict)
+    """编译的节点"""
     compact_params: list[Option | SubAnalyser[TDC]] = field(default_factory=list)
-    self_args: Args = field(init=False)  # 自身参数
+    """可能紧凑的需要逐个解析的节点"""
+    self_args: Args = field(init=False)
+    """命令自身参数"""
     subcommands_result: dict[str, SubcommandResult] = field(init=False)
-    options_result: dict[str, OptionResult] = field(init=False)  # 存放解析到的所有选项
-    args_result: dict[str, Any] = field(init=False)  # 参数的解析结果
+    """子命令的解析结果"""
+    options_result: dict[str, OptionResult] = field(init=False)
+    """选项的解析结果"""
+    args_result: dict[str, Any] = field(init=False)
+    """参数的解析结果"""
     header_result: HeadResult | None = field(init=False)
+    """头部的解析结果"""
     value_result: Any = field(init=False)
-    sentences: list[str] = field(init=False)  # 存放解析到的所有句子
+    """值的解析结果"""
+    sentences: list[str] = field(init=False)
+    """暂存传入的所有句段"""
 
     def _clr(self):
+        """清除自身的解析结果"""
         self.reset()
         ks = list(self.__dict__.keys())
         for k in ks:
@@ -110,11 +139,16 @@ class SubAnalyser(Generic[TDC]):
         self.self_args = self.command.args
         if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = sum(arg.field.default_gen is not None for arg in self.self_args.argument)
+        _de_count = sum(arg.field.default is not None for arg in self.self_args.argument)
         if _de_count and _de_count == self.command.nargs:
             self.default_main_only = True
 
     def result(self) -> SubcommandResult:
+        """生成子命令解析结果
+
+        Returns:
+            SubcommandResult: 子命令解析结果
+        """
         res = SubcommandResult(
             self.value_result, self.args_result.copy(), self.options_result.copy(), self.subcommands_result.copy()
         )
@@ -122,7 +156,7 @@ class SubAnalyser(Generic[TDC]):
         return res
 
     def reset(self):
-        """重置分析器"""
+        """重置解析器"""
         self.args_result = {}
         self.options_result = {}
         self.subcommands_result = {}
@@ -131,9 +165,21 @@ class SubAnalyser(Generic[TDC]):
         self.header_result = None
 
     def process(self, argv: Argv[TDC]) -> Self:
+        """处理传入的参数集合
+
+        Args:
+            argv (Argv[TDC]): 命令行参数
+
+        Returns:
+            Self: 自身
+
+        Raises:
+            ParamsUnmatched: 名称不匹配
+            FuzzyMatchSuccess: 模糊匹配成功
+        """
         sub = argv.context = self.command
         name, _ = argv.next(sub.separators)
-        if name != sub.name:  # 先匹配选项名称
+        if name != sub.name:  # 先匹配节点名称
             if argv.fuzzy_match and levenshtein(name, sub.name) >= config.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=sub.name))
             raise ParamsUnmatched(lang.require("subcommand", "name_error").format(target=name, source=sub.name))
@@ -144,6 +190,17 @@ class SubAnalyser(Generic[TDC]):
         return self.analyse(argv)
 
     def analyse(self, argv: Argv[TDC]) -> Self:
+        """解析传入的参数集合
+
+        Args:
+            argv (Argv[TDC]): 命令行参数
+
+        Returns:
+            Self: 自身
+
+        Raises:
+            ArgumentMissing: 参数缺失
+        """
         for _ in self.part_len:
             analyse_param(self, argv, self.command.separators)
         if self.default_main_only and not self.args_result:
@@ -153,6 +210,14 @@ class SubAnalyser(Generic[TDC]):
         return self
 
     def get_sub_analyser(self, target: Subcommand) -> SubAnalyser[TDC] | None:
+        """获取子解析器
+
+        Args:
+            target (Subcommand): 目标子命令
+
+        Returns:
+            SubAnalyser[TDC] | None: 子解析器
+        """
         if target == self.command:
             return self
         for param in self.compile_params.values():
@@ -161,11 +226,21 @@ class SubAnalyser(Generic[TDC]):
 
 
 class Analyser(SubAnalyser[TDC], Generic[TDC]):
-    command: Alconna  # Alconna实例
-    used_tokens: set[int]  # 已使用的token
-    command_header: Header  # 命令头部
+    """命令解析器"""
+    command: Alconna
+    """命令实例"""
+    used_tokens: set[int]
+    """已使用的token"""
+    command_header: Header
+    """命令头部"""
 
     def __init__(self, alconna: Alconna[TDC], compiler: TCompile | None = None):
+        """初始化解析器
+
+        Args:
+            alconna (Alconna[TDC]): 命令实例
+            compiler (TCompile | None, optional): 编译器方法
+        """
         super().__init__(alconna)
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.used_tokens = set()
@@ -185,11 +260,22 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
     def shortcut(
-        self,
-        argv: Argv[TDC],
-        data: list[Any], short: Arparma | ShortcutArgs,
-        reg: Match | None
+        self, argv: Argv[TDC], data: list[Any], short: Arparma | ShortcutArgs, reg: Match | None
     ) -> Arparma[TDC]:
+        """处理被触发的快捷命令
+
+        Args:
+            argv (Argv[TDC]): 命令行参数
+            data (list[Any]): 剩余参数
+            short (Arparma | ShortcutArgs): 快捷命令
+            reg (Match | None): 可能的正则匹配结果
+
+        Returns:
+            Arparma[TDC]: Arparma 解析结果
+
+        Raises:
+            ParamsUnmatched: 若不允许快捷命令后随其他参数，则抛出此异常
+        """
         if isinstance(short, Arparma):
             return short
         argv.build(short.get('command', self.command.command or self.command.name))
@@ -233,7 +319,19 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return self.process(argv)
 
     def process(self, argv: Argv[TDC]) -> Arparma[TDC]:
-        """主体解析函数, 应针对各种情况进行解析"""
+        """主体解析函数, 应针对各种情况进行解析
+
+        Args:
+            argv (Argv[TDC]): 命令行参数
+
+        Returns:
+            Arparma[TDC]: Arparma 解析结果
+
+        Raises:
+            ValueError: 快捷命令查找失败
+            ParamsUnmatched: 参数不匹配
+            ArgumentMissing: 参数缺失
+        """
         if (
             argv.message_cache and
             argv.token in self.used_tokens and
@@ -317,7 +415,13 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         fail: bool = False,
         exception: BaseException | None = None,
     ) -> Arparma[TDC]:
-        """创建arpamar, 其一定是一次解析的最后部分"""
+        """创建 `Arparma` 解析结果, 其一定是一次解析的最后部分
+
+        Args:
+            argv (Argv[TDC]): 命令行参数
+            fail (bool, optional): 是否解析失败. Defaults to False.
+            exception (BaseException | None, optional): 解析失败时的异常. Defaults to None.
+        """
         result = Arparma(self.command.path, argv.origin, not fail, self.header_result)
         if fail:
             result.error_info = repr(exception or traceback.format_exc(limit=1))

@@ -24,6 +24,12 @@ class KeyWordVar(BasePattern):
     base: BasePattern
 
     def __init__(self, value: BasePattern | Any, sep: str = '='):
+        """构建一个具名参数
+
+        Args:
+            value (type | BasePattern): 参数的值
+            sep (str, optional): 参数的分隔符
+        """
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         self.sep = sep
         assert isinstance(self.base, BasePattern)
@@ -47,6 +53,12 @@ class MultiVar(BasePattern):
     length: int
 
     def __init__(self, value: BasePattern | Any, flag: int | Literal["+", "*"] = "+"):
+        """构建一个可变参数
+
+        Args:
+            value (type | BasePattern): 参数的值
+            flag (int | Literal["+", "*"]): 参数的标记
+        """
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         assert isinstance(self.base, BasePattern)
         if not isinstance(flag, int):

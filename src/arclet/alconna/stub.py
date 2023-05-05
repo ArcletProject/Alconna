@@ -20,11 +20,15 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
     """基础的命令组件存根"""
 
     _origin: T_Origin
+    """原始的命令组件"""
     _value: Any = field(default=None)
+    """解析结果"""
     available: bool = field(default=False, init=False)
+    """是否可用"""
 
     @property
     def origin(self) -> T_Origin:
+        """原始的命令组件"""
         return self._origin
 
     @abstractmethod
@@ -39,6 +43,7 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
 class ArgsStub(BaseStub[Args]):
     """参数存根"""
     _value: dict[str, Any] = field(default_factory=dict)
+    """解析结果"""
 
     def __post_init__(self):
         for arg in self._origin.argument:
@@ -49,7 +54,7 @@ class ArgsStub(BaseStub[Args]):
                 self.__annotations__[key] = arg.value.origin
             else:
                 self.__annotations__[key] = arg.value
-            setattr(self, key, arg.field.default_gen)
+            setattr(self, key, arg.field.default)
 
     def set_result(self, result: dict[str, Any]):
         if result:
@@ -59,9 +64,16 @@ class ArgsStub(BaseStub[Args]):
 
     @property
     def first(self) -> Any:
+        """第一个参数"""
         return self.__getitem__(0)
 
     def get(self, item: str | type[T], default=None) -> T | Any:
+        """获取参数结果
+
+        Args:
+            item (str | type[T]): 参数名或参数类型
+            default (Any, optional): 默认值. Defaults to None.
+        """
         if isinstance(item, str):
             return self._value.get(item, default)
         for k, v in self.__annotations__.items():
@@ -93,9 +105,13 @@ class ArgsStub(BaseStub[Args]):
 class OptionStub(BaseStub[Option]):
     """选项存根"""
     args: ArgsStub = field(init=False)
+    """选项的参数存根"""
     dest: str = field(init=False)
+    """选项的目标名称"""
     aliases: list[str] = field(init=False)
+    """选项的别名"""
     name: str = field(init=False)
+    """选项的名称"""
 
     def __post_init__(self):
         self.dest = self._origin.dest
@@ -115,10 +131,15 @@ class OptionStub(BaseStub[Option]):
 class SubcommandStub(BaseStub[Subcommand]):
     """子命令存根"""
     args: ArgsStub = field(init=False)
+    """子命令的参数存根"""
     dest: str = field(init=False)
+    """子命令的目标名称"""
     options: list[OptionStub] = field(init=False)
+    """子命令的子选项存根"""
     subcommands: list[SubcommandStub] = field(init=False)
+    """子命令的子子命令存根"""
     name: str = field(init=False)
+    """子命令的名称"""
 
     def __post_init__(self):
         self.dest = self._origin.dest
@@ -139,4 +160,17 @@ class SubcommandStub(BaseStub[Subcommand]):
         return self
 
     def option(self, name: str) -> OptionStub:
+        """获取子选项存根
+
+        Args:
+            name (str): 子选项名称
+        """
         return next(opt for opt in self.options if opt.name == name)
+
+    def subcommand(self, name: str) -> SubcommandStub:
+        """获取子子命令存根
+
+        Args:
+            name (str): 子子命令名称
+        """
+        return next(sub for sub in self.subcommands if sub.name == name)

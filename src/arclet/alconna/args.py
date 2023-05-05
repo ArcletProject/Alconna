@@ -25,6 +25,7 @@ STRING = all_patterns()[str]
 
 
 class ArgFlag(str, Enum):
+    """标识参数单元的特殊属性"""
     OPTIONAL = '?'
     HIDDEN = "/"
     ANTI = "!"
@@ -33,26 +34,36 @@ class ArgFlag(str, Enum):
 @dataclass(slots=True)
 class Field(Generic[_T]):
     """标识参数单元字段"""
-    default: _T | None = dc_field(default=None)
-    default_factory: Callable[[], _T | None] = dc_field(default=lambda: None)
-    alias: str | None = dc_field(default=None)
-    completion: Callable[[], str | list[str]] | None = dc_field(default=None)
-    display: Any = dc_field(init=False)
-    default_gen: _T | None = dc_field(init=False)
 
-    def __post_init__(self):
-        self.default_gen = self.default if self.default is not None else self.default_factory()
-        self.display = self.alias or self.default_gen
+    default: _T | None = dc_field(default=None)
+    """参数单元的默认值"""
+    alias: str | None = dc_field(default=None)
+    """参数单元默认值的别名"""
+    completion: Callable[[], str | list[str]] | None = dc_field(default=None)
+    """参数单元的补全"""
+
+    @property
+    def display(self):
+        """返回参数单元的显示值"""
+        return self.alias or self.default
 
 
 @dataclass(init=False, eq=True, unsafe_hash=True, slots=True)
 class Arg:
+    """参数单元"""
+
     name: str = dc_field(compare=True, hash=True)
+    """参数单元的名称"""
     value: Union[BasePattern, AllParam.__class__] = dc_field(compare=False, hash=True)
+    """参数单元的值"""
     field: Field[Any] = dc_field(compare=False, hash=False)
+    """参数单元的字段"""
     notice: str | None = dc_field(compare=False, hash=False)
+    """参数单元的注释"""
     flag: set[ArgFlag] = dc_field(compare=False, hash=False)
+    """参数单元的标识"""
     separators: tuple[str, ...] = dc_field(compare=False, hash=False)
+    """参数单元使用的分隔符"""
     optional: bool = dc_field(compare=False, hash=False)
     hidden: bool = dc_field(compare=False, hash=False)
     anonymous: bool = dc_field(compare=False, hash=False)
@@ -66,6 +77,16 @@ class Arg:
         notice: str | None = None,
         flags: list[ArgFlag] | None = None,
     ):
+        """构造参数单元
+
+        Args:
+            name (str): 参数单元的名称
+            value (TAValue, optional): 参数单元的值. Defaults to None.
+            field (Field[_T], optional): 参数单元的字段. Defaults to None.
+            seps (str | Iterable[str], optional): 参数单元使用的分隔符. Defaults to " ".
+            notice (str, optional): 参数单元的注释. Defaults to None.
+            flags (list[ArgFlag], optional): 参数单元的标识. Defaults to None.
+        """
         if not isinstance(name, str) or name.startswith('$'):
             raise InvalidParam(lang.require("args", "name_error"))
         if not name.strip():
@@ -104,28 +125,63 @@ class Arg:
 
 
 class ArgsMeta(type):
-    """Args 类的元类"""
+    """`Args` 类的元类"""
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str):
         return type("_S", (), {"__getitem__": partial(self.__class__.__getitem__, self, key=name), "__call__": None})()
 
-    def __getitem__(self, item, key: str | None = None):
-        data = item if isinstance(item, tuple) else (item,)
+    def __getitem__(self, item: Union[Arg, tuple[Arg, ...], str, tuple[Any, ...]], key: str | None = None):
+        """构造参数集合
+
+        Args:
+            item (Union[Arg, tuple[Arg, ...], str, Any]): 参数单元或参数单元组或构建参数单元的值
+            key (str, optional): 参数单元的名称. Defaults to None.
+
+        Returns:
+            Args: 参数集合
+        """
+        data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
         if isinstance(data[0], Arg):
             return self(*data)
-        return self(Arg(key, *data)) if key else self(Arg(*data))
+        return self(Arg(key, *data)) if key else self(Arg(*data))  # type: ignore
 
 
 class Args(metaclass=ArgsMeta):
+    """参数集合
+
+    用于代表命令节点需求的一系列参数
+
+    一般而言, 使用特殊方法 `__getitem__` 来构造参数集合, 例如:
+
+        >>> Args["name", str]["age", int]
+        Args('name': str, 'age': int)
+
+    也可以使用特殊方法 `__getattr__` 来构造参数集合, 例如:
+
+        >>> Args.name[str]
+        Args('name': str)
+    """
     argument: list[Arg]
+    """参数单元组"""
     var_positional: str | None
+    """可变参数的名称"""
     var_keyword: str | None
+    """可变关键字参数的名称"""
     keyword_only: list[str]
+    """仅关键字参数的名称"""
     optional_count: int
+    """可选参数的数量"""
 
     @classmethod
     def from_callable(cls, target: Callable):
-        """从可调用函数中构造Args"""
+        """从可调用函数中构造Args
+
+        Args:
+            target (Callable): 目标函数
+
+        Returns:
+            Args: 构造的 Args
+        """
         _args = cls()
         method = False
         for param in get_signature(target):
@@ -156,13 +212,12 @@ class Args(metaclass=ArgsMeta):
         self, *args: Arg, separators: str | Iterable[str] | None = None, **kwargs: TAValue
     ):
         """
-        构造一个Args
+        构造一个 `Args`
 
         Args:
-            args: 应传入 slice|tuple, 代表key、value、default
-            extra: 额外类型检查的策略
-            separator: 参数分隔符
-            kwargs: 其他参数
+            *args (Arg): 参数单元
+            separators (str | Iterable[str] | None, optional): 可选的为所有参数单元指定分隔符
+            **kwargs (TAValue): 剩余的参数单元值
         """
         self._visit = set()
         self.var_positional = None
@@ -177,8 +232,18 @@ class Args(metaclass=ArgsMeta):
 
     __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "keyword_only", "_visit"
 
-    def add(self, name: str, *, value: Any, default: Any = None, flags: list[ArgFlag] | None = None) -> Self:
-        """添加一个参数"""
+    def add(self, name: str, *, value: TAValue, default: Any = None, flags: list[ArgFlag] | None = None) -> Self:
+        """添加一个参数
+
+        Args:
+            name (str): 参数名称
+            value (TAValue): 参数值
+            default (Any, optional): 参数默认值.
+            flags (list[ArgFlag] | None, optional): 参数标记.
+
+        Returns:
+            Self: 参数集合自身
+        """
         if next(filter(lambda x: x.name == name, self.argument), False):
             return self
         self.argument.append(Arg(name, value, default, flags=flags))
@@ -186,7 +251,14 @@ class Args(metaclass=ArgsMeta):
         return self
 
     def default(self, **kwargs) -> Self:
-        """设置参数的默认值"""
+        """设置参数的默认值
+
+        Args:
+            **kwargs: 参数名称与默认值的映射
+
+        Returns:
+            Self: 参数集合自身
+        """
         for arg in self.argument:
             if v := (kwargs.get(arg.name)):
                 if isinstance(v, Field):
@@ -196,12 +268,24 @@ class Args(metaclass=ArgsMeta):
         return self
 
     def separate(self, *separator: str) -> Self:
-        """设置参数的分隔符"""
+        """设置参数的分隔符
+
+        Args:
+            *separator (str): 分隔符
+
+        Returns:
+            Self: 参数集合自身
+        """
         for arg in self.argument:
             arg.separators = separator
         return self
 
     def __check_vars__(self):
+        """检查当前所有参数单元
+
+        Raises:
+            InvalidParam: 当检查到参数单元不符合要求时
+        """
         _tmp = []
         _visit = set()
         for arg in self.argument:
@@ -242,10 +326,18 @@ class Args(metaclass=ArgsMeta):
     def __len__(self):
         return len(self.argument)
 
-    def __getitem__(self, item) -> Self | Arg:
+    def __getitem__(self, item: Union[Arg, tuple[Arg, ...], str, tuple[Any, ...]]) -> Self | Arg:
+        """获取或添加一个参数单元
+
+        Args:
+            item (Union[Arg, tuple[Arg, ...], str, Any]): 参数单元或参数单元名称或参数单元值
+
+        Returns:
+            Self | Arg: 参数集合自身或需要的参数单元
+        """
         if isinstance(item, str) and (res := next(filter(lambda x: x.name == item, self.argument), None)):
             return res
-        data = item if isinstance(item, tuple) else (item,)
+        data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
         if isinstance(data[0], Arg):
             self.argument.extend(data)  # type: ignore
         else:
@@ -253,7 +345,15 @@ class Args(metaclass=ArgsMeta):
         self.__check_vars__()
         return self
 
-    def __merge__(self, other) -> Self:
+    def __merge__(self, other: Args | Arg | Sequence | None) -> Self:
+        """合并另一个参数集合
+
+        Args:
+            other (Args | Arg | Sequence): 另一个参数集合
+
+        Returns:
+            Self: 参数集合自身
+        """
         if isinstance(other, Args):
             self.argument.extend(other.argument)
             self.__check_vars__()
@@ -286,4 +386,5 @@ class Args(metaclass=ArgsMeta):
 
     @property
     def empty(self) -> bool:
+        """判断当前参数集合是否为空"""
         return not self.argument

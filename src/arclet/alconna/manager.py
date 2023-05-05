@@ -26,21 +26,31 @@ if TYPE_CHECKING:
 
 
     class ShortcutArgs(TypedDict, Generic[TDC]):
+        """快捷指令参数"""
+
         command: NotRequired[TDC]
+        """快捷指令的命令"""
         args: NotRequired[list[Any]]
+        """快捷指令的附带参数"""
         fuzzy: NotRequired[bool]
+        """是否允许命令后随参数"""
 else:
     class ShortcutArgs(TypedDict):
+        """快捷指令参数"""
+
         command: NotRequired[DataCollection[Any]]
+        """快捷指令的命令"""
         args: NotRequired[list[Any]]
+        """快捷指令的附带参数"""
         fuzzy: NotRequired[bool]
+        """是否允许命令后随参数"""
 
 
 class CommandManager:
     """
-    Alconna 命令管理器
+    `Alconna` 命令管理器
 
-    命令管理器负责记录命令, 并存储快捷指令。
+    命令管理器负责记录命令, 存储命令, 命令行参数, 命令解析器, 快捷指令等
     """
 
     sign: str
@@ -93,7 +103,11 @@ class CommandManager:
 
     @property
     def get_loaded_namespaces(self):
-        """获取所有命名空间"""
+        """获取所有命名空间
+
+        Returns:
+            list[str]: 所有命名空间的名称
+        """
         return list(self.__commands.keys())
 
     @staticmethod
@@ -153,6 +167,7 @@ class CommandManager:
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
     def requires(self, *paths: str) -> zip[tuple[Analyser, Argv]]:  # type: ignore
+        """获取多个命令解析器"""
         return zip(
             [v for k, v in self.__analysers.items() if k.path in paths],
             [v for k, v in self.__argv.items() if k.path in paths],
@@ -178,6 +193,7 @@ class CommandManager:
         return command in self.__abandons
 
     def set_enabled(self, command: Alconna | str, enabled: bool):
+        """设置命令是否被禁用"""
         if isinstance(command, str):
             command = self.get_command(command)
         if enabled and command in self.__abandons:
@@ -186,7 +202,13 @@ class CommandManager:
             self.__abandons.append(command)
 
     def add_shortcut(self, target: Alconna, key: str, source: Arparma | ShortcutArgs):
-        """添加快捷命令"""
+        """添加快捷命令
+
+        Args:
+            target (Alconna): 目标命令
+            key (str): 快捷命令的名称
+            source (Arparma | ShortcutArgs): 快捷命令的参数
+        """
         namespace, name = self._command_part(target.path)
         if isinstance(source, dict):
             source['command'] = source.get('command', target.command or target.name)
@@ -210,7 +232,16 @@ class CommandManager:
         ...
 
     def find_shortcut(self, target: Alconna[TDC], query: str | None = None):
-        """查找快捷命令"""
+        """查找快捷命令
+
+        Args:
+            target (Alconna): 目标命令
+            query (str, optional): 快捷命令的名称. Defaults to None.
+
+        Returns:
+            list[Union[Arparma, ShortcutArgs]] | tuple[Union[Arparma, ShortcutArgs], Match[str]]: \
+            快捷命令的参数, 若没有 `query` 则返回目标命令的所有快捷命令, 否则返回匹配的快捷命令
+        """
         namespace, name = self._command_part(target.path)
         if query:
             try:
@@ -275,13 +306,13 @@ class CommandManager:
         获取所有命令的帮助信息
 
         Args:
-            show_index: 是否展示索引
-            namespace: 指定的命名空间, 如果为None则选择所有命令
-            header: 帮助信息的页眉
-            pages: 帮助信息的页码
-            footer: 帮助信息的页脚
-            max_length: 单个页面展示的最大长度
-            page: 当前页码
+            show_index (bool, optional): 是否展示索引. Defaults to False.
+            namespace (str | Namespace | None, optional): 指定的命名空间, 如果为None则选择所有命令.
+            header (str | None, optional): 帮助信息的页眉.
+            pages (str | None, optional): 帮助信息的页码.
+            footer (str | None, optional): 帮助信息的页脚.
+            max_length (int, optional): 单个页面展示的最大长度. Defaults to -1.
+            page (int, optional): 当前页码. Defaults to 1.
         """
         pages = pages or lang.require("manager", "help_pages")
         cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
@@ -325,37 +356,46 @@ class CommandManager:
             return cmd.get_help()
 
     def record(self, token: int, result: Arparma):
+        """记录某个命令的 `token`"""
         self.__record[token] = result
 
     def get_record(self, token: int) -> Arparma | None:
+        """获取某个 `token` 对应的 `Arparma` 对象"""
         if token in self.__record:
             return self.__record[token]
 
     def get_token(self, result: Arparma) -> int:
+        """获取某个命令的 `token`"""
         return next((token for token, res in self.__record.items() if res == result), 0)
 
     def get_result(self, command: Alconna) -> list[Arparma]:
+        """获取某个命令的所有 `Arparma` 对象"""
         return [v for v in self.__record.values() if v.source == command]
 
     @property
     def recent_message(self) -> DataCollection[str | Any] | None:
+        """获取最近一次使用的命令"""
         if rct := self.__record.peek_first_item():
             return rct[1].origin  # type: ignore
 
     @property
     def last_using(self):
+        """获取最近一次使用的 `Alconna` 对象"""
         if rct := self.__record.peek_first_item():
             return rct[1].source  # type: ignore
 
     @property
     def records(self) -> LRU[int, Arparma]:
+        """获取当前记录"""
         return self.__record
 
     def reuse(self, index: int = -1):
+        """获取当前记录中的某个值"""
         key = self.__record.keys()[index]
         return self.__record[key]
 
     def set_record_size(self, size: int):
+        """设置记录的最大长度"""
         self.__record.set_size(size)
 
     def __repr__(self):

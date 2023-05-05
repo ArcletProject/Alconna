@@ -16,25 +16,44 @@ _cache: dict[type, dict[str, Any]] = {}
 
 @dataclass(repr=True)
 class Argv(Generic[TDC]):
+    """命令行参数"""
+
     namespace: InitVar[Namespace] = field(default=config.default_namespace)
     fuzzy_match: bool = field(default=False)
+    """当前命令是否模糊匹配"""
     preprocessors: dict[str, Callable[..., Any]] = field(default_factory=dict)
+    """命令元素的预处理器"""
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
-    separators: tuple[str, ...] = field(default=(' ',))  # 分隔符
-    filter_out: list[str] = field(default_factory=list)  # 元素黑名单
+    """将命令元素转换为文本, 或者返回None以跳过该元素"""
+    separators: tuple[str, ...] = field(default=(' ',))
+    """命令分隔符"""
+    filter_out: list[str] = field(default_factory=list)
+    """需要过滤掉的命令元素"""
     checker: Callable[[Any], bool] | None = field(default=None)
+    """检查传入命令"""
     converter: Callable[[str | list], TDC] = field(default=lambda x: x)
+    """将字符串或列表转为目标命令类型"""
     filter_crlf: bool = field(default=True)
+    """是否过滤掉换行符"""
     message_cache: bool = field(default=True)
+    """是否缓存消息"""
     param_ids: set[str] = field(default_factory=set)
+    """节点名集合"""
 
     context: Arg | Subcommand | Option | None = field(init=False)
-    current_index: int = field(init=False)  # 当前数据的index
-    ndata: int = field(init=False)  # 原始数据的长度
+    """当前节点"""
+    current_index: int = field(init=False)
+    """当前数据的索引"""
+    ndata: int = field(init=False)
+    """原始数据的长度"""
     bak_data: list[str | Any] = field(init=False)
+    """备份的原始数据"""
     raw_data: list[str | Any] = field(init=False)
-    token: int = field(init=False)  # 临时token
+    """原始数据"""
+    token: int = field(init=False)
+    """命令的token"""
     origin: TDC = field(init=False)
+    """原始命令"""
     _sep: tuple[str, ...] | None = field(init=False)
 
     @classmethod
@@ -46,6 +65,15 @@ class Argv(Generic[TDC]):
         checker: Callable[[Any], bool] | None = None,
         converter: Callable[[str | list], TDC] | None = None
     ):
+        """配置命令行参数
+
+        Args:
+            preprocessors (dict[str, Callable[..., Any]] | None, optional): 命令元素的预处理器.
+            to_text (Callable[[Any], str | None] | None, optional): 将命令元素转换为文本, 或者返回None以跳过该元素.
+            filter_out (list[str] | None, optional): 需要过滤掉的命令元素.
+            checker (Callable[[Any], bool] | None, optional): 检查传入命令.
+            converter (Callable[[str | list], TDC] | None, optional): 将字符串或列表转为目标命令类型.
+        """
         _cache.setdefault(cls, {}).update(locals())
 
     def __post_init__(self, namespace: Namespace):
@@ -65,6 +93,7 @@ class Argv(Generic[TDC]):
             self.converter = __cache["converter"] or self.converter
 
     def reset(self):
+        """重置命令行参数"""
         self.current_index = 0
         self.ndata = 0
         self.bak_data = []
@@ -76,14 +105,23 @@ class Argv(Generic[TDC]):
 
     @staticmethod
     def generate_token(data: list) -> int:
+        """命令的`token`的生成函数"""
         return hash(repr(data))
 
     @property
     def done(self) -> bool:
+        """命令是否解析完毕"""
         return self.current_index == self.ndata
 
     def build(self, data: TDC) -> Self:
-        """命令分析功能, 传入字符串或消息链"""
+        """命令分析功能, 传入字符串或消息链
+
+        Args:
+            data (TDC): 命令
+
+        Returns:
+            Self: 自身
+        """
         self.reset()
         if self.checker and not self.checker(data):
             raise TypeError(data)
@@ -112,6 +150,14 @@ class Argv(Generic[TDC]):
         return self
 
     def addon(self, *data: str | Any) -> Self:
+        """添加命令元素
+
+        Args:
+            *data (str | Any): 命令元素
+
+        Returns:
+            Self: 自身
+        """
         self.raw_data = self.bak_data.copy()
         for i, d in enumerate(data):
             if not d:
@@ -128,7 +174,15 @@ class Argv(Generic[TDC]):
         return self
 
     def next(self, separate: tuple[str, ...] | None = None, move: bool = True) -> tuple[str | Any, bool]:
-        """获取解析需要的下个数据"""
+        """获取解析需要的下个数据
+
+        Args:
+            separate (tuple[str, ...] | None, optional): 分隔符.
+            move (bool, optional): 是否移动指针.
+
+        Returns:
+            tuple[str | Any, bool]: 下个数据, 是否是字符串.
+        """
         if self._sep:
             self._sep = None
         if self.current_index == self.ndata:
@@ -149,7 +203,12 @@ class Argv(Generic[TDC]):
         return _current_data, False
 
     def rollback(self, data: str | Any, replace: bool = False):
-        """把 pop的数据放回 (实际只是‘指针’移动)"""
+        """把获取的数据放回 (实际只是`指针`移动)
+
+        Args:
+            data (str | Any): 数据.
+            replace (bool, optional): 是否替换.
+        """
         if data == "" or data is None:
             return
         if self._sep:
@@ -162,6 +221,15 @@ class Argv(Generic[TDC]):
             self.raw_data[self.current_index] = data
 
     def release(self, separate: tuple[str, ...] | None = None, recover: bool = False) -> list[str | Any]:
+        """获取剩余的数据
+
+        Args:
+            separate (tuple[str, ...] | None, optional): 分隔符.
+            recover (bool, optional): 是否从头开始获取.
+
+        Returns:
+            list[str | Any]: 剩余的数据.
+        """
         _result = []
         data = self.bak_data if recover else self.raw_data[self.current_index:]
         for _data in data:

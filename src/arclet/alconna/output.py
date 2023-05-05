@@ -8,8 +8,11 @@ from weakref import finalize
 
 @dataclass(init=True, unsafe_hash=True)
 class Sender:
+    """发送器"""
     action: Callable[..., Any]
+    """发送行为函数"""
     generator: Callable[[], str]
+    """发送内容生成器"""
 
     def __call__(self, *args, **kwargs):
         res = self.generator()
@@ -19,10 +22,13 @@ class Sender:
 
 @dataclass
 class OutputManager:
-    """帮助信息"""
+    """命令输出管理器"""
     cache: dict[str, Callable] = field(default_factory=dict)
+    """缓存的输出行为"""
     outputs: dict[str, Sender] = field(default_factory=dict)
+    """输出行为"""
     send_action: Callable[[str], Any] = field(default=lambda x: print(x))
+    """默认的发送行为"""
     _out_cache: dict[str, dict[str, Any]] = field(default_factory=dict, hash=False, init=False)
 
     def __post_init__(self):
@@ -34,7 +40,12 @@ class OutputManager:
         finalize(self, _clr, self)
 
     def send(self, command: str | None = None, generator: Callable[[], str] | None = None):
-        """调用指定的输出行为"""
+        """调用指定的输出行为
+
+        Args:
+            command (str | None, optional): 输出行为对应的命令名称
+            generator (Callable[[], str] | None, optional): 输出内容生成器
+        """
         if sender := self.get(command):
             if generator:
                 sender.generator = generator
@@ -48,11 +59,20 @@ class OutputManager:
         return res
 
     def get(self, command: str | None = None) -> Sender | None:
-        """获取指定的输出行为"""
+        """获取指定的输出行为
+
+        Args:
+            command (str | None, optional): 输出行为对应的命令名称
+        """
         return self.outputs.get(command or "$global")
 
     def set(self, generator: Callable[[], str], command: str | None = None) -> Sender:
-        """设置指定的输出行为"""
+        """设置指定的输出行为
+
+        Args:
+            generator (Callable[[], str]): 输出内容生成器
+            command (str | None, optional): 输出行为对应的命令名称
+        """
         command = command or "$global"
         if command in self.outputs:
             self.outputs[command].generator = generator
@@ -63,7 +83,12 @@ class OutputManager:
         return self.outputs[command]
 
     def set_action(self, action: Callable[[str], Any], command: str | None = None):
-        """修改输出行为"""
+        """修改输出行为
+
+        Args:
+            action (Callable[[str], Any]): 输出行为函数
+            command (str | None, optional): 输出行为指定对应的命令名称
+        """
         if command is None or command == "$global":
             self.send_action = action
         elif cmd := self.outputs.get(command):
@@ -73,7 +98,14 @@ class OutputManager:
 
     @contextmanager
     def capture(self, command: str | None = None):
-        """捕获输出"""
+        """捕获输出
+
+        Args:
+            command (str | None, optional): 输出行为指定对应的命令名称
+
+        Yields:
+            dict[str, Any]: 输出内容
+        """
         command = command or "$global"
         _cache = self._out_cache.setdefault(command, {})
         yield _cache

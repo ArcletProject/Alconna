@@ -13,6 +13,7 @@ from .typing import TPrefixes
 
 
 def handle_bracket(name: str):
+    """处理字符串中的括号对并转为正则表达式"""
     pattern_map = all_patterns()
     mapping = {}
     if len(parts := re.split(r"(\{.*?})", name)) <= 1:
@@ -39,6 +40,7 @@ def handle_bracket(name: str):
 
 
 class Pair:
+    """用于匹配前缀和命令的配对"""
     __slots__ = ("prefix", "pattern", "is_prefix_pat")
 
     def __init__(self, prefix: Any, pattern: TPattern):
@@ -60,6 +62,7 @@ class Pair:
 
 
 class Double:
+    """用于匹配前缀和命令的组合"""
     __slots__ = ("elements", "patterns", "prefix", "command")
 
     def __init__(self, es: list, pats: UnionPattern | None, prefix: TPattern | None, command: BasePattern | TPattern):
@@ -118,6 +121,7 @@ class Double:
 
 
 class Header:
+    """命令头部的匹配表达式"""
     __slots__ = ("origin", "content", "mapping", "compact")
 
     def __init__(

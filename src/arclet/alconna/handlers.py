@@ -33,6 +33,19 @@ def _handle_keyword(
     key: str | None = None,
     fuzzy: bool = False,
 ):
+    """处理关键字参数
+
+    Args:
+        argv (Argv): 命令行参数
+        value (KeyWordVar): 关键字参数
+        may_arg (Any): 可能的参数
+        seps (tuple[str, ...]): 分隔符
+        result_dict (dict[str, Any]): 结果字典
+        default_val (Any): 默认值
+        optional (bool): 是否可选
+        key (str | None, optional): 关键字. Defaults to None.
+        fuzzy (bool, optional): 是否模糊匹配. Defaults to False.
+    """
     if _kwarg := re.match(fr'^([^{value.sep}]+){value.sep}(.*?)$', may_arg):
         key = key or _kwarg[1]
         if (_key := _kwarg[1]) != key:
@@ -65,6 +78,7 @@ def _loop_kw(
     value: MultiVar,
     default: Any
 ):
+    """循环关键字参数"""
     result = {}
     for _ in range(_loop):
         _m_arg, _m_str = argv.next(seps)
@@ -92,6 +106,7 @@ def _loop(
     default: Any,
     args: Args
 ):
+    """循环参数"""
     kw = args[args.var_keyword].value.base if args.var_keyword else None
     result = []
     for _ in range(_loop):
@@ -121,10 +136,18 @@ def multi_arg_handler(
     arg: Arg,
     result_dict: dict[str, Any],
 ):
+    """处理可变参数
+
+    Args:
+        argv (Argv): 命令行参数
+        args (Args): 参数集合
+        arg (Arg): 参数单元
+        result_dict (dict[str, Any]): 结果字典
+    """
     seps = arg.separators
     value = arg.value
     key = arg.name
-    default = arg.field.default_gen
+    default = arg.field.default
     kw = value.base.__class__ == KeyWordVar
     _m_rest_arg = len(args) - len(result_dict)
     _m_rest_all_param_count = len(argv.release(seps))
@@ -147,18 +170,18 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     分析 Args 部分
 
     Args:
-        argv: 使用的分析器
-        args: 目标Args
+        argv (Argv): 命令行参数
+        args (Args): 目标 `Args`
 
     Returns:
-        Dict: 解析结果
+        dict[str, Any]: 解析结果
     """
     result: dict[str, Any] = {}
     for arg in args.argument:
         argv.context = arg
         key = arg.name
         value = arg.value
-        default_val = arg.field.default_gen
+        default_val = arg.field.default
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.completion_names:
             raise SpecialOptionTriggered("completion")
@@ -254,8 +277,8 @@ def analyse_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     分析 Option 部分
 
     Args:
-        argv: 使用的分析器
-        opt: 目标Option
+        argv (Argv): 命令行参数
+        opt (Option): 目标 `Option`
     """
     argv.context = opt
     if opt.compact:
@@ -281,6 +304,13 @@ def analyse_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
 
 
 def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | None = None):
+    """处理参数
+
+    Args:
+        analyser (SubAnalyser): 当前解析器
+        argv (Argv): 命令行参数
+        seps (tuple[str, ...], optional): 指定的分隔符.
+    """
     _text, _str = argv.next(seps, move=False)
     if _str and _text in argv.special:
         if _text in argv.completion_names:
@@ -351,6 +381,15 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
 
 
 def analyse_header(header: Header, argv: Argv) -> HeadResult:
+    """分析头部
+
+    Args:
+        header (Header): 头部
+        argv (Argv): 命令行参数
+
+    Returns:
+        HeadResult: 分析结果
+    """
     content = header.content
     mapping = header.mapping
     head_text, _str = argv.next()
@@ -398,6 +437,7 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
 
 
 def handle_help(analyser: Analyser, argv: Argv):
+    """处理帮助选项触发"""
     _help_param = [str(i) for i in argv.release(recover=True) if str(i) not in argv.special]
     output_manager.send(
         analyser.command.name,
@@ -410,6 +450,7 @@ _args = Args["delete;?", "delete"]["name", str]["command", str, "_"]
 
 
 def handle_shortcut(analyser: Analyser, argv: Argv):
+    """处理快捷命令触发"""
     argv.next()
     try:
         opt_v = analyse_args(argv, _args)
@@ -473,6 +514,7 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
 
 
 def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
+    """获取补全列表"""
     _trigger = trigger or argv.context
     got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
     if isinstance(_trigger, Arg):
@@ -494,6 +536,7 @@ def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
 
 
 def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None):
+    """处理补全选项触发"""
     if res := prompt(analyser, argv, trigger):
         if comp_ctx.get(None):
             raise PauseTriggered(res)

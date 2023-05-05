@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 
 def resolve_requires(options: list[Option | Subcommand]):
+    """Resolve the requires of options."""
     reqs: dict[str, dict | Option | Subcommand] = {}
 
     def _u(target, source):
@@ -54,12 +55,24 @@ def ensure_node(target: str, options: list[Option | Subcommand]):
 
 @dataclass(eq=True)
 class Trace:
+    """存放命令节点数据的结构
+
+    该结构用于存放命令节点的数据，包括命令节点的头部、参数、分隔符和主体。
+    """
     head: dict[str, Any]
     args: Args
     separators: tuple[str, ...]
     body: list[Option | Subcommand]
 
     def union(self, others: list[Trace]):
+        """合并多个 Trace 对象
+
+        Args:
+            others (list[Trace]): 待合并的 Trace 对象列表
+
+        Returns:
+            Trace: 合并后的 Trace 对象
+        """
         if not others:
             return self
         if others[0] == self:
@@ -72,7 +85,7 @@ class Trace:
 class TextFormatter:
     """帮助文档格式化器
 
-    该格式化器负责将传入的命令节点字典解析并生成帮助文档字符串
+    该格式化器负责将传入的命令解析并生成帮助文档字符串
     """
 
     def __init__(self):
@@ -80,6 +93,7 @@ class TextFormatter:
         self.ignore_names = set()
 
     def add(self, base: Alconna):
+        """添加目标命令"""
         self.ignore_names.update(base.namespace_config.builtin_option_name['help'])
         self.ignore_names.update(base.namespace_config.builtin_option_name['shortcut'])
         self.ignore_names.update(base.namespace_config.builtin_option_name['completion'])
@@ -97,21 +111,26 @@ class TextFormatter:
         return self
 
     def remove(self, base: Alconna | str):
+        """移除目标命令"""
         if isinstance(base, str):
             self.data.pop(base)
         else:
             with suppress(ValueError):
                 self.data.get(base.path, []).remove(base)
 
-    def format_node(self, end: list | None = None):
-        """格式化命令节点"""
+    def format_node(self, parts: list | None = None):
+        """格式化命令节点
+
+        Args:
+            parts (list | None, optional): 可能的节点路径.
+        """
         def _handle(traces: list[Trace]):
             trace = traces[0].union(traces[1:])
-            if not end or end == ['']:
+            if not parts or parts == ['']:
                 return self.format(trace)
             _cache = resolve_requires(trace.body)
             _parts = []
-            for text in end:
+            for text in parts:
                 if isinstance(_cache, dict) and text in _cache:
                     _cache = _cache[text]
                     _parts.append(text)
@@ -147,14 +166,22 @@ class TextFormatter:
         return "\n".join([_handle(v) for v in self.data.values()])
 
     def format(self, trace: Trace) -> str:
-        """help text的生成入口"""
+        """帮助文本的生成入口
+
+        Args:
+            trace (Trace): 命令节点数据
+        """
         prefix = self.header(trace.head, trace.separators)
         param = self.parameters(trace.args)
         body = self.body(trace.body)
         return prefix % (param, body)
 
     def param(self, parameter: Arg) -> str:
-        """对单个参数的描述"""
+        """对单个参数的描述
+
+        Args:
+            parameter (Arg): 参数单元
+        """
         name = parameter.name
         arg = f"[{name}" if parameter.optional else f"<{name}"
         if not parameter.hidden:
@@ -169,7 +196,11 @@ class TextFormatter:
         return f"{arg}]" if parameter.optional else f"{arg}>"
 
     def parameters(self, args: Args) -> str:
-        """参数列表的描述"""
+        """参数列表的描述
+
+        Args:
+            args (Args): 参数列表
+        """
         res = ""
         for arg in args.argument:
             if arg.name.startswith('_key_'):
@@ -187,7 +218,12 @@ class TextFormatter:
 
 
     def header(self, root: dict[str, Any], separators: tuple[str, ...]) -> str:
-        """头部节点的描述"""
+        """头部节点的描述
+
+        Args:
+            root (dict[str, Any]): 头部节点数据
+            separators (tuple[str, ...]): 分隔符
+        """
         help_string = f"\n{desc}" if (desc := root.get('description')) else ""
         usage = f"\n{lang.require('format', 'usage')}:\n{usage}" if (usage := root.get('usage')) else ""
         example = f"\n{lang.require('format', 'example')}:\n{example}" if (example := root.get('example')) else ""

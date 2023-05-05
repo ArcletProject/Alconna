@@ -14,18 +14,21 @@ from .model import OptionResult, SubcommandResult
 
 @dataclass(init=True, unsafe_hash=True)
 class ArgAction:
-    """负责封装action的类"""
+    """负责挂载 `action` 并处理 `Args` 解析结果
+
+    Attributes:
+        action (Callable[..., Any]): 挂载的 action, 其参数的个数, 名称, 类型必须与 Args 一致
+    """
     action: Callable[..., Any]
 
     def handle(self, params: dict, varargs: list | None = None, kwargs: dict | None = None, raise_exc: bool = False):
-        """
-        处理action
+        """处理 `Args` 解析结果
 
         Args:
-            params: 参数字典
-            varargs: 可变参数
-            kwargs: 关键字参数
-            raise_exc: 是否抛出异常
+            params (dict): 一般的参数结果
+            varargs (Optional[list], optional): 可变参数结果
+            kwargs (Optional[dict], optional): 关键字参数结果
+            raise_exc (bool, optional): 是否抛出异常
         """
         _varargs = list(params.values()) + (varargs or [])
         kwargs = kwargs or {}
@@ -46,6 +49,16 @@ class ArgAction:
 
     @staticmethod
     def __validator__(action: Callable | ArgAction | None, args: Args):
+        """验证 `action` 是否合法
+
+        Args:
+            action (Callable | ArgAction | None): 待验证的 action
+            args (Args): 参数列表
+
+        Raises:
+            InvalidParam: action 参数个数与 args 不一致
+            ValueError: action 参数类型与 args 不一致
+        """
         if not action:
             return None
         if isinstance(action, ArgAction):
@@ -66,6 +79,13 @@ class ArgAction:
 
 
 def exec_args(args: dict[str, Any], func: ArgAction, raise_exc: bool):
+    """处理 `Args` 解析结果并传入 `action`
+
+    Args:
+        args (dict[str, Any]): 参数结果
+        func (ArgAction): 使用的 action
+        raise_exc (bool): 是否抛出异常
+    """
     result_dict = args.copy()
     kwargs, kwonly, varargs, kw_key, var_key = {}, {}, [], None, None
     if '$kwargs' in result_dict:
@@ -88,6 +108,14 @@ def exec_args(args: dict[str, Any], func: ArgAction, raise_exc: bool):
 
 
 def exec_(data: OptionResult | SubcommandResult, func: ArgAction, raise_exc: bool):
+    """处理 `OptionResult` 或 `SubcommandResult`
+
+    Args:
+        data (OptionResult | SubcommandResult): 选项解析结果或子命令解析结果.
+        func (ArgAction): 使用的 action.
+        raise_exc (bool): 是否抛出异常.
+
+    """
     return (
         ("args", exec_args(data.args, func, raise_exc)) if data.args else ("value", func.action())
     )

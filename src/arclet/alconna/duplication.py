@@ -9,7 +9,7 @@ from .stub import ArgsStub, BaseStub, OptionStub, SubcommandStub
 
 
 class Duplication:
-    """用以更方便的检查、调用解析结果的类。"""
+    """`副本`, 用以更方便的检查、调用解析结果的类。"""
     header: dict[str, str]
 
     def __init__(self, target: Arparma):
@@ -34,9 +34,11 @@ class Duplication:
         return f'{self.__class__.__name__}({self.__annotations__})'
 
     def option(self, name: str) -> OptionStub | None:
+        """获取指定名称的选项存根。"""
         return cast(OptionStub, getattr(self, name, None))
 
     def subcommand(self, name: str) -> SubcommandStub | None:
+        """获取指定名称的子命令存根。"""
         return cast(SubcommandStub, getattr(self, name, None))
 
 
