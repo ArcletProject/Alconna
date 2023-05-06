@@ -3,36 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, overload
 
-from .action import ArgAction
 from .arparma import Arparma, ArparmaBehavior
 from .exceptions import BehaveCancelled
 from .model import OptionResult, SubcommandResult
 
-__all__ = ["set_default", "store_value", "store_true", "store_false"]
+__all__ = ["set_default"]
 
 
 class _MISSING_TYPE: pass
 MISSING = _MISSING_TYPE()
-
-
-class _StoreValue(ArgAction):
-    def __init__(self, value: Any):
-        super().__init__(lambda: value)
-
-
-def store_value(value: Any):
-    """存储一个值
-
-    Args:
-        value (Any): 待存储的值
-    """
-    return _StoreValue(value)
-
-
-store_true = store_value(True)
-"""存储 True"""
-store_false = store_value(False)
-"""存储 False"""
 
 
 @dataclass(init=True, eq=True, unsafe_hash=True)

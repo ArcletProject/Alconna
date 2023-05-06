@@ -13,7 +13,7 @@ from typing_extensions import NotRequired
 from tarina import LRU, lang
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
-from .argv import Argv
+from .argv import Argv, __default_argv_type__
 from .arparma import Arparma
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
@@ -21,7 +21,7 @@ from .typing import DataCollection, TDC
 
 
 if TYPE_CHECKING:
-    from .analyser import Analyser
+    from ._internal._analyser import Analyser
     from .core import Alconna, CommandMeta
 
 
@@ -128,7 +128,7 @@ class CommandManager:
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         self.__argv.pop(command, None)
-        self.__argv[command] = Argv(
+        self.__argv[command] = __default_argv_type__(
             command.namespace_config,
             fuzzy_match=command.meta.fuzzy_match,
             to_text=command.namespace_config.to_text,

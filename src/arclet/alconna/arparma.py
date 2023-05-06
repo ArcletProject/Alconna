@@ -190,7 +190,7 @@ class Arparma(Generic[TDC]):
         Returns:
             Self: 返回自身
         """
-        if behaviors := (self.source.behaviors[1:] + (behaviors or [])):
+        if behaviors := (self.source.behaviors + (behaviors or [])):
             exc_behaviors = []
             for behavior in behaviors:
                 exc_behaviors.extend(requirement_handler(behavior))
@@ -338,12 +338,12 @@ class Arparma(Generic[TDC]):
             attrs = ((s, getattr(self, s, None)) for s in ("matched", "header_match", "error_data", "error_info"))
             return ", ".join([f"{a}={v}" for a, v in attrs if v is not None])
         else:
-            attrs = [(s, getattr(self, s, None)) for s in ("matched", "header_match", "options", "subcommands")]
-            margs = {k: v for k, v in self.main_args.items() if k not in ('$varargs', '$kwargs', '$kwonly')}
-            attrs.append(("main_args", margs))
-            other_args = {k: v for k, v in self.other_args.items() if k not in ('$varargs', '$kwargs', '$kwonly')}
-            attrs.append(("other_args", other_args))
-            return ", ".join([f"{a}={v}" for a, v in attrs if v])
+            attrs = {
+                "matched": self.matched, "header_match": self.header_match,
+                "options": self.options, "subcommands": self.subcommands,
+                "main_args": self.main_args, "other_args": self.other_args
+            }
+            return ", ".join([f"{a}={v}" for a, v in attrs.items() if v])
 
 
 @dataclass(init=True, unsafe_hash=True, repr=True)

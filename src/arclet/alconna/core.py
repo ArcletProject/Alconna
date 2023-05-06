@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from functools import partial, reduce
 from pathlib import Path
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
@@ -10,8 +10,7 @@ from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 from tarina import init_spec, lang
 from typing_extensions import Self
 
-from .action import ArgAction, exec_, exec_args
-from .analyser import Analyser, TCompile
+from ._internal._analyser import Analyser, TCompile
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior
 from .base import Option, Subcommand
@@ -51,34 +50,6 @@ class ArparmaExecutor(Generic[T]):
             return arps[0].call(self.target)
         except Exception as e:
             raise ExecuteFailed(e) from e
-
-
-@dataclass
-class ActionHandler(ArparmaBehavior):
-    source: InitVar[Alconna]
-    main_action: ArgAction | None = field(init=False, default=None)
-    options: dict[str, ArgAction] = field(init=False, default_factory=dict)
-
-    def _step(self, src, prefix=None):
-        for opt in src.options:
-            if opt.action:
-                self.options[(f"{prefix}." if prefix else "") + opt.dest] = opt.action
-            if hasattr(opt, "options"):
-                self._step(opt, (f"{prefix}." if prefix else "") + opt.dest)
-
-    def __post_init__(self, source: Alconna):
-        self.main_action = source.action
-        self._step(source)
-
-    def operate(self, interface: Arparma):
-        self.before_operate(interface)
-        source = interface.source
-        if action := self.main_action:
-            self.update(interface, "main_args", exec_args(interface.main_args, action, source.meta.raise_exception))
-        for path, action in self.options.items():
-            if d := interface.query(path, None):
-                end, value = exec_(d, action, source.meta.raise_exception)  # type: ignore
-                self.update(interface, f"{path}.{end}", value)  # type: ignore
 
 
 @dataclass(unsafe_hash=True)
@@ -129,8 +100,6 @@ class Alconna(Subcommand, Generic[TDC]):
     """命令前缀"""
     command: str | Any
     """命令名"""
-    analyser_type: type[Analyser]
-    """解析器类型"""
     formatter: TextFormatter
     """文本格式化器"""
     namespace: str
@@ -140,34 +109,17 @@ class Alconna(Subcommand, Generic[TDC]):
     behaviors: list[ArparmaBehavior]
     """命令行为器"""
 
-    global_analyser_type: type[Analyser] = Analyser
-
     @property
     def compile(self) -> Callable[[TCompile | None], Analyser[TDC]]:
         """编译 `Alconna` 为对应的解析器"""
-        return partial(self.analyser_type, self)
-
-    @classmethod
-    def default_analyser(cls, __t: type[Analyser[TDC1]]) -> type[Alconna[TDC1]]:
-        """配置 `Alconna` 的默认解析器
-
-        Args:
-            __t (type[Analyser[TDC1]]): 解析器类型
-
-        Returns:
-            type[Alconna[TDC1]]: Alconna 类型
-        """
-        cls.global_analyser_type = __t
-        return cls  # type: ignore
+        return partial(Analyser, self)
 
     def __init__(
         self,
         *args: Option | Subcommand | str | TPrefixes | Any | Args | Arg,
-        action: ArgAction | Callable | None = None,
         meta: CommandMeta | None = None,
         namespace: str | Namespace | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
-        analyser_type: type[Analyser[TDC]] | None = None,
         behaviors: list[ArparmaBehavior] | None = None,
         formatter_type: type[TextFormatter] | None = None
     ):
@@ -180,7 +132,6 @@ class Alconna(Subcommand, Generic[TDC]):
             meta (CommandMeta | None, optional): 命令元信息
             namespace (str | Namespace | None, optional): 命令命名空间, 默认为 'Alconna'
             separators (str | set[str] | Sequence[str] | None, optional): 命令参数分隔符, 默认为 `' '`
-            analyser_type (type[Analyser[TDC]] | None, optional): 指定的命令解析器类型
             behaviors (list[ArparmaBehavior] | None, optional): 命令解析行为器
             formatter_type (type[TextFormatter] | None, optional): 指定的命令帮助文本格式器类型
         """
@@ -200,7 +151,6 @@ class Alconna(Subcommand, Generic[TDC]):
                 path = Path(sys.argv[0])
                 self.command = path.parent.stem if str(path.parent) not in (".", "/", "\\") else path.stem
         self.namespace = ns_config.name
-        self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
         self.formatter = (formatter_type or ns_config.formatter_type or TextFormatter)()
         self.meta = meta or CommandMeta()
         self.meta.fuzzy_match = self.meta.fuzzy_match or ns_config.fuzzy_match
@@ -230,12 +180,10 @@ class Alconna(Subcommand, Generic[TDC]):
             reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
             *options,
             dest=name,
-            action=action,
             separators=separators or ns_config.separators,
         )
         self.name = name
         self.behaviors = behaviors or []
-        self.behaviors.insert(0, ActionHandler(self))
         command_manager.register(self)
         self._executors: list[ArparmaExecutor] = []
         self.union = set()
@@ -340,7 +288,6 @@ class Alconna(Subcommand, Generic[TDC]):
         """
         command_manager.delete(self)
         self.options.insert(-3, opt)
-        self.behaviors[0] = ActionHandler(self)
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self
@@ -393,7 +340,6 @@ class Alconna(Subcommand, Generic[TDC]):
                 raise e
             return Arparma(self.path, message, False, error_info=e)
         if arp.matched:
-            self.behaviors[0].operate(arp)
             arp = arp.execute()
             if self._executors:
                 for ext in self._executors:
@@ -429,7 +375,6 @@ class Alconna(Subcommand, Generic[TDC]):
             self.nargs = len(self.args)
         elif isinstance(other, str):
             self.options.append(Option(other))
-        self.behaviors[0] = ActionHandler(self)
         self._hash = self._calc_hash()
         command_manager.register(self)
         return self

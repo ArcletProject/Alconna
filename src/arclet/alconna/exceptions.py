@@ -47,3 +47,7 @@ class PauseTriggered(Exception):
 
 class SpecialOptionTriggered(Exception):
     """内置选项解析触发"""
+
+
+class TerminateLoop(Exception):
+    """终止循环"""

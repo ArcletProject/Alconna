@@ -9,7 +9,7 @@ from nepattern import BasePattern, UnionPattern, all_patterns, type_parser
 from nepattern.util import TPattern
 from tarina import Empty
 
-from .typing import TPrefixes
+from ..typing import TPrefixes
 
 
 def handle_bracket(name: str):
@@ -26,7 +26,7 @@ def handle_bracket(name: str):
             if not res or (len(res) > 1 and not res[1] and not res[0]):
                 parts[i] = ".+?"
             elif len(res) == 1 or not res[1]:
-                parts[i] = f"(?P<{res[0]}>.+?)"
+                parts[i] = f"(?P<{res[0]}>.+)"
             elif not res[0]:
                 parts[
                     i

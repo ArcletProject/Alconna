@@ -6,20 +6,22 @@ from tarina import Empty, lang
 from nepattern import AllParam, BasePattern, AnyOne, AnyString
 from nepattern.util import TPattern
 
-from .args import Arg, Args, STRING
-from .header import Double, Header
-from .base import Option, Subcommand
-from .config import config
-from .completion import Prompt, comp_ctx
-from .exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered, PauseTriggered
-from .model import OptionResult, Sentence, HeadResult
-from .output import output_manager
-from .typing import KeyWordVar, MultiVar
-from .util import levenshtein
+from ._header import Double, Header
+from ..args import Arg, Args, STRING
+from ..base import Option, Subcommand
+from ..config import config
+from ..completion import Prompt, comp_ctx
+from ..exceptions import (
+    ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered, PauseTriggered, TerminateLoop
+)
+from ..model import OptionResult, Sentence, HeadResult
+from ..output import output_manager
+from ..typing import KeyWordVar, MultiVar
+from ..util import levenshtein
 
 if TYPE_CHECKING:
-    from .argv import Argv
-    from .analyser import SubAnalyser, Analyser
+    from ._argv import Argv
+    from ._analyser import SubAnalyser, Analyser
 
 
 def _handle_keyword(
@@ -163,11 +165,23 @@ def multi_arg_handler(
         _loop_kw(argv, loop, seps, value, default) if kw
         else _loop(argv, loop, seps, value, default, args)
     )
+    if kw:
+        kwargs = result_dict[key]
+        if not isinstance(kwargs, dict):
+            kwargs = {key: kwargs}
+        result_dict[key] = kwargs
+    else:
+        varargs = result_dict[key]
+        if not isinstance(varargs, Iterable):
+            varargs = (varargs, )
+        elif not isinstance(varargs, tuple):
+            varargs = tuple(varargs)
+        result_dict[key] = varargs
 
 
 def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
-    分析 Args 部分
+    分析 `Args` 部分
 
     Args:
         argv (Argv): 命令行参数
@@ -227,25 +241,94 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
                 raise ParamsUnmatched(*res.error.args)
             if not arg.anonymous:
                 result[key] = res._value  # type: ignore
-    if args.var_keyword:
-        kwargs = result[args.var_keyword]
-        if not isinstance(kwargs, dict):
-            kwargs = {args.var_keyword: kwargs}
-        result['$kwargs'] = (kwargs, args.var_keyword)
-    if args.var_positional:
-        varargs = result[args.var_positional]
-        if not isinstance(varargs, Iterable):
-            varargs = [varargs]
-        elif not isinstance(varargs, list):
-            varargs = list(varargs)
-        result['$varargs'] = (varargs, args.var_positional)
-    if args.keyword_only:
-        result['$kwonly'] = {k: v for k, v in result.items() if k in args.keyword_only}
     argv.context = None
     return result
 
 
+def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
+    """
+    处理 `Option` 部分
+
+    Args:
+        argv (Argv): 命令行参数
+        opt (Option): 目标 `Option`
+    """
+    argv.context = opt
+    _cnt = 0
+    error = True
+    name, _ = argv.next(opt.separators)
+    if opt.compact:
+        for al in opt.aliases:
+            if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
+                argv.rollback(mat.groupdict()['rest'], replace=True)
+                error = False
+                break
+    elif opt.action.type == 2:
+        for al in opt.aliases:
+            if name.startswith(al) and (cnt := (len(name.lstrip("-")) / len(al.lstrip("-")))).is_integer():
+                _cnt = int(cnt)
+                error = False
+                break
+    elif name in opt.aliases:
+        error = False
+    if error:
+        if argv.fuzzy_match and levenshtein(name, opt.name) >= config.fuzzy_threshold:
+            raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
+        raise ParamsUnmatched(lang.require("option", "name_error").format(source=opt.name, target=name))
+    name = opt.dest
+    return (
+        (name, OptionResult(None, analyse_args(argv, opt.args)))
+        if opt.nargs
+        else (name, OptionResult(_cnt or opt.action.value))
+    )
+
+
+def handle_action(param: Option, source: OptionResult, target: OptionResult):
+    """处理 `Option` 的 `action`"""
+    if param.action.type == 0:
+        return target
+    if param.action.type == 2:
+        if not param.nargs:
+            source.value += target.value
+            return source
+        return target
+    if not param.nargs:
+        source.value.extend(target.value)
+    else:
+        for key, value in target.args.items():
+            if key in source.args:
+                source.args[key].append(value)
+            else:
+                source.args[key] = [value]
+    return source
+
+
+def analyse_option(analyser: SubAnalyser, argv: Argv, opt: Option):
+    """
+    分析 `Option` 部分
+
+    Args:
+        analyser (SubAnalyser): 当前解析器
+        argv (Argv): 命令行参数
+        opt (Option): 目标 `Option`
+    """
+    opt_n, opt_v = handle_option(argv, opt)
+    if opt_n not in analyser.options_result:
+        analyser.options_result[opt_n] = opt_v
+        if opt.action.type == 1 and opt_v.args:
+            for key in list(opt_v.args.keys()):
+                opt_v.args[key] = [opt_v.args[key]]
+    else:
+        analyser.options_result[opt_n] = handle_action(opt, analyser.options_result[opt_n], opt_v)
+
+
 def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
+    """分析紧凑参数
+
+    Args:
+        analyser (SubAnalyser): 当前解析器
+        argv (Argv): 命令行参数
+    """
     for param in analyser.compact_params:
         _data, _index = argv.data_set()
         try:
@@ -254,8 +337,7 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
                     return lang.require("option", "require_error").format(
                         source=param.name, target=' '.join(analyser.sentences)
                     )
-                opt_n, opt_v = analyse_option(argv, param)
-                analyser.options_result[opt_n] = opt_v
+                analyse_option(analyser, argv, param)
             else:
                 if param.command.requires and analyser.sentences != param.command.requires:
                     return lang.require("subcommand", "require_error").format(
@@ -270,37 +352,6 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
                 raise e
             argv.data_reset(_data, _index)
             continue
-
-
-def analyse_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
-    """
-    分析 Option 部分
-
-    Args:
-        argv (Argv): 命令行参数
-        opt (Option): 目标 `Option`
-    """
-    argv.context = opt
-    if opt.compact:
-        name, _ = argv.next()
-        for al in opt.aliases:
-            if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
-                argv.rollback(mat.groupdict()['rest'], replace=True)
-                break
-        else:
-            if argv.fuzzy_match and levenshtein(name, opt.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
-            raise ParamsUnmatched(lang.require("option", "name_error").format(source=opt.name, target=name))
-    else:
-        name, _ = argv.next(opt.separators)
-        if name not in opt.aliases:  # 先匹配选项名称
-            if argv.fuzzy_match and levenshtein(name, opt.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
-            raise ParamsUnmatched(lang.require("option", "name_error").format(source=opt.name, target=name))
-    name = opt.dest
-    if opt.nargs == 0:
-        return name, OptionResult()
-    return name, OptionResult(None, analyse_args(argv, opt.args))
 
 
 def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | None = None):
@@ -330,7 +381,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         return
     else:
         _param = None
-    if not _param and not analyser.args_result:
+    if not _param and analyser.command.nargs and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
         argv.context = None
         return
@@ -342,8 +393,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             raise ParamsUnmatched(
                 lang.require("option", "require_error").format(source=_param.name, target=' '.join(analyser.sentences))
             )
-        opt_n, opt_v = analyse_option(argv, _param)
-        analyser.options_result[opt_n] = opt_v
+        analyse_option(analyser, argv, _param)
     elif _param.__class__ is list:
         for opt in _param:
             _data, _index = argv.data_set()
@@ -355,8 +405,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
                         )
                     )
                 analyser.sentences = []
-                opt_n, opt_v = analyse_option(argv, opt)
-                analyser.options_result[opt_n] = opt_v
+                analyse_option(analyser, argv, opt)
                 _data.clear()
                 break
             except Exception as e:
@@ -374,8 +423,8 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             )
         _param.process(argv)
         analyser.subcommands_result.setdefault(_param.command.dest, _param.result())
-    elif not _str:
-        raise ParamsUnmatched(str(_text))
+    else:
+        raise TerminateLoop(str(_text))
     analyser.sentences.clear()
     argv.context = None
 

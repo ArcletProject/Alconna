@@ -69,6 +69,7 @@ def test_alconna_multi_match():
     assert alc1_1.parse("core1_1 foo bar abc").matched
     assert alc1_1.parse("core1_1 foo bar foo abc").matched
     assert alc1_1.parse("core1_1 foo foo bar abc").matched
+    assert not alc1_1.parse("core1_1 foo abc def bar").matched
 
 
 def test_special_header():
@@ -249,29 +250,30 @@ def test_alconna_add_option():
     assert len(alc8_2.options) == 4
 
 
-def test_alconna_action():
+def test_from_callable():
     def test(wild, text: str, num: int, boolean: bool = False):
         print("wild:", wild)
         print("text:", text)
         print("num:", num)
         print("boolean:", boolean)
 
-    alc9 = Alconna("core9", action=test)
+    alc9 = Alconna("core9", Args.from_callable(test)[0])
     print("")
     print("alc9: -----------------------------")
-    alc9.parse("core9 abc def 123 False")
+    alc9.parse("core9 abc def 123 False").call(test)
     print("alc9: -----------------------------")
 
 
 def test_alconna_synthesise():
     from typing import List
+    from nepattern import BasePattern, MatchMode
 
+    cnt = BasePattern(r".*(\d+)张.*", MatchMode.REGEX_CONVERT, int, lambda _, x: int(x))
     alc10 = Alconna(
-        Arg("min", r".*(\d+)张.*", seps="到"),
-        Arg("max;?", r".*(\d+)张.*"),
+        Arg("min", cnt, seps="到"),
+        Arg("max;?", cnt),
         ["发涩图", "来点涩图", "来点好康的"],
         Option("从", Args["tags", MultiVar(str, 5)] / ("和", "与"), compact=True),
-        action=lambda x, y=6: {"min": int(x), "max": int(y)},
     )
     res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
     assert res.matched is True
@@ -493,6 +495,8 @@ def test_call():
 
 
 def test_nest_subcommand():
+    class A:
+        pass
     alc23 = Alconna(
         "core23",
         Args.foo[int],
@@ -501,17 +505,17 @@ def test_nest_subcommand():
             Subcommand(
                 "baz", Option("--qux"), help_text="test nest subcommand; deep 2"
             ),
-            Args["abc", str],
+            Args["abc", A],
             help_text="test nest subcommand; deep 1",
         ),
         meta=CommandMeta("test nest subcommand"),
     )
     assert alc23.parse("core23 123").matched
-    assert alc23.parse("core23 bar baz a 123").matched
-    assert alc23.parse("core23 bar baz --qux a 123").matched
-    assert not alc23.parse("core23 bar baz a --qux 123").matched
+    assert alc23.parse(["core23 bar baz", A(), "123"]).matched
+    assert alc23.parse(["core23 bar baz --qux", A(), "123"]).matched
+    assert not alc23.parse(["core23 bar baz", A(), "--qux 123"]).matched
     assert (
-        alc23.parse("core23 bar baz --qux a 123").query("bar.baz.qux.value") is Ellipsis
+        alc23.parse(["core23 bar baz --qux", A(), "123"]).query("bar.baz.qux.value") is Ellipsis
     )
     print("")
     # alc23.parse("core23 --help")
@@ -524,10 +528,14 @@ def test_nest_subcommand():
             [Subcommand("qux", Args["def", bool]), Option("baz", Args["abc", str])],
         ),
     )
+    assert alc23_1.parse("core23_1 bar baz abc qux True").matched
+    assert not alc23_1.parse("core23_1 bar qux True 1 baz abc").matched
     assert alc23_1.parse("core23_1 bar qux false baz hhh").query("bar.qux.def") is False
 
 
 def test_action():
+    from arclet.alconna import append, append_value, count
+
     alc24 = Alconna(
         "core24", Option("--yes|-y", action=store_true), Args["module", AllParam]
     )
@@ -541,6 +549,21 @@ def test_action():
     assert alc24_1.parse("core24 -y abc def").yes
     assert not alc24_1.parse("core24 abc def").yes
     assert alc24_1.parse("core24 abc def").module == ["abc", "def"]
+
+    alc24_2 = Alconna(
+        "core24_2",
+        Option("--i", Args["foo", int]),
+        Option("--a|-A", action=append_value(1)),
+        Option("--flag|-F", Args["flag", str], action=append, compact=True),
+        Option("-v", action=count),
+        Option("-x|--xyz", action=count)
+    )
+    res = alc24_2.parse("core24_2 -A --a -vvv -x -x --xyzxyz -Fabc -Fdef --flag xyz --i 4 --i 5")
+    assert res.query("i.foo") == 5
+    assert res.query("a.value") == [1, 1]
+    assert res.query("flag.flag") == ["abc", "def", "xyz"]
+    assert res.query("v.value") == 3
+    assert res.query("xyz.value") == 4
 
 
 if __name__ == "__main__":

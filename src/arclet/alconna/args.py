@@ -173,14 +173,14 @@ class Args(metaclass=ArgsMeta):
     """可选参数的数量"""
 
     @classmethod
-    def from_callable(cls, target: Callable):
+    def from_callable(cls, target: Callable) -> tuple[Args, bool]:
         """从可调用函数中构造Args
 
         Args:
             target (Callable): 目标函数
 
         Returns:
-            Args: 构造的 Args
+            tuple[Args, bool]: 参数集合, 是否为方法
         """
         _args = cls()
         method = False

@@ -4,10 +4,10 @@ from collections import namedtuple
 from typing import Any
 import traceback
 
-from arclet.alconna.analyser import Analyser, default_compiler
+from arclet.alconna._internal._analyser import Analyser, default_compiler
 from arclet.alconna.argv import Argv
-from arclet.alconna.handlers import analyse_args as ala, analyse_header as alh, analyse_option as alo
-from arclet.alconna.header import Header
+from arclet.alconna._internal._handlers import analyse_args as ala, analyse_header as alh, analyse_option as alo
+from arclet.alconna._internal._header import Header
 from arclet.alconna.typing import DataCollection
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.args import Args
@@ -81,7 +81,8 @@ def analyse_option(option: Option, command: DataCollection[str | Any], raise_exc
     _analyser.command.options.clear()
     try:
         argv.build(command)
-        return alo(argv, option)
+        alo(_analyser, argv, option)
+        return _analyser.options_result[option.dest]
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

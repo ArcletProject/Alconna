@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Callable, Iterable, Sequence, overload
+from typing import Iterable, Sequence, overload
 from typing_extensions import Self
 from tarina import lang
 
-from .action import ArgAction
+from .action import Action, store
 from .args import Arg, Args
 from .exceptions import InvalidParam
 
@@ -22,7 +22,7 @@ class CommandNode:
     """命令节点参数"""
     separators: tuple[str, ...]
     """命令节点分隔符"""
-    action: ArgAction | None
+    action: Action
     """命令节点响应动作"""
     help_text: str
     """命令节点帮助信息"""
@@ -31,7 +31,7 @@ class CommandNode:
 
     def __init__(
         self, name: str, args: Arg | Args | None = None,
-        dest: str | None = None, action: ArgAction | Callable | None = None,
+        dest: str | None = None, action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
@@ -43,7 +43,7 @@ class CommandNode:
             name (str): 命令节点名称
             args (Arg | Args | None, optional): 命令节点参数
             dest (str | None, optional): 命令节点目标名称
-            action (ArgAction | Callable | None, optional): 命令节点响应动作
+            action (Action | None, optional): 命令节点响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             help_text (str | None, optional): 命令帮助信息
             requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令节点需求前缀
@@ -55,7 +55,7 @@ class CommandNode:
         self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []
         self.requires.extend(_parts[:-1])
         self.args = Args() + args
-        self.action = ArgAction.__validator__(action, self.args)
+        self.action = action or store
         self.separators = (' ',) if separators is None else (
             (separators,) if isinstance(separators, str) else tuple(separators)
         )
@@ -111,7 +111,7 @@ class Option(CommandNode):
     def __init__(
         self,
         name: str, args: Arg | Args | None = None, alias: Iterable[str] | None = None,
-        dest: str | None = None, action: ArgAction | Callable | None = None,
+        dest: str | None = None, action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
@@ -124,7 +124,7 @@ class Option(CommandNode):
             args(Arg | Args | None, optional): 命令选项参数
             alias(Iterable[str] | None, optional): 命令选项别名
             dest(str | None, optional): 命令选项目标名称
-            action(ArgAction | Callable | None, optional): 命令选项响应动作
+            action(Action | None, optional): 命令选项响应动作
             separators(str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             help_text(str | None, optional): 命令选项帮助信息
             requires(str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令选项需求前缀
@@ -211,7 +211,7 @@ class Subcommand(CommandNode):
         self,
         name: str,
         *args: Args | Arg | Option | Subcommand | list[Option | Subcommand],
-        dest: str | None = None, action: ArgAction | Callable | None = None,
+        dest: str | None = None, action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
@@ -222,7 +222,7 @@ class Subcommand(CommandNode):
             name (str): 子命令名称
             *args (Args | Arg | Option | Subcommand | list[Option | Subcommand]): 参数, 选项或子命令
             dest (str | None, optional): 子命令选项目标名称
-            action (ArgAction | Callable | None, optional): 子命令选项响应动作
+            action (Action | None, optional): 子命令选项响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 子命令分隔符
             help_text (str | None, optional): 子命令选项帮助信息
             requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 子命令选项需求前缀

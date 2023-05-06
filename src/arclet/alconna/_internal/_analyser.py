@@ -8,31 +8,33 @@ from dataclasses import dataclass, field
 from typing_extensions import Self, TypeAlias
 from tarina import lang
 
-from .manager import command_manager, ShortcutArgs
-from .exceptions import (
+from ..manager import command_manager, ShortcutArgs
+from ..exceptions import (
     ParamsUnmatched,
     ArgumentMissing,
     FuzzyMatchSuccess,
     PauseTriggered,
-    SpecialOptionTriggered
+    SpecialOptionTriggered,
+    TerminateLoop
 )
-from .args import Args
-from .header import Header
-from .base import Option, Subcommand
-from .completion import comp_ctx
-from .model import Sentence, HeadResult, OptionResult, SubcommandResult
-from .arparma import Arparma
-from .typing import TDC
-from .config import Namespace, config
-from .output import output_manager
-from .handlers import (
+from ..args import Args
+from ..base import Option, Subcommand
+from ..completion import comp_ctx
+from ..model import Sentence, HeadResult, OptionResult, SubcommandResult
+from ..arparma import Arparma
+from ..typing import TDC
+from ..config import Namespace, config
+from ..output import output_manager
+from ..util import levenshtein
+from ._handlers import (
     analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
 )
-from .util import levenshtein
+from ._header import Header
+
 
 if TYPE_CHECKING:
-    from .argv import Argv
-    from .core import Alconna
+    from ._argv import Argv
+    from ..core import Alconna
 
 _SPECIAL = {
     "help": handle_help,
@@ -75,7 +77,7 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
     require_len = 0
     for opts in analyser.command.options:
         if isinstance(opts, Option):
-            if opts.compact or not set(analyser.command.separators).issuperset(opts.separators):
+            if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(opts)
             _compile_opts(opts, analyser.compile_params)  # type: ignore
             pids.update(opts.aliases)
@@ -91,9 +93,6 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
             require_len = max(len(opts.requires), require_len)
             for k in opts.requires:
                 analyser.compile_params.setdefault(k, Sentence(name=k))
-    analyser.part_len = range(
-        len(analyser.command.options) + analyser.need_main_args + require_len
-    )
 
 
 @dataclass
@@ -104,8 +103,6 @@ class SubAnalyser(Generic[TDC]):
     """子命令"""
     default_main_only: bool = field(default=False)
     """命令是否只有主参数"""
-    part_len: range = field(default=range(0))
-    """分段长度"""
     need_main_args: bool = field(default=False)
     """是否需要主参数"""
     compile_params: dict[str, Sentence | Option | list[Option] | SubAnalyser[TDC]] = field(default_factory=dict)
@@ -184,9 +181,7 @@ class SubAnalyser(Generic[TDC]):
                 raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=sub.name))
             raise ParamsUnmatched(lang.require("subcommand", "name_error").format(target=name, source=sub.name))
 
-        if self.part_len.stop == 0:
-            self.value_result = Ellipsis
-            return self
+        self.value_result = sub.action.value
         return self.analyse(argv)
 
     def analyse(self, argv: Argv[TDC]) -> Self:
@@ -201,8 +196,11 @@ class SubAnalyser(Generic[TDC]):
         Raises:
             ArgumentMissing: 参数缺失
         """
-        for _ in self.part_len:
-            analyse_param(self, argv, self.command.separators)
+        while True:
+            try:
+                analyse_param(self, argv, self.command.separators)
+            except TerminateLoop:
+                break
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)
         if not self.args_result and self.need_main_args:
@@ -360,6 +358,12 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             output_manager.send(self.command.name, lambda: str(Fuzzy))
             return self.export(argv, True)
 
+        except RuntimeError as e:
+            exc = ParamsUnmatched(lang.require("header", "error").format(target=argv.release(recover=True)[0]))
+            if self.command.meta.raise_exception:
+                raise exc from e
+            return self.export(argv, True, exc)
+
         if fail := self.analyse(argv):
             return fail
 
@@ -382,9 +386,11 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return self.export(argv, True, exc)
 
     def analyse(self, argv: Argv[TDC]) -> Arparma[TDC] | None:
-        for _ in self.part_len:
+        while True:
             try:
                 analyse_param(self, argv)
+            except TerminateLoop:
+                break
             except FuzzyMatchSuccess as e:
                 output_manager.send(self.command.name, lambda: str(e))
                 return self.export(argv, True)

@@ -131,7 +131,6 @@ def test_kwonly():
     assert analyse_args(arg14, ["abc bar=123"]) == {
         "foo": "abc",
         "bar": 123,
-        "$kwonly": {"bar": 123},
     }
     assert analyse_args(arg14, ["abc 123"], raise_exception=False) != {
         "foo": "abc",
@@ -141,11 +140,9 @@ def test_kwonly():
     assert analyse_args(arg14_1, ["--width=960 --height=960"]) == {
         "--width": 960,
         "--height": 960,
-        "$kwonly": {"--height": 960, "--width": 960},
     }
     arg14_2 = Args.foo[str]["bar", KeyWordVar(int, " ")]["baz", KeyWordVar(bool, ":")]
     assert analyse_args(arg14_2, ["abc -bar 123 baz:false"]) == {
-        "$kwonly": {"bar": 123, "baz": False},
         "bar": 123,
         "baz": False,
         "foo": "abc",

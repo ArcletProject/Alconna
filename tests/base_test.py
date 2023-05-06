@@ -43,7 +43,7 @@ def test_option_requires():
 
 def test_separator():
     opt2 = Option("foo", Args.bar[int], separators="|")
-    assert analyse_option(opt2, "foo|123") == ("foo", OptionResult(None, {"bar": 123}))
+    assert analyse_option(opt2, "foo|123") == OptionResult(None, {"bar": 123})
     opt2_1 = Option("foo", Args.bar[int]).separate("|")
     assert opt2 == opt2_1
 
@@ -56,16 +56,7 @@ def test_subcommand():
 
 def test_compact():
     opt3 = Option("-Foo", Args.bar[int], compact=True)
-    assert analyse_option(opt3, "-Foo123") == ("Foo", OptionResult(None, {"bar": 123}))
-
-
-def test_from_callable():
-    def test(bar: int, baz: bool = False):
-        ...
-
-    opt4 = Option("foo", action=test)
-    assert len(opt4.args.argument) == 2
-    assert analyse_option(opt4, "foo 123 True") == ("foo", OptionResult(None, {"bar": 123, "baz": True}))
+    assert analyse_option(opt3, "-Foo123") == OptionResult(None, {"bar": 123})
 
 
 def test_add():
