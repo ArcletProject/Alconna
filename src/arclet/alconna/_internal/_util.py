@@ -1,16 +1,3 @@
-"""杂物堆"""
-from __future__ import annotations
-
-import sys
-import dataclasses
-
-
-def dataclass(*args, **kwargs):
-    if sys.version_info < (3, 10):  # pragma: no cover
-        kwargs.pop('slots')
-    return dataclasses.dataclass(*args, **kwargs)
-
-
 def levenshtein(source: str, target: str) -> float:
     """ `编辑距离算法`_, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似
 

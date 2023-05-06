@@ -17,7 +17,7 @@ from ..exceptions import (
 from ..model import OptionResult, Sentence, HeadResult
 from ..output import output_manager
 from ..typing import KeyWordVar, MultiVar
-from ..util import levenshtein
+from ._util import levenshtein
 
 if TYPE_CHECKING:
     from ._argv import Argv

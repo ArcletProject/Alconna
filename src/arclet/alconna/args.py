@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import re
 from copy import deepcopy
-from dataclasses import field as dc_field
+import dataclasses as dc
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, TYPE_CHECKING
@@ -17,7 +17,12 @@ from .typing import KeyWordVar, MultiVar
 if TYPE_CHECKING:
     from dataclasses import dataclass
 else:
-    from .util import dataclass
+    import sys
+
+    def dataclass(*args, **kwargs):
+        if sys.version_info < (3, 10):  # pragma: no cover
+            kwargs.pop('slots')
+        return dc.dataclass(*args, **kwargs)
 
 _T = TypeVar("_T")
 TAValue = Union[BasePattern, AllParam.__class__, type, str]
@@ -35,11 +40,11 @@ class ArgFlag(str, Enum):
 class Field(Generic[_T]):
     """标识参数单元字段"""
 
-    default: _T | None = dc_field(default=None)
+    default: _T | None = dc.field(default=None)
     """参数单元的默认值"""
-    alias: str | None = dc_field(default=None)
+    alias: str | None = dc.field(default=None)
     """参数单元默认值的别名"""
-    completion: Callable[[], str | list[str]] | None = dc_field(default=None)
+    completion: Callable[[], str | list[str]] | None = dc.field(default=None)
     """参数单元的补全"""
 
     @property
@@ -52,21 +57,21 @@ class Field(Generic[_T]):
 class Arg:
     """参数单元"""
 
-    name: str = dc_field(compare=True, hash=True)
+    name: str = dc.field(compare=True, hash=True)
     """参数单元的名称"""
-    value: Union[BasePattern, AllParam.__class__] = dc_field(compare=False, hash=True)
+    value: Union[BasePattern, AllParam.__class__] = dc.field(compare=False, hash=True)
     """参数单元的值"""
-    field: Field[Any] = dc_field(compare=False, hash=False)
+    field: Field[Any] = dc.field(compare=False, hash=False)
     """参数单元的字段"""
-    notice: str | None = dc_field(compare=False, hash=False)
+    notice: str | None = dc.field(compare=False, hash=False)
     """参数单元的注释"""
-    flag: set[ArgFlag] = dc_field(compare=False, hash=False)
+    flag: set[ArgFlag] = dc.field(compare=False, hash=False)
     """参数单元的标识"""
-    separators: tuple[str, ...] = dc_field(compare=False, hash=False)
+    separators: tuple[str, ...] = dc.field(compare=False, hash=False)
     """参数单元使用的分隔符"""
-    optional: bool = dc_field(compare=False, hash=False)
-    hidden: bool = dc_field(compare=False, hash=False)
-    anonymous: bool = dc_field(compare=False, hash=False)
+    optional: bool = dc.field(compare=False, hash=False)
+    hidden: bool = dc.field(compare=False, hash=False)
+    anonymous: bool = dc.field(compare=False, hash=False)
 
     def __init__(
         self,

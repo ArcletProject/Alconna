@@ -201,7 +201,7 @@ class CommandManager:
         if not enabled and command not in self.__abandons:
             self.__abandons.append(command)
 
-    def add_shortcut(self, target: Alconna, key: str, source: Arparma | ShortcutArgs):
+    def add_shortcut(self, target: Alconna[TDC], key: str, source: Arparma | ShortcutArgs[TDC]):
         """添加快捷命令
 
         Args:
@@ -210,8 +210,9 @@ class CommandManager:
             source (Arparma | ShortcutArgs): 快捷命令的参数
         """
         namespace, name = self._command_part(target.path)
+        argv = self.resolve(target)
         if isinstance(source, dict):
-            source['command'] = source.get('command', target.command or target.name)
+            source['command'] = source.get('command', argv.converter(target.command or target.name))
             source.setdefault('fuzzy', True)
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
         elif source.matched:

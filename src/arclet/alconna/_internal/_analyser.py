@@ -25,7 +25,7 @@ from ..arparma import Arparma
 from ..typing import TDC
 from ..config import Namespace, config
 from ..output import output_manager
-from ..util import levenshtein
+from ._util import levenshtein
 from ._handlers import (
     analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
 )
