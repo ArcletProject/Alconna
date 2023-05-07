@@ -46,6 +46,7 @@
 
 ### 改进:
 
+- 由 `name` 与 `requires` 合成的 `dest` 也会去掉 `name` 的前缀 
 - `Argv` 不再是 `Analyser` 的属性, 而是其方法的传入参数
 - `compile` 函数现在作为 `Alconna` 的方法
 - shortcut 使用方法改变:

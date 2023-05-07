@@ -60,7 +60,9 @@ class CommandNode:
             (separators,) if isinstance(separators, str) else tuple(separators)
         )
         self.nargs = len(self.args.argument)
-        self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name).lstrip('-')
+        self.dest = (
+            dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name.lstrip('-')
+        ).lstrip('-')
         self.help_text = help_text or self.dest
         self._hash = self._calc_hash()
 

@@ -383,8 +383,9 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         _param = None
     if not _param and analyser.command.nargs and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
-        argv.context = None
-        return
+        if analyser.args_result:
+            argv.context = None
+            return
     if _param.__class__ is Sentence:
         analyser.sentences.append(argv.next()[0])
         return

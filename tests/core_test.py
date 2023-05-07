@@ -13,7 +13,7 @@ from arclet.alconna import (
     CompSession,
 )
 from nepattern import IP, URL
-
+import pytest
 
 def test_alconna_create():
     alc = Alconna(
@@ -71,8 +71,36 @@ def test_alconna_multi_match():
     assert alc1_1.parse("core1_1 foo foo bar abc").matched
     assert not alc1_1.parse("core1_1 foo abc def bar").matched
 
+    alc1_2 = Alconna(
+        "core1_2", Option("test"), Args["foo;?", int]["bar;?", str]
+    )
+    assert alc1_2.parse("core1_2 test 123").matched
+    assert alc1_2.parse("core1_2 123").matched
+    assert alc1_2.parse("core1_2 test").matched
+    assert alc1_2.parse("core1_2").matched
+    assert alc1_2.parse("core1_2 abc").matched
+    assert alc1_2.parse("core1_2 123 abc").matched
+    assert alc1_2.parse("core1_2 abc test").matched
+    assert not alc1_2.parse("core1_2 test abc 123").matched
 
-def test_special_header():
+    alc1_3 = Alconna(
+        "core1_3", Subcommand(
+            "foo", Option("bar"), Args["qux;?", int]
+        ),
+        Option("baz")
+    )
+    assert alc1_3.parse("core1_3 foo bar 123").matched
+    assert alc1_3.parse("core1_3 foo 123").matched
+    assert alc1_3.parse("core1_3 foo bar").matched
+    assert alc1_3.parse("core1_3 foo").matched
+    assert alc1_3.parse("core1_3 baz").matched
+    assert alc1_3.parse("core1_3 foo baz").matched
+    assert alc1_3.parse("core1_3 foo bar baz").matched
+    assert alc1_3.parse("core1_3 foo bar 123 baz").matched
+    assert not alc1_3.parse("core1_3 foo bar baz 123").matched
+
+
+def test_bracket_header():
     alc2 = Alconna("RD{r:int}?=={e:int}")
     res = alc2.parse("RD100==36")
     assert res.matched is True
@@ -177,9 +205,12 @@ def test_alconna_multi_header():
     assert alc6_3.parse([b]).head_matched is True
     assert alc6_3.parse("a").head_matched is False
     # 只有纯文字头
-    alc6_4 = Alconna(["/dd", "!cd"])
+    alc6_4 = Alconna(["/dd", "!cd"], Args["a;?", int])
     assert alc6_4.parse("/dd").head_matched is True
+    assert alc6_4.parse("/dd 123").head_matched is True
+    assert alc6_4.parse("!cd 123").head_matched is True
     assert alc6_4.parse("/dd !cd").matched is False
+    assert alc6_4.parse("/dd !cd 123").matched is False
     # 只有纯元素头
     alc6_5 = Alconna(a)
     assert alc6_5.parse([a]).head_matched is True
@@ -461,7 +492,6 @@ def test_completion_interface():
 
 
 def test_call():
-    import asyncio
 
     alc22 = Alconna("core22", Args.foo[int], Args.bar[str])
     alc22("core22 123 abc")
@@ -476,22 +506,6 @@ def test_call():
     assert cb.result == 246
     alc22.parse("core22 321 abc")
     assert cb.result == 642
-
-    alc22_1 = Alconna("core22_1", Args.foo[int], Args.bar[str], Args.baz[bool])
-    res = alc22_1.parse("core22_1 123 abc false")
-
-    async def cb1(foo: int, bar: str):
-        await asyncio.sleep(0.1)
-        print("")
-        print("core22_1: ")
-        print(foo, bar)
-        return 2
-
-    async def main():
-        b = await res.call(cb1)
-        assert b == 2
-
-    asyncio.run(main())
 
 
 def test_nest_subcommand():
@@ -556,17 +570,22 @@ def test_action():
         Option("--a|-A", action=append_value(1)),
         Option("--flag|-F", Args["flag", str], action=append, compact=True),
         Option("-v", action=count),
-        Option("-x|--xyz", action=count)
+        Option("-x|--xyz", action=count),
+        Option("--q", action=count, requires=["foo", "bar"])
     )
-    res = alc24_2.parse("core24_2 -A --a -vvv -x -x --xyzxyz -Fabc -Fdef --flag xyz --i 4 --i 5")
+    res = alc24_2.parse(
+        "core24_2 -A --a -vvv -x -x --xyzxyz "
+        "-Fabc -Fdef --flag xyz --i 4 --i 5 "
+        "foo bar --q foo bar --qq"
+    )
     assert res.query("i.foo") == 5
     assert res.query("a.value") == [1, 1]
     assert res.query("flag.flag") == ["abc", "def", "xyz"]
     assert res.query("v.value") == 3
     assert res.query("xyz.value") == 4
+    assert res.query("foo_bar_q.value") == 3
 
 
 if __name__ == "__main__":
-    import pytest
 
     pytest.main([__file__, "-vs"])

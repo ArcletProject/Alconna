@@ -2,16 +2,6 @@
 # It is not intended for manual editing.
 
 [[package]]
-name = "arclet-alconna-tools"
-version = "0.5.0"
-requires_python = ">=3.8"
-summary = "Builtin Tools for Alconna"
-dependencies = [
-    "arclet-alconna>=1.6.1",
-    "nepattern>=0.4.2",
-]
-
-[[package]]
 name = "attrs"
 version = "23.1.0"
 requires_python = ">=3.7"
@@ -149,10 +139,6 @@ groups = ["default", "dev"]
 content_hash = "sha256:f5d04f0c3cbe537b70cf27f0f539764dfd18920888f216333d33583119b7dfbc"
 
 [metadata.files]
-"arclet-alconna-tools 0.5.0" = [
-    {url = "https://files.pythonhosted.org/packages/0e/44/48afc0f97ea493ef000127bdfcd62445231ffe88cccf6384cc30410a8110/arclet_alconna_tools-0.5.0-py3-none-any.whl", hash = "sha256:ae63b006c6bd61f2e9d3daee90ed269003f02e9440491d998194d09272bb0d94"},
-    {url = "https://files.pythonhosted.org/packages/8a/d0/dfffdb052e845f3005d78b85bea386a1353e47df2392056ba94df67621b9/arclet-alconna-tools-0.5.0.tar.gz", hash = "sha256:fbb6b42eb2b9bc9c43469e80df618fa3e481510de2d71fd08f7431269acafbed"},
-]
 "attrs 23.1.0" = [
     {url = "https://files.pythonhosted.org/packages/97/90/81f95d5f705be17872843536b1868f351805acf6971251ff07c1b8334dbb/attrs-23.1.0.tar.gz", hash = "sha256:6279836d581513a26f1bf235f9acd333bc9115683f14f7e8fae46c98fc50e015"},
     {url = "https://files.pythonhosted.org/packages/f0/eb/fcb708c7bf5056045e9e98f62b93bd7467eb718b0202e7698eb11d66416c/attrs-23.1.0-py3-none-any.whl", hash = "sha256:1f28b4522cdc2fb4256ac1a020c78acf9cba2c6b461ccd2c126f3aa8e8335d04"},
