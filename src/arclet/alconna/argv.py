@@ -5,12 +5,13 @@ from typing import Any, Callable
 from .typing import TDC
 from ._internal._argv import Argv
 
-__default_argv_type__ = Argv
+__argv_type__ = Argv
 
 
 def set_default_argv_type(argv_type: type[Argv]):
-    global __default_argv_type__
-    __default_argv_type__ = argv_type
+    """设置默认的命令行参数类型"""
+    global __argv_type__
+    __argv_type__ = argv_type
 
 
 def argv_config(
@@ -29,4 +30,4 @@ def argv_config(
         checker (Callable[[Any], bool] | None, optional): 检查传入命令.
         converter (Callable[[str | list], TDC] | None, optional): 将字符串或列表转为目标命令类型.
     """
-    Argv._cache.setdefault(__default_argv_type__, {}).update(locals())
+    Argv._cache.setdefault(__argv_type__, {}).update(locals())

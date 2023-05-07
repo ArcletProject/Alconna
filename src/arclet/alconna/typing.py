@@ -1,6 +1,7 @@
 """Alconna 参数相关"""
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Tuple, Dict, List
 from nepattern import BasePattern, type_parser, MatchMode
 
@@ -14,6 +15,30 @@ class DataCollection(Protocol[DataUnit]):
     def __repr__(self) -> str: ...
     def __iter__(self) -> Iterator[DataUnit]: ...
     def __len__(self) -> int: ...
+
+
+@dataclass(unsafe_hash=True)
+class CommandMeta:
+    """命令元数据"""
+
+    description: str = field(default="Unknown")
+    "命令的描述"
+    usage: str | None = field(default=None)
+    "命令的用法"
+    example: str | None = field(default=None)
+    "命令的使用样例"
+    author: str | None = field(default=None)
+    "命令的作者"
+    fuzzy_match: bool = field(default=False)
+    "命令是否开启模糊匹配"
+    raise_exception: bool = field(default=False)
+    "命令是否抛出异常"
+    hide: bool = field(default=False)
+    "命令是否对manager隐藏"
+    keep_crlf: bool = field(default=False)
+    "命令是否保留换行字符"
+    compact: bool = field(default=False)
+    "命令是否允许第一个参数紧随头部"
 
 
 TDC = TypeVar("TDC", bound=DataCollection[Any])
@@ -83,4 +108,4 @@ class MultiVar(BasePattern):
 Nargs = MultiVar
 Kw = _Kw()
 
-__all__ = ["DataCollection", "TDC", "MultiVar", "Nargs", "Kw", "KeyWordVar", "TPrefixes"]
+__all__ = ["DataCollection", "TDC", "MultiVar", "Nargs", "Kw", "KeyWordVar", "TPrefixes", "CommandMeta"]

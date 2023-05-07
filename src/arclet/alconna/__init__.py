@@ -3,13 +3,13 @@
 from nepattern import AllParam as AllParam, AnyOne as AnyOne  # noqa
 from tarina import Empty as Empty # noqa
 from .config import config, namespace, Namespace
-from .typing import MultiVar, KeyWordVar, Kw, Nargs
+from .typing import MultiVar, KeyWordVar, Kw, Nargs, CommandMeta
 from .args import Args, Field, ArgFlag, Arg
 from .base import Option, Subcommand
 from .completion import CompSession
 from .exceptions import ParamsUnmatched, NullMessage, InvalidParam
 from .argv import Argv, set_default_argv_type, argv_config
-from .core import Alconna, CommandMeta
+from .core import Alconna
 from .arparma import Arparma, ArparmaBehavior
 from .manager import command_manager, ShortcutArgs
 
@@ -22,4 +22,6 @@ from .stub import ArgsStub, OptionStub, SubcommandStub
 
 __version__ = "1.7.0"
 
+# backward compatibility
 Arpamar = Arparma
+DataCollectionContainer = Argv

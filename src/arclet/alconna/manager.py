@@ -13,16 +13,16 @@ from typing_extensions import NotRequired
 from tarina import LRU, lang
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
-from .argv import Argv, __default_argv_type__
+from .argv import Argv, __argv_type__
 from .arparma import Arparma
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
-from .typing import DataCollection, TDC
+from .typing import DataCollection, TDC, CommandMeta
 
 
 if TYPE_CHECKING:
     from ._internal._analyser import Analyser
-    from .core import Alconna, CommandMeta
+    from .core import Alconna
 
 
     class ShortcutArgs(TypedDict, Generic[TDC]):
@@ -128,7 +128,7 @@ class CommandManager:
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         self.__argv.pop(command, None)
-        self.__argv[command] = __default_argv_type__(
+        self.__argv[command] = __argv_type__(
             command.namespace_config,
             fuzzy_match=command.meta.fuzzy_match,
             to_text=command.namespace_config.to_text,

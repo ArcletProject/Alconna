@@ -61,7 +61,7 @@ dev = [
 [tool.pdm.scripts]
 test = "python entry_test.py"
 benchmark = "python benchmark.py"
-deps = "pydeps ./src/arclet/alconna"
+deps = "pydeps -o alconna.svg ./src/arclet/alconna --max-bacon=4 --cluster --keep-target-cluster --rmprefix alconna. "
 
 [tool.pdm.version]
 source = "file"
