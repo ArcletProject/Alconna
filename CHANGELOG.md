@@ -4,16 +4,21 @@
 
 ### 破坏性改动:
 
+> 用户侧
+
+- `ShortcutArgs` 不再需要 `options`, 其合并至 `args`
+- `Alconna.parse` 移除参数 `interrupt`, 由 `CompSession` 替代
+- `CommandNode` 的 `is_compact` 属性移除 (原先由 sep = '' 时设置)
+
+> 开发侧
+
 - 使用 `NEPattern` 0.5 以上版本
 - 使用 `tarina` 替代部分功能
 - `DataCollectionContainer`, `Analyser`, `handle_xxx` 和 `analyser_xxx` 
 等移动至 `arclet.alconna._internal`
 - `DataCollectionContainer` 重命名为 `Argv`
-- `Argv.text_sign` 现在是 `Argv.to_text`, 其返回值为 `str | None`
-- `ShortcutArgs` 不再需要 `options`, 其合并至 `args`
-- `Alconna.parse` 移除参数 `interrupt`
-- `CommandNode` 的 `is_compact` 属性移除 (原先由 sep = '' 时设置)
 - `Argv.config` 移出为独立函数 `argv_config`
+- `Argv.text_sign` 现在是 `Argv.to_text`, 其返回值为 `str | None`
 
 ### 新增:
 
@@ -102,10 +107,15 @@
 
 ### 破坏性改动
 
+> 用户侧
+
+- 移除 `AlconnGroup` 类，但保留通过 `|` 组合命令的行为
+
+> 开发侧
+
 - 移动 `Args.from_string_list` 至 `arclet-alconna-tools`
 - 移动 `Formatter` 至 `formatter.py`
 - 移动 `ActionHandler` 至 `core.py`
-- 移除 `AlconnGroup` 类，但保留通过 `|` 组合命令的行为
 - 移除 `analysis.base`
 - 合并 `arparma` 与 `components.behavior`
 - 合并 `parts` 与 `special`
@@ -143,6 +153,8 @@
 ## Alconna 1.5.0:
 
 ### 破坏性改动
+
+> 开发侧
 
 - `Arparma.update` 移动到 `ArparmaBehavior.update`
 - 部分 api 改动: 
@@ -193,6 +205,9 @@
 ## Alconna 1.4.0:
 
 ### 破坏性改动
+
+> 用户侧
+
 - 'Arpamar' -> 'Arparma'
 - `Alconna` 构建时不再允许废弃的 kwargs 参数传入
 - `ArgFlag` 中关于可变参数与键值参数部分移除
@@ -219,41 +234,82 @@
 
 ## Alconna 1.3.3
 
-1. 修复可能存在的内存泄漏问题
+### 修复
+
+- 修复可能存在的内存泄漏问题
 
 ## Alconna 1.3.2 ~ 1.3.2.2
 
-1. 添加通过"+"以组合字符串与选项或者子命令等隐式构建命令的方法
-2. 允许自定义内建选项的名称，比如改"--help"为"帮助"
-3. `Arpamar.find` 现在可以用 query_path 了
-4. `Arpamar.query` 现在返回的是MappingProxyType, 若需要修改path的值请用`Arpamar.update`
-5. 修复 bugs
+### 新增
+
+- 通过 "+" 以组合字符串与选项或者子命令等隐式构建命令的方法
+- 允许自定义内建选项的名称，比如改"--help"为"帮助"
+
+### 改进
+
+- `Arpamar.find` 现在可以用 query_path 了
+- `Arpamar.query` 现在返回的是MappingProxyType, 若需要修改path的值请用`Arpamar.update`
+
+### 修复
+
+- 修复 bugs
 
 ## Alconna 1.3.1
 
-1. 调整lang config
-2. 修改 help text 的 bug
-3. 调整 completion 样式
+### 改进
+
+- 调整lang config
+- 调整 completion 样式
+
+### 修复
+- 修改 help text 的 bug
 
 ## Alconna 1.3.0
 
-1. 修复 bugs
-2. 调整 Alconna的构造样式, 将header、command、options等合并; 兼容旧版写法到1.4
-3. 原先的builtins迁移至[`arclet-alconna-tools`](https://github.com/ArcletProject/Alconna-Tools), 只保留set_default、store_value与version
-4. `set_default`可以附加一个 arg 名
-5. 调整repr样式
-6. 取消 shortcut的expiration
-7. 新增命名空间配置，并将原先部分全局配置划为命名空间下的配置
-8. 允许.parse传入参数interrupt(bool)以在参数缺失的情况下可后续自行加参数
+### 破坏性改动
 
-## Alconna 1.2.0 ~ 1.2.0.7:
+> 用户侧
 
-1. 修复 bugs
-2. 加入 ArgField, 可填入 `alias`, `default_factory`等
-3. 命令管理器可以获取原始的命令数据
-4. 加入命令补全功能, 暂由`--comp|-cp`触发
-5. 加入 CommandMeta, 并取代`help_text`、`is_raise_exception`等
-6. meta 新增 `hide`, 可以在命令管理器获取所有帮助时跳过该命令
+- 取消 shortcut的expiration
+- 调整 Alconna的构造样式, 将header、command、options等合并; 兼容旧版写法到1.4
+
+> 开发侧
+
+- 原先的builtins迁移至[`arclet-alconna-tools`](https://github.com/ArcletProject/Alconna-Tools), 只保留set_default、store_value与version
+
+### 新增
+
+- 新增命名空间配置，并将原先部分全局配置划为命名空间下的配置
+- 允许.parse传入参数interrupt(bool)以在参数缺失的情况下可后续自行加参数
+
+### 改进
+
+- `set_default`可以附加一个 arg 名
+- 调整repr样式
+
+### 修复
+
+- 修复 bugs
+
+## Alconna 1.2.0:
+
+### 破坏性改动
+
+- 加入 `CommandMeta`, 并取代`help_text`、`is_raise_exception`等
+
+### 新增
+
+- 加入 `ArgField`, 可填入 `alias`, `default_factory`等
+- 加入命令补全功能, 暂由`--comp|-cp`触发
+- `CommandMeta` 新增 `hide`, 可以在命令管理器获取所有帮助时跳过该命令
+
+### 改进
+
+- 命令管理器可以获取原始的命令数据
+
+### 修复
+
+- 修复 bugs
 
 ## Alconna 1.1.2 - 1.1.2.3:
 
@@ -264,11 +320,11 @@
 
 1. `Arpamar` 泛型支持, 可通过`Arpamar[type]`指定原指令的类型
 2. `Alconna` 可通过 `|` 进行组合, 返回命令组
-```python
-alc = Alconna("{place1}在哪里") | Alconna("哪里有{place1}")
-alc.parse("食物在哪里")
-alc.parse("哪里有食物")
-```
+    ```python
+    alc = Alconna("{place1}在哪里") | Alconna("哪里有{place1}")
+    alc.parse("食物在哪里")
+    alc.parse("哪里有食物")
+    ```
 
 ## Alconna 1.1.0:
 
