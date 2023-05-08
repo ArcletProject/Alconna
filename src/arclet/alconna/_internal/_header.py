@@ -57,7 +57,7 @@ class Pair:
                 return
         if self.is_prefix_pat and (val := self.prefix.exec(prefix, Empty)).success:
             return (prefix, command), (val.value, command), True, mat.groupdict()
-        if not isclass(prefix) and prefix == self.prefix or type(prefix) == self.prefix:
+        if not isclass(prefix) and prefix == self.prefix or prefix.__class__ == self.prefix:
             return (prefix, command), (prefix, command), True, mat.groupdict()
 
 

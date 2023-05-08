@@ -147,7 +147,7 @@ class CompSession:
 
     def send_prompt(self):
         """打印补全文本。"""
-        return output_manager.send(self.source.command.name, lambda: self.__repr__())
+        return output_manager.send(self.source.command.name, self.__repr__)
 
     def __enter__(self):
         self._token = comp_ctx.set(self)

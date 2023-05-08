@@ -5,7 +5,6 @@ from typing import Any, Callable, overload
 
 from .arparma import Arparma, ArparmaBehavior
 from .exceptions import BehaveCancelled
-from .model import OptionResult, SubcommandResult
 
 __all__ = ["set_default"]
 

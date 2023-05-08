@@ -1,28 +1,27 @@
 from __future__ import annotations
 
+import dataclasses as dc
 import inspect
 import re
+import sys
 from copy import deepcopy
-import dataclasses as dc
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, TYPE_CHECKING
+from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
+
+from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, all_patterns, type_parser
 from tarina import Empty, get_signature, lang
-from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, type_parser, all_patterns
 from typing_extensions import Self
 
 from .exceptions import InvalidParam
 from .typing import KeyWordVar, MultiVar
 
-if TYPE_CHECKING:
-    from dataclasses import dataclass
-else:
-    import sys
 
-    def dataclass(*args, **kwargs):
-        if sys.version_info < (3, 10):  # pragma: no cover
-            kwargs.pop('slots')
-        return dc.dataclass(*args, **kwargs)
+def safe_dcls_kw(**kwargs):
+    if sys.version_info < (3, 10):  # pragma: no cover
+        kwargs.pop('slots')
+    return kwargs
+
 
 _T = TypeVar("_T")
 TAValue = Union[BasePattern, AllParam.__class__, type, str]
@@ -36,7 +35,7 @@ class ArgFlag(str, Enum):
     ANTI = "!"
 
 
-@dataclass(slots=True)
+@dc.dataclass(**safe_dcls_kw(slots=True))
 class Field(Generic[_T]):
     """标识参数单元字段"""
 
@@ -53,7 +52,7 @@ class Field(Generic[_T]):
         return self.alias or self.default
 
 
-@dataclass(init=False, eq=True, unsafe_hash=True, slots=True)
+@dc.dataclass(**safe_dcls_kw(init=False, eq=True, unsafe_hash=True, slots=True))
 class Arg:
     """参数单元"""
 
@@ -124,9 +123,8 @@ class Arg:
             self.value = deepcopy(self.value).reverse()
 
     def __repr__(self):
-        return (n if (n := f"'{self.name}'") == (v := str(self.value)) else f"{n}: {v}") + (
-            f" = '{self.field.display}'" if self.field.display is not None else ""
-        )
+        n, v = f"'{self.name}'", str(self.value)
+        return (n if n == v else f"{n}: {v}") + (f" = '{self.field.display}'" if self.field.display is not None else "")
 
 
 class ArgsMeta(type):

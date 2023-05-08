@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import traceback
 from re import Match
-from typing import TYPE_CHECKING, Any, Generic, Callable
+from typing import TYPE_CHECKING, Any, Generic, Callable, Set
 from dataclasses import dataclass, field
 from typing_extensions import Self, TypeAlias
 from tarina import lang
@@ -466,4 +466,4 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return result  # type: ignore
 
 
-TCompile: TypeAlias = "Callable[[SubAnalyser, Namespace, set[str]], None]"
+TCompile: TypeAlias = Callable[[SubAnalyser, Namespace, Set[str]], None]

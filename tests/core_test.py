@@ -9,7 +9,6 @@ from arclet.alconna import (
     MultiVar,
     KeyWordVar,
     Arg,
-    store_true,
     CompSession,
 )
 from nepattern import IP, URL
@@ -548,7 +547,7 @@ def test_nest_subcommand():
 
 
 def test_action():
-    from arclet.alconna import append, append_value, count
+    from arclet.alconna import append, append_value, count, store_true
 
     alc24 = Alconna(
         "core24", Option("--yes|-y", action=store_true), Args["module", AllParam]

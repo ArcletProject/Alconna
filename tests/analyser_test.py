@@ -53,7 +53,7 @@ def test_filter_out():
 
 
 def test_preprocessor():
-    argv_config(preprocessors={"float": lambda x: int(x)})
+    argv_config(preprocessors={"float": int})
     ana1 = Alconna("ana1", Args["bar", int])
     assert ana1.parse(["ana1", 123.06]).matched is True
     assert ana1.parse(["ana1", 123.06]).bar == 123

@@ -351,7 +351,6 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
             if argv.context.__class__ is Arg:
                 raise e
             argv.data_reset(_data, _index)
-            continue
 
 
 def handle_opt_default(defaults: dict[str, tuple[OptionResult, Action]], data: dict[str, OptionResult]):
@@ -406,24 +405,23 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             )
         analyse_option(analyser, argv, _param)
     elif _param.__class__ is list:
+        exc: Exception | None = None
         for opt in _param:
             _data, _index = argv.data_set()
             try:
                 if opt.requires and analyser.sentences != opt.requires:
-                    raise ParamsUnmatched(
-                        lang.require("option", "require_error").format(
-                            source=opt.name, target=' '.join(analyser.sentences)
-                        )
-                    )
+                    raise ParamsUnmatched(lang.require("option", "require_error").format(
+                        source=opt.name, target=' '.join(analyser.sentences)
+                    ))
                 analyser.sentences = []
                 analyse_option(analyser, argv, opt)
                 _data.clear()
+                exc = None
                 break
             except Exception as e:
                 exc = e
                 argv.data_reset(_data, _index)
-                continue
-        else:
+        if exc:
             raise exc  # type: ignore  # noqa
     elif _param is not None:
         if _param.command.requires and analyser.sentences != _param.command.requires:

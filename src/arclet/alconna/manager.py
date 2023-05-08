@@ -183,10 +183,9 @@ class CommandManager:
             del self.__analysers[base]
             del self.__commands[namespace][name]
             self.current_count -= 1
-        finally:
+        except KeyError:
             if self.__commands.get(namespace) == {}:
                 del self.__commands[namespace]
-            return None
 
     def is_disable(self, command: Alconna) -> bool:
         """判断命令是否被禁用"""
@@ -248,13 +247,13 @@ class CommandManager:
             try:
                 return self.__shortcuts[f"{namespace}.{name}::{query}"], None
             except KeyError as e:
-                for k in self.__shortcuts.keys():
+                for k in self.__shortcuts:
                     if mat := re.match(k.split("::")[1], query):
                         return self.__shortcuts[k], mat
                 raise ValueError(
                     lang.require("manager", "target_command_error").format(target=f"{namespace}.{name}", shortcut=query)
                 ) from e
-        return [self.__shortcuts[k] for k in self.__shortcuts.keys() if f"{namespace}.{name}" in k]
+        return [self.__shortcuts[k] for k in self.__shortcuts if f"{namespace}.{name}" in k]
 
     def delete_shortcut(self, target: Alconna, key: str | None = None):
         """删除快捷命令"""

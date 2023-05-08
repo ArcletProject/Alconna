@@ -58,6 +58,7 @@ def test_duplication():
     com4_1 = Alconna(["!", "！"], "yiyu", Args["value;OH", str])
     res = com4_1.parse("!yiyu")
     dup = generate_duplication(res)
+    assert isinstance(dup, Duplication)
 
 def test_output():
     print("")
