@@ -2,14 +2,14 @@
 
 ## 未发布:
 
+**此版本为长期支持版本 (LTS), 也是 2.0 版本前的最后一个版本**
+
 ### 破坏性改动:
 
 > 用户侧
 
 - `ShortcutArgs` 不再需要 `options`, 其合并至 `args`
 - `Alconna.parse` 移除参数 `interrupt`, 由 `CompSession` 替代
-- `CommandNode` 的 `is_compact` 属性移除 (原先由 sep = '' 时设置)
-- `set_default` 的 `arg`, `option`, `subcommand` 合并为 `path`
 
 > 开发侧
 
@@ -64,6 +64,7 @@
   - 可以通过 `{*(SEP)}` 来引用传入的快捷命令的所有参数, 其中 SEP 为可选的分隔符
 - bracket header 现在支持进行类型转换
 - 性能优化, 提升25% ~ 30%
+- `set_default` 的 `arg`, `option`, `subcommand` 合并为 `path`, 原参数仍可用
 
 ### 修复:
 
