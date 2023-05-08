@@ -183,16 +183,18 @@ class TextFormatter:
             parameter (Arg): 参数单元
         """
         name = parameter.name
+        if str(parameter.value).strip("'\"") == name:
+            return f"[{name}]" if parameter.optional else name
+        if parameter.hidden:
+            return f"[{name}]" if parameter.optional else f"<{name}>"
+        if parameter.value is AllParam:
+            return f"<...{name}>"
         arg = f"[{name}" if parameter.optional else f"<{name}"
-        if not parameter.hidden:
-            if parameter.value is AllParam:
-                return f"<...{name}>"
-            if not isinstance(parameter.value, BasePattern) or parameter.value.pattern != name:
-                arg += f": {parameter.value}"
-            if parameter.field.display is Empty:
-                arg += " = None"
-            elif parameter.field.display is not None:
-                arg += f" = {parameter.field.display}"
+        arg += f": {parameter.value}"
+        if parameter.field.display is Empty:
+            arg += " = None"
+        elif parameter.field.display is not None:
+            arg += f" = {parameter.field.display}"
         return f"{arg}]" if parameter.optional else f"{arg}>"
 
     def parameters(self, args: Args) -> str:

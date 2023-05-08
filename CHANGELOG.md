@@ -52,6 +52,7 @@
     - `store_xxx`, `count`: 最新的 args 结果会覆盖上一次
     - `append_xxx`: 此次的 args 结果会与之前的合并成列表
 - 新增 `set_default_argv_type` 函数, 用于设置默认的 `Argv` 类型
+- `CommandMeta.example` 现在会将 `$` 替换为可能的命令前缀
 
 ### 改进:
 

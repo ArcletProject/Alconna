@@ -129,6 +129,8 @@ class Alconna(Subcommand, Generic[TDC]):
         self.namespace = ns_config.name
         self.formatter = (formatter_type or ns_config.formatter_type or TextFormatter)()
         self.meta = meta or CommandMeta()
+        if self.meta.example:
+            self.meta.example = self.meta.example.replace("$", str(self.prefixes[0]) if self.prefixes else "")
         self.meta.fuzzy_match = self.meta.fuzzy_match or ns_config.fuzzy_match
         self.meta.raise_exception = self.meta.raise_exception or ns_config.raise_exception
         self.meta.compact = self.meta.compact or ns_config.compact
