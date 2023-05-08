@@ -62,6 +62,7 @@ QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 ## Features
 
 * High Performance. On i5-10210U, performance is about `71000~289000 msg/s`; test script: [benchmark](benchmark.py)
+* Intuitive way to create command components
 * Powerful Automatic Type Parse and Conversion
 * Customizable Help Text Formatter and Control of Command Analyser
 * i18n Support
@@ -103,10 +104,11 @@ Example of Type Conversion:
 from arclet.alconna import Alconna, Args
 from pathlib import Path
 
-read = Alconna(
-    "read", Args["data", bytes], 
-    action=lambda data: print(type(data))
-)
+read = Alconna("read", Args["data", bytes])
+
+@read.bind()
+def cb(data: bytes):
+    print(type(data))
 
 read.parse(["read", b'hello'])
 read.parse("read test_fire.py")
@@ -119,15 +121,48 @@ read.parse(["read", Path("test_fire.py")])
 '''
 ```
 
+Example of Component creation:
+```python
+# component.py
+from arclet.alconna import Alconna, Args, Option, Subcommand, store_true, count, append
+
+alc = Alconna(
+    "component",
+    Args["path", str],
+    Option("--verbose|-v", action=count),
+    Option("-f", Args["flag", str], compact=True, action=append),
+    Subcommand("sub", Option("bar", action=store_true, default=False))
+)
+
+if __name__ == '__main__':
+    res = alc()
+    print(res.query("path"))
+    print(res.query("verbose.value"))
+    print(res.query("f.flag"))
+    print(res.query("sub"))
+```
+
+```shell
+$ python component.py /home/arclet -vvvv -f1 -f2 -f3 sub bar
+/home/arclet
+4
+['1', '2', '3']
+(value=Ellipsis args={} options={'bar': (value=True args={})} subcommands={})
+```
+
 Example of Command Shortcut:
 ```python
 # shortcut.py
 from arclet.alconna import Alconna, Args
 
-alc = Alconna("eval", Args["content", str], action=lambda x: eval(x, {}, {}))
+alc = Alconna("eval", Args["content", str])
 alc.shortcut("echo", {"command": "eval print(\\'{*}\\')"})
 
-if __name__ == "__main__":
+@alc.bind()
+def cb(content: str):
+    eval(content, {}, {})
+
+if __name__ == '__main__':
     alc()
 ```
 

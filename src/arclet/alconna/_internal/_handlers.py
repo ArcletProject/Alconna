@@ -511,7 +511,7 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
     argv.next()
     try:
         opt_v = analyse_args(argv, _args)
-    except SpecialOptionTriggered as e:
+    except SpecialOptionTriggered:
         return handle_completion(analyser, argv)
     try:
         msg = analyser.command.shortcut(
