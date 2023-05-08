@@ -53,6 +53,7 @@
     - `append_xxx`: 此次的 args 结果会与之前的合并成列表
 - 新增 `set_default_argv_type` 函数, 用于设置默认的 `Argv` 类型
 - `CommandMeta.example` 现在会将 `$` 替换为可能的命令前缀
+- `Completion` 选项增加别名 `'?'`
 
 ### 改进:
 
@@ -70,6 +71,7 @@
 ### 修复:
 
 - 修复 `anti args` 的 bug
+- 修复 `Formatter.remove` 的 bug
 
 
 ## Alconna 1.6.6:

@@ -41,7 +41,7 @@ class Namespace:
         default_factory=lambda: {
             "help": {"--help", "-h"},
             "shortcut": {"--shortcut", "-sct"},
-            "completion": {"--comp", "-cp", "?", "？"},
+            "completion": {"--comp", "-cp", "?"},
         }
     )
     """默认的内置选项名称"""

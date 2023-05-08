@@ -115,8 +115,7 @@ class TextFormatter:
         if isinstance(base, str):
             self.data.pop(base)
         else:
-            with suppress(ValueError):
-                self.data.get(base.path, []).remove(base)
+            self.data.pop(base.path)
 
     def format_node(self, parts: list | None = None):
         """格式化命令节点
