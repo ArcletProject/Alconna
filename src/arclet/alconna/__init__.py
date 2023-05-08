@@ -15,6 +15,7 @@ from .manager import command_manager, ShortcutArgs
 
 from .action import store_value, store_true, store_false, append, count, append_value
 from .builtin import set_default
+from .model import OptionResult, SubcommandResult, HeadResult
 from .output import output_manager
 from .formatter import TextFormatter
 from .duplication import Duplication

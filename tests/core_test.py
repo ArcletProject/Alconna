@@ -586,6 +586,52 @@ def test_action():
     assert res.query("foo_bar_q.value") == 3
 
 
+def test_defualt():
+    from arclet.alconna import store_value, OptionResult, append, store_true
+
+    alc25 = Alconna(
+        "core25",
+        Option("--foo", action=store_value(123), default=423),
+        Option("bar", Args["baz;?", int]["qux", float, 1.0], default=OptionResult(args={"baz": 321})),
+    )
+
+    res1 = alc25.parse("core25")
+    assert res1.query("foo.value") == 423
+    assert res1.query("baz") == 321
+
+    res2 = alc25.parse("core25 bar")
+    assert res2.query("foo.value") == 423
+    assert res2.query("bar.baz") == 321
+    assert res2.query("bar.qux") == 1.0
+
+    res3 = alc25.parse("core25 --foo")
+    assert res3.query("foo.value") == 123
+    assert res3.query("bar.baz") == 321
+
+    res4 = alc25.parse("core25 bar 234 2.0")
+    assert res4.query("foo.value") == 423
+    assert res4.query("bar.baz") == 234
+    assert res4.query("bar.qux") == 2.0
+
+    alc25_1 = Alconna(
+        "core25_1",
+        Option("--foo", action=append, default=423),
+        Subcommand("test", Option("--bar", default=False, action=store_true))
+    )
+
+    res5 = alc25_1.parse("core25_1")
+    assert res5.query("foo.value") == [423]
+    assert res5.query("test.bar.value") is None
+
+    res6 = alc25_1.parse("core25_1 --foo test")
+    assert res6.query("foo.value") == [423]
+    assert res6.query("test.bar.value") is False
+
+    res7 = alc25_1.parse("core25_1 --foo --foo test --bar")
+    assert res7.query("foo.value") == [423, 423]
+    assert res7.query("test.bar.value") is True
+
+
 if __name__ == "__main__":
 
     pytest.main([__file__, "-vs"])

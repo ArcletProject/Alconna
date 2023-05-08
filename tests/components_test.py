@@ -1,50 +1,26 @@
-from arclet.alconna import Alconna, Option, Args, Subcommand, Arparma, ArparmaBehavior, store_value
+from arclet.alconna import Alconna, Option, Args, Subcommand, Arparma, ArparmaBehavior
 from arclet.alconna.builtin import set_default
 from arclet.alconna.duplication import Duplication, generate_duplication
 from arclet.alconna.stub import ArgsStub, OptionStub, SubcommandStub
 from arclet.alconna.output import output_manager
+from arclet.alconna.model import OptionResult
+
 
 def test_behavior():
-    com = Alconna("comp", Args["bar", int]) + Option("foo")
+    com = Alconna("comp", Args["bar", int]) + Option("foo", default=321)
+
     class Test(ArparmaBehavior):
-        requires = [set_default(value=321, option="foo")]
+        requires = [set_default(factory=lambda: OptionResult(321), path="option.baz")]
 
         @classmethod
         def operate(cls, interface: "Arparma"):
             print('\ncom: ')
             print(interface.query("options.foo.value"))
+            print(interface.query("options.baz.value"))
             interface.behave_fail()
 
     com.behaviors.append(Test())
     assert com.parse("comp 123").matched is False
-
-
-def test_set_defualt():
-    com1 = Alconna(
-        "comp1",
-        Option("--foo", action=store_value(123)),
-        Option("bar", Args["baz;?", int]["qux", float, 1.0])
-    )
-    com1.behaviors.append(set_default(value=321, option="bar", arg="baz"))
-    com1.behaviors.append(set_default(factory=lambda: 423, option="foo"))
-
-    res1 = com1.parse("comp1")
-    assert res1.query("foo.value") == 423
-    assert res1.query("baz") == 321
-
-    res2 = com1.parse("comp1 bar")
-    assert res2.query("foo.value") == 423
-    assert res2.query("bar.baz") == 321
-    assert res2.query("bar.qux") == 1.0
-
-    res3 = com1.parse("comp1 --foo")
-    assert res3.query("foo.value") == 123
-    assert res3.query("bar.baz") == 321
-
-    res4 = com1.parse("comp1 bar 234 2.0")
-    assert res4.query("foo.value") == 423
-    assert res4.query("bar.baz") == 234
-    assert res4.query("bar.qux") == 2.0
 
 
 def test_duplication():

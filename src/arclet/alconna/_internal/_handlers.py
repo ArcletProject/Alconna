@@ -7,6 +7,7 @@ from nepattern import AllParam, BasePattern, AnyOne, AnyString
 from nepattern.util import TPattern
 
 from ._header import Double, Header
+from ..action import Action
 from ..args import Arg, Args, STRING
 from ..base import Option, Subcommand
 from ..config import config
@@ -343,8 +344,7 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
                     return lang.require("subcommand", "require_error").format(
                         source=param.command.name, target=' '.join(analyser.sentences)
                     )
-                param.process(argv)
-                analyser.subcommands_result.setdefault(param.command.dest, param.result())
+                analyser.subcommands_result[param.command.dest] = param.process(argv).result()
             _data.clear()
             return True
         except ParamsUnmatched as e:
@@ -352,6 +352,21 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
                 raise e
             argv.data_reset(_data, _index)
             continue
+
+
+def handle_opt_default(defaults: dict[str, tuple[OptionResult, Action]], data: dict[str, OptionResult]):
+    for k, v in defaults.items():
+        if k not in data:
+            data[k] = v[0]
+        elif v[0].args:
+            for key, value in v[0].args.items():
+                if v[1].type == 0 and key not in data[k].args:
+                    data[k].args[key] = value
+                elif v[1].type == 1:
+                    if key in data[k].args:
+                        data[k].args[key].append(value)
+                    else:
+                        data[k].args[key] = [value]
 
 
 def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | None = None):
@@ -422,8 +437,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
                     source=_param.command.name, target=' '.join(analyser.sentences)
                 )
             )
-        _param.process(argv)
-        analyser.subcommands_result.setdefault(_param.command.dest, _param.result())
+        analyser.subcommands_result[_param.command.dest] = _param.process(argv).result()
     else:
         raise TerminateLoop(str(_text))
     analyser.sentences.clear()

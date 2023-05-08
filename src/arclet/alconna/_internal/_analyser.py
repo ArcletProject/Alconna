@@ -17,6 +17,7 @@ from ..exceptions import (
     SpecialOptionTriggered,
     TerminateLoop
 )
+from ..action import Action
 from ..args import Args
 from ..base import Option, Subcommand
 from ..completion import comp_ctx
@@ -27,7 +28,8 @@ from ..config import Namespace, config
 from ..output import output_manager
 from ._util import levenshtein
 from ._handlers import (
-    analyse_args, analyse_param, analyse_header, handle_help, handle_shortcut, handle_completion, prompt
+    analyse_args, analyse_param, analyse_header, handle_opt_default,
+    handle_help, handle_shortcut, handle_completion, prompt
 )
 from ._header import Header
 
@@ -80,6 +82,8 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
             if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(opts)
             _compile_opts(opts, analyser.compile_params)  # type: ignore
+            if opts.default:
+                analyser.default_opt_result[opts.dest] = (opts.default, opts.action)
             pids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
             sub = SubAnalyser(opts)
@@ -88,6 +92,8 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
             default_compiler(sub, _config, pids)
             if not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(sub)
+            if sub.command.default:
+                analyser.default_sub_result[opts.dest] = sub.command.default
         if opts.requires:
             pids.update(opts.requires)
             require_len = max(len(opts.requires), require_len)
@@ -123,6 +129,10 @@ class SubAnalyser(Generic[TDC]):
     """值的解析结果"""
     sentences: list[str] = field(init=False)
     """暂存传入的所有句段"""
+    default_opt_result: dict[str, tuple[OptionResult, Action]] = field(default_factory=dict)
+    """默认选项的解析结果"""
+    default_sub_result: dict[str, SubcommandResult] = field(default_factory=dict)
+    """默认子命令的解析结果"""
 
     def _clr(self):
         """清除自身的解析结果"""
@@ -146,8 +156,14 @@ class SubAnalyser(Generic[TDC]):
         Returns:
             SubcommandResult: 子命令解析结果
         """
+        if self.default_opt_result:
+            handle_opt_default(self.default_opt_result, self.options_result)
+        if self.default_sub_result:
+            for k, v in self.default_sub_result.items():
+                if k not in self.subcommands_result:
+                    self.subcommands_result[k] = v
         res = SubcommandResult(
-            self.value_result, self.args_result.copy(), self.options_result.copy(), self.subcommands_result.copy()
+            self.value_result, self.args_result, self.options_result, self.subcommands_result
         )
         self.reset()
         return res
@@ -433,6 +449,12 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             result.error_info = repr(exception or traceback.format_exc(limit=1))
             result.error_data = argv.release()
         else:
+            if self.default_opt_result:
+                handle_opt_default(self.default_opt_result, self.options_result)
+            if self.default_sub_result:
+                for k, v in self.default_sub_result.items():
+                    if k not in self.subcommands_result:
+                        self.subcommands_result[k] = v
             result.main_args = self.args_result
             result.options = self.options_result
             result.subcommands = self.subcommands_result

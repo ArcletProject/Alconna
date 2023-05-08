@@ -9,6 +9,7 @@
 - `ShortcutArgs` 不再需要 `options`, 其合并至 `args`
 - `Alconna.parse` 移除参数 `interrupt`, 由 `CompSession` 替代
 - `CommandNode` 的 `is_compact` 属性移除 (原先由 sep = '' 时设置)
+- `set_default` 的 `arg`, `option`, `subcommand` 合并为 `path`
 
 > 开发侧
 
@@ -23,6 +24,14 @@
 ### 新增:
 
 - `Option` 新增参数 `compact`, 允许选项名后的第一个参数紧随其头部
+- `Option` 新增参数 `default`, 允许设置选项的默认值:
+    - 传入的任意值会被包装为 `OptionResult`, 除非其为 `None`
+    - 直接传入 `OptionResult` 会被直接使用
+    - 若想设置 args 的默认值, 请传入 `OptionResult`
+- `Subcommand` 新增参数 `default`, 允许设置子命令的默认值
+    - 传入的任意值会被包装为 `SubcommandResult`, 除非其为 `None`
+    - 直接传入 `SubcommandResult` 会被直接使用
+    - 若想设置 args 的默认值, 请传入 `SubcommandResult`
 - `CommandMeta` 与 `Namespace` 新增 `compact` 属性, 允许命令传入的第一个参数紧随其头部
 - `Namespace` 新增 `to_text` 属性, 其与 `Argv.to_text` 一致
 - 加入 `CompSession`, 用于交互式命令补全
@@ -34,9 +43,9 @@
 - `Alconna` 现支持 `__call__`, 即直接调用实例; 当命令名与 sys.argv[0] 接近时, 传入命令不需要输入命令头
 - `Action` 改动, 现在 `Action` 功能更接近于 `argparse`:
     - args 为空时:
-      - `store`: 默认的 action, 存放 `...`
+      - `store`: 默认的 action, 存放 `...` 或 `default` 的值
       - `store_value`, `store_true`, `store_false`: 存放特殊值
-      - `append`: 追加 `...`
+      - `append`: 追加 `...` 或 `default` 的值
       - `append_value`: 追加特殊值
       - `count`: 计数
     - args 不为空时:

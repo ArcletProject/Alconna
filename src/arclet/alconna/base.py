@@ -2,13 +2,40 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Iterable, Sequence, overload
+from typing import Iterable, Sequence, overload, Any
 from typing_extensions import Self
 from tarina import lang
 
 from .action import Action, store
 from .args import Arg, Args
 from .exceptions import InvalidParam
+from .model import OptionResult, SubcommandResult
+
+
+def _handle_default(node: CommandNode):
+    if node.default is None:
+        return
+    act = node.action
+    if isinstance(node.default, (OptionResult, SubcommandResult)):
+        if act.type == 0 and act.value is ...:
+            act.value = node.default.value
+        if act.type == 1:
+            if not isinstance(node.default.value, list):
+                node.default.value = [node.default.value]
+            if act.value[0] is ...:
+                act.value = node.default.value[:]
+        if act.type == 2 and not isinstance(node.default.value, int):
+            node.default.value = 1
+    else:
+        if act.type == 0 and act.value is ...:
+            act.value = node.default
+        if act.type == 1:
+            if not isinstance(node.default, list):
+                node.default = [node.default]
+            if act.value[0] is ...:
+                act.value = node.default[:]
+        if act.type == 2 and not isinstance(node.default, int):
+            node.default = 1
 
 
 class CommandNode:
@@ -18,6 +45,8 @@ class CommandNode:
     """命令节点名称"""
     dest: str
     """命令节点目标名称"""
+    default: Any
+    """命令节点默认值"""
     args: Args
     """命令节点参数"""
     separators: tuple[str, ...]
@@ -31,7 +60,7 @@ class CommandNode:
 
     def __init__(
         self, name: str, args: Arg | Args | None = None,
-        dest: str | None = None, action: Action | None = None,
+        dest: str | None = None, default: Any = None, action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
@@ -43,6 +72,7 @@ class CommandNode:
             name (str): 命令节点名称
             args (Arg | Args | None, optional): 命令节点参数
             dest (str | None, optional): 命令节点目标名称
+            default (Any, optional): 命令节点默认值
             action (Action | None, optional): 命令节点响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             help_text (str | None, optional): 命令帮助信息
@@ -55,7 +85,9 @@ class CommandNode:
         self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []
         self.requires.extend(_parts[:-1])
         self.args = Args() + args
+        self.default = default
         self.action = action or store
+        _handle_default(self)
         self.separators = (' ',) if separators is None else (
             (separators,) if isinstance(separators, str) else tuple(separators)
         )
@@ -83,12 +115,17 @@ class CommandNode:
         return self
 
     def __repr__(self):
-        return self.dest + ("" if self.args.empty else f"(args={self.args})")
+        data = {}
+        if not self.args.empty:
+            data["args"] = self.args
+        if self.default is not None:
+            data["default"] = self.default
+        return f"{self.__class__.__name__}({self.dest!r}, {', '.join(f'{k}={v!r}' for k, v in data.items())})"
 
     def _calc_hash(self):
         data = vars(self)
         data.pop("_hash", None)
-        return hash(str(data))
+        return hash(repr(data))
 
     def __hash__(self):
         return self._hash
@@ -103,6 +140,8 @@ class Option(CommandNode):
     相比命令节点, 命令选项可以设置别名, 优先级, 允许名称与后随参数之间无分隔符
     """
 
+    default: OptionResult | None
+    """命令选项默认值"""
     aliases: frozenset[str]
     """命令选项别名"""
     priority: int
@@ -113,7 +152,7 @@ class Option(CommandNode):
     def __init__(
         self,
         name: str, args: Arg | Args | None = None, alias: Iterable[str] | None = None,
-        dest: str | None = None, action: Action | None = None,
+        dest: str | None = None, default: Any = None, action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
@@ -122,16 +161,17 @@ class Option(CommandNode):
         """初始化命令选项
 
         Args:
-            name(str): 命令选项名称
-            args(Arg | Args | None, optional): 命令选项参数
-            alias(Iterable[str] | None, optional): 命令选项别名
-            dest(str | None, optional): 命令选项目标名称
-            action(Action | None, optional): 命令选项响应动作
-            separators(str | Sequence[str] | Set[str] | None, optional): 命令分隔符
-            help_text(str | None, optional): 命令选项帮助信息
-            requires(str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令选项需求前缀
-            compact(bool, optional): 是否允许名称与后随参数之间无分隔符
-            priority(int, optional): 命令选项优先级
+            name (str): 命令选项名称
+            args (Arg | Args | None, optional): 命令选项参数
+            alias (Iterable[str] | None, optional): 命令选项别名
+            dest (str | None, optional): 命令选项目标名称
+            default (Any, optional): 命令选项默认值
+            action (Action | None, optional): 命令选项响应动作
+            separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
+            help_text (str | None, optional): 命令选项帮助信息
+            requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令选项需求前缀
+            compact (bool, optional): 是否允许名称与后随参数之间无分隔符
+            priority (int, optional): 命令选项优先级
         """
         aliases = list(alias or [])
         _name = name.split(" ")[-1]
@@ -145,7 +185,11 @@ class Option(CommandNode):
         self.aliases = frozenset(aliases)
         self.priority = priority
         self.compact = compact
-        super().__init__(name, args, dest, action, separators, help_text, requires)
+        default = (
+            None if default is None else
+            default if isinstance(default, OptionResult) else OptionResult(default)
+        )
+        super().__init__(name, args, dest, default, action, separators, help_text, requires)
         if self.separators == ("",):
             self.compact = True
             self.separators = (" ",)
@@ -172,7 +216,7 @@ class Option(CommandNode):
         """
         if isinstance(other, Option):
             return Subcommand(
-                self.name, other, self.args, dest=self.dest, action=self.action,
+                self.name, other, self.args, dest=self.dest,
                 separators=self.separators, help_text=self.help_text, requires=self.requires
             )
         if isinstance(other, (Arg, Args)):
@@ -205,7 +249,8 @@ class Subcommand(CommandNode):
 
     与命令节点不同, 子命令可以包含多个命令选项与相对于自己的子命令
     """
-
+    default: SubcommandResult | None
+    """子命令默认值"""
     options: list[Option | Subcommand]
     """子命令包含的选项与子命令"""
 
@@ -213,7 +258,7 @@ class Subcommand(CommandNode):
         self,
         name: str,
         *args: Args | Arg | Option | Subcommand | list[Option | Subcommand],
-        dest: str | None = None, action: Action | None = None,
+        dest: str | None = None, default: Any = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
@@ -224,6 +269,7 @@ class Subcommand(CommandNode):
             name (str): 子命令名称
             *args (Args | Arg | Option | Subcommand | list[Option | Subcommand]): 参数, 选项或子命令
             dest (str | None, optional): 子命令选项目标名称
+            default (Any, optional): 子命令默认值
             action (Action | None, optional): 子命令选项响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 子命令分隔符
             help_text (str | None, optional): 子命令选项帮助信息
@@ -232,10 +278,14 @@ class Subcommand(CommandNode):
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         for li in filter(lambda x: isinstance(x, list), args):
             self.options.extend(li)
+        default = (
+            None if default is None else
+            default if isinstance(default, SubcommandResult) else SubcommandResult(default)
+        )
         super().__init__(
             name,
             reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            dest, action, separators, help_text, requires
+            dest, default, None, separators, help_text, requires
         )
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:
