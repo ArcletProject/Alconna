@@ -358,15 +358,10 @@ def handle_opt_default(defaults: dict[str, tuple[OptionResult, Action]], data: d
     for k, v in defaults.items():
         if k not in data:
             data[k] = v[0]
-        elif v[0].args:
-            for key, value in v[0].args.items():
-                if v[1].type == 0 and key not in data[k].args:
-                    data[k].args[key] = value
-                elif v[1].type == 1:
-                    if key in data[k].args:
-                        data[k].args[key].append(value)
-                    else:
-                        data[k].args[key] = [value]
+        if not v[0].args:
+            continue
+        for key, value in v[0].args.items():
+            data[k].args.setdefault(key, [value] if v[1].value == 1 else value)
 
 
 def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | None = None):
