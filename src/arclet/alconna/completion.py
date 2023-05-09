@@ -85,11 +85,11 @@ class CompSession:
         self.index %= len(self.prompts)
         return self.prompts[self.index].text
 
-    def enter(self, content: Any | None = None):
+    def enter(self, content: list | None = None):
         """确认当前补全选项。
 
         Args:
-            content (Any, optional): 补全选项的内容。不传入则使用当前选中的补全选项文本
+            content (list, optional): 补全选项的内容。不传入则使用当前选中的补全选项文本
 
         Returns:
             Any: 补全后执行的结果。
@@ -112,7 +112,7 @@ class CompSession:
             argv.bak_data[-1] = last[
                 : last.rfind(prompt.removal_prefix)
             ]
-        argv.addon(prompt.text)
+        argv.addon([prompt.text])
         self.clear()
         return self.source.process(argv)
 

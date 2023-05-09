@@ -128,14 +128,14 @@ class CommandManager:
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         self.__argv.pop(command, None)
-        self.__argv[command] = __argv_type__(
-            command.namespace_config,
-            fuzzy_match=command.meta.fuzzy_match,
-            to_text=command.namespace_config.to_text,
-            converter=command.namespace_config.converter,
-            separators=command.separators,
-            message_cache=command.namespace_config.enable_message_cache,
-            filter_crlf=not command.meta.keep_crlf,
+        self.__argv[command] = __argv_type__.get()(
+            command.namespace_config,  # type: ignore
+            fuzzy_match=command.meta.fuzzy_match,  # type: ignore
+            to_text=command.namespace_config.to_text,  # type: ignore
+            converter=command.namespace_config.converter,  # type: ignore
+            separators=command.separators,  # type: ignore
+            message_cache=command.namespace_config.enable_message_cache,  # type: ignore
+            filter_crlf=not command.meta.keep_crlf,  # type: ignore
         )
         self.__analysers.pop(command, None)
         self.__analysers[command] = command.compile(None)

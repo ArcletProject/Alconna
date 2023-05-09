@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, InitVar
-from typing import Any, Callable, Generic, ClassVar
+from typing import Any, Callable, Generic, ClassVar, Iterable
 from typing_extensions import Self
 from tarina import split, split_once, lang
 
@@ -129,11 +129,11 @@ class Argv(Generic[TDC]):
             self.token = self.generate_token(raw_data)
         return self
 
-    def addon(self, *data: str | Any) -> Self:
+    def addon(self, data: Iterable[str | Any]) -> Self:
         """添加命令元素
 
         Args:
-            *data (str | Any): 命令元素
+            data (Iterable[str | Any]): 命令元素
 
         Returns:
             Self: 自身
@@ -142,6 +142,8 @@ class Argv(Generic[TDC]):
         for i, d in enumerate(data):
             if not d:
                 continue
+            if res := self.to_text(d):
+                d = res
             if isinstance(d, str) and i > 0 and isinstance(self.raw_data[-1], str):
                 self.raw_data[-1] += f"{self.separators[0]}{d}"
             else:

@@ -344,7 +344,10 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
                     return lang.require("subcommand", "require_error").format(
                         source=param.command.name, target=' '.join(analyser.sentences)
                     )
-                analyser.subcommands_result[param.command.dest] = param.process(argv).result()
+                try:
+                    param.process(argv)
+                finally:
+                    analyser.subcommands_result[param.command.dest] = param.result()
             _data.clear()
             return True
         except ParamsUnmatched as e:
@@ -430,7 +433,10 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
                     source=_param.command.name, target=' '.join(analyser.sentences)
                 )
             )
-        analyser.subcommands_result[_param.command.dest] = _param.process(argv).result()
+        try:
+            _param.process(argv)
+        finally:
+            analyser.subcommands_result[_param.command.dest] = _param.result()
     else:
         raise TerminateLoop(str(_text))
     analyser.sentences.clear()

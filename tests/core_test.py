@@ -477,9 +477,9 @@ def test_completion_interface():
         print("\n", "current completion:", comp.current())
         print("\n", "next completion:", comp.tab())
         with comp:
-            comp.enter("1")
+            comp.enter(["1"])
         print("\n", "current completion:", comp.current())
-        assert comp.enter("a").matched
+        assert comp.enter(["a"]).matched
 
     with CompSession(alc21) as comp:
         alc21.parse("core21 1 a --comp")
@@ -487,7 +487,7 @@ def test_completion_interface():
         print(comp)
         comp.tab()
         print(comp)
-        assert not comp.enter("-h").matched
+        assert not comp.enter(["-h"]).matched
 
 
 def test_call():

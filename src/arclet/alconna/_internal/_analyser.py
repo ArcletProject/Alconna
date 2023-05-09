@@ -316,7 +316,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 data.clear()
 
         argv.bak_data = argv.raw_data.copy()
-        argv.addon(*data).addon(*short.get('args', []))
+        argv.addon(data).addon(short.get('args', []))
         if reg:
             groups: tuple[str, ...] = reg.groups()
             gdict: dict[str, str] = reg.groupdict()
