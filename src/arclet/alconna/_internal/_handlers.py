@@ -13,7 +13,7 @@ from ..base import Option, Subcommand
 from ..config import config
 from ..completion import Prompt, comp_ctx
 from ..exceptions import (
-    ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered, PauseTriggered, TerminateLoop
+    ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered, PauseTriggered
 )
 from ..model import OptionResult, Sentence, HeadResult
 from ..output import output_manager
@@ -107,10 +107,9 @@ def _loop(
     seps: tuple[str, ...],
     value: MultiVar,
     default: Any,
-    args: Args
+    kw: KeyWordVar | None
 ):
     """循环参数"""
-    kw = args[args.var_keyword].value.base if args.var_keyword else None
     result = []
     for _ in range(_loop):
         _m_arg, _m_str = argv.next(seps)
@@ -148,23 +147,23 @@ def multi_arg_handler(
         result_dict (dict[str, Any]): 结果字典
     """
     seps = arg.separators
-    value = arg.value
+    value: MultiVar = arg.value  # type: ignore
     key = arg.name
     default = arg.field.default
     kw = value.base.__class__ == KeyWordVar
-    _m_rest_arg = len(args) - len(result_dict)
-    _m_rest_all_param_count = len(argv.release(seps))
+    _rest = len(args) - len(result_dict)
+    _all_count = len(argv.release(seps))
     if not kw and not args.var_keyword or kw and not args.var_positional:
-        loop = _m_rest_all_param_count - _m_rest_arg + 1
+        loop = _all_count - _rest + 1
     elif not kw:
-        loop = _m_rest_all_param_count - (_m_rest_arg - 2*(args[args.var_keyword].value.flag == "*"))
+        loop = _all_count - (_rest - 2*(args.var_keyword.flag == "*"))
     else:
-        loop = _m_rest_all_param_count - (_m_rest_arg - 2*(args[args.var_positional].value.flag == "*"))
+        loop = _all_count - (_rest - 2*(args.var_positional.flag == "*"))
     if value.length > 0:
         loop = min(loop, value.length)
     result_dict[key] = (
         _loop_kw(argv, loop, seps, value, default) if kw
-        else _loop(argv, loop, seps, value, default, args)
+        else _loop(argv, loop, seps, value, default, value.base if kw else None)
     )
     if kw:
         kwargs = result_dict[key]
@@ -204,7 +203,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             argv.rollback(may_arg)
             if default_val is not None:
                 result[key] = None if default_val is Empty else default_val
-            elif value.__class__ is MultiVar and value.flag == '*':
+            elif value.__class__ is MultiVar and value.flag == '*':  # type: ignore
                 result[key] = ()
             elif not arg.optional:
                 raise ArgumentMissing(lang.require("args", "missing").format(key=key))
@@ -390,17 +389,17 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         if res.__class__ is str:
             raise ParamsUnmatched(res)
         argv.context = None
-        return
+        return True
     else:
         _param = None
     if not _param and analyser.command.nargs and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
         if analyser.args_result:
             argv.context = None
-            return
+            return True
     if _param.__class__ is Sentence:
         analyser.sentences.append(argv.next()[0])
-        return
+        return True
     if _param.__class__ is Option:
         if _param.requires and analyser.sentences != _param.requires:
             raise ParamsUnmatched(
@@ -438,9 +437,10 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         finally:
             analyser.subcommands_result[_param.command.dest] = _param.result()
     else:
-        raise TerminateLoop(str(_text))
+        return False
     analyser.sentences.clear()
     argv.context = None
+    return True
 
 
 def analyse_header(header: Header, argv: Argv) -> HeadResult:
@@ -506,7 +506,7 @@ def handle_help(analyser: Analyser, argv: Argv):
         analyser.command.name,
         lambda: analyser.command.formatter.format_node(_help_param),
     )
-    return analyser.export(argv, True)
+    return analyser.export(argv, True, SpecialOptionTriggered('help'))
 
 
 _args = Args["delete;?", "delete"]["name", str]["command", str, "_"]
@@ -528,7 +528,7 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
         output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
         output_manager.send(analyser.command.name, lambda: str(e))
-    return analyser.export(argv, True)
+    return analyser.export(argv, True, SpecialOptionTriggered('shortcut'))
 
 
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
@@ -607,4 +607,4 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
             analyser.command.name,
             lambda: f"{lang.require('completion', 'node')}\n* " + "\n* ".join([i.text for i in res]),
         )
-    return analyser.export(argv, True, 'NoneType: None\n')  # type: ignore
+    return analyser.export(argv, True, SpecialOptionTriggered('completion'))  # type: ignore

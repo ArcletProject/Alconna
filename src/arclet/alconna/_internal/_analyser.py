@@ -9,14 +9,7 @@ from typing_extensions import Self, TypeAlias
 from tarina import lang
 
 from ..manager import command_manager, ShortcutArgs
-from ..exceptions import (
-    ParamsUnmatched,
-    ArgumentMissing,
-    FuzzyMatchSuccess,
-    PauseTriggered,
-    SpecialOptionTriggered,
-    TerminateLoop
-)
+from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, PauseTriggered, SpecialOptionTriggered
 from ..action import Action
 from ..args import Args
 from ..base import Option, Subcommand
@@ -212,11 +205,8 @@ class SubAnalyser(Generic[TDC]):
         Raises:
             ArgumentMissing: 参数缺失
         """
-        while True:
-            try:
-                analyse_param(self, argv, self.command.separators)
-            except TerminateLoop:
-                break
+        while analyse_param(self, argv, self.command.separators):
+            pass
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)
         if not self.args_result and self.need_main_args:
@@ -402,31 +392,27 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return self.export(argv, True, exc)
 
     def analyse(self, argv: Argv[TDC]) -> Arparma[TDC] | None:
-        while True:
-            try:
-                analyse_param(self, argv)
-            except TerminateLoop:
-                break
-            except FuzzyMatchSuccess as e:
-                output_manager.send(self.command.name, lambda: str(e))
-                return self.export(argv, True)
-            except SpecialOptionTriggered as sot:
-                return _SPECIAL[sot.args[0]](self, argv)
-            except (ParamsUnmatched, ArgumentMissing) as e1:
-                if (rest := argv.release()) and isinstance(rest[-1], str):
-                    if rest[-1] in argv.completion_names:
-                        last = argv.bak_data[-1]
-                        argv.bak_data[-1] = last[:last.rfind(rest[-1])]
-                        return handle_completion(self, argv)
-                    if handler := argv.special.get(rest[-1]):
-                        return _SPECIAL[handler](self, argv)
-                if isinstance(e1, ArgumentMissing) and comp_ctx.get(None):
-                    raise PauseTriggered(prompt(self, argv)) from e1
-                if self.command.meta.raise_exception:
-                    raise
-                return self.export(argv, True, e1)
-            if argv.current_index == argv.ndata:
-                break
+        try:
+            while analyse_param(self, argv) and argv.current_index != argv.ndata:
+                pass
+        except FuzzyMatchSuccess as e:
+            output_manager.send(self.command.name, lambda: str(e))
+            return self.export(argv, True)
+        except SpecialOptionTriggered as sot:
+            return _SPECIAL[sot.args[0]](self, argv)
+        except (ParamsUnmatched, ArgumentMissing) as e1:
+            if (rest := argv.release()) and isinstance(rest[-1], str):
+                if rest[-1] in argv.completion_names:
+                    last = argv.bak_data[-1]
+                    argv.bak_data[-1] = last[:last.rfind(rest[-1])]
+                    return handle_completion(self, argv)
+                if handler := argv.special.get(rest[-1]):
+                    return _SPECIAL[handler](self, argv)
+            if isinstance(e1, ArgumentMissing) and comp_ctx.get(None):
+                raise PauseTriggered(prompt(self, argv)) from e1
+            if self.command.meta.raise_exception:
+                raise
+            return self.export(argv, True, e1)
 
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)

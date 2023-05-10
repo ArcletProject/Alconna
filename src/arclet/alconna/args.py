@@ -9,7 +9,7 @@ from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
 
-from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, all_patterns, type_parser
+from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, all_patterns, type_parser, RawStr
 from tarina import Empty, get_signature, lang
 from typing_extensions import Self
 
@@ -58,7 +58,7 @@ class Arg:
 
     name: str = dc.field(compare=True, hash=True)
     """参数单元的名称"""
-    value: Union[BasePattern, AllParam.__class__] = dc.field(compare=False, hash=True)
+    value: BasePattern = dc.field(compare=False, hash=True)
     """参数单元的值"""
     field: Field[Any] = dc.field(compare=False, hash=False)
     """参数单元的字段"""
@@ -96,7 +96,7 @@ class Arg:
         if not name.strip():
             raise InvalidParam(lang.require("args", "name_empty"))
         self.name = name
-        _value = type_parser(value or name)
+        _value = type_parser(value or RawStr(name))
         default = field if isinstance(field, Field) else Field(field)
         if isinstance(_value, UnionPattern) and _value.optional:
             default.default = Empty if default.default is None else default.default
@@ -166,10 +166,10 @@ class Args(metaclass=ArgsMeta):
     """
     argument: list[Arg]
     """参数单元组"""
-    var_positional: str | None
-    """可变参数的名称"""
-    var_keyword: str | None
-    """可变关键字参数的名称"""
+    var_positional: MultiVar | None
+    """可变参数"""
+    var_keyword: MultiVar | None
+    """可变关键字参数"""
     keyword_only: list[str]
     """仅关键字参数的名称"""
     optional_count: int
@@ -304,11 +304,11 @@ class Args(metaclass=ArgsMeta):
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.var_keyword:
                         raise InvalidParam(lang.require("args", "duplicate_kwargs"))
-                    self.var_keyword = arg.name
+                    self.var_keyword = arg.value
                 elif self.var_positional:
                     raise InvalidParam(lang.require("args", "duplicate_varargs"))
                 else:
-                    self.var_positional = arg.name
+                    self.var_positional = arg.value
                 _limit = True
             if isinstance(arg.value, KeyWordVar):
                 if self.var_keyword or self.var_positional:
