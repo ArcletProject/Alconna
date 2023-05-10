@@ -2,27 +2,28 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING, Any, Iterable
-from tarina import Empty, lang
-from nepattern import AllParam, BasePattern, AnyOne, AnyString
-from nepattern.util import TPattern
 
-from ._header import Double, Header
+from nepattern import AllParam, AnyOne, AnyString, BasePattern
+from nepattern.util import TPattern
+from tarina import Empty, lang
+
 from ..action import Action
-from ..args import Arg, Args, STRING
+from ..args import STRING, Arg, Args
 from ..base import Option, Subcommand
-from ..config import config
 from ..completion import Prompt, comp_ctx
+from ..config import config
 from ..exceptions import (
-    ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, SpecialOptionTriggered, PauseTriggered
+    ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 )
-from ..model import OptionResult, Sentence, HeadResult
+from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
 from ..typing import KeyWordVar, MultiVar
+from ._header import Double, Header
 from ._util import levenshtein
 
 if TYPE_CHECKING:
+    from ._analyser import Analyser, SubAnalyser
     from ._argv import Argv
-    from ._analyser import SubAnalyser, Analyser
 
 
 def _handle_keyword(

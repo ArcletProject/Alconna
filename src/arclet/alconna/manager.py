@@ -8,17 +8,17 @@ import shelve
 import weakref
 from copy import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload, Generic
-from typing_extensions import NotRequired
-from tarina import LRU, lang
+from typing import TYPE_CHECKING, Any, Generic, Match, TypedDict, Union, overload
 from weakref import WeakKeyDictionary, WeakValueDictionary
+
+from tarina import LRU, lang
+from typing_extensions import NotRequired
 
 from .argv import Argv, __argv_type__
 from .arparma import Arparma
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
-from .typing import DataCollection, TDC, CommandMeta
-
+from .typing import TDC, CommandMeta, DataCollection
 
 if TYPE_CHECKING:
     from ._internal._analyser import Analyser

@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TypeVar, Iterator, runtime_checkable, Protocol, Union, Any, Literal, Tuple, Dict, List
-from nepattern import BasePattern, type_parser, MatchMode
+from typing import Any, Dict, Iterator, List, Literal, Protocol, Tuple, TypeVar, Union, runtime_checkable
+
+from nepattern import BasePattern, MatchMode, type_parser
 
 TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)

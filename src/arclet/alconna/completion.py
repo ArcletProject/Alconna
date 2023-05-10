@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
+
 from tarina import ContextModel, lang
 
 from .exceptions import PauseTriggered
 from .manager import command_manager
 from .output import output_manager
-
 
 if TYPE_CHECKING:
     from .core import Alconna

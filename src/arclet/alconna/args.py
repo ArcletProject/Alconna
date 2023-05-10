@@ -9,7 +9,7 @@ from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
 
-from nepattern import AllParam, AnyOne, BasePattern, UnionPattern, all_patterns, type_parser, RawStr
+from nepattern import AllParam, AnyOne, BasePattern, RawStr, UnionPattern, all_patterns, type_parser
 from tarina import Empty, get_signature, lang
 from typing_extensions import Self
 

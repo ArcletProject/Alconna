@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ContextManager, TypedDict, Callable, Any, TYPE_CHECKING
-from tarina import lang
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, ContextManager, TypedDict
 
-from .typing import TPrefixes, DataCollection
+from tarina import lang
+
+from .typing import DataCollection, TPrefixes
 
 if TYPE_CHECKING:
     from .formatter import TextFormatter

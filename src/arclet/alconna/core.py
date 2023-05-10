@@ -19,7 +19,7 @@ from .duplication import Duplication
 from .exceptions import ExecuteFailed, NullMessage
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDC, TPrefixes, DataCollection, CommandMeta
+from .typing import TDC, CommandMeta, DataCollection, TPrefixes
 
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 T = TypeVar("T")

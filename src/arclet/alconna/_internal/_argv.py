@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, InitVar
-from typing import Any, Callable, Generic, ClassVar, Iterable
+from dataclasses import InitVar, dataclass, field
+from typing import Any, Callable, ClassVar, Generic, Iterable
+
+from tarina import lang, split, split_once
 from typing_extensions import Self
-from tarina import split, split_once, lang
 
 from ..args import Arg
-from ..config import Namespace, config
 from ..base import Option, Subcommand
+from ..config import Namespace, config
 from ..exceptions import NullMessage
 from ..typing import TDC
 

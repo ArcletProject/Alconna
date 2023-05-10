@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from types import MappingProxyType
 from typing import Any, Callable, Generic, Mapping, TypeVar, overload
-from tarina import get_signature, generic_isinstance, Empty, lang
+
+from tarina import Empty, generic_isinstance, get_signature, lang
 from typing_extensions import Self
 
 from .exceptions import BehaveCancelled, OutBoundsBehave

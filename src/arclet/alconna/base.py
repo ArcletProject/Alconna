@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Iterable, Sequence, overload, Any
-from typing_extensions import Self
+from typing import Any, Iterable, Sequence, overload
+
 from tarina import lang
+from typing_extensions import Self
 
 from .action import Action, store
 from .args import Arg, Args

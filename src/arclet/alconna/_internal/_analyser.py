@@ -2,34 +2,37 @@ from __future__ import annotations
 
 import re
 import traceback
-from re import Match
-from typing import TYPE_CHECKING, Any, Generic, Callable, Set
 from dataclasses import dataclass, field
-from typing_extensions import Self, TypeAlias
-from tarina import lang
+from re import Match
+from typing import TYPE_CHECKING, Any, Callable, Generic, Set
 
-from ..manager import command_manager, ShortcutArgs
-from ..exceptions import ParamsUnmatched, ArgumentMissing, FuzzyMatchSuccess, PauseTriggered, SpecialOptionTriggered
+from tarina import lang
+from typing_extensions import Self, TypeAlias
+
 from ..action import Action
 from ..args import Args
+from ..arparma import Arparma
 from ..base import Option, Subcommand
 from ..completion import comp_ctx
-from ..model import Sentence, HeadResult, OptionResult, SubcommandResult
-from ..arparma import Arparma
-from ..typing import TDC
 from ..config import Namespace, config
+from ..exceptions import (
+    ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
+)
+from ..manager import ShortcutArgs, command_manager
+from ..model import HeadResult, OptionResult, Sentence, SubcommandResult
 from ..output import output_manager
-from ._util import levenshtein
+from ..typing import TDC
 from ._handlers import (
-    analyse_args, analyse_param, analyse_header, handle_opt_default,
-    handle_help, handle_shortcut, handle_completion, prompt
+    analyse_args, analyse_header, analyse_param,
+    handle_completion, handle_help, handle_opt_default,
+    handle_shortcut, prompt
 )
 from ._header import Header
-
+from ._util import levenshtein
 
 if TYPE_CHECKING:
-    from ._argv import Argv
     from ..core import Alconna
+    from ._argv import Argv
 
 _SPECIAL = {
     "help": handle_help,
