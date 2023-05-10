@@ -69,6 +69,7 @@
 - `set_default` 的 `arg`, `option`, `subcommand` 合并为 `path`, 原参数仍可用
 - `Arg` 中 `name` 的后缀标识符不强制需要 `';'` 作为分割, 即 `foo;?` 与 `foo?` 等价 
 - `Argv.preprocessor` 与 `Argv.filter_out` 现在接收 type 而不是 str
+- 移除 `Alconna.reset_behaviors`
 
 ### 修复:
 

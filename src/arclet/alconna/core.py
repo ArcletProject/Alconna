@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
-from functools import partial, reduce
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
 
@@ -12,7 +12,7 @@ from typing_extensions import Self
 
 from ._internal._analyser import Analyser, TCompile
 from .args import Arg, Args
-from .arparma import Arparma, ArparmaBehavior
+from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Option, Subcommand
 from .config import Namespace, config
 from .duplication import Duplication
@@ -24,6 +24,25 @@ from .typing import TDC, TPrefixes, DataCollection, CommandMeta
 T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 T = TypeVar("T")
 TDC1 = TypeVar("TDC1", bound=DataCollection[Any])
+
+
+def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> None:
+    options.append(
+        Option("|".join(ns.builtin_option_name['help']), help_text=lang.require("builtin", "option_help")),
+    )
+    options.append(
+        Option(
+            "|".join(ns.builtin_option_name['shortcut']),
+            Args["delete;?", "delete"]["name", str]["command", str, "_"],
+            help_text=lang.require("builtin", "option_shortcut")
+        )
+    )
+    options.append(
+        Option(
+            "|".join(ns.builtin_option_name['completion']),
+            help_text=lang.require("builtin", "option_completion")
+        )
+    )
 
 
 @dataclass(init=True, unsafe_hash=True)
@@ -113,11 +132,11 @@ class Alconna(Subcommand, Generic[TDC]):
         """
         if not namespace:
             ns_config = config.default_namespace
-        elif isinstance(namespace, Namespace):
-            ns_config = config.namespaces.setdefault(namespace.name, namespace)
-        else:
+        elif isinstance(namespace, str):
             ns_config = config.namespaces.setdefault(namespace, Namespace(namespace))
-        self.prefixes = next(filter(lambda x: isinstance(x, list), args + (ns_config.prefixes.copy(),)))  # type: ignore
+        else:
+            ns_config = namespace
+        self.prefixes = next(filter(lambda x: isinstance(x, list), args), ns_config.prefixes.copy())  # type: ignore
         try:
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
@@ -135,33 +154,20 @@ class Alconna(Subcommand, Generic[TDC]):
         self.meta.raise_exception = self.meta.raise_exception or ns_config.raise_exception
         self.meta.compact = self.meta.compact or ns_config.compact
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
-        options.append(
-            Option("|".join(ns_config.builtin_option_name['help']), help_text=lang.require("builtin", "option_help")),
-        )
-        options.append(
-            Option(
-                "|".join(ns_config.builtin_option_name['shortcut']),
-                Args["delete;?", "delete"]["name", str]["command", str, "_"],
-                help_text=lang.require("builtin", "option_shortcut")
-            )
-        )
-        options.append(
-            Option(
-                "|".join(ns_config.builtin_option_name['completion']),
-                help_text=lang.require("builtin", "option_completion")
-            )
-        )
-        name = f"{self.command or self.prefixes[0]}".replace(command_manager.sign, "")  # type: ignore
+        add_builtin_options(options, ns_config)
+        name = f"{self.command or self.prefixes[0]}"  # type: ignore
         self.path = f"{self.namespace}::{name}"
+        _args = Args()
+        for i in filter(lambda x: isinstance(x, (Args, Arg)), args):
+            _args << i
         super().__init__(
             "ALCONNA::",
-            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            *options,
-            dest=name,
-            separators=separators or ns_config.separators,
+            _args, *options, dest=name, separators=separators or ns_config.separators,
         )
         self.name = name
-        self.behaviors = behaviors or []
+        self.behaviors = []
+        for behavior in behaviors or []:
+            self.behaviors.extend(requirement_handler(behavior))
         command_manager.register(self)
         self._executors: list[ArparmaExecutor] = []
         self.union = set()
@@ -184,31 +190,12 @@ class Alconna(Subcommand, Generic[TDC]):
         self.path = f"{self.namespace}::{self.name}"
         if header:
             self.prefixes = namespace.prefixes.copy()
-        self.options[-3] = Option(
-            "|".join(namespace.builtin_option_name['help']), help_text=lang.require("builtin", "option_help")
-        )
-        self.options[-2] = Option(
-            "|".join(namespace.builtin_option_name['shortcut']),
-            Args["delete;?", "delete"]["name", str]["command", str, "_"],
-            help_text=lang.require("builtin", "option_shortcut")
-        )
-        self.options[-1] = Option(
-            "|".join(namespace.builtin_option_name['completion']),
-            help_text=lang.require("builtin", "option_completion")
-        )
+        self.options = self.options[:-3]
+        add_builtin_options(self.options, namespace)
         self.meta.fuzzy_match = namespace.fuzzy_match or self.meta.fuzzy_match
         self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
         self._hash = self._calc_hash()
         command_manager.register(self)
-        return self
-
-    def reset_behaviors(self, behaviors: list[ArparmaBehavior]) -> Self:
-        """重新设置解析行为器
-
-        Args:
-            behaviors (list[ArparmaBehavior]): 解析行为器
-        """
-        self.behaviors[1:] = behaviors
         return self
 
     def get_help(self) -> str:
@@ -298,9 +285,7 @@ class Alconna(Subcommand, Generic[TDC]):
     def parse(self, message, *, duplication: type[T_Duplication]) -> T_Duplication:
         ...
 
-    def parse(
-        self, message: TDC, *, duplication: type[T_Duplication] | None = None
-    ) -> Arparma[TDC] | T_Duplication:
+    def parse(self, message: TDC, *, duplication: type[T_Duplication] | None = None) -> Arparma[TDC] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类
         
         Args:
@@ -318,7 +303,7 @@ class Alconna(Subcommand, Generic[TDC]):
                 raise e
             return Arparma(self.path, message, False, error_info=e)
         if arp.matched:
-            arp = arp.execute()
+            arp = arp.execute(self.behaviors)
             if self._executors:
                 for ext in self._executors:
                     arp.call(ext.target)

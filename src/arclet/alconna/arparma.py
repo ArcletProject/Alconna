@@ -190,19 +190,15 @@ class Arparma(Generic[TDC]):
         Returns:
             Self: 返回自身
         """
-        if behaviors := (self.source.behaviors + (behaviors or [])):
-            exc_behaviors = []
-            for behavior in behaviors:
-                exc_behaviors.extend(requirement_handler(behavior))
-            for b in exc_behaviors:
-                b.before_operate(self)
-            for b in exc_behaviors:
-                try:
-                    b.operate(self)
-                except BehaveCancelled:
-                    continue
-                except OutBoundsBehave as e:
-                    return self.fail(e)
+        for b in behaviors:
+            b.before_operate(self)
+        for b in behaviors:
+            try:
+                b.operate(self)
+            except BehaveCancelled:
+                continue
+            except OutBoundsBehave as e:
+                return self.fail(e)
         return self
 
     def call(self, target: Callable[..., T], **additional) -> T:
