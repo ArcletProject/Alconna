@@ -67,6 +67,7 @@
 - bracket header 现在支持进行类型转换
 - 性能优化, 提升25% ~ 30%
 - `set_default` 的 `arg`, `option`, `subcommand` 合并为 `path`, 原参数仍可用
+- `Arg` 中 `name` 的后缀标识符不强制需要 `';'` 作为分割, 即 `foo;?` 与 `foo?` 等价 
 
 ### 修复:
 

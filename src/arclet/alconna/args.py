@@ -109,12 +109,12 @@ class Arg:
         self.notice = notice
         self.separators = (seps,) if isinstance(seps, str) else tuple(seps)
         flags = flags or []
-        if res := re.match(r"^.+?#(?P<notice>[^;?!/#]+)", name):
+        if res := re.match(r"^(?P<name>.+?)#(?P<notice>[^;?!/#]+)", name):
             self.notice = res["notice"]
-            self.name = name.replace(f"#{res['notice']}", "")
-        if res := re.match(r"^.+?;(?P<flag>[?!/]+)", self.name):
+            self.name = res["name"]
+        if res := re.match(r"^(?P<name>.+?)(;)?(?P<flag>[?!/]+)", self.name):
             flags.extend(ArgFlag(c) for c in res["flag"])
-            self.name = self.name.replace(f";{res['flag']}", "")
+            self.name = res["name"]
         self.flag = set(flags)
         self.optional = ArgFlag.OPTIONAL in self.flag
         self.hidden = ArgFlag.HIDDEN in self.flag

@@ -124,6 +124,12 @@ def test_optional():
     arg13 = Args.foo[str].add("bar", value=int, flags="?")
     assert analyse_args(arg13, ["abc 123"]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg13, ["abc"]) == {"foo": "abc"}
+    arg13_1 = Args.foo[str]["bar?", int]
+    assert analyse_args(arg13_1, ["abc 123"]) == {"foo": "abc", "bar": 123}
+    assert analyse_args(arg13_1, ["abc"]) == {"foo": "abc"}
+    arg13_2 = Args.foo[str]["bar;?", int]
+    assert analyse_args(arg13_2, ["abc 123"]) == {"foo": "abc", "bar": 123}
+    assert analyse_args(arg13_2, ["abc"]) == {"foo": "abc"}
 
 
 def test_kwonly():
@@ -136,7 +142,7 @@ def test_kwonly():
         "foo": "abc",
         "bar": 123,
     }
-    arg14_1 = Args["--width;?", Kw[int], 1280]["--height;?", Kw[int], 960]
+    arg14_1 = Args["--width;?", Kw[int], 1280]["--height?", Kw[int], 960]
     assert analyse_args(arg14_1, ["--width=960 --height=960"]) == {
         "--width": 960,
         "--height": 960,
