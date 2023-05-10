@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from tarina import Empty, lang
-from nepattern import AllParam, BasePattern
+from nepattern import AllParam, AnyOne, AnyString
 
 from .args import Arg, Args
 from .base import Option, Subcommand
@@ -189,7 +188,8 @@ class TextFormatter:
         if parameter.value is AllParam:
             return f"<...{name}>"
         arg = f"[{name}" if parameter.optional else f"<{name}"
-        arg += f": {parameter.value}"
+        if parameter.value not in (AnyOne, AnyString):
+            arg += f": {parameter.value}"
         if parameter.field.display is Empty:
             arg += " = None"
         elif parameter.field.display is not None:
