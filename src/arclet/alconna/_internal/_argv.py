@@ -12,20 +12,19 @@ from ..exceptions import NullMessage
 from ..typing import TDC
 
 
-
 @dataclass(repr=True)
 class Argv(Generic[TDC]):
     """命令行参数"""
     namespace: InitVar[Namespace] = field(default=config.default_namespace)
     fuzzy_match: bool = field(default=False)
     """当前命令是否模糊匹配"""
-    preprocessors: dict[str, Callable[..., Any]] = field(default_factory=dict)
+    preprocessors: dict[type, Callable[..., Any]] = field(default_factory=dict)
     """命令元素的预处理器"""
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
     """将命令元素转换为文本, 或者返回None以跳过该元素"""
     separators: tuple[str, ...] = field(default=(' ',))
     """命令分隔符"""
-    filter_out: list[str] = field(default_factory=list)
+    filter_out: list[type] = field(default_factory=list)
     """需要过滤掉的命令元素"""
     checker: Callable[[Any], bool] | None = field(default=None)
     """检查传入命令"""
@@ -108,11 +107,12 @@ class Argv(Generic[TDC]):
         self.origin = data
         if data.__class__ is str:
             data = [data]  # type: ignore
-        i, raw_data = 0, self.raw_data
+        i = 0
+        raw_data = self.raw_data
         for unit in data:
-            if (uname := unit.__class__.__name__) in self.filter_out:
+            if (utype := unit.__class__) in self.filter_out:
                 continue
-            if (proc := self.preprocessors.get(uname)) and (res := proc(unit)):
+            if (proc := self.preprocessors.get(utype)) and (res := proc(unit)):
                 unit = res
             if (text := self.to_text(unit)) is None:
                 raw_data.append(unit)

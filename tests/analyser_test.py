@@ -43,7 +43,7 @@ At = gen_unit("at")
 
 
 def test_filter_out():
-    argv_config(filter_out=["int"])
+    argv_config(filter_out=[int])
     ana = Alconna("ana", Args["foo", str])
     assert ana.parse(["ana", 123, "bar"]).matched is True
     assert ana.parse("ana bar").matched is True
@@ -53,7 +53,7 @@ def test_filter_out():
 
 
 def test_preprocessor():
-    argv_config(preprocessors={"float": int})
+    argv_config(preprocessors={float: int})
     ana1 = Alconna("ana1", Args["bar", int])
     assert ana1.parse(["ana1", 123.06]).matched is True
     assert ana1.parse(["ana1", 123.06]).bar == 123
@@ -64,7 +64,7 @@ def test_preprocessor():
 
 def test_with_set_unit():
     argv_config(
-        preprocessors={"Segment": lambda x: str(x) if x.type == "text" else None}
+        preprocessors={Segment: lambda x: str(x) if x.type == "text" else None}
     )
 
     ana2 = Alconna("ana2", Args["foo", At]["bar", Face])
@@ -77,7 +77,7 @@ def test_with_set_unit():
 
 def test_unhashable_unit():
     argv_config(
-        preprocessors={"Segment": lambda x: str(x) if x.type == "text" else None}
+        preprocessors={Segment: lambda x: str(x) if x.type == "text" else None}
     )
 
     ana3 = Alconna("ana3", Args["foo", At])
