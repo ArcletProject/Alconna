@@ -18,22 +18,22 @@ def _handle_default(node: CommandNode):
     act = node.action
     if isinstance(node.default, (OptionResult, SubcommandResult)):
         if act.type == 0 and act.value is ...:
-            act.value = node.default.value
+            node.action = Action(act.type, node.default.value)
         if act.type == 1:
             if not isinstance(node.default.value, list):
                 node.default.value = [node.default.value]
             if act.value[0] is ...:
-                act.value = node.default.value[:]
+                node.action = Action(act.type, node.default.value[:])
         if act.type == 2 and not isinstance(node.default.value, int):
             node.default.value = 1
     else:
         if act.type == 0 and act.value is ...:
-            act.value = node.default
+            node.action = Action(act.type, node.default)
         if act.type == 1:
             if not isinstance(node.default, list):
                 node.default = [node.default]
             if act.value[0] is ...:
-                act.value = node.default[:]
+                node.action = Action(act.type, node.default[:])
         if act.type == 2 and not isinstance(node.default, int):
             node.default = 1
 
