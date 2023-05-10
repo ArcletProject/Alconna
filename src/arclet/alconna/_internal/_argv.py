@@ -65,11 +65,11 @@ class Argv(Generic[TDC]):
         )
         self.completion_names = namespace.builtin_option_name['completion']
         if __cache := self.__class__._cache.get(self.__class__, {}):
-            self.preprocessors.update(__cache["preprocessors"] or {})
-            self.filter_out.extend(__cache["filter_out"] or [])
-            self.to_text = __cache["to_text"] or self.to_text
-            self.checker = __cache["checker"] or self.checker
-            self.converter = __cache["converter"] or self.converter
+            self.preprocessors.update(__cache.get("preprocessors") or {})
+            self.filter_out.extend(__cache.get("filter_out") or [])
+            self.to_text = __cache.get("to_text") or self.to_text
+            self.checker = __cache.get("checker") or self.checker
+            self.converter = __cache.get("converter") or self.converter
 
     def reset(self):
         """重置命令行参数"""
