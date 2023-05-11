@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from functools import reduce
+from dataclasses import replace
 from typing import Any, Iterable, Sequence, overload
 
 from tarina import lang
@@ -17,6 +18,10 @@ def _handle_default(node: CommandNode):
     if node.default is None:
         return
     act = node.action
+    if act.type == 1 and not isinstance(act.value, list):
+        act = node.action = replace(act, value=[act.value])
+    elif act.type == 2 and not isinstance(act.value, int):
+        act = node.action = replace(act, value=1)
     if isinstance(node.default, (OptionResult, SubcommandResult)):
         if act.type == 0 and act.value is ...:
             node.action = Action(act.type, node.default.value)

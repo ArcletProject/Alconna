@@ -19,17 +19,11 @@ class ActType(IntEnum):
     """
 
 
-@dataclass(eq=True)
+@dataclass(eq=True, frozen=True)
 class Action:
     """节点触发的动作"""
     type: ActType
     value: Any
-
-    def __post_init__(self):
-        if self.type == ActType.APPEND and not isinstance(self.value, list):
-            self.value = [self.value]
-        elif self.type == ActType.COUNT and not isinstance(self.value, int):
-            self.value = 1
 
 
 store = Action(ActType.STORE, Ellipsis)
