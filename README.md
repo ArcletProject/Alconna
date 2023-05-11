@@ -1,5 +1,4 @@
-![](https://socialify.git.ci/ArcletProject/Alconna/image?description=1&descriptionEditable=A%20High-performance%2C%20Generality%2C%20Humane%20Command%20Line%20Arguments%20Parser%20Library.&font=Inter&forks=1&issues=1&language=1&logo=https%3A%2F%2Favatars.githubusercontent.com%2Fu%2F42648639%3Fs%3D400%26u%3Da81d93f3683d0a3b7d38ea8e6a4903355986e8c7%26v%3D4&name=1&owner=1&pattern=Brick%20Wall&stargazers=1&theme=Light)
-
+![](https://socialify.git.ci/ArcletProject/Alconna/image?description=1&descriptionEditable=A%20High-performance%2C%20Generality%2C%20Humane%20Command%20Line%20Arguments%20Parser%20Library.&font=Inter&forks=1&issues=1&language=1&logo=https%3A%2F%2Farclet.top%2Fimg%2Farclet.png&name=1&owner=1&pattern=Brick%20Wall&stargazers=1&theme=Auto)
 <div align="center"> 
 
 # Alconna
@@ -65,24 +64,52 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## 特点
 
-* 高效. 在 i5-10210U 处理器上, 性能大约为 `71000~289000 msg/s`; 测试脚本: [benchmark](benchmark.py) 
-* 精简、多样的构造方法
-* 强大的类型解析与转换功能
-* 可传入同步与异步的 action 函数
-* 高度自定义的帮助信息格式、命令解析器
-* 自定义语言文件, 支持 i18n
+* 高效. 在 i5-10210U 处理器上, 性能大约为 `71000~289000 msg/s`; 测试脚本: [benchmark](benchmark.py)
+* 直观的命令组件创建方式
+* 强大的类型解析与类型转换功能
+* 自定义的帮助信息格式与命令解析控制
+* i18n
 * 命令输入缓存, 以保证重复命令的快速响应
-* 模糊匹配、命令补全等一众特性
+* 易用的快捷命令创建与使用
+* 可以绑定回调函数, 以便于在命令解析完成后执行
+* 可创建命令补全会话, 以实现多轮连续的补全提示
+* 模糊匹配、输出捕获等一众特性
+
+执行回调示范:
+```python
+# callback.py
+from arclet.alconna import Alconna, Args
+
+alc = Alconna("callback", Args["foo", int]["bar", str])
+
+@alc.bind()
+def cb(foo: int, bar: str):
+    print(f"foo: {foo}")
+    print(f"bar: {bar}")
+    print(bar * foo)
+
+if __name__ == '__main__':
+    alc()
+
+    
+```
+```shell
+$ python callback.py 2 hello
+foo: 2
+bar: hello
+hellohello
+```
 
 类型转换示范:
 ```python
 from arclet.alconna import Alconna, Args
 from pathlib import Path
 
-read = Alconna(
-    "read", Args["data", bytes], 
-    action=lambda data: print(type(data))
-)
+read = Alconna("read", Args["data", bytes])
+
+@read.bind()
+def cb(data: bytes):
+    print(type(data))
 
 read.parse(["read", b'hello'])
 read.parse("read test_fire.py")
@@ -95,16 +122,77 @@ read.parse(["read", Path("test_fire.py")])
 '''
 ```
 
-模糊匹配示范:
+组件创建示范:
 ```python
-from arclet.alconna import Alconna, CommandMeta
+# component.py
+from arclet.alconna import Alconna, Args, Option, Subcommand, store_true, count, append
 
-alc = Alconna('!test_fuzzy', "foo:str", meta=CommandMeta(fuzzy_match=True))
-alc.parse("！test_fuzy foo bar")
+alc = Alconna(
+    "component",
+    Args["path", str],
+    Option("--verbose|-v", action=count),
+    Option("-f", Args["flag", str], compact=True, action=append),
+    Subcommand("sub", Option("bar", action=store_true, default=False))
+)
 
-'''
-！test_fuzy not matched. Are you mean "!test_fuzzy"?
-'''
+if __name__ == '__main__':
+    res = alc()
+    print(res.query("path"))
+    print(res.query("verbose.value"))
+    print(res.query("f.flag"))
+    print(res.query("sub"))
+```
+
+```shell
+$ python component.py /home/arclet -vvvv -f1 -f2 -f3 sub bar
+/home/arclet
+4
+['1', '2', '3']
+(value=Ellipsis args={} options={'bar': (value=True args={})} subcommands={})
+```
+
+快捷命令示范:
+```python
+# shortcut.py
+from arclet.alconna import Alconna, Args
+
+alc = Alconna("eval", Args["content", str])
+alc.shortcut("echo", {"command": "eval print(\\'{*}\\')"})
+
+@alc.bind()
+def cb(content: str):
+    eval(content, {}, {})
+
+if __name__ == '__main__':
+    alc()
+```
+
+```shell
+$ python shortcut.py eval print(\"hello world\")
+hello world
+$ python shortcut.py echo hello world!
+hello world!
+```
+
+命令补全示范:
+```python
+# complete.py
+from arclet.alconna import Alconna, Args, Option
+
+alc = Alconna("complete", Args["bar", int]) + Option("foo") + Option("fool")
+
+if __name__ == '__main__':
+    alc()
+```
+
+```shell
+$ python completion.py ?
+以下是建议的输入：
+* bar: int
+* --help
+* -h
+* foo
+* fool
 ```
 
 typing 支持示范:
@@ -122,21 +210,20 @@ ParamsUnmatched: 参数 3 不正确
 '''
 ```
 
-命令补全示范:
+模糊匹配示范:
 ```python
-from arclet.alconna import Alconna, Args, Option
+# fuzzy.py
+from arclet.alconna import Alconna, CommandMeta, Arg
 
-alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
-alc.parse("test --comp")
+alc = Alconna('!test_fuzzy', Arg("foo", str), meta=CommandMeta(fuzzy_match=True))
 
-'''
-下一个输入可能是以下：
-> fool
-> -h
-> int
-> foo
-> --help
-'''
+if __name__ == '__main__':
+    alc()
+```
+
+```shell
+$ python fuzzy.py /test_fuzzy foo bar
+无法解析 /test_fuzzy。您想要输入的是不是 "!test_fuzzy" ?
 ```
 
 ## 许可

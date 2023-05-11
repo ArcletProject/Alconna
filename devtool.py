@@ -4,13 +4,15 @@ from collections import namedtuple
 from typing import Any
 import traceback
 
-from arclet.alconna.analyser import Analyser, default_params_parser
-from arclet.alconna.container import DataCollectionContainer
-from arclet.alconna.handlers import analyse_args as ala, analyse_header as alh, analyse_option as alo
+from arclet.alconna._internal._analyser import Analyser, default_compiler
+from arclet.alconna.argv import Argv
+from arclet.alconna._internal._handlers import analyse_args as ala, analyse_header as alh, analyse_option as alo
+from arclet.alconna._internal._header import Header
 from arclet.alconna.typing import DataCollection
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.args import Args
 from arclet.alconna.config import config
+
 
 class AnalyseError(Exception):
     """分析时发生错误"""
@@ -27,21 +29,16 @@ class _DummyAnalyser(Analyser):
     def __new__(cls, *args, **kwargs):
         cls.command = cls._DummyALC()  # type: ignore
         cls.compile_params = {}
-        cls.container = DataCollectionContainer(message_cache=False, filter_crlf=True)
-        cls.special = {}
-        for i in config.default_namespace.builtin_option_name.values():
-            cls.special.fromkeys(i, True)  # noqa  # type: ignore
+        cls.compact_params = []
         return super().__new__(cls)
 
 
-def analyse_args(args: Args, command: DataCollection[str | Any], raise_exception: bool = True):
-    _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
-    _analyser.reset()
-    _analyser.need_main_args = True
-    _analyser.raise_exception = True
+def analyse_args(args: Args, command: list[str | Any], raise_exception: bool = True):
+    argv = Argv(config.default_namespace, message_cache=False, filter_crlf=True)
     try:
-        _analyser.container.build(command)
-        return ala(_analyser, args, len(args))
+        argv.build(["test"] + command)
+        argv.next()
+        return ala(argv, args)
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -53,16 +50,19 @@ def analyse_header(
     command_name: str,
     command: DataCollection[str | Any],
     sep: str = " ",
+    compact: bool = False,
     raise_exception: bool = True
 ):
-    _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
-    _analyser.reset()
-    _analyser.container.separators = (sep, )
-    _analyser.need_main_args = False
-    _analyser.__init_header__(command_name, headers)
+    argv = Argv(
+        config.default_namespace,
+        message_cache=False,
+        filter_crlf=True,
+        separators=(sep, )
+    )
+    command_header = Header.generate(command_name, headers, compact=compact)
     try:
-        _analyser.container.build(command)
-        return alh(_analyser)
+        argv.build(command)
+        return alh(command_header, argv)
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -70,17 +70,19 @@ def analyse_header(
 
 
 def analyse_option(option: Option, command: DataCollection[str | Any], raise_exception: bool = True):
+    argv = Argv(config.default_namespace, message_cache=False, filter_crlf=True)
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.container.separators = (" ", )
+    _analyser.command.separators = (" ",)
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.command.options.append(option)
-    default_params_parser(_analyser, _analyser.command.namespace_config)
+    default_compiler(_analyser, _analyser.command.namespace_config, argv.param_ids)
     _analyser.command.options.clear()
     try:
-        _analyser.container.build(command)
-        return alo(_analyser, option)
+        argv.build(command)
+        alo(_analyser, argv, option)
+        return _analyser.options_result[option.dest]
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -88,17 +90,18 @@ def analyse_option(option: Option, command: DataCollection[str | Any], raise_exc
 
 
 def analyse_subcommand(subcommand: Subcommand, command: DataCollection[str | Any], raise_exception: bool = True):
+    argv = Argv(config.default_namespace, message_cache=False, filter_crlf=True)
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
-    _analyser.container.separators = (" ", )
+    _analyser.command.separators = (" ", )
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.command.options.append(subcommand)
-    default_params_parser(_analyser, _analyser.command.namespace_config)
+    default_compiler(_analyser, _analyser.command.namespace_config, argv.param_ids)
     _analyser.command.options.clear()
     try:
-        _analyser.container.build(command)
-        return _analyser.compile_params[subcommand.name].process().export()  # type: ignore
+        argv.build(command)
+        return _analyser.compile_params[subcommand.name].process(argv).result()  # type: ignore
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

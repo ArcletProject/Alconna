@@ -1,33 +1,59 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ContextManager, Final, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ContextManager, TypedDict
+
+from tarina import lang
+
+from .typing import DataCollection, TPrefixes
+
+if TYPE_CHECKING:
+    from .formatter import TextFormatter
 
 
 class OptionNames(TypedDict):
     help: set[str]
+    """帮助选项的名称"""
     shortcut: set[str]
+    """快捷选项的名称"""
     completion: set[str]
+    """补全选项的名称"""
 
 
 @dataclass(init=True, repr=True)
 class Namespace:
+    """命名空间配置, 用于规定同一命名空间下的选项的默认配置"""
     name: str
-    headers: list[str | object] | list[tuple[object, str]] = field(default_factory=list)
+    """命名空间名称"""
+    prefixes: TPrefixes = field(default_factory=list)
+    """默认前缀配置"""
     separators: tuple[str, ...] = field(default_factory=lambda: (" ",))
-    formatter_type: type["TextFormatter"] | None = field(default=None)  # type: ignore
+    """默认分隔符配置"""
+    formatter_type: type[TextFormatter] | None = field(default=None)  # type: ignore
+    """默认格式化器类型"""
     fuzzy_match: bool = field(default=False)
+    """默认是否开启模糊匹配"""
     raise_exception: bool = field(default=False)
+    """默认是否抛出异常"""
     enable_message_cache: bool = field(default=True)
+    """默认是否启用消息缓存"""
     builtin_option_name: OptionNames = field(
         default_factory=lambda: {
             "help": {"--help", "-h"},
             "shortcut": {"--shortcut", "-sct"},
-            "completion": {"--comp", "-cp"},
+            "completion": {"--comp", "-cp", "?"},
         }
     )
+    """默认的内置选项名称"""
+    to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
+    """默认的选项转文本函数"""
+    checker: Callable[[Any], bool] | None = field(default=None)
+    """默认的传入命令检查"""
+    converter: Callable[[str | list], DataCollection[Any]] | None = field(default=lambda x: x)
+    """默认的文本转选项函数"""
+    compact: bool = field(default=False)
+    """默认是否开启紧凑模式"""
 
     def __eq__(self, other):
         return isinstance(other, Namespace) and other.name == self.name
@@ -35,18 +61,28 @@ class Namespace:
     def __hash__(self):
         return hash(self.name)
 
+    @property
+    def headers(self):
+        """默认前缀配置"""
+        return self.prefixes
+
+    @headers.setter
+    def headers(self, value):
+        self.prefixes = value
+
 
 class namespace(ContextManager[Namespace]):
-    """
-    新建一个命名空间配置并暂时作为默认命名空间
+    """新建一个命名空间配置并暂时作为默认命名空间
 
-    with namespace("xxx") as np:
-        np.headers = [aaa]
-        alc = Alconna(...)
-        alc.headers == [aaa]
+    Example:
+        >>> with namespace("xxx") as ns:
+        ...     ns.headers = ["aaa"]
+        ...     alc = Alconna(...)
+        ... assert alc.prefixes == ["aaa"]
     """
 
     def __init__(self, name: Namespace | str):
+        """传入新建的命名空间的名称, 或者是一个存在的命名空间配置"""
         self.np = Namespace(name) if isinstance(name, str) else name
         self.name = self.np.name if isinstance(name, Namespace) else name
         self.old = config.default_namespace
@@ -64,62 +100,14 @@ class namespace(ContextManager[Namespace]):
         del self.np
 
 
-class _LangConfig:
-    path: Final[Path] = Path(__file__).parent / "default.lang"
-    __slots__ = "__config", "__file"
-
-    def __init__(self):
-        self.__file = json.load(self.path.open("r", encoding="utf-8"))
-        self.__config: dict[str, str] = self.__file[self.__file["$default"]]
-
-    @property
-    def types(self):
-        return [key for key in self.__file if key != "$default"]
-
-    def change_type(self, name: str):
-        if name != "$default" and name in self.__file:
-            self.__config = self.__file[name]
-            self.__file["$default"] = name
-            json.dump(
-                self.__file, self.path.open("w", encoding="utf-8"), ensure_ascii=False, indent=2
-            )
-            return
-        raise ValueError(self.__config["lang.type_error"].format(target=name))
-
-    def reload(self, path: str | Path, lang_type: str | None = None):
-        if isinstance(path, str):
-            path = Path(path)
-        content = json.load(path.open("r", encoding="utf-8"))
-        if not lang_type:
-            self.__config.update(content)
-        elif lang_type in self.__file:
-            self.__file[lang_type].update(content)
-            self.__config = self.__file[lang_type]
-        else:
-            self.__file[lang_type] = content
-            self.__config = self.__file[lang_type]
-
-    def require(self, name: str) -> str:
-        return self.__config.get(name, name)
-
-    def set(self, name: str, lang_content: str):
-        if not self.__config.get(name):
-            raise ValueError(self.__config["lang.name_error"].format(target=name))
-        self.__config[name] = lang_content
-
-    def __getattr__(self, item: str) -> str:
-        item = item.replace("_", ".", 1)
-        if not self.__config.get(item):
-            raise AttributeError(self.__config["lang.name_error"].format(target=item))
-        return self.__config[item]
-
-
 class _AlconnaConfig:
-    lang: _LangConfig = _LangConfig()
+    """全局配置类"""
     command_max_count: int = 200
-    message_max_cache: int = 100
+    """最大命令数量"""
     fuzzy_threshold: float = 0.6
+    """模糊匹配阈值"""
     _default_namespace = "Alconna"
+    """默认命名空间名称"""
     namespaces: dict[str, Namespace] = {_default_namespace: Namespace(_default_namespace)}
 
     @property
@@ -140,6 +128,6 @@ class _AlconnaConfig:
 
 
 config = _AlconnaConfig()
-load_lang_file = config.lang.reload
+lang.load(Path(__file__).parent / "i18n")
 
-__all__ = ["config", "load_lang_file", "Namespace", "namespace"]
+__all__ = ["config", "Namespace", "namespace", "lang"]

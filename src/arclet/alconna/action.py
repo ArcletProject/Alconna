@@ -1,94 +1,58 @@
-from __future__ import annotations
-
-import asyncio
 from dataclasses import dataclass
-from types import LambdaType
-from typing import Any, Callable, Dict
-from nepattern import AllParam, AnyOne
-
-from .args import Args
-from .exceptions import InvalidParam
-from .model import OptionResult, SubcommandResult
-from .util import is_async
+from enum import IntEnum
+from typing import Any
 
 
-@dataclass(init=True, unsafe_hash=True)
-class ArgAction:
-    """负责封装action的类"""
-    action: Callable[..., Any]
-
-    def handle(self, params: dict, varargs: list | None = None, kwargs: dict | None = None, raise_exc: bool = False):
-        """
-        处理action
-
-        Args:
-            params: 参数字典
-            varargs: 可变参数
-            kwargs: 关键字参数
-            raise_exc: 是否抛出异常
-        """
-        _varargs = list(params.values()) + (varargs or [])
-        kwargs = kwargs or {}
-        try:
-            if is_async(self.action):
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    loop.create_task(self.action(*_varargs, **kwargs))
-                    return params
-                additional_values = loop.run_until_complete(self.action(*_varargs, **kwargs))
-            else:
-                additional_values = self.action(*_varargs, **kwargs)
-            return additional_values if additional_values and isinstance(additional_values, Dict) else params
-        except Exception as e:
-            if raise_exc:
-                raise e
-        return params
-
-    @staticmethod
-    def __validator__(action: Callable | ArgAction | None, args: Args):
-        if not action:
-            return None
-        if isinstance(action, ArgAction):
-            return action
-        if len(args.argument) == 0:
-            args.__merge__(args.from_callable(action)[0])
-            return ArgAction(action)
-        target_args, _ = Args.from_callable(action)
-        if len(target_args.argument) != len(args.argument):
-            raise InvalidParam(action)
-        if not isinstance(action, LambdaType):
-            for tgt, slf in zip(target_args.argument, args.argument):
-                if tgt.value in (AnyOne, AllParam):
-                    continue
-                if tgt.value != slf.value:
-                    raise ValueError(tgt.value.origin, tgt.name)
-        return ArgAction(action)
+class ActType(IntEnum):
+    """节点触发的动作类型"""
+    STORE = 0
+    """无 Args 时, 仅存储一个值, 默认为 Ellipsis; 有 Args 时, 后续的解析结果会覆盖之前的值"""
+    APPEND = 1
+    """无 Args 时, 将多个值存为列表, 默认为 Ellipsis; 有 Args 时, 每个解析结果会追加到列表中
+    
+    当存在默认值并且不为列表时, 会自动将默认值变成列表, 以保证追加的正确性
+    """
+    COUNT = 2
+    """无 Args 时, 计数器加一; 有 Args 时, 表现与 STORE 相同
+    
+    当存在默认值并且不为数字时, 会自动将默认值变成 1, 以保证计数器的正确性
+    """
 
 
-def exec_args(args: dict[str, Any], func: ArgAction, raise_exc: bool):
-    result_dict = args.copy()
-    kwargs, kwonly, varargs, kw_key, var_key = {}, {}, [], None, None
-    if '$kwargs' in result_dict:
-        kwargs, kw_key = result_dict.pop('$kwargs')
-        result_dict.pop(kw_key)
-    if '$varargs' in result_dict:
-        varargs, var_key = result_dict.pop('$varargs')
-        result_dict.pop(var_key)
-    if '$kwonly' in result_dict:
-        kwonly = result_dict.pop('$kwonly')
-        for k in kwonly:
-            result_dict.pop(k)
-    addition_kwargs = {**kwonly, **kwargs}
-    res = func.handle(result_dict, varargs, addition_kwargs, raise_exc)
-    if kw_key:
-        res[kw_key] = kwargs
-    if var_key:
-        res[var_key] = varargs
-    return res
+@dataclass(eq=True, frozen=True)
+class Action:
+    """节点触发的动作"""
+    type: ActType
+    value: Any
 
 
-def exec_(data: OptionResult | SubcommandResult, func: ArgAction, raise_exc: bool):
-    return (
-        ("args", exec_args(data.args, func, raise_exc)) if data.args else ("value", func.action())
-    )
+store = Action(ActType.STORE, Ellipsis)
+"""默认的存储动作"""
+store_true = Action(ActType.STORE, True)
+"""存储 True"""
+store_false = Action(ActType.STORE, False)
+"""存储 False"""
 
+append = Action(ActType.APPEND, [Ellipsis])
+"""默认的追加动作"""
+
+count = Action(ActType.COUNT, 1)
+"""默认的计数动作"""
+
+
+def store_value(value: Any):
+    """存储一个值
+
+    Args:
+        value (Any): 待存储的值
+    """
+    return Action(ActType.STORE, value)
+
+
+def append_value(value: Any):
+    """追加值
+
+    Args:
+        value (Any): 待存储的值
+    """
+    return Action(ActType.APPEND, [value])

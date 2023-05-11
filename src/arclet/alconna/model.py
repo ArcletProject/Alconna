@@ -1,16 +1,17 @@
 from dataclasses import dataclass
-_repr_ = lambda self: " ".join(f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__)
+_repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__]) + ")"
 
-@dataclass(eq=True)
+
+@dataclass(init=False, eq=True)
 class Sentence:
-    __slots__ = ("name", "separators")
-    __repr__ = _repr_
-    def __init__(self, name, separators=None):
+    __slots__ = ("name")
+    __str__ = lambda self: self.name
+    __repr__ = lambda self: self.name
+    def __init__(self, name):
         self.name = name
-        self.separators = separators or (" ",)
 
 
-@dataclass(eq=True)
+@dataclass(init=False, eq=True)
 class OptionResult:
     __slots__ = ("value", "args")
     __repr__ = _repr_
@@ -19,7 +20,7 @@ class OptionResult:
         self.args = args or {}
 
 
-@dataclass(eq=True)
+@dataclass(init=False, eq=True)
 class SubcommandResult:
     __slots__ = ("value", "args", "options", "subcommands")
     __repr__ = _repr_
@@ -30,12 +31,16 @@ class SubcommandResult:
         self.subcommands = subcommands or {}
 
 
-@dataclass(eq=True)
+@dataclass(init=False, eq=True)
 class HeadResult:
     __slots__ = ("origin", "result", "matched", "groups")
     __repr__ = _repr_
-    def __init__(self, origin=None, result=None, matched=False, groups=None):
+    def __init__(self, origin=None, result=None, matched=False, groups=None, fixes=None):
         self.origin = origin
         self.result = result
         self.matched = matched
         self.groups = groups or {}
+        if fixes:
+            self.groups.update(
+                {k: v.exec(self.groups[k]).value for k, v in fixes.items() if k in self.groups}  # noqa
+            )

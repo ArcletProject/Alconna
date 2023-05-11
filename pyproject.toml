@@ -9,8 +9,9 @@ authors = [
     {name = "RF-Tar-Railt", email = "rf_tar_railt@qq.com"},
 ]
 dependencies = [
-    "typing-extensions~=4.4.0",
-    "nepattern>=0.4.2",
+    "typing-extensions>=4.5.0",
+    "nepattern<0.6.0, >=0.5.6",
+    "tarina>=0.3.3",
 ]
 dynamic = ["version"]
 requires-python = ">=3.8"
@@ -42,9 +43,6 @@ repository = "https://github.com/ArcletProject/Alconna"
 
 [project.optional-dependencies]
 full = ["arclet-alconna-tools>=0.2.0"]
-cli = ["arclet-alconna-cli>=0.3.0"]
-graia = ["arclet-alconna-graia>=0.9.0"]
-all = ["arclet-alconna-cli>=0.3.0", "arclet-alconna-graia>=0.8.0", "arclet-alconna-tools>=0.2.0"]
 
 [tool.pdm]
 
@@ -63,7 +61,7 @@ dev = [
 [tool.pdm.scripts]
 test = "python entry_test.py"
 benchmark = "python benchmark.py"
-deps = "pydeps ./src/arclet/alconna"
+deps = "pydeps -o alconna.svg ./src/arclet/alconna --max-bacon=4 --cluster --keep-target-cluster --rmprefix alconna. "
 
 [tool.pdm.version]
 source = "file"

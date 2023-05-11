@@ -41,10 +41,6 @@ class FuzzyMatchSuccess(Exception):
     """模糊匹配成功"""
 
 
-class CompletionTriggered(Exception):
-    """补全触发"""
-
-
 class PauseTriggered(Exception):
     """解析状态保存触发"""
 

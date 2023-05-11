@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Args, AnyOne, compile, command_manager, config
+from arclet.alconna import Alconna, Args, AnyOne, command_manager, namespace
 import cProfile
 import pstats
 
@@ -11,6 +11,9 @@ class Plain:
     def __init__(self, t: str):
         self.text = t
 
+    def __repr__(self):
+        return self.text
+
 
 class At:
     type = "At"
@@ -19,15 +22,21 @@ class At:
     def __init__(self, t: int):
         self.target = t
 
+    def __repr__(self):
+        return f"At:{self.target}"
 
-config.default_namespace.enable_message_cache = True
 
-alc = Alconna(
-    ["."],
-    "test",
-    Args["bar", AnyOne]
-)
-compile_alc = compile(alc)
+with namespace("test") as np:
+    np.enable_message_cache = True
+    np.to_text = lambda x: x.text if x.__class__ is Plain else None
+    alc = Alconna(
+        ["."],
+        "test",
+        Args["bar", AnyOne]
+    )
+
+argv = command_manager.resolve(alc)
+analyser = command_manager.require(alc)
 print(alc)
 msg = [Plain(".test"), At(124)]
 count = 20000
@@ -37,8 +46,8 @@ if __name__ == "__main__":
     sec = 0.0
     for _ in range(count):
         st = time.perf_counter()
-        compile_alc.container.build(msg)
-        compile_alc.process()
+        argv.build(msg)
+        analyser.process(argv)
         sec += time.perf_counter() - st
     print(f"Alconna: {count / sec:.2f}msg/s")
 
@@ -47,8 +56,8 @@ if __name__ == "__main__":
 
     for _ in range(count):
         st = time.thread_time_ns()
-        compile_alc.container.build(msg)
-        compile_alc.process()
+        argv.build(msg)
+        analyser.process(argv)
         li += (time.thread_time_ns() - st)
 
     print(f"Alconna: {li / count} ns per loop with {count} loops")
@@ -58,8 +67,8 @@ if __name__ == "__main__":
     prof = cProfile.Profile()
     prof.enable()
     for _ in range(count):
-        compile_alc.container.build(msg)
-        compile_alc.process()
+        argv.build(msg)
+        analyser.process(argv)
     prof.create_stats()
 
     stats = pstats.Stats(prof)
