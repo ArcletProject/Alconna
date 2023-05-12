@@ -26,6 +26,14 @@ T = TypeVar("T")
 TDC1 = TypeVar("TDC1", bound=DataCollection[Any])
 
 
+def handle_argv():
+    path = Path(sys.argv[0])
+    head = path.stem
+    if head == "__main__":
+        head = path.parent.stem
+    return head
+
+
 def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> None:
     options.append(
         Option("|".join(ns.builtin_option_name['help']), help_text=lang.require("builtin", "option_help")),
@@ -140,11 +148,7 @@ class Alconna(Subcommand, Generic[TDC]):
         try:
             self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
         except StopIteration:
-            if self.prefixes:
-                self.command = ""
-            else:
-                path = Path(sys.argv[0])
-                self.command = path.parent.stem if str(path.parent) not in (".", "/", "\\") else path.stem
+            self.command = "" if self.prefixes else handle_argv()
         self.namespace = ns_config.name
         self.formatter = (formatter_type or ns_config.formatter_type or TextFormatter)()
         self.meta = meta or CommandMeta()
@@ -352,8 +356,7 @@ class Alconna(Subcommand, Generic[TDC]):
     def __call__(self, *args, **kwargs):
         if args:
             return self.parse(list(args))  # type: ignore
-        path = Path(sys.argv[0])
-        head = path.parent.stem if str(path.parent) not in (".", "/", "\\") else path.stem
+        head = handle_argv()
         if head != self.command:
             return self.parse(sys.argv[1:])  # type: ignore
         return self.parse([head, *sys.argv[1:]])  # type: ignore
