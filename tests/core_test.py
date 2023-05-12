@@ -412,8 +412,11 @@ def test_shortcut():
 
 
 def test_help():
+    from arclet.alconna.exceptions import SpecialOptionTriggered
+
     alc17 = Alconna("core17") + Option("foo", Args["bar", str])
-    alc17.parse("core17 --help")
+    res = alc17.parse("core17 --help")
+    assert isinstance(res.error_info, SpecialOptionTriggered)
     alc17.parse("core17 --help foo")
     alc17_1 = Alconna(
         "core17_1",
@@ -440,6 +443,8 @@ def test_args_notice():
 
 
 def test_completion():
+    from arclet.alconna.exceptions import SpecialOptionTriggered
+
     alc20 = (
         "core20"
         + Option("fool")
@@ -464,7 +469,8 @@ def test_completion():
     alc20.parse("core20 off c --comp")
 
     alc20_1 = Alconna("core20_1", Args.foo[int], Option("bar"))
-    alc20_1.parse("core20_1 -cp")
+    res = alc20_1.parse("core20_1 -cp")
+    assert isinstance(res.error_info, SpecialOptionTriggered)
 
 
 def test_completion_interface():

@@ -435,7 +435,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         """
         result = Arparma(self.command.path, argv.origin, not fail, self.header_result)
         if fail:
-            result.error_info = repr(exception or traceback.format_exc(limit=1))
+            result.error_info = exception or repr(traceback.format_exc(limit=1))
             result.error_data = argv.release()
         else:
             if self.default_opt_result:
