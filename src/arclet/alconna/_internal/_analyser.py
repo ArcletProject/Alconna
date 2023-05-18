@@ -348,9 +348,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         try:
             self.header_result = analyse_header(self.command_header, argv)
         except ParamsUnmatched as e:
-            argv.raw_data = argv.bak_data.copy()
-            argv.current_index = 0
-            _next = argv.next(move=False)[0]
+            _next = e.args[1]
             if _next.__class__ is not str:
                 if self.command.meta.raise_exception:
                     raise e
@@ -362,7 +360,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                     raise e from exc
                 return self.export(argv, True, e)
             else:
-                argv.next()
                 data = argv.release()
                 self.reset()
                 argv.reset()

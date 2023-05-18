@@ -470,34 +470,42 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
             if _str:
                 argv.rollback(head_text[len(str(val.value)):], replace=True)
             return HeadResult(val.value, val.value, True, fixes=mapping)
-    else:
-        may_command, _m_str = argv.next()
-        if content.__class__ is list and _m_str:
-            for pair in content:
-                if res := pair.match(head_text, may_command, argv.rollback, header.compact):
-                    return HeadResult(*res, fixes=mapping)
-        if content.__class__ is Double and (
-            res := content.match(head_text, may_command, _str, _m_str, argv.rollback, header.compact)
-        ):
-            return HeadResult(*res, fixes=mapping)
 
-    if _str and argv.fuzzy_match:
-        command, prefixes = header.origin
-        headers_text = []
-        if prefixes and prefixes != [""]:
-            headers_text.extend(f"{i}{command}" for i in prefixes)
-        elif command:
-            headers_text.append(str(command))
-        if isinstance(content, (TPattern, BasePattern)):
-            source = head_text
-        else:
-            source = head_text + argv.separators[0] + str(may_command)  # noqa
-        if source == command:
-            raise ParamsUnmatched(lang.require("header", "error").format(target=head_text))
-        for ht in headers_text:
-            if levenshtein(source, ht) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(target=source, source=ht))
-    raise ParamsUnmatched(lang.require("header", "error").format(target=head_text))
+    may_cmd, _m_str = argv.next()
+    if content.__class__ is list and _m_str:
+        for pair in content:
+            if res := pair.match(head_text, may_cmd, argv.rollback, header.compact):
+                return HeadResult(*res, fixes=mapping)
+    if content.__class__ is Double and (
+        res := content.match(head_text, may_cmd, _str, _m_str, argv.rollback, header.compact)
+    ):
+        return HeadResult(*res, fixes=mapping)
+    if _str:
+        argv.rollback(may_cmd)
+        source = head_text
+    elif _m_str and may_cmd:
+        source = may_cmd
+    else:
+        argv.rollback(may_cmd)
+        raise ParamsUnmatched(lang.require("header", "error").format(target=head_text), None)
+    if argv.fuzzy_match:
+        _handle_fuzzy(header, source)
+    raise ParamsUnmatched(lang.require("header", "error").format(target=source), source)
+
+
+def _handle_fuzzy(header, source):
+    command = header.origin[0]
+    _prefixes = [i for i in header.origin[1] if i.__class__ is str]
+    headers_text = []
+    if _prefixes and _prefixes != [""]:
+        headers_text.extend(f"{i}{command}" for i in _prefixes)
+    elif command:
+        headers_text.append(str(command))
+    if source == command:
+        raise ParamsUnmatched(lang.require("header", "error").format(target=source))
+    for ht in headers_text:
+        if levenshtein(source, ht) >= config.fuzzy_threshold:
+            raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(target=source, source=ht))
 
 
 def handle_help(analyser: Analyser, argv: Argv):

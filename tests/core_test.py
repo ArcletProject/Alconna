@@ -373,6 +373,7 @@ def test_alconna_group():
 def test_fuzzy():
     alc15 = Alconna("!core15", Args["foo", str], meta=CommandMeta(fuzzy_match=True))
     assert alc15.parse("core15 foo bar").matched is False
+    assert alc15.parse([1, "core15", "foo", "bar"]).matched is False
 
 
 def test_shortcut():
@@ -411,6 +412,16 @@ def test_shortcut():
     assert res6.content == "print('123\n456\n789')"
     res7 = alc16_1.parse([123])
     assert not res7.matched
+
+    alc16_2 = Alconna([1, 2, '3'], "core16_2", Args["foo", bool])
+    alc16_2.shortcut("test", {"command": [1, "core16_2 True"]})
+    assert alc16_2.parse([1, "core16_2 True"]).matched
+    res8 = alc16_2.parse("test")
+    assert res8.foo is True
+    res9 = alc16_2.parse([2, "test"])
+    assert res9.foo is True
+    assert not alc16_2.parse("3test").matched
+
 
 
 def test_help():
