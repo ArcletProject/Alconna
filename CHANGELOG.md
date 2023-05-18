@@ -1,5 +1,11 @@
 # 更新日志
 
+## Alconna 1.7.3
+
+### 修复:
+
+- 修复 `find_shortcut` 传入意外参数的 bug
+
 ## Alconna 1.7.2
 
 ### 修复:

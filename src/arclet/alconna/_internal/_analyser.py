@@ -350,8 +350,13 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         except ParamsUnmatched as e:
             argv.raw_data = argv.bak_data.copy()
             argv.current_index = 0
+            _next = argv.next(move=False)[0]
+            if _next.__class__ is not str:
+                if self.command.meta.raise_exception:
+                    raise e
+                return self.export(argv, True, e)
             try:
-                _res = command_manager.find_shortcut(self.command, argv.next(move=False)[0])
+                _res = command_manager.find_shortcut(self.command, _next)
             except ValueError as exc:
                 if self.command.meta.raise_exception:
                     raise e from exc

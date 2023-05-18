@@ -409,6 +409,8 @@ def test_shortcut():
     assert not alc16_1.parse("echo 123 456").matched
     res6 = alc16_1.parse(["echo1", "123", "456 789"])
     assert res6.content == "print('123\n456\n789')"
+    res7 = alc16_1.parse([123])
+    assert not res7.matched
 
 
 def test_help():
