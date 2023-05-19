@@ -23,7 +23,8 @@
     "param_missing": "你应当传入更多的参数来完成解析!"
   },
   "header": {
-    "error": "命令头部 {target} 匹配失败"
+    "error": "命令头部 {target} 匹配失败",
+    "prefix_error": "当命令名不是字符串时，命令前缀不能是元组"
   },
   "option": {
     "name_error": "{target} 与选项 {source} 不匹配",

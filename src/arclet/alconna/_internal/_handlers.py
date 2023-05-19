@@ -457,16 +457,18 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
     content = header.content
     mapping = header.mapping
     head_text, _str = argv.next()
-    if content.__class__ is TPattern and _str:
-        if mat := content.fullmatch(head_text):
+    if _str:
+        if content.__class__ is set and head_text in content:
+            return HeadResult(head_text, head_text, True, fixes=mapping)
+        elif content.__class__ is TPattern and (mat := content.fullmatch(head_text)):
             return HeadResult(head_text, head_text, True, mat.groupdict(), mapping)
-        if header.compact and (mat := content.match(head_text)):
+        if header.compact and content.__class__ in (set, TPattern) and (mat := header.compact_pattern.match(head_text)):
             argv.rollback(head_text[len(mat[0]):], replace=True)
             return HeadResult(mat[0], mat[0], True, mat.groupdict(), mapping)
-    elif isinstance(content, BasePattern):
+    if isinstance(content, BasePattern):
         if (val := content.exec(head_text, Empty)).success:
             return HeadResult(head_text, val.value, True, fixes=mapping)
-        if header.compact and (val := content.prefixed().exec(head_text, Empty)).success:
+        if header.compact and (val := header.compact_pattern.exec(head_text, Empty)).success:
             if _str:
                 argv.rollback(head_text[len(str(val.value)):], replace=True)
             return HeadResult(val.value, val.value, True, fixes=mapping)

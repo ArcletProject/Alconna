@@ -23,7 +23,8 @@
     "param_missing": "You need more data to analyse!"
   },
   "header": {
-    "error": "{target} dose not matched"
+    "error": "{target} dose not matched",
+    "prefix_error": "Prefixes cannot be tuple when command is not str"
   },
   "option": {
     "name_error": "{target} not matched with option {source}",

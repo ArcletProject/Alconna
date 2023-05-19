@@ -1,5 +1,13 @@
 # 更新日志
 
+## Alconna 1.7.5
+
+### 改进:
+
+- 命令头部在非 `bracket header` 时只有前缀为 `"re:"` 时才会被视为正则表达式
+- 当命令头部不存在正则表达式时, 匹配将直接使用 set 比对
+- `Alconna.help_text` 现在与 `Alconna.meta.description` 一致
+
 ## Alconna 1.7.4
 
 ### 改进:

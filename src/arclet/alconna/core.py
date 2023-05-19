@@ -166,7 +166,7 @@ class Alconna(Subcommand, Generic[TDC]):
             _args << i
         super().__init__(
             "ALCONNA::",
-            _args, *options, dest=name, separators=separators or ns_config.separators,
+            _args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description
         )
         self.name = name
         self.behaviors = []
