@@ -423,7 +423,6 @@ def test_shortcut():
     assert not alc16_2.parse("3test").matched
 
 
-
 def test_help():
     from arclet.alconna.exceptions import SpecialOptionTriggered
 
