@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Args, AnyOne, command_manager, namespace
+from arclet.alconna import Alconna, Args, AnyOne, argv_config
 import cProfile
 import pstats
 
@@ -25,17 +25,17 @@ class At:
     def __repr__(self):
         return f"At:{self.target}"
 
+argv_config(
+    to_text=lambda x: x.text if x.__class__ is Plain else None
+)
+alc = Alconna(
+    ["."],
+    "test",
+    Args["bar", AnyOne]
+)
 
-with namespace("test") as np:
-    np.to_text = lambda x: x.text if x.__class__ is Plain else None
-    alc = Alconna(
-        ["."],
-        "test",
-        Args["bar", AnyOne]
-    )
-
-argv = command_manager.resolve(alc)
-analyser = command_manager.require(alc)
+argv = alc.argv
+analyser = alc.analyser
 print(alc)
 msg = [Plain(".test"), At(124)]
 count = 20000
