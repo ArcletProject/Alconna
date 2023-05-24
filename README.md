@@ -43,20 +43,20 @@ pip install --upgrade arclet-alconna[all]
 ## 简单使用
 
 ```python
-from arclet.alconna import Alconna, Option, Subcommand, Args
+from arclet.alconna import Alconna, Option, Slot, store_true
 
 cmd = Alconna(
-    "/pip",
-    Subcommand("install", [Option("-u|--upgrade")], Args.pak_name[str]),
-    Option("list")
+    "/pip", Slot("install"), Slot("pak", str), Option("-u|--upgrade", action=store_true, default=False)
 )
 
 result = cmd.parse("/pip install cesloi --upgrade") # 该方法返回一个Arpamar类的实例
-print(result.query('install'))  # 或者 result.install
+print(result.options["upgrade"].value)
+print(result.main_args['pak'])
 ```
 其结果为
 ```
-{'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
+True
+'cesloi'
 ```
 
 ## 讨论

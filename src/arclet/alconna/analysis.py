@@ -290,7 +290,7 @@ class Analyser(Generic[TDC]):
         self.self_args = self.command.args
         if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = sum(arg.field.default is not None for arg in self.self_args.argument)
+        _de_count = sum(arg.default is not None for arg in self.self_args.argument)
         if _de_count and _de_count == self.command.nargs:
             self.default_main_only = True
 
@@ -387,26 +387,17 @@ TCompile: TypeAlias = Callable[[Analyser, Set[str]], None]
 def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
     分析 `Args` 部分
-
-    Args:
-        argv (Argv): 命令行参数
-        args (Args): 目标 `Args`
-
-    Returns:
-        dict[str, Any]: 解析结果
     """
     result: dict[str, Any] = {}
     for arg in args.argument:
         key = arg.name
         value = arg.value
-        default_val = arg.field.default
+        default_val = arg.default
         may_arg, _str = argv.next(arg.separators)
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             if default_val is not None:
                 result[key] = None if default_val is Empty else default_val
-            elif value.__class__ is MultiVar and value.flag == '*':  # type: ignore
-                result[key] = ()
             elif not arg.optional:
                 raise ArgumentMissing(lang.require("args", "missing").format(key=key))
             continue
@@ -419,6 +410,8 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             result[key] = may_arg
         elif value == AnyString:
             result[key] = str(may_arg)
+        elif _str and key == value.pattern:
+            result[key] = ...
         else:
             res = (
                 value.invalidate(may_arg, default_val)
@@ -431,8 +424,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
                 if arg.optional:
                     continue
                 raise ParamsUnmatched(*res.error.args)
-            if not arg.anonymous:
-                result[key] = res._value  # type: ignore
+            result[key] = res._value  # type: ignore
     return result
 
 
@@ -448,19 +440,16 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     _cnt = 0
     error = True
     name, _ = argv.next(opt.separators)
-    if opt.compact:
-        for al in opt.aliases:
-            if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
-                argv.rollback(mat.groupdict()['rest'], replace=True)
-                error = False
-                break
-    elif opt.action.type == 2:
-        for al in opt.aliases:
-            if name.startswith(al) and (cnt := (len(name.lstrip("-")) / len(al.lstrip("-")))).is_integer():
-                _cnt = int(cnt)
-                error = False
-                break
-    elif name in opt.aliases:
+    for al in opt.aliases:
+        if opt.compact and (mat := re.fullmatch(f"{al}(?P<rest>.*?)", name)):
+            argv.rollback(mat.groupdict()['rest'], replace=True)
+            error = False
+            break
+        elif opt.action.type == 2 and name.startswith(al) and (cnt := (len(name.lstrip("-")) / len(al.lstrip("-")))).is_integer():
+            _cnt = int(cnt)
+            error = False
+            break
+    if name in opt.aliases:
         error = False
     if error:
         raise ParamsUnmatched(lang.require("option", "name_error").format(source=opt.name, target=name))
@@ -511,23 +500,6 @@ def analyse_option(analyser: Analyser, argv: Argv, opt: Option):
         analyser.options_result[opt_n] = handle_action(opt, analyser.options_result[opt_n], opt_v)
 
 
-def analyse_compact_params(analyser: Analyser, argv: Argv):
-    """分析紧凑参数
-
-    Args:
-        analyser (Analyser): 当前解析器
-        argv (Argv): 命令行参数
-    """
-    for param in analyser.compact_params:
-        _data, _index = argv.data_set()
-        try:
-            analyse_option(analyser, argv, param)
-            _data.clear()
-            return True
-        except ParamsUnmatched as e:
-            argv.data_reset(_data, _index)
-
-
 def handle_opt_default(defaults: dict[str, OptionResult], data: dict[str, OptionResult]):
     for k, v in defaults.items():
         if k not in data:
@@ -551,10 +523,16 @@ def analyse_param(analyser: Analyser, argv: Argv, seps: tuple[str, ...] | None =
         _param = None
     elif _text in analyser.compile_params:
         _param = analyser.compile_params[_text]
-    elif analyser.compact_params and (res := analyse_compact_params(analyser, argv)):
-        if res.__class__ is str:
-            raise ParamsUnmatched(res)
-        return True
+    elif analyser.compact_params:
+        for param in analyser.compact_params:
+            _data, _index = argv.data_set()
+            try:
+                analyse_option(analyser, argv, param)
+                _data.clear()
+                return True
+            except ParamsUnmatched:
+                argv.data_reset(_data, _index)
+        _param = None
     else:
         _param = None
     if not _param and analyser.command.nargs and not analyser.args_result:

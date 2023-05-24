@@ -295,23 +295,6 @@ class ArgFlag(str, Enum):
     ANTI = "!"
 
 
-@dc.dataclass(**safe_dcls_kw(slots=True))
-class Field(Generic[_T]):
-    """标识参数单元字段"""
-
-    default: _T | None = dc.field(default=None)
-    """参数单元的默认值"""
-    alias: str | None = dc.field(default=None)
-    """参数单元默认值的别名"""
-    completion: Callable[[], str | list[str]] | None = dc.field(default=None)
-    """参数单元的补全"""
-
-    @property
-    def display(self):
-        """返回参数单元的显示值"""
-        return self.alias or self.default
-
-
 @dc.dataclass(**safe_dcls_kw(init=False, eq=True, unsafe_hash=True, slots=True))
 class Arg:
     """参数单元"""
@@ -320,35 +303,30 @@ class Arg:
     """参数单元的名称"""
     value: BasePattern = dc.field(compare=False, hash=True)
     """参数单元的值"""
-    field: Field[Any] = dc.field(compare=False, hash=False)
+    default: Any = dc.field(compare=False, hash=False)
     """参数单元的字段"""
-    notice: str | None = dc.field(compare=False, hash=False)
-    """参数单元的注释"""
     flag: set[ArgFlag] = dc.field(compare=False, hash=False)
     """参数单元的标识"""
     separators: tuple[str, ...] = dc.field(compare=False, hash=False)
     """参数单元使用的分隔符"""
     optional: bool = dc.field(compare=False, hash=False)
     hidden: bool = dc.field(compare=False, hash=False)
-    anonymous: bool = dc.field(compare=False, hash=False)
 
     def __init__(
         self,
         name: str,
         value: TAValue | None = None,
-        field: Field[_T] | _T | None = None,
+        default: Any = None,
         seps: str | Iterable[str] = " ",
-        notice: str | None = None,
         flags: list[ArgFlag] | None = None,
     ):
         """构造参数单元
 
         Args:
             name (str): 参数单元的名称
-            value (TAValue, optional): 参数单元的值. Defaults to None.
-            field (Field[_T], optional): 参数单元的字段. Defaults to None.
+            value (TAValue, optional): 参数单元的类型. Defaults to None.
+            default (Any, optional): 参数单元的默认值. Defaults to None.
             seps (str | Iterable[str], optional): 参数单元使用的分隔符. Defaults to " ".
-            notice (str, optional): 参数单元的注释. Defaults to None.
             flags (list[ArgFlag], optional): 参数单元的标识. Defaults to None.
         """
         if not isinstance(name, str) or name.startswith('$'):
@@ -357,34 +335,28 @@ class Arg:
             raise InvalidParam(lang.require("args", "name_empty"))
         self.name = name
         _value = type_parser(value or RawStr(name))
-        default = field if isinstance(field, Field) else Field(field)
         if isinstance(_value, UnionPattern) and _value.optional:
-            default.default = Empty if default.default is None else default.default
-        if default.default == "...":
-            default.default = Empty
+            default = Empty if default is None else default
+        if default == "...":
+            default = Empty
         if _value is Empty:
             raise InvalidParam(lang.require("args", "value_error").format(target=name))
         self.value = _value
-        self.field = default
-        self.notice = notice
+        self.default = default
         self.separators = (seps,) if isinstance(seps, str) else tuple(seps)
         flags = flags or []
-        if res := re.match(r"^(?P<name>.+?)#(?P<notice>[^;?!/#]+)", name):
-            self.notice = res["notice"]
-            self.name = res["name"]
         if res := re.match(r"^(?P<name>.+?)(;)?(?P<flag>[?!/]+)", self.name):
             flags.extend(ArgFlag(c) for c in res["flag"])
             self.name = res["name"]
         self.flag = set(flags)
         self.optional = ArgFlag.OPTIONAL in self.flag
         self.hidden = ArgFlag.HIDDEN in self.flag
-        self.anonymous = self.name.startswith("_key_")
         if ArgFlag.ANTI in self.flag and self.value not in (AnyOne, AllParam):
             self.value = deepcopy(self.value).reverse()
 
     def __repr__(self):
         n, v = f"'{self.name}'", str(self.value)
-        return (n if n == v else f"{n}: {v}") + (f" = '{self.field.display}'" if self.field.display is not None else "")
+        return (n if n == v else f"{n}: {v}") + (f" = '{self.default}'" if self.default is not None else "")
 
 
 class ArgsMeta(type):
@@ -538,7 +510,7 @@ class Args(metaclass=ArgsMeta):
 
     def __repr__(self):
         return (
-            f"Args({', '.join([f'{arg}' for arg in self.argument if not arg.anonymous])})"
+            f"Args({', '.join([f'{arg}' for arg in self.argument])})"
             if self.argument else "Empty"
         )
 
