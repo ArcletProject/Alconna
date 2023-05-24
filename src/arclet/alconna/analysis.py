@@ -11,7 +11,7 @@ from nepattern.util import TPattern
 from tarina import Empty, lang, split, split_once
 from typing_extensions import Self, TypeAlias
 
-from .base import STRING, Args, Option, Subcommand, HeadResult, OptionResult, SubcommandResult, ArgumentMissing, NullMessage, ParamsUnmatched, Arparma
+from .base import STRING, Args, Option, HeadResult, OptionResult, ArgumentMissing, NullMessage, ParamsUnmatched, Arparma
 from .typing import TDC
 
 
@@ -45,23 +45,14 @@ def handle_bracket(name: str, mapping: dict):
     return "".join(parts), True
 
 
+@dataclass
 class Header:
     """命令头部的匹配表达式"""
-    __slots__ = ("origin", "content", "mapping", "compact", "compact_pattern")
-
-    def __init__(
-        self,
-        origin: tuple[str, list[str]],
-        content: set[str] | TPattern,
-        mapping: dict[str, BasePattern] | None = None,
-        compact: bool = False,
-        compact_pattern: TPattern | None = None,
-    ):
-        self.origin = origin
-        self.content = content
-        self.mapping = mapping or {}
-        self.compact = compact
-        self.compact_pattern = compact_pattern
+    origin: tuple[str, list[str]]
+    content: set[str] | TPattern
+    mapping: dict[str, BasePattern] = field(default_factory=dict)
+    compact: bool = field(default=False)
+    compact_pattern: TPattern | None = field(default=None)
 
     @classmethod
     def generate(cls, command: str, prefixes: list[str], compact: bool):
@@ -132,11 +123,6 @@ class Argv(Generic[TDC]):
         self.raw_data = []
         self.origin = "None"
         self._sep = None
-
-    @property
-    def done(self) -> bool:
-        """命令是否解析完毕"""
-        return self.current_index == self.ndata
 
     def build(self, data: TDC) -> Self:
         """命令分析功能, 传入字符串或消息链
@@ -247,53 +233,39 @@ class Argv(Generic[TDC]):
         self.current_index = index
 
 
-def default_compiler(analyser: SubAnalyser, pids: set[str]):
+def default_compiler(analyser: Analyser, pids: set[str]):
     """默认的编译方法
 
     Args:
-        analyser (SubAnalyser): 任意子解析器
+        analyser (Analyser): 目标解析器
         pids (set[str]): 节点名集合
     """
     for opts in analyser.command.options:
-        if isinstance(opts, Option):
-            if opts.compact or not set(analyser.command.separators).issuperset(opts.separators):
-                analyser.compact_params.append(opts)
-            for alias in opts.aliases:
-                if (li := analyser.compile_params.get(alias)) and isinstance(li, SubAnalyser):
-                    continue
-                analyser.compile_params[alias] = opts
-            if opts.default:
-                analyser.default_opt_result[opts.dest] = opts.default
-            pids.update(opts.aliases)
-        elif isinstance(opts, Subcommand):
-            sub = SubAnalyser(opts)
-            analyser.compile_params[opts.name] = sub
-            pids.add(opts.name)
-            default_compiler(sub, pids)
-            if not set(analyser.command.separators).issuperset(opts.separators):
-                analyser.compact_params.append(sub)
-            if sub.command.default:
-                analyser.default_sub_result[opts.dest] = sub.command.default
+        if opts.compact or not set(analyser.command.separators).issuperset(opts.separators):
+            analyser.compact_params.append(opts)
+        for alias in opts.aliases:
+            analyser.compile_params[alias] = opts
+        if opts.default:
+            analyser.default_opt_result[opts.dest] = opts.default
+        pids.update(opts.aliases)
 
 
 @dataclass
-class SubAnalyser(Generic[TDC]):
-    """子解析器, 用于子命令的解析"""
-
-    command: Subcommand
-    """子命令"""
+class Analyser(Generic[TDC]):
+    command: Alconna[TDC]
+    """目标命令"""
     default_main_only: bool = field(default=False)
     """命令是否只有主参数"""
     need_main_args: bool = field(default=False)
     """是否需要主参数"""
-    compile_params: dict[str, Option | SubAnalyser[TDC]] = field(default_factory=dict)
+    compile_params: dict[str, Option] = field(default_factory=dict)
     """编译的节点"""
-    compact_params: list[Option | SubAnalyser[TDC]] = field(default_factory=list)
+    compact_params: list[Option] = field(default_factory=list)
     """可能紧凑的需要逐个解析的节点"""
+    command_header: Header = field(default=False)
+    """命令头部"""
     self_args: Args = field(init=False)
     """命令自身参数"""
-    subcommands_result: dict[str, SubcommandResult] = field(init=False)
-    """子命令的解析结果"""
     options_result: dict[str, OptionResult] = field(init=False)
     """选项的解析结果"""
     args_result: dict[str, Any] = field(init=False)
@@ -304,8 +276,6 @@ class SubAnalyser(Generic[TDC]):
     """值的解析结果"""
     default_opt_result: dict[str, OptionResult] = field(default_factory=dict)
     """默认选项的解析结果"""
-    default_sub_result: dict[str, SubcommandResult] = field(default_factory=dict)
-    """默认子命令的解析结果"""
 
     def _clr(self):
         """清除自身的解析结果"""
@@ -316,6 +286,7 @@ class SubAnalyser(Generic[TDC]):
 
     def __post_init__(self):
         self.reset()
+        self.command_header = Header.generate(self.command.command, self.command.prefixes, self.command.meta.compact)
         self.self_args = self.command.args
         if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
@@ -323,87 +294,12 @@ class SubAnalyser(Generic[TDC]):
         if _de_count and _de_count == self.command.nargs:
             self.default_main_only = True
 
-    def result(self) -> SubcommandResult:
-        """生成子命令解析结果
-
-        Returns:
-            SubcommandResult: 子命令解析结果
-        """
-        if self.default_opt_result:
-            handle_opt_default(self.default_opt_result, self.options_result)
-        if self.default_sub_result:
-            for k, v in self.default_sub_result.items():
-                if k not in self.subcommands_result:
-                    self.subcommands_result[k] = v
-        res = SubcommandResult(
-            self.value_result, self.args_result, self.options_result, self.subcommands_result
-        )
-        self.reset()
-        return res
-
     def reset(self):
         """重置解析器"""
         self.args_result = {}
         self.options_result = {}
-        self.subcommands_result = {}
         self.value_result = None
         self.header_result = None
-
-    def process(self, argv: Argv[TDC]) -> Self:
-        """处理传入的参数集合
-
-        Args:
-            argv (Argv[TDC]): 命令行参数
-
-        Returns:
-            Self: 自身
-
-        Raises:
-            ParamsUnmatched: 名称不匹配
-            FuzzyMatchSuccess: 模糊匹配成功
-        """
-        sub = argv.context = self.command
-        name, _ = argv.next(sub.separators)
-        if name != sub.name:  # 先匹配节点名称
-            raise ParamsUnmatched(lang.require("subcommand", "name_error").format(target=name, source=sub.name))
-        return self.analyse(argv)
-
-    def analyse(self, argv: Argv[TDC]) -> Self:
-        """解析传入的参数集合
-
-        Args:
-            argv (Argv[TDC]): 命令行参数
-
-        Returns:
-            Self: 自身
-
-        Raises:
-            ArgumentMissing: 参数缺失
-        """
-        while analyse_param(self, argv, self.command.separators):
-            pass
-        if self.default_main_only and not self.args_result:
-            self.args_result = analyse_args(argv, self.self_args)
-        if not self.args_result and self.need_main_args:
-            raise ArgumentMissing(lang.require("subcommand", "args_missing").format(name=self.command.dest))
-        return self
-
-
-class Analyser(SubAnalyser[TDC], Generic[TDC]):
-    """命令解析器"""
-    command: Alconna
-    """命令实例"""
-    command_header: Header
-    """命令头部"""
-
-    def __init__(self, alconna: Alconna[TDC]):
-        """初始化解析器
-
-        Args:
-            alconna (Alconna[TDC]): 命令实例
-        """
-        super().__init__(alconna)
-        self.command_header = Header.generate(alconna.command, alconna.prefixes, alconna.meta.compact)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.name}>"
@@ -437,7 +333,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         if fail := self.analyse(argv):
             return fail
 
-        if argv.done and (not self.need_main_args or self.args_result):
+        if argv.current_index == argv.ndata and (not self.need_main_args or self.args_result):
             return self.export(argv)
 
         rest = argv.release()
@@ -478,19 +374,14 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         else:
             if self.default_opt_result:
                 handle_opt_default(self.default_opt_result, self.options_result)
-            if self.default_sub_result:
-                for k, v in self.default_sub_result.items():
-                    if k not in self.subcommands_result:
-                        self.subcommands_result[k] = v
             result.main_args = self.args_result
             result.options = self.options_result
-            result.subcommands = self.subcommands_result
             result.unpack()
         self.reset()
         return result  # type: ignore
 
 
-TCompile: TypeAlias = Callable[[SubAnalyser, Set[str]], None]
+TCompile: TypeAlias = Callable[[Analyser, Set[str]], None]
 
 
 def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
@@ -524,12 +415,10 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             result[key] = argv.converter(argv.release(arg.separators))
             argv.current_index = argv.ndata
             return result
-        elif value == AnyOne:
+        elif value == AnyOne or (value == STRING and _str):
             result[key] = may_arg
         elif value == AnyString:
             result[key] = str(may_arg)
-        elif value == STRING and _str:
-            result[key] = may_arg
         else:
             res = (
                 value.invalidate(may_arg, default_val)
@@ -555,12 +444,20 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
         argv (Argv): 命令行参数
         opt (Option): 目标 `Option`
     """
+    argv.context = opt
+    _cnt = 0
     error = True
     name, _ = argv.next(opt.separators)
     if opt.compact:
         for al in opt.aliases:
             if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
                 argv.rollback(mat.groupdict()['rest'], replace=True)
+                error = False
+                break
+    elif opt.action.type == 2:
+        for al in opt.aliases:
+            if name.startswith(al) and (cnt := (len(name.lstrip("-")) / len(al.lstrip("-")))).is_integer():
+                _cnt = int(cnt)
                 error = False
                 break
     elif name in opt.aliases:
@@ -570,40 +467,61 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     name = opt.dest
     return (
         (name, OptionResult(None, analyse_args(argv, opt.args)))
-        if opt.nargs else (name, OptionResult())
+        if opt.nargs
+        else (name, OptionResult(_cnt or opt.action.value))
     )
 
 
-def analyse_option(analyser: SubAnalyser, argv: Argv, opt: Option):
+def handle_action(param: Option, source: OptionResult, target: OptionResult):
+    """处理 `Option` 的 `action`"""
+    if param.action.type == 0:
+        return target
+    if param.action.type == 2:
+        if not param.nargs:
+            source.value += target.value
+            return source
+        return target
+    if not param.nargs:
+        source.value.extend(target.value)
+    else:
+        for key, value in target.args.items():
+            if key in source.args:
+                source.args[key].append(value)
+            else:
+                source.args[key] = [value]
+    return source
+
+
+def analyse_option(analyser: Analyser, argv: Argv, opt: Option):
     """
     分析 `Option` 部分
 
     Args:
-        analyser (SubAnalyser): 当前解析器
+        analyser (Analyser): 当前解析器
         argv (Argv): 命令行参数
         opt (Option): 目标 `Option`
     """
     opt_n, opt_v = handle_option(argv, opt)
-    analyser.options_result[opt_n] = opt_v
+    if opt_n not in analyser.options_result:
+        analyser.options_result[opt_n] = opt_v
+        if opt.action.type == 1 and opt_v.args:
+            for key in list(opt_v.args.keys()):
+                opt_v.args[key] = [opt_v.args[key]]
+    else:
+        analyser.options_result[opt_n] = handle_action(opt, analyser.options_result[opt_n], opt_v)
 
 
-def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
+def analyse_compact_params(analyser: Analyser, argv: Argv):
     """分析紧凑参数
 
     Args:
-        analyser (SubAnalyser): 当前解析器
+        analyser (Analyser): 当前解析器
         argv (Argv): 命令行参数
     """
     for param in analyser.compact_params:
         _data, _index = argv.data_set()
         try:
-            if param.__class__ is Option:
-                analyse_option(analyser, argv, param)
-            else:
-                try:
-                    param.process(argv)
-                finally:
-                    analyser.subcommands_result[param.command.dest] = param.result()
+            analyse_option(analyser, argv, param)
             _data.clear()
             return True
         except ParamsUnmatched as e:
@@ -620,11 +538,11 @@ def handle_opt_default(defaults: dict[str, OptionResult], data: dict[str, Option
             data[k].args.setdefault(key, value)
 
 
-def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | None = None):
+def analyse_param(analyser: Analyser, argv: Argv, seps: tuple[str, ...] | None = None):
     """处理参数
 
     Args:
-        analyser (SubAnalyser): 当前解析器
+        analyser (Analyser): 当前解析器
         argv (Argv): 命令行参数
         seps (tuple[str, ...], optional): 指定的分隔符.
     """
@@ -642,18 +560,11 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
     if not _param and analyser.command.nargs and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
         if analyser.args_result:
-            argv.context = None
             return True
     if _param.__class__ is Option:
         analyse_option(analyser, argv, _param)
-    elif _param is not None:
-        try:
-            _param.process(argv)
-        finally:
-            analyser.subcommands_result[_param.command.dest] = _param.result()
-    else:
-        return False
-    return True
+        return True
+    return False
 
 
 def analyse_header(header: Header, argv: Argv) -> HeadResult:

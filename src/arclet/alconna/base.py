@@ -5,11 +5,10 @@ import dataclasses as dc
 import re
 import sys
 from copy import deepcopy
-from dataclasses import dataclass
-from enum import Enum
-from functools import partial, reduce
+from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
-
+from dataclasses import dataclass, replace
+from enum import IntEnum, Enum
 from nepattern import AllParam, AnyOne, BasePattern, RawStr, UnionPattern, all_patterns, type_parser
 from tarina import Empty, lang, get_signature
 from typing_extensions import Self
@@ -29,17 +28,6 @@ class OptionResult:
 
 
 @dataclass(init=False, eq=True)
-class SubcommandResult:
-    __slots__ = ("value", "args", "options", "subcommands")
-    __repr__ = _repr_
-    def __init__(self, value=Ellipsis, args=None, options=None, subcommands=None):
-        self.value = value
-        self.args = args or {}
-        self.options = options or {}
-        self.subcommands = subcommands or {}
-
-
-@dataclass(init=False, eq=True)
 class HeadResult:
     __slots__ = ("origin", "result", "matched", "groups")
     __repr__ = _repr_
@@ -52,6 +40,61 @@ class HeadResult:
             self.groups.update(
                 {k: v.exec(self.groups[k]).value for k, v in fixes.items() if k in self.groups}  # noqa
             )
+
+
+class ActType(IntEnum):
+    """节点触发的动作类型"""
+    STORE = 0
+    """无 Args 时, 仅存储一个值, 默认为 Ellipsis; 有 Args 时, 后续的解析结果会覆盖之前的值"""
+    APPEND = 1
+    """无 Args 时, 将多个值存为列表, 默认为 Ellipsis; 有 Args 时, 每个解析结果会追加到列表中
+
+    当存在默认值并且不为列表时, 会自动将默认值变成列表, 以保证追加的正确性
+    """
+    COUNT = 2
+    """无 Args 时, 计数器加一; 有 Args 时, 表现与 STORE 相同
+
+    当存在默认值并且不为数字时, 会自动将默认值变成 1, 以保证计数器的正确性
+    """
+
+
+@dataclass(eq=True, frozen=True)
+class Action:
+    """节点触发的动作"""
+    type: ActType
+    value: Any
+
+
+store = Action(ActType.STORE, Ellipsis)
+"""默认的存储动作"""
+store_true = Action(ActType.STORE, True)
+"""存储 True"""
+store_false = Action(ActType.STORE, False)
+"""存储 False"""
+
+append = Action(ActType.APPEND, [Ellipsis])
+"""默认的追加动作"""
+
+count = Action(ActType.COUNT, 1)
+"""默认的计数动作"""
+
+
+def store_value(value: Any):
+    """存储一个值
+
+    Args:
+        value (Any): 待存储的值
+    """
+    return Action(ActType.STORE, value)
+
+
+def append_value(value: Any):
+    """追加值
+
+    Args:
+        value (Any): 待存储的值
+    """
+    return Action(ActType.APPEND, [value])
 
 
 class ParamsUnmatched(Exception):
@@ -69,6 +112,35 @@ class InvalidParam(Exception):
 class NullMessage(Exception):
     """传入了无法解析的消息"""
 
+
+def _handle_default(node: CommandNode):
+    if node.default is None:
+        return
+    act = node.action
+    if act.type == 1 and not isinstance(act.value, list):
+        act = node.action = replace(act, value=[act.value])
+    elif act.type == 2 and not isinstance(act.value, int):
+        act = node.action = replace(act, value=1)
+    if isinstance(node.default, OptionResult):
+        if act.type == 0 and act.value is ...:
+            node.action = Action(act.type, node.default.value)
+        if act.type == 1:
+            if not isinstance(node.default.value, list):
+                node.default.value = [node.default.value]
+            if act.value[0] is ...:
+                node.action = Action(act.type, node.default.value[:])
+        if act.type == 2 and not isinstance(node.default.value, int):
+            node.default.value = 1
+    else:
+        if act.type == 0 and act.value is ...:
+            node.action = Action(act.type, node.default)
+        if act.type == 1:
+            if not isinstance(node.default, list):
+                node.default = [node.default]
+            if act.value[0] is ...:
+                node.action = Action(act.type, node.default[:])
+        if act.type == 2 and not isinstance(node.default, int):
+            node.default = 1
 
 
 class CommandNode:
@@ -159,11 +231,14 @@ class Option(CommandNode):
     """命令选项别名"""
     compact: bool
     "是否允许名称与后随参数之间无分隔符"
+    action: Action
+    """响应动作"""
+
 
     def __init__(
         self,
         name: str, args: Arg | Args | None = None, alias: Iterable[str] | None = None,
-        dest: str | None = None, default: Any = None,
+        dest: str | None = None, default: Any = None, action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         compact: bool = False,
     ):
@@ -175,6 +250,7 @@ class Option(CommandNode):
             alias (Iterable[str] | None, optional): 命令选项别名
             dest (str | None, optional): 命令选项目标名称
             default (Any, optional): 命令选项默认值
+            action (Action | None, optional): 响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             compact (bool, optional): 是否允许名称与后随参数之间无分隔符
         """
@@ -194,49 +270,11 @@ class Option(CommandNode):
             default if isinstance(default, OptionResult) else OptionResult(default)
         )
         super().__init__(name, args, dest, default, separators)
+        self.action = action or store
+        _handle_default(self)
         if self.separators == ("",):
             self.compact = True
             self.separators = (" ",)
-
-
-class Subcommand(CommandNode):
-    """子命令, 次于主命令
-
-    与命令节点不同, 子命令可以包含多个命令选项与相对于自己的子命令
-    """
-    default: SubcommandResult | None
-    """子命令默认值"""
-    options: list[Option | Subcommand]
-    """子命令包含的选项与子命令"""
-
-    def __init__(
-        self,
-        name: str,
-        *args: Args | Arg | Option | Subcommand | list[Option | Subcommand],
-        dest: str | None = None, default: Any = None,
-        separators: str | Sequence[str] | set[str] | None = None,
-    ):
-        """初始化子命令
-
-        Args:
-            name (str): 子命令名称
-            *args (Args | Arg | Option | Subcommand | list[Option | Subcommand]): 参数, 选项或子命令
-            dest (str | None, optional): 子命令选项目标名称
-            default (Any, optional): 子命令默认值
-            separators (str | Sequence[str] | Set[str] | None, optional): 子命令分隔符
-        """
-        self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
-        for li in filter(lambda x: isinstance(x, list), args):
-            self.options.extend(li)
-        default = (
-            None if default is None else
-            default if isinstance(default, SubcommandResult) else SubcommandResult(default)
-        )
-        super().__init__(
-            name,
-            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            dest, default, separators
-        )
 
 
 def safe_dcls_kw(**kwargs):
@@ -522,11 +560,9 @@ class Arparma(Generic[TDC]):
         main_args (dict[str, Any]): 主参数匹配结果
         other_args (dict[str, Any]): 其他参数匹配结果
         options (dict[str, OptionResult]): 选项匹配结果
-        subcommands (dict[str, SubcommandResult]): 子命令匹配结果
     """
     header_match: HeadResult
     options: dict[str, OptionResult]
-    subcommands: dict[str, SubcommandResult]
 
     def __init__(
         self,
@@ -537,7 +573,6 @@ class Arparma(Generic[TDC]):
         error_data: list[str | Any] | None = None,
         main_args: dict[str, Any] | None = None,
         options: dict[str, OptionResult] | None = None,
-        subcommands: dict[str, SubcommandResult] | None = None,
     ):
         """初始化 `Arparma`
         Args:
@@ -548,7 +583,6 @@ class Arparma(Generic[TDC]):
             error_data (list[str | Any] | None, optional): 错误数据
             main_args (dict[str, Any] | None, optional): 主参数匹配结果
             options (dict[str, OptionResult] | None, optional): 选项匹配结果
-            subcommands (dict[str, SubcommandResult] | None, optional): 子命令匹配结果
         """
         self.origin = origin
         self.matched = matched
@@ -558,7 +592,6 @@ class Arparma(Generic[TDC]):
         self.main_args = main_args or {}
         self.other_args = {}
         self.options = options or {}
-        self.subcommands = subcommands or {}
 
     def _clr(self):
         ks = list(self.__dict__.keys())
@@ -571,36 +604,14 @@ class Arparma(Generic[TDC]):
         return self.header_match.matched
 
     @property
-    def non_component(self) -> bool:
-        """返回是否没有解析到任何组件"""
-        return not self.subcommands and not self.options
-
-    @property
-    def components(self) -> dict[str, OptionResult | SubcommandResult]:
-        """返回解析到的组件"""
-        return {**self.options, **self.subcommands}
-
-    @property
     def all_matched_args(self) -> dict[str, Any]:
         """返回 Alconna 中所有 Args 解析到的值"""
         return {**self.main_args, **self.other_args}
 
-    def _unpack_opts(self, _data):
-        for _v in _data.values():
-            self.other_args = {**self.other_args, **_v.args}
-
-    def _unpack_subs(self, _data):
-        for _v in _data.values():
-            self.other_args = {**self.other_args, **_v.args}
-            if _v.options:
-                self._unpack_opts(_v.options)
-            if _v.subcommands:
-                self._unpack_subs(_v.subcommands)
-
     def unpack(self) -> None:
         """处理 `Arparma` 中的数据"""
-        self._unpack_opts(self.options)
-        self._unpack_subs(self.subcommands)
+        for _v in self.options.values():
+            self.other_args = {**self.other_args, **_v.args}
 
     def call(self, target: Callable[..., _T], **additional) -> _T:
         """依据 `Arparma` 中的数据调用函数
@@ -629,7 +640,7 @@ class Arparma(Generic[TDC]):
         else:
             attrs = {
                 "matched": self.matched, "header_match": self.header_match,
-                "options": self.options, "subcommands": self.subcommands,
+                "options": self.options,
                 "main_args": self.main_args, "other_args": self.other_args
             }
             return ", ".join([f"{a}={v}" for a, v in attrs.items() if v])

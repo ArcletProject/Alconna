@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Callable, Generic, Sequence, TypeVar
 
 from .analysis import Analyser, default_compiler, TCompile, __argv_type__
-from .base import Option, Subcommand, Arg, Args, NullMessage, Arparma
+from .base import Option, Arg, Args, NullMessage, Arparma, CommandNode
 from .typing import TDC, CommandMeta, DataCollection
 
 TCallable = TypeVar("TCallable")
@@ -21,13 +21,15 @@ def handle_argv():
     return head
 
 
-class Alconna(Subcommand, Generic[TDC]):
+class Alconna(CommandNode, Generic[TDC]):
     """更加精确的命令解析"""
 
     prefixes: list[str]
     """命令前缀"""
     command: str | Any
     """命令名"""
+    options: list[Option]
+    "命令包含的选项"
     namespace: str
     """命名空间"""
     meta: CommandMeta
@@ -40,7 +42,7 @@ class Alconna(Subcommand, Generic[TDC]):
 
     def __init__(
         self,
-        *args: Option | Subcommand | str | list[str] | Args | Arg,
+        *args: Option | str | list[str] | Args | Arg,
         meta: CommandMeta | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
     ):
@@ -59,12 +61,12 @@ class Alconna(Subcommand, Generic[TDC]):
         except StopIteration:
             self.command = "" if self.prefixes else handle_argv()
         self.meta = meta or CommandMeta()
-        options = [i for i in args if isinstance(i, (Option, Subcommand))]
+        self.options = [i for i in args if isinstance(i, Option)]
         name = f"{self.command or self.prefixes[0]}"  # type: ignore
         _args = Args()
         for i in filter(lambda x: isinstance(x, (Args, Arg)), args):
             _args << i
-        super().__init__("ALCONNA::", _args, *options, dest=name, separators=separators)
+        super().__init__("ALCONNA::", _args, dest=name, separators=separators)
         self.name = name
         self.argv = __argv_type__.get()(
             separators=self.separators,  # type: ignore
