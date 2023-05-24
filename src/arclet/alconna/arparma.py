@@ -1,83 +1,67 @@
 from __future__ import annotations
 
-from typing import Any, TypeVar, overload, Generic, Mapping, TYPE_CHECKING
-from types import MappingProxyType
-from contextlib import suppress
+from typing import Any, Callable, Generic, TypeVar
 
-from nepattern import Empty, generic_isinstance
-from .typing import TDataCollection
-from .config import config
-from .model import SubcommandResult, OptionResult, HeadResult
+from tarina import get_signature
 
-if TYPE_CHECKING:
-    from .core import Alconna
+from .model import HeadResult, OptionResult, SubcommandResult
+from .typing import TDC
 
 T = TypeVar('T')
-D = TypeVar('D')
 
 
-def _handle_opt(_pf: str, _parts: list[str], _opts: dict[str, OptionResult]):
-    if _pf == "options":
-        _pf = _parts.pop(0)
-    if not _parts:  # options.foo or foo
-        return _opts, _pf
-    elif not (__src := _opts.get(_pf)):  # options.foo.bar or foo.bar
-        return _opts, _pf
-    if (_end := _parts.pop(0)) == "value":
-        return __src, _end
-    if _end == 'args':
-        return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
-    return __src.args, _end
+class Arparma(Generic[TDC]):
+    """承载解析结果与操作数据的接口类
 
-
-def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult]):
-    if _pf == "subcommands":
-        _pf = _parts.pop(0)
-    if not _parts:
-        return _subs, _pf
-    elif not (__src := _subs.get(_pf)):
-        return _subs, _pf
-    if (_end := _parts.pop(0)) == "value":
-        return __src, _end
-    if _end == 'args':
-        return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
-    if _end == "options" and (_end in __src.options or not _parts):
-        raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
-    if _end == "options" or _end in __src.options:
-        return _handle_opt(_end, _parts, __src.options)
-    if _end == "subcommands" and (_end in __src.subcommands or not _parts):
-        raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=f"{_pf}.{_end}"))
-    if _end == "subcommands" or _end in __src.subcommands:
-        return _handle_sub(_end, _parts, __src.subcommands)
-    return __src.args, _end
-
-
-class Arparma(Generic[TDataCollection]):
-    """承载解析结果与操作数据的接口类"""
+    Attributes:
+        origin (TDC): 原始数据
+        matched (bool): 是否匹配
+        header_match (HeadResult): 命令头匹配结果
+        error_info (type[BaseException] | BaseException | str): 错误信息
+        error_data (list[str | Any]): 错误数据
+        main_args (dict[str, Any]): 主参数匹配结果
+        other_args (dict[str, Any]): 其他参数匹配结果
+        options (dict[str, OptionResult]): 选项匹配结果
+        subcommands (dict[str, SubcommandResult]): 子命令匹配结果
+    """
     header_match: HeadResult
     options: dict[str, OptionResult]
     subcommands: dict[str, SubcommandResult]
 
     def __init__(
         self,
-        source: Alconna,
-        origin: TDataCollection,
+        source: str,
+        origin: TDC,
         matched: bool = False,
         header_match: HeadResult | None = None,
         error_info: type[BaseException] | BaseException | str = '',
-        error_data: list[str | Any] | None = None
+        error_data: list[str | Any] | None = None,
+        main_args: dict[str, Any] | None = None,
+        options: dict[str, OptionResult] | None = None,
+        subcommands: dict[str, SubcommandResult] | None = None,
     ):
-        self.source = source
+        """初始化 `Arparma`
+        Args:
+            source (str): 命令源
+            origin (TDC): 原始数据
+            matched (bool, optional): 是否匹配
+            header_match (HeadResult | None, optional): 命令头匹配结果
+            error_info (type[BaseException] | BaseException | str, optional): 错误信息
+            error_data (list[str | Any] | None, optional): 错误数据
+            main_args (dict[str, Any] | None, optional): 主参数匹配结果
+            options (dict[str, OptionResult] | None, optional): 选项匹配结果
+            subcommands (dict[str, SubcommandResult] | None, optional): 子命令匹配结果
+        """
+        self._source = source
         self.origin = origin
         self.matched = matched
         self.header_match = header_match or HeadResult()
         self.error_info = error_info
         self.error_data = error_data or []
-        self.main_args = {}
+        self.main_args = main_args or {}
         self.other_args = {}
-        self.options = {}
-        self.subcommands = {}
-
+        self.options = options or {}
+        self.subcommands = subcommands or {}
 
     def _clr(self):
         ks = list(self.__dict__.keys())
@@ -85,24 +69,24 @@ class Arparma(Generic[TDataCollection]):
             delattr(self, k)
 
     @property
-    def header(self) -> dict[str, str]:
-        """返回可能解析到的命令头中的信息"""
-        return self.header_match.groups
+    def source(self):
+        """返回命令源"""
+        from .manager import command_manager
+        return command_manager.get_command(self._source)
 
     @property
     def head_matched(self):
+        """返回命令头是否匹配"""
         return self.header_match.matched
 
     @property
-    def header_result(self):
-        return self.header_match.result
-
-    @property
     def non_component(self) -> bool:
+        """返回是否没有解析到任何组件"""
         return not self.subcommands and not self.options
 
     @property
     def components(self) -> dict[str, OptionResult | SubcommandResult]:
+        """返回解析到的组件"""
         return {**self.options, **self.subcommands}
 
     @property
@@ -122,93 +106,39 @@ class Arparma(Generic[TDataCollection]):
             if _v.subcommands:
                 self._unpack_subs(_v.subcommands)
 
-    def encapsulate_result(
-        self, main_args: dict[str, Any], options: dict[str, OptionResult], subcommands: dict[str, SubcommandResult]
-    ) -> None:
-        """处理 Arparma 中的数据"""
-        self.main_args = main_args.copy()
-        self.options = options.copy()
-        self.subcommands = subcommands.copy()
-        self._unpack_opts(options)
-        self._unpack_subs(subcommands)
+    def unpack(self) -> None:
+        """处理 `Arparma` 中的数据"""
+        self._unpack_opts(self.options)
+        self._unpack_subs(self.subcommands)
 
-    def _fail(self, exc: type[BaseException] | BaseException | str):
+    def call(self, target: Callable[..., T], **additional) -> T:
+        """依据 `Arparma` 中的数据调用函数
+
+        Args:
+            target (Callable[..., T]): 要调用的函数
+            **additional (Any): 附加参数
+        Returns:
+            T: 函数返回值
+        Raises:
+            RuntimeError: 如果 Arparma 未匹配, 则抛出 RuntimeError
+        """
+        if self.matched:
+            names = {p.name for p in get_signature(target)}
+            return target(**{k: v for k, v in {**self.all_matched_args, **additional}.items() if k in names})
+        raise RuntimeError
+
+    def fail(self, exc: type[BaseException] | BaseException | str):
+        """生成一个失败的 `Arparma`"""
         return Arparma(self._source, self.origin, False, self.header_match, error_info=exc)
-
-    def __require__(self, parts: list[str]) -> tuple[dict[str, Any] | OptionResult | SubcommandResult | None, str]:
-        """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
-        if len(parts) == 1:
-            part = parts[0]
-            for src in (self.main_args, self.other_args, self.options, self.subcommands):
-                if part in src:
-                    return src, part
-            if part in {"options", "subcommands", "main_args", "other_args"}:
-                return getattr(self, part, {}), ''
-            return (self.all_matched_args, '') if part == "args" else (None, part)
-        prefix = parts.pop(0)  # parts[0]
-        if prefix in {"options", "subcommands"} and prefix in self.components:
-            raise RuntimeError(config.lang.arpamar_ambiguous_name.format(target=prefix))
-        if prefix == "options" or prefix in self.options:
-            return _handle_opt(prefix, parts, self.options)
-        if prefix == "subcommands" or prefix in self.subcommands:
-            return _handle_sub(prefix, parts, self.subcommands)
-        prefix = prefix.replace("$main", "main_args").replace("$other", "other_args")
-        if prefix in {"main_args", "other_args"}:
-            return getattr(self, prefix, {}), parts.pop(0)
-        return None, prefix
-
-    @overload
-    def query(self, path: str) -> Mapping[str, Any] | Any | None: ...
-    @overload
-    def query(self, path: str, default: T) -> T | Mapping[str, Any] | Any: ...
-    def query(self, path: str, default: T | None = None) -> Any | Mapping[str, Any] | T | None:
-        """根据path查询值"""
-        source, endpoint = self.__require__(path.split('.'))
-        if source is None:
-            return default
-        if isinstance(source, (OptionResult, SubcommandResult)):
-            return getattr(source, endpoint, default) if endpoint else source
-        return source.get(endpoint, default) if endpoint else MappingProxyType(source)
-
-    @overload
-    def query_with(self, arg_type: type[T], path: str | None = None) -> T | None: ...
-    @overload
-    def query_with(self, arg_type: type[T], *, default: D) -> T | D: ...
-    @overload
-    def query_with(self, arg_type: type[T], path: str, default: D) -> T | D: ...
-    def query_with(self, arg_type: type[T], path: str | None = None, default: D | None = None) -> T | D | None:
-        """根据类型查询参数"""
-        if path:
-            return res if generic_isinstance(res := self.query(path, Empty), arg_type) else default
-        with suppress(IndexError):
-            return [v for v in self.all_matched_args.values() if generic_isinstance(v, arg_type)][0]
-        return default
-
-    def find(self, path: str) -> bool:
-        """查询路径是否存在"""
-        return self.query(path, Empty) != Empty
-
-    @overload
-    def __getitem__(self, item: type[T]) -> T | None: ...
-    @overload
-    def __getitem__(self, item: str) -> Any:  ...
-    def __getitem__(self, item: str | type[T]) -> T | Any | None:
-        if isinstance(item, str):
-            return self.query(item)
-        if data := self.query_with(item):
-            return data
-
-    def __getattr__(self, item: str):
-        return self.query(item) if "_" in item else self.all_matched_args.get(item)
 
     def __repr__(self):
         if self.error_info:
             attrs = ((s, getattr(self, s, None)) for s in ("matched", "header_match", "error_data", "error_info"))
             return ", ".join([f"{a}={v}" for a, v in attrs if v is not None])
         else:
-            attrs = [(s, getattr(self, s, None)) for s in ("matched", "header_match", "options", "subcommands")]
-            margs = {k: v for k, v in self.main_args.items() if k not in ('$varargs', '$kwargs', '$kwonly')}
-            attrs.append(("main_args", margs))
-            other_args = {k: v for k, v in self.other_args.items() if k not in ('$varargs', '$kwargs', '$kwonly')}
-            attrs.append(("other_args", other_args))
-            return ", ".join([f"{a}={v}" for a, v in attrs if v])
+            attrs = {
+                "matched": self.matched, "header_match": self.header_match,
+                "options": self.options, "subcommands": self.subcommands,
+                "main_args": self.main_args, "other_args": self.other_args
+            }
+            return ", ".join([f"{a}={v}" for a, v in attrs.items() if v])

@@ -1,0 +1,9 @@
+{
+  "default": "zh-CN",
+  "frozen": [
+    "builtin"
+  ],
+  "require": [
+    "builtin"
+  ]
+}

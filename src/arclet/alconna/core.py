@@ -2,166 +2,238 @@
 from __future__ import annotations
 
 import sys
-from functools import reduce
-from typing import List, Union, Tuple, overload, Any, Literal, Generic, Sequence
-from typing_extensions import Self
 from dataclasses import dataclass, field
-from .config import config, Namespace
-from .args import Args, Arg
-from .base import Option, Subcommand
-from .typing import TDataCollection
+from functools import partial
+from pathlib import Path
+from typing import Any, Callable, Generic, Sequence, TypeVar
+
+from tarina import init_spec
+from typing_extensions import Self
+
+from ._internal._analyser import Analyser, TCompile
+from .args import Arg, Args
 from .arparma import Arparma
-from .exceptions import PauseTriggered
-from .analysis.analyser import Analyser, TAnalyser, compile
-from .output import TextFormatter
+from .base import Option, Subcommand
+from .config import Namespace, config
+from .exceptions import ExecuteFailed, NullMessage
+from .manager import command_manager
+from .typing import TDC, CommandMeta, DataCollection, TPrefixes
+
+T = TypeVar("T")
+TDC1 = TypeVar("TDC1", bound=DataCollection[Any])
 
 
-T_Header = Union[List[Union[str, object]], List[Tuple[object, str]]]
+def handle_argv():
+    path = Path(sys.argv[0])
+    head = path.stem
+    if head == "__main__":
+        head = path.parent.stem
+    return head
 
 
-@dataclass(unsafe_hash=True)
-class CommandMeta:
-    description: str = field(default="Unknown")
-    usage: str | None = field(default=None)
-    example: str | None = field(default=None)
-    author: str | None = field(default=None)
-    raise_exception: bool = field(default=False)
-    keep_crlf: bool = field(default=False)
+@dataclass(init=True, unsafe_hash=True)
+class ArparmaExecutor(Generic[T]):
+    """Arparma 执行器
+
+    Attributes:
+        target(Callable[..., T]): 目标函数
+    """
+    target: Callable[..., T]
+    binding: Callable[..., list[Arparma]] = field(default=lambda: [], repr=False)
+
+    __call__ = lambda self, *args, **kwargs: self.target(*args, **kwargs)
+
+    @property
+    def result(self) -> T:
+        """执行结果"""
+        if not self.binding:
+            raise ExecuteFailed(None)
+        arps = self.binding()
+        if not arps or not arps[0].matched:
+            raise ExecuteFailed("Unmatched")
+        try:
+            return arps[0].call(self.target)
+        except Exception as e:
+            raise ExecuteFailed(e) from e
 
 
-class Alconna(Subcommand, Generic[TAnalyser]):
-    """更加精确的命令解析"""
-    custom_types = {}
+class Alconna(Subcommand, Generic[TDC]):
+    """
+    更加精确的命令解析
 
-    global_analyser_type: type[Analyser] = Analyser
+    Examples:
 
-    @classmethod
-    def default_analyser(cls, __t: type[TAnalyser] | None = None) -> type[Alconna[TAnalyser]]:
-        """配置 Alconna 的默认解析器"""
-        if __t is not None:
-            cls.global_analyser_type = __t
-        return cls
+        >>> from arclet.alconna import Alconna
+        >>> alc = Alconna(
+        ...     "name",
+        ...     ["p1", "p2"],
+        ...     Option("opt", Args["opt_arg", "opt_arg"]),
+        ...     Subcommand(
+        ...         "sub_name",
+        ...         Option("sub_opt", Args["sub_arg", "sub_arg"]),
+        ...         Args["sub_main_args", "sub_main_args"]
+        ...     ),
+        ...     Args["main_args", "main_args"],
+        ...  )
+        >>> alc.parse("name opt opt_arg")
+    """
+    prefixes: TPrefixes
+    """命令前缀"""
+    command: str | Any
+    """命令名"""
+    namespace: str
+    """命名空间"""
+    meta: CommandMeta
+    """命令元数据"""
+
+    @property
+    def compile(self) -> Callable[[TCompile | None], Analyser[TDC]]:
+        """编译 `Alconna` 为对应的解析器"""
+        return partial(Analyser, self)
 
     def __init__(
         self,
-        *args: Option | Subcommand | str | T_Header | Any | Args | Arg,
+        *args: Option | Subcommand | str | TPrefixes | Args | Arg,
         meta: CommandMeta | None = None,
         namespace: str | Namespace | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
-        analyser_type: type[TAnalyser] | None = None,
-        formatter_type: type[TextFormatter] | None = None
     ):
         """
-        以标准形式构造 Alconna
+        以标准形式构造 `Alconna`
 
         Args:
-            args: 命令选项、主参数、命令名称或命令头
-            meta: 命令元信息
-            namespace: 命令命名空间, 默认为 'Alconna'
-            separators: 命令参数分隔符, 默认为空格
-            analyser_type: 命令解析器类型, 默认为 DisorderCommandAnalyser
-            formatter_type: 命令帮助文本格式器类型, 默认为 DefaultHelpTextFormatter
+            *args (Option | Subcommand | str | TPrefixes | Args | Arg): 命令选项、主参数、命令名称或命令头
+            action (ArgAction | Callable | None, optional): 命令解析后针对主参数的回调函数
+            meta (CommandMeta | None, optional): 命令元信息
+            namespace (str | Namespace | None, optional): 命令命名空间, 默认为 'Alconna'
+            separators (str | set[str] | Sequence[str] | None, optional): 命令参数分隔符, 默认为 `' '`
         """
         if not namespace:
-            np_config = config.default_namespace
-        elif isinstance(namespace, Namespace):
-            np_config = config.namespaces.setdefault(namespace.name, namespace)
+            ns_config = config.default_namespace
+        elif isinstance(namespace, str):
+            ns_config = config.namespaces.setdefault(namespace, Namespace(namespace))
         else:
-            np_config = config.namespaces.setdefault(namespace, Namespace(namespace))
-        self.headers = next(filter(lambda x: isinstance(x, list), args + (np_config.headers.copy(),)))  # type: ignore
+            ns_config = namespace
+        self.prefixes = next(filter(lambda x: isinstance(x, list), args), ns_config.prefixes.copy())  # type: ignore
         try:
-            self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
+            self.command = next(filter(lambda x: isinstance(x, str), args))
         except StopIteration:
-            self.command = "" if self.headers else sys.argv[0]
-        self.namespace = np_config.name
-        self.analyser_type = analyser_type or self.__class__.global_analyser_type  # type: ignore
-        self.formatter = (formatter_type or TextFormatter)()
+            self.command = "" if self.prefixes else handle_argv()
+        self.namespace = ns_config.name
         self.meta = meta or CommandMeta()
-        self.meta.raise_exception = self.meta.raise_exception or np_config.raise_exception
+        if self.meta.example:
+            self.meta.example = self.meta.example.replace("$", str(self.prefixes[0]) if self.prefixes else "")
+        self.meta.raise_exception = self.meta.raise_exception or ns_config.raise_exception
+        self.meta.compact = self.meta.compact or ns_config.compact
+        options = [i for i in args if isinstance(i, (Option, Subcommand))]
+        name = f"{self.command or self.prefixes[0]}"  # type: ignore
+        self.path = f"{self.namespace}::{name}"
+        _args = Args()
+        for i in filter(lambda x: isinstance(x, (Args, Arg)), args):
+            _args << i
         super().__init__(
-            "ALCONNA",
-            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            separators=separators or np_config.separators,
+            "ALCONNA::",
+            _args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description
         )
-        self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
-        self.options.append(
-            Option("|".join(np_config.builtin_option_name['help']), help_text=config.lang.builtin_option_help),
-        )
-        self.name = f"{self.command or self.headers[0]}"
-        self._hash = self._calc_hash()
-        self._analyser = compile(self)
-
-    @property
-    def path(self) -> str:
-        return f"{self.namespace}::{self.name}"
+        self.name = name
+        command_manager.register(self)
+        self._executors: list[ArparmaExecutor] = []
+        self.union = set()
 
     @property
     def namespace_config(self) -> Namespace:
         return config.namespaces[self.namespace]
 
-    def reset_namespace(self, namespace: Namespace | str, header: bool = True) -> Self:
-        """重新设置命名空间"""
-        if isinstance(namespace, str):
-            namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
-        self.namespace = namespace.name
-        if header:
-            self.headers = namespace.headers.copy()
-        self.options[-1] = Option(
-            "|".join(namespace.builtin_option_name['help']), help_text=config.lang.builtin_option_help
-        )
-        self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
-        self._hash = self._calc_hash()
-        self._analyser = compile(self)
-        return self
-
-    def get_help(self) -> str:
-        """返回该命令的帮助信息"""
-        return self.formatter.format_node()
-
-    @classmethod
-    def set_custom_types(cls, **types: type):
-        """设置Alconna内的自定义类型"""
-        cls.custom_types = types
     def __repr__(self):
         return f"{self.namespace}::{self.name}(args={self.args}, options={self.options})"
 
     def add(self, opt: Option | Subcommand) -> Self:
-        self.options.insert(-1, opt)
+        """添加选项或子命令
+
+        Args:
+            opt (Option | Subcommand): 选项或子命令
+
+        Returns:
+            Self: 命令本身
+        """
+        command_manager.delete(self)
+        self.options.insert(-3, opt)
         self._hash = self._calc_hash()
-        self._analyser = compile(self)
+        command_manager.register(self)
         return self
-    @overload
-    def parse(self, message: TDataCollection) -> Arparma[TDataCollection]: ...
-    @overload
-    def parse(self, message, *, interrupt: Literal[True]) -> TAnalyser: ...
-    def parse(self, message: TDataCollection, *, interrupt: bool = False) -> TAnalyser | Arparma[TDataCollection]:
-        """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类"""
+
+    @init_spec(Option, True)
+    def option(self, opt: Option) -> Self:
+        """添加选项"""
+        return self.add(opt)
+
+    @init_spec(Subcommand, True)
+    def subcommand(self, sub: Subcommand) -> Self:
+        """添加子命令"""
+        return self.add(sub)
+
+    def _parse(self, message: TDC) -> Arparma[TDC]:
+        if self.union:
+            for ana, argv in command_manager.requires(*self.union):
+                if (res := ana.process(argv.build(message))).matched:
+                    return res
+        analyser = command_manager.require(self)
+        argv = command_manager.resolve(self)
+        argv.build(message)
+        return analyser.process(argv)
+
+    def parse(self, message: TDC) -> Arparma[TDC]:
+        """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类
+        
+        Args:
+            message (TDC): 命令消息
+        Returns:
+            Arparma[TDC
+        Raises:
+            NullMessage: 传入的消息为空时抛出
+        """
         try:
-            self._analyser.container.build(message)
-            return self._analyser.process(interrupt=interrupt)
-        except PauseTriggered:
-            return self._analyser
+            arp = self._parse(message)
+        except NullMessage as e:
+            if self.meta.raise_exception:
+                raise e
+            return Arparma(self.path, message, False, error_info=e)
+        if arp.matched and self._executors:
+            for ext in self._executors:
+                arp.call(ext.target)
+        return arp
 
-    def __truediv__(self, other) -> Self:
-        return self.reset_namespace(other)
+    def bind(self, active: bool = True):
+        """绑定命令执行器
 
-    __rtruediv__ = __truediv__
+        Args:
+            active (bool, optional): 该执行器是否由 `Alconna` 主动调用, 默认为 `True`
+        """
+        def wrapper(target: Callable[..., T]) -> ArparmaExecutor[T]:
+            ext = ArparmaExecutor(target, lambda: command_manager.get_result(self))
+            if active:
+                self._executors.append(ext)
+            return ext
+        return wrapper
 
-    def __add__(self, other) -> Self:
-        if isinstance(other, CommandMeta):
-            self.meta = other
-        elif isinstance(other, Option):
-            self.options.append(other)
-        elif isinstance(other, Args):
-            self.args += other
-            self.nargs = len(self.args)
-        elif isinstance(other, str):
-            _part = other.split("/")
-            self.options.append(Option(_part[0], _part[1] if len(_part) > 1 else None))
-        self._hash = self._calc_hash()
-        self._analyser = compile(self)
+    def __or__(self, other: Alconna) -> Self:
+        self.union.add(other.path)
         return self
+
     def _calc_hash(self):
-        return hash(
-            (self.path + str(self.headers), self.meta, *self.options, *self.args.argument)
-        )
+        return hash((self.path + str(self.prefixes), self.meta, *self.options, *self.args))
+
+    def __call__(self, *args, **kwargs):
+        if args:
+            return self.parse(list(args))  # type: ignore
+        head = handle_argv()
+        if head != self.command:
+            return self.parse(sys.argv[1:])  # type: ignore
+        return self.parse([head, *sys.argv[1:]])  # type: ignore
+
+    @property
+    def headers(self):
+        return self.prefixes
+
+
+__all__ = ["Alconna", "ArparmaExecutor"]

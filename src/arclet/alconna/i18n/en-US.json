@@ -1,0 +1,91 @@
+{
+  "common": {
+    "custom_type_error": "The custom parameter type {target} can't be a type.",
+    "name_empty": "You cannot give a empty name"
+  },
+  "completion": {
+    "node": "suggest input follows:"
+  },
+  "fuzzy": {
+    "matched": "{target} is not matched. Do you mean \"{source}\"?"
+  },
+  "action": {
+    "length_error": "The count of arguments of this action must same as the given Args",
+    "args_error": "The type of {target} is not same as {source} of '{key}' in Args",
+    "args_not_same": "The target type of {target} is not {source}",
+    "args_empty": "The type of {target} cannot set to {source}"
+  },
+  "argv": {
+    "null_message": "You income a message without text: {target}"
+  },
+  "analyser": {
+    "param_unmatched": "Unmatched params: {target}",
+    "param_missing": "You need more data to analyse!"
+  },
+  "header": {
+    "error": "{target} dose not matched",
+    "prefix_error": "Prefixes cannot be tuple when command is not str"
+  },
+  "option": {
+    "name_error": "{target} not matched with option {source}",
+    "require_error": "Option {source}'s required is not {target}"
+  },
+  "subcommand": {
+    "name_error": "{target} not matched with subcommand {source}",
+    "require_error": "Subcommand {source}'s required is not {target}",
+    "args_missing": "subcommand \"{name}\" missed its args"
+  },
+  "args": {
+    "name_error": "Name of arg must be a string",
+    "name_empty": "Name of arg cannot be empty",
+    "value_error": "Value of {target} cannot be empty",
+    "duplicate_kwargs": "You cannot set multiple kwargs at the same Args",
+    "duplicate_varargs": "You cannot set multiple varargs at the same Args",
+    "exclude_mutable_args": "This flag cannot be set when the Args is mutable",
+    "key_not_found": "Arg {name} not exists",
+    "missing": "param {key} is required",
+    "key_missing": "{target} missing its key. Do you forget to add '{key}='?"
+  },
+  "shortcut": {
+    "delete_success": "Delete shortcut: \"{shortcut}\" for {target} successfully",
+    "add_success": "Add shortcut: \"{shortcut}\" for {target} successfully",
+    "recent_command_error": "command {target} is not same as recent message's command {source}",
+    "no_recent_command": "get recent message failed"
+  },
+  "manager": {
+    "undefined_command": "Command {target} is not defined",
+    "incorrect_shortcut": "Shortcut {target} cannot be used",
+    "undefined_shortcut": "Shortcut {target} is not defined",
+    "target_command_error": "The target command of {shortcut} is not {target}",
+    "help_header": "# Following commands are available:",
+    "help_pages": "Page {current} of {total}",
+    "help_footer": "# Invoke '$command {help}' to see syntax"
+  },
+  "arparma": {
+    "ambiguous_name": "Name called  {target} is ambiguous\nplease add prefix 'options.' or 'subcommands.'"
+  },
+  "stub": {
+    "key_error": "{target} is not supported"
+  },
+  "duplication": {
+    "stub_type_error": "{value} is not a valid stub"
+  },
+  "behavior": {
+    "exclude_matched": "{target} and {other} cannot be both matched",
+    "cooldown_matched": "Your action is too frequent"
+  },
+  "builtin": {
+    "option_help": "show the help information",
+    "option_shortcut": "set a shortcut command",
+    "option_completion": "give a next input suggestion of current command"
+  },
+  "format": {
+    "notice": "Notice",
+    "usage": "Usage",
+    "example": "Example",
+    "subcommands": "Commands",
+    "subcommands.subs": "Commands in above command",
+    "subcommands.opts": "Options in above command",
+    "options": "General Options"
+  }
+}
