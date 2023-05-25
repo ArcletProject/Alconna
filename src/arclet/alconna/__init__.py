@@ -7,7 +7,7 @@ from .base import Option, ArgFlag, Arg, OptionResult, Arparma, store_true, store
 from .analysis import Argv, set_default_argv_type, argv_config
 from .main import Alconna
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 Arpamar = Arparma
 DataCollectionContainer = Argv

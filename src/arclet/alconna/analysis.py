@@ -241,7 +241,7 @@ def default_compiler(analyser: Analyser, pids: set[str]):
         pids (set[str]): 节点名集合
     """
     for opts in analyser.command.options:
-        if opts.compact or not set(analyser.command.separators).issuperset(opts.separators):
+        if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):
             analyser.compact_params.append(opts)
         for alias in opts.aliases:
             analyser.compile_params[alias] = opts
@@ -472,6 +472,7 @@ def handle_action(param: Option, source: OptionResult, target: OptionResult):
             return source
         return target
     if not param.nargs:
+        source.value = source.value[:]
         source.value.extend(target.value)
     else:
         for key, value in target.args.items():
