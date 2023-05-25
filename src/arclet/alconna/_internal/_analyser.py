@@ -14,7 +14,7 @@ from ..args import Args
 from ..arparma import Arparma
 from ..base import Option, Subcommand
 from ..completion import comp_ctx
-from ..config import Namespace, config
+from ..config import config
 from ..exceptions import (
     ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 )
@@ -64,15 +64,13 @@ def _compile_opts(option: Option, data: dict[str, Sentence | Option | list[Optio
             data[alias] = option
 
 
-def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
+def default_compiler(analyser: SubAnalyser, pids: set[str]):
     """默认的编译方法
 
     Args:
         analyser (SubAnalyser): 任意子解析器
-        _config (Namespace): 命名空间配置
         pids (set[str]): 节点名集合
     """
-    require_len = 0
     for opts in analyser.command.options:
         if isinstance(opts, Option):
             if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):
@@ -85,14 +83,13 @@ def default_compiler(analyser: SubAnalyser, _config: Namespace, pids: set[str]):
             sub = SubAnalyser(opts)
             analyser.compile_params[opts.name] = sub
             pids.add(opts.name)
-            default_compiler(sub, _config, pids)
+            default_compiler(sub, pids)
             if not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(sub)
             if sub.command.default:
                 analyser.default_sub_result[opts.dest] = sub.command.default
         if opts.requires:
             pids.update(opts.requires)
-            require_len = max(len(opts.requires), require_len)
             for k in opts.requires:
                 analyser.compile_params.setdefault(k, Sentence(name=k))
 
@@ -255,7 +252,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         compiler = compiler or default_compiler
         compiler(
             self,
-            alconna.namespace_config,
             command_manager.resolve(self.command).param_ids
         )
 
@@ -458,4 +454,4 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return result  # type: ignore
 
 
-TCompile: TypeAlias = Callable[[SubAnalyser, Namespace, Set[str]], None]
+TCompile: TypeAlias = Callable[[SubAnalyser, Set[str]], None]
