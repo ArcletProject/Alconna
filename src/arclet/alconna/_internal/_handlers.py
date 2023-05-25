@@ -75,13 +75,7 @@ def _handle_keyword(
     raise ParamsUnmatched(lang.require("args", "key_missing").format(target=may_arg, key=key))
 
 
-def _loop_kw(
-    argv: Argv,
-    _loop: int,
-    seps: tuple[str, ...],
-    value: MultiVar,
-    default: Any
-):
+def _loop_kw(argv: Argv, _loop: int, seps: tuple[str, ...], value: MultiVar, default: Any):
     """循环关键字参数"""
     result = {}
     for _ in range(_loop):
@@ -103,12 +97,7 @@ def _loop_kw(
 
 
 def _loop(
-    argv: Argv,
-    _loop: int,
-    seps: tuple[str, ...],
-    value: MultiVar,
-    default: Any,
-    kw: KeyWordVar | None
+    argv: Argv, _loop: int, seps: tuple[str, ...], value: MultiVar, default: Any, kw: KeyWordVar | None
 ):
     """循环参数"""
     result = []
@@ -133,12 +122,7 @@ def _loop(
     return tuple(result)
 
 
-def multi_arg_handler(
-    argv: Argv,
-    args: Args,
-    arg: Arg,
-    result_dict: dict[str, Any],
-):
+def multi_arg_handler(argv: Argv, args: Args, arg: Arg, result_dict: dict[str, Any],):
     """处理可变参数
 
     Args:
@@ -222,12 +206,10 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             result[key] = argv.converter(argv.release(arg.separators))
             argv.current_index = argv.ndata
             return result
-        elif value == AnyOne:
+        elif value == AnyOne or (value == STRING and _str):
             result[key] = may_arg
         elif value == AnyString:
             result[key] = str(may_arg)
-        elif value == STRING and _str:
-            result[key] = may_arg
         else:
             res = (
                 value.invalidate(may_arg, default_val)
@@ -294,6 +276,7 @@ def handle_action(param: Option, source: OptionResult, target: OptionResult):
             return source
         return target
     if not param.nargs:
+        source.value = source.value[:]
         source.value.extend(target.value)
     else:
         for key, value in target.args.items():

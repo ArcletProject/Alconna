@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import traceback
 from dataclasses import dataclass, field
 from re import Match
 from typing import TYPE_CHECKING, Any, Callable, Generic, Set
@@ -28,7 +27,7 @@ from ._handlers import (
     handle_shortcut, prompt
 )
 from ._header import Header
-from ._util import levenshtein
+from ._util import levenshtein, escape, unescape
 
 if TYPE_CHECKING:
     from ..core import Alconna
@@ -97,7 +96,6 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
 @dataclass
 class SubAnalyser(Generic[TDC]):
     """子解析器, 用于子命令的解析"""
-
     command: Subcommand
     """子命令"""
     default_main_only: bool = field(default=False)
@@ -294,15 +292,16 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 break
             if not isinstance(unit, str):
                 continue
+            unit = escape(unit)
             if unit == f"{{%{data_index}}}":
                 argv.raw_data[i] = data.pop(0)
                 data_index += 1
             elif f"{{%{data_index}}}" in unit:
-                argv.raw_data[i] = unit.replace(f"{{%{data_index}}}", str(data.pop(0)))
+                argv.raw_data[i] = unescape(unit.replace(f"{{%{data_index}}}", str(data.pop(0))))
                 data_index += 1
             elif mat := re.search(r"\{\*(.*)\}", unit, re.DOTALL):
                 sep = mat[1]
-                argv.raw_data[i] = unit.replace(f"{{*{sep}}}", (sep or ' ').join(map(str, data)))
+                argv.raw_data[i] = unescape(unit.replace(f"{{*{sep}}}", (sep or ' ').join(map(str, data))))
                 data.clear()
 
         argv.bak_data = argv.raw_data.copy()
@@ -313,11 +312,12 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             for j, unit in enumerate(argv.raw_data):
                 if not isinstance(unit, str):
                     continue
+                unit = escape(unit)
                 for i, c in enumerate(groups):
                     unit = unit.replace(f"{{{i}}}", c)
                 for k, v in gdict.items():
                     unit = unit.replace(f"{{{k}}}", v)
-                argv.raw_data[j] = unit
+                argv.raw_data[j] = unescape(unit)
         if argv.message_cache:
             argv.token = argv.generate_token(argv.raw_data)
         return self.process(argv)
@@ -420,10 +420,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             self.args_result = analyse_args(argv, self.self_args)
 
     def export(
-        self,
-        argv: Argv[TDC],
-        fail: bool = False,
-        exception: BaseException | None = None,
+        self, argv: Argv[TDC], fail: bool = False, exception: BaseException | None = None,
     ) -> Arparma[TDC]:
         """创建 `Arparma` 解析结果, 其一定是一次解析的最后部分
 
@@ -434,7 +431,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         """
         result = Arparma(self.command.path, argv.origin, not fail, self.header_result)
         if fail:
-            result.error_info = exception or repr(traceback.format_exc(limit=1))
+            result.error_info = exception
             result.error_data = argv.release()
         else:
             if self.default_opt_result:

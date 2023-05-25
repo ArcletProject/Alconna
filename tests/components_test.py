@@ -1,6 +1,6 @@
 from arclet.alconna import Alconna, Option, Args, Subcommand, Arparma, ArparmaBehavior
-from arclet.alconna.builtin import set_default
-from arclet.alconna.duplication import Duplication, generate_duplication
+from arclet.alconna.builtin import set_default, generate_duplication
+from arclet.alconna.duplication import Duplication
 from arclet.alconna.stub import ArgsStub, OptionStub, SubcommandStub
 from arclet.alconna.output import output_manager
 from arclet.alconna.model import OptionResult
@@ -57,8 +57,9 @@ def test_duplication():
 
     com4_1 = Alconna(["!", "！"], "yiyu", Args["value;OH", str])
     res = com4_1.parse("!yiyu")
-    dup = generate_duplication(res)
+    dup = generate_duplication(com4_1)(res)
     assert isinstance(dup, Duplication)
+
 
 def test_output():
     print("")
@@ -66,8 +67,6 @@ def test_output():
     output_manager.set(lambda: "123", "foo")
     assert output_manager.send("foo") == {"bar": "123!"}
     assert output_manager.send("foo", lambda: "321") == {"bar": "321!"}
-
-
 
     com5 = Alconna("comp5", Args["foo", int], Option("--bar", Args["bar", str]))
     output_manager.set_action(lambda x: x, "comp5")

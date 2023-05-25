@@ -211,9 +211,7 @@ class Args(metaclass=ArgsMeta):
             _args.add(name, value=anno, default=de)
         return _args, method
 
-    def __init__(
-        self, *args: Arg, separators: str | Iterable[str] | None = None, **kwargs: TAValue
-    ):
+    def __init__(self, *args: Arg, separators: str | Iterable[str] | None = None, **kwargs: TAValue):
         """
         构造一个 `Args`
 
@@ -299,8 +297,7 @@ class Args(metaclass=ArgsMeta):
             if arg.name in self._visit:
                 continue
             self._visit.add(arg.name)
-            _limit = False
-            if isinstance(arg.value, MultiVar) and not _limit:
+            if isinstance(arg.value, MultiVar):
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.var_keyword:
                         raise InvalidParam(lang.require("args", "duplicate_kwargs"))
@@ -309,7 +306,6 @@ class Args(metaclass=ArgsMeta):
                     raise InvalidParam(lang.require("args", "duplicate_varargs"))
                 else:
                     self.var_positional = arg.value
-                _limit = True
             if isinstance(arg.value, KeyWordVar):
                 if self.var_keyword or self.var_positional:
                     raise InvalidParam(lang.require("args", "exclude_mutable_args"))
@@ -317,7 +313,7 @@ class Args(metaclass=ArgsMeta):
                 if arg.value.sep in arg.separators:
                     _tmp.insert(-1, Arg(f"_key_{arg.name}", value=f"-*{arg.name}"))
                     _tmp[-1].value = arg.value.base
-            if ArgFlag.OPTIONAL in arg.flag:
+            if arg.optional:
                 if self.var_keyword or self.var_positional:
                     raise InvalidParam(lang.require("args", "exclude_mutable_args"))
                 self.optional_count += 1

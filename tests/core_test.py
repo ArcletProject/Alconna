@@ -105,6 +105,9 @@ def test_bracket_header():
     assert res.matched is True
     assert res.header["r"] == 100
     assert res.header["e"] == 36
+    alc2_1 = Alconna(r"RD\{r:int\}")
+    assert not alc2_1.parse("RD100").matched
+    assert alc2_1.parse("RD{r:int}").matched
 
 
 def test_formatter():
@@ -602,8 +605,13 @@ def test_action():
     assert res.query("xyz.value") == 4
     assert res.query("foo_bar_q.value") == 3
 
+    alc24_3 = Alconna(
+        "core24_3", Option("-t", default=False, action=append_value(True))
+    )
+    assert alc24_3.parse("core24_3 -t -t -t").query("t.value") == [True, True, True]
 
-def test_defualt():
+
+def test_default():
     from arclet.alconna import store_value, OptionResult, append, store_true
 
     alc25 = Alconna(

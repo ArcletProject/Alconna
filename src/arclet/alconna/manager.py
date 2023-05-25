@@ -371,7 +371,7 @@ class CommandManager:
 
     def get_result(self, command: Alconna) -> list[Arparma]:
         """获取某个命令的所有 `Arparma` 对象"""
-        return [v for v in self.__record.values() if v.source == command]
+        return [v for v in self.__record.values() if v.source == command.path]
 
     @property
     def recent_message(self) -> DataCollection[str | Any] | None:

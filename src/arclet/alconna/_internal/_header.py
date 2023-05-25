@@ -9,14 +9,16 @@ from nepattern import BasePattern, UnionPattern, all_patterns, type_parser
 from nepattern.util import TPattern
 from tarina import Empty, lang
 
+from ._util import escape, unescape
 from ..typing import TPrefixes
 
 
 def handle_bracket(name: str, mapping: dict):
     """处理字符串中的括号对并转为正则表达式"""
     pattern_map = all_patterns()
+    name = escape(name)
     if len(parts := re.split(r"(\{.*?})", name)) <= 1:
-        return name, False
+        return unescape(name), False
     for i, part in enumerate(parts):
         if not part:
             continue
@@ -35,7 +37,7 @@ def handle_bracket(name: str, mapping: dict):
                 parts[i] = f"(?P<{res[0]}>{pattern_map[res[1]].pattern})"
             else:
                 parts[i] = f"(?P<{res[0]}>{res[1]})"
-    return "".join(parts), True
+    return unescape("".join(parts)), True
 
 
 class Pair:

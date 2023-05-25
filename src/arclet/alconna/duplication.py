@@ -15,17 +15,19 @@ class Duplication:
 
     def __init__(self, target: Arparma):
         from .base import Option, Subcommand
+        from .manager import command_manager
+        source = command_manager.get_command(target.source)
         self.header = target.header.copy()
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):
                 if value is ArgsStub:
-                    setattr(self, key, ArgsStub(target.source.args).set_result(target.main_args))
+                    setattr(self, key, ArgsStub(source.args).set_result(target.main_args))
                 elif value is SubcommandStub:
-                    for subcommand in filter(lambda x: isinstance(x, Subcommand), target.source.options):
+                    for subcommand in filter(lambda x: isinstance(x, Subcommand), source.options):
                         if subcommand.dest == key:
                             setattr(self, key, SubcommandStub(subcommand).set_result(target.subcommands.get(key, None)))
                 elif value is OptionStub:
-                    for option in filter(lambda x: isinstance(x, Option), target.source.options):
+                    for option in filter(lambda x: isinstance(x, Option), source.options):
                         if option.dest == key:
                             setattr(self, key, OptionStub(option).set_result(target.options.get(key, None)))
             elif key != 'header':
@@ -41,20 +43,3 @@ class Duplication:
     def subcommand(self, name: str) -> SubcommandStub | None:
         """获取指定名称的子命令存根。"""
         return cast(SubcommandStub, getattr(self, name, None))
-
-
-def generate_duplication(arp: Arparma) -> Duplication:
-    """依据给定的命令生成一个解析结果的检查类。"""
-    from .base import Option, Subcommand
-    options = filter(lambda x: isinstance(x, Option), arp.source.options)
-    subcommands = filter(lambda x: isinstance(x, Subcommand), arp.source.options)
-    return cast(Duplication, type(
-        f"{arp.source.name.strip('/.-:')}Interface",
-        (Duplication,), {
-            "__annotations__": {
-                "args": ArgsStub,
-                **{opt.dest: OptionStub for opt in options},
-                **{sub.dest: SubcommandStub for sub in subcommands},
-            }
-        }
-    )(arp))

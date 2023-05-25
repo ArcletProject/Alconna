@@ -77,7 +77,7 @@ def analyse_option(option: Option, command: DataCollection[str | Any], raise_exc
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.command.options.append(option)
-    default_compiler(_analyser, _analyser.command.namespace_config, argv.param_ids)
+    default_compiler(_analyser, argv.param_ids)
     _analyser.command.options.clear()
     try:
         argv.build(command)
@@ -97,7 +97,7 @@ def analyse_subcommand(subcommand: Subcommand, command: DataCollection[str | Any
     _analyser.need_main_args = False
     _analyser.raise_exception = True
     _analyser.command.options.append(subcommand)
-    default_compiler(_analyser, _analyser.command.namespace_config, argv.param_ids)
+    default_compiler(_analyser, argv.param_ids)
     _analyser.command.options.clear()
     try:
         argv.build(command)

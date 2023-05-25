@@ -80,7 +80,7 @@ class Arparma(Generic[TDC]):
         origin: TDC,
         matched: bool = False,
         header_match: HeadResult | None = None,
-        error_info: type[BaseException] | BaseException | str = '',
+        error_info: type[BaseException] | BaseException | None = None,
         error_data: list[str | Any] | None = None,
         main_args: dict[str, Any] | None = None,
         options: dict[str, OptionResult] | None = None,
@@ -92,13 +92,13 @@ class Arparma(Generic[TDC]):
             origin (TDC): 原始数据
             matched (bool, optional): 是否匹配
             header_match (HeadResult | None, optional): 命令头匹配结果
-            error_info (type[BaseException] | BaseException | str, optional): 错误信息
+            error_info (type[BaseException] | BaseException | None, optional): 错误信息
             error_data (list[str | Any] | None, optional): 错误数据
             main_args (dict[str, Any] | None, optional): 主参数匹配结果
             options (dict[str, OptionResult] | None, optional): 选项匹配结果
             subcommands (dict[str, SubcommandResult] | None, optional): 子命令匹配结果
         """
-        self._source = source
+        self.source = source
         self.origin = origin
         self.matched = matched
         self.header_match = header_match or HeadResult()
@@ -113,12 +113,6 @@ class Arparma(Generic[TDC]):
         ks = list(self.__dict__.keys())
         for k in ks:
             delattr(self, k)
-
-    @property
-    def source(self):
-        """返回命令源"""
-        from .manager import command_manager
-        return command_manager.get_command(self._source)
 
     @property
     def header(self) -> dict[str, Any]:
