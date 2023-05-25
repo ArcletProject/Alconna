@@ -3,13 +3,12 @@
 from nepattern import AllParam as AllParam, AnyOne as AnyOne  # noqa
 from tarina import Empty as Empty # noqa
 from .typing import CommandMeta
-from .base import Option, Args, ArgFlag, Arg, OptionResult, Arparma, store_true, store_false, store_value, append, append_value, count
+from .base import Option, ArgFlag, Arg, OptionResult, Arparma, store_true, store_false, store_value, append, append_value, count
 from .analysis import Argv, set_default_argv_type, argv_config
 from .main import Alconna
 
-__version__ = "1.7.6"
+__version__ = "0.1.0"
 
 Arpamar = Arparma
 DataCollectionContainer = Argv
-Slots = Args
 Slot = Arg

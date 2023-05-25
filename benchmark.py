@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Args, AnyOne, argv_config
+from arclet.alconna import Alconna, Arg, AnyOne, argv_config
 import cProfile
 import pstats
 
@@ -31,7 +31,7 @@ argv_config(
 alc = Alconna(
     ["."],
     "test",
-    Args["bar", AnyOne]
+    Arg("bar", AnyOne)
 )
 
 argv = alc.argv

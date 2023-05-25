@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Callable, Generic, Sequence, TypeVar
 
 from .analysis import Analyser, default_compiler, TCompile, __argv_type__
-from .base import Option, Arg, Args, NullMessage, Arparma, CommandNode
+from .base import Option, Arg, NullMessage, Arparma
 from .typing import TDC, CommandMeta, DataCollection
 
 TCallable = TypeVar("TCallable")
@@ -21,7 +21,7 @@ def handle_argv():
     return head
 
 
-class Alconna(CommandNode, Generic[TDC]):
+class Alconna(Generic[TDC]):
     """更加精确的命令解析"""
 
     prefixes: list[str]
@@ -42,7 +42,7 @@ class Alconna(CommandNode, Generic[TDC]):
 
     def __init__(
         self,
-        *args: Option | str | list[str] | Args | Arg,
+        *args: Option | str | list[str] | Arg,
         meta: CommandMeta | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
     ):
@@ -50,7 +50,7 @@ class Alconna(CommandNode, Generic[TDC]):
         以标准形式构造 `Alconna`
 
         Args:
-            *args (Option | Subcommand | str | TPrefixes | Args | Arg): 命令选项、主参数、命令名称或命令头
+            *args (Option | str | list[str] | Arg): 命令选项、主参数、命令名称或命令头
             action (ArgAction | Callable | None, optional): 命令解析后针对主参数的回调函数
             meta (CommandMeta | None, optional): 命令元信息
             separators (str | set[str] | Sequence[str] | None, optional): 命令参数分隔符, 默认为 `' '`
@@ -62,12 +62,11 @@ class Alconna(CommandNode, Generic[TDC]):
             self.command = "" if self.prefixes else handle_argv()
         self.meta = meta or CommandMeta()
         self.options = [i for i in args if isinstance(i, Option)]
-        name = f"{self.command or self.prefixes[0]}"  # type: ignore
-        _args = Args()
-        for i in filter(lambda x: isinstance(x, (Args, Arg)), args):
-            _args << i
-        super().__init__("ALCONNA::", _args, dest=name, separators=separators)
-        self.name = name
+        self.args = [i for i in args if isinstance(i, Arg)]
+        self.nargs = len(self.args)
+        self.separators = (' ',) if separators is None else (
+            (separators,) if isinstance(separators, str) else tuple(separators)
+        )
         self.argv = __argv_type__.get()(
             separators=self.separators,  # type: ignore
             filter_crlf=not self.meta.keep_crlf,  # type: ignore
@@ -77,7 +76,7 @@ class Alconna(CommandNode, Generic[TDC]):
         self._executors: list[Callable] = []
 
     def __repr__(self):
-        return f"{self.name}(args={self.args}, options={self.options})"
+        return f"{self.command or self.prefixes[0]}(args={self.args}, options={self.options})"
 
     def parse(self, message: TDC) -> Arparma[TDC]:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类
@@ -101,15 +100,13 @@ class Alconna(CommandNode, Generic[TDC]):
                 arp.call(ext)
         return arp
 
-    def bind(self):
+    def bind(self, target: TCallable) -> TCallable:
         """绑定命令回调函数"""
-        def wrapper(target: TCallable) -> TCallable:
-            self._executors.append(target)
-            return target
-        return wrapper
+        self._executors.append(target)
+        return target
 
     def _calc_hash(self):
-        return hash((self.name + str(self.prefixes), self.meta, *self.options, *self.args))
+        return hash((self.command + str(self.prefixes), self.meta, *self.options, *self.args))
 
     def __call__(self, *args, **kwargs):
         if args:

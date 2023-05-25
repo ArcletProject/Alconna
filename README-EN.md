@@ -39,23 +39,21 @@ Relevant Document : [📚Docs](https://graiax.cn/guide/alconna.html#alconna)
 ## A Simple Example
 
 ```python
-from arclet.alconna import Alconna, Option, Subcommand, Args
+from arclet.alconna import Alconna, Option, Slot, store_true
 
 cmd = Alconna(
-    "/pip",
-    options=[
-        Subcommand("install", [Option("-u|--upgrade")], Args.pak_name[str]),
-        Option("list"),
-    ]
+    "/pip", Slot("install"), Slot("pak", str), Option("-u|--upgrade", action=store_true, default=False)
 )
 
-result = cmd.parse("/pip install cesloi --upgrade") # This method returns an 'Arpamar' class instance.
-print(result.query('install'))  # Or result.install
+result = cmd.parse("/pip install cesloi --upgrade")
+print(result.options["upgrade"].value)
+print(result.main_args['pak'])
 ```
 
 Output as follows:
 ```
-{'value': None, 'args': {'pak_name': 'cesloi'}, 'options': {'upgrade': Ellipsis}}
+True
+'cesloi'
 ```
 
 ## Communication
@@ -64,25 +62,21 @@ QQ Group: [Link](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## Features
 
-* High Performance. On i5-10210U, performance is about `41000~101000 msg/s`; test script: [benchmark](benchmark.py) 
-* Simple and Flexible Constructor 
+* High Performance. On i5-10210U, performance is about `120000 msg/s`; test script: [benchmark](benchmark.py)
 * Powerful Automatic Type Parse and Conversion
-* Support Synchronous and Asynchronous Actions
-* Customizable Help Text Formatter, Command Analyser, etc.
 * Customizable Language File, Support i18n
-* Cache of input command for quick response of repeated command
-* Various Features (FuzzyMatch, Command Completion, etc.)
 
 Example of Type Conversion:
 
 ```python
-from arclet.alconna import Alconna, Args
+from arclet.alconna import Alconna, Slot
 from pathlib import Path
 
-read = Alconna(
-    "read", Args["data", bytes], 
-    action=lambda data: print(type(data))
-)
+read = Alconna("read", Slot("data", bytes))
+
+@read.bind
+def _(data: bytes):
+    print(type(data))
 
 read.parse(["read", b'hello'])
 read.parse("read test_fire.py")
@@ -95,49 +89,19 @@ read.parse(["read", Path("test_fire.py")])
 '''
 ```
 
-Example of FuzzyMatch:
-
-```python
-from arclet.alconna import Alconna
-alc = Alconna('!test_fuzzy', "foo:str", is_fuzzy_match=True)
-alc.parse("！test_fuzy foo bar")
-
-'''
-！test_fuzy not matched. Are you mean "!test_fuzzy"?
-'''
-```
-
 
 Example of `typing` Support:
 ```python
 from typing import Annotated  # or typing_extensions.Annotated
-from arclet.alconna import Alconna, Args
+from arclet.alconna import Alconna, Slot
 
-alc = Alconna("test", Args.foo[Annotated[int, lambda x: x % 2 == 0]])
+alc = Alconna("test", Slot("foo", Annotated[int, lambda x: x % 2 == 0]))
 alc.parse("test 2")
 alc.parse("test 3")
 
 '''
 'foo': 2
-ParamsUnmatched: param 3 is incorrect
-'''
-```
-
-
-Example of Command Completion:
-```python
-from arclet.alconna import Alconna, Args, Option
-
-alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
-alc.parse("test --comp")
-
-'''
-next input maybe:
-> foo
-> int
-> -h
-> --help
-> fool
+ParamsUnmatched: Param '3' is not matched.
 '''
 ```
 

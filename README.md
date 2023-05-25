@@ -49,7 +49,7 @@ cmd = Alconna(
     "/pip", Slot("install"), Slot("pak", str), Option("-u|--upgrade", action=store_true, default=False)
 )
 
-result = cmd.parse("/pip install cesloi --upgrade") # 该方法返回一个Arpamar类的实例
+result = cmd.parse("/pip install cesloi --upgrade")
 print(result.options["upgrade"].value)
 print(result.main_args['pak'])
 ```
@@ -65,24 +65,20 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## 特点
 
-* 高效. 在 i5-10210U 处理器上, 性能大约为 `41000~101000 msg/s`; 测试脚本: [benchmark](benchmark.py) 
-* 精简、多样的构造方法
+* 高效. 在 i5-10210U 处理器上, 性能大约为 `120000 msg/s`; 测试脚本: [benchmark](benchmark.py)
 * 强大的类型解析与转换功能
-* 可传入同步与异步的 action 函数
-* 高度自定义的帮助信息格式、命令解析器
 * 自定义语言文件, 支持 i18n
-* 命令输入缓存, 以保证重复命令的快速响应
-* 模糊匹配、命令补全等一众特性
 
 类型转换示范:
 ```python
-from arclet.alconna import Alconna, Args
+from arclet.alconna import Alconna, Slot
 from pathlib import Path
 
-read = Alconna(
-    "read", Args["data", bytes], 
-    action=lambda data: print(type(data))
-)
+read = Alconna("read", Slot("data", bytes))
+
+@read.bind
+def _(data: bytes):
+    print(type(data))
 
 read.parse(["read", b'hello'])
 read.parse("read test_fire.py")
@@ -95,47 +91,19 @@ read.parse(["read", Path("test_fire.py")])
 '''
 ```
 
-模糊匹配示范:
-```python
-from arclet.alconna import Alconna
-
-alc = Alconna('!test_fuzzy', "foo:str", is_fuzzy_match=True)
-alc.parse("！test_fuzy foo bar")
-
-'''
-！test_fuzy not matched. Are you mean "!test_fuzzy"?
-'''
-```
 
 typing 支持示范:
 ```python
 from typing import Annotated  # or typing_extensions.Annotated
-from arclet.alconna import Alconna, Args
+from arclet.alconna import Alconna, Slot
 
-alc = Alconna("test", Args.foo[Annotated[int, lambda x: x % 2 == 0]])
+alc = Alconna("test", Slot("foo", Annotated[int, lambda x: x % 2 == 0]))
 alc.parse("test 2")
 alc.parse("test 3")
 
 '''
 'foo': 2
 ParamsUnmatched: 参数 3 不正确
-'''
-```
-
-命令补全示范:
-```python
-from arclet.alconna import Alconna, Args, Option
-
-alc = Alconna("test", Args["bar", int]) + Option("foo") + Option("fool")
-alc.parse("test --comp")
-
-'''
-下一个输入可能是以下：
-> fool
-> -h
-> int
-> foo
-> --help
 '''
 ```
 

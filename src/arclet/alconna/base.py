@@ -5,13 +5,11 @@ import dataclasses as dc
 import re
 import sys
 from copy import deepcopy
-from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
 from dataclasses import dataclass, replace
 from enum import IntEnum, Enum
 from nepattern import AllParam, AnyOne, BasePattern, RawStr, UnionPattern, all_patterns, type_parser
 from tarina import Empty, lang, get_signature
-from typing_extensions import Self
 
 from .typing import TDC
 
@@ -113,7 +111,7 @@ class NullMessage(Exception):
     """传入了无法解析的消息"""
 
 
-def _handle_default(node: CommandNode):
+def _handle_default(node: Option):
     if node.default is None:
         return
     act = node.action
@@ -143,65 +141,79 @@ def _handle_default(node: CommandNode):
             node.default = 1
 
 
-class CommandNode:
-    """命令节点基类, 规定基础组件所含属性"""
+class Option:
+    """命令选项
 
+    命令选项可以设置别名, 优先级, 允许名称与后随参数之间无分隔符
+    """
     name: str
-    """命令节点名称"""
+    """命令选项名称"""
     dest: str
-    """命令节点目标名称"""
-    default: Any
-    """命令节点默认值"""
-    args: Args
-    """命令节点参数"""
+    """命令选项目标名称"""
+    args: list[Arg]
+    """命令选项参数"""
     separators: tuple[str, ...]
-    """命令节点分隔符"""
+    """命令选项分隔符"""
+    default: OptionResult | None
+    """命令选项默认值"""
+    aliases: frozenset[str]
+    """命令选项别名"""
+    compact: bool
+    "是否允许名称与后随参数之间无分隔符"
+    action: Action
+    """响应动作"""
+
 
     def __init__(
-        self, name: str, args: Arg | Args | None = None,
-        dest: str | None = None, default: Any = None,
+        self,
+        name: str, *args: Arg, alias: Iterable[str] | None = None,
+        dest: str | None = None, default: Any = None, action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
+        compact: bool = False,
     ):
-        """
-        初始化命令节点
+        """初始化命令选项
 
         Args:
-            name (str): 命令节点名称
-            args (Arg | Args | None, optional): 命令节点参数
-            dest (str | None, optional): 命令节点目标名称
+            name (str): 命令选项名称
+            *args (Arg): 命令选项参数
+            alias (Iterable[str] | None, optional): 命令选项别名
+            dest (str | None, optional): 命令选项目标名称
+            default (Any, optional): 命令选项默认值
+            action (Action | None, optional): 响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
+            compact (bool, optional): 是否允许名称与后随参数之间无分隔符
         """
+        aliases = list(alias or [])
         if not name:
             raise InvalidParam(lang.require("common", "name_empty"))
-        self.name = name
-        self.args = Args() + args
+        if "|" in name:
+            _aliases = name.split("|")
+            _aliases.extend(aliases)
+            _aliases.sort(key=len, reverse=True)
+            self.name = _aliases[0]
+            self.aliases = frozenset(_aliases)
+        else:
+            self.name = name
+            self.aliases = frozenset(aliases)
+        self.args = list(args)
+        default = (
+            None if default is None else
+            default if isinstance(default, OptionResult) else OptionResult(default)
+        )
+        self.compact = compact
         self.default = default
+        self.action = action or store
+        _handle_default(self)
         self.separators = (' ',) if separators is None else (
             (separators,) if isinstance(separators, str) else tuple(separators)
         )
-        self.nargs = len(self.args.argument)
+        self.nargs = len(self.args)
         self.dest = (dest or self.name).lstrip('-')
         self._hash = self._calc_hash()
 
-    nargs: int
-    _hash: int
-
-    def separate(self, *separator: str) -> Self:
-        """设置命令分隔符
-
-        Args:
-            *separator(str): 命令分隔符
-
-        Returns:
-            Self: 命令节点本身
-        """
-        self.separators = separator
-        self._hash = self._calc_hash()
-        return self
-
     def __repr__(self):
         data = {}
-        if not self.args.empty:
+        if self.args:
             data["args"] = self.args
         if self.default is not None:
             data["default"] = self.default
@@ -217,64 +229,6 @@ class CommandNode:
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.__hash__() == other.__hash__()
-
-
-class Option(CommandNode):
-    """命令选项
-
-    相比命令节点, 命令选项可以设置别名, 优先级, 允许名称与后随参数之间无分隔符
-    """
-
-    default: OptionResult | None
-    """命令选项默认值"""
-    aliases: frozenset[str]
-    """命令选项别名"""
-    compact: bool
-    "是否允许名称与后随参数之间无分隔符"
-    action: Action
-    """响应动作"""
-
-
-    def __init__(
-        self,
-        name: str, args: Arg | Args | None = None, alias: Iterable[str] | None = None,
-        dest: str | None = None, default: Any = None, action: Action | None = None,
-        separators: str | Sequence[str] | set[str] | None = None,
-        compact: bool = False,
-    ):
-        """初始化命令选项
-
-        Args:
-            name (str): 命令选项名称
-            args (Arg | Args | None, optional): 命令选项参数
-            alias (Iterable[str] | None, optional): 命令选项别名
-            dest (str | None, optional): 命令选项目标名称
-            default (Any, optional): 命令选项默认值
-            action (Action | None, optional): 响应动作
-            separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
-            compact (bool, optional): 是否允许名称与后随参数之间无分隔符
-        """
-        aliases = list(alias or [])
-        _name = name.split(" ")[-1]
-        if "|" in _name:
-            _aliases = _name.split("|")
-            _aliases.sort(key=len, reverse=True)
-            name = name.replace(_name, _aliases[0])
-            _name = _aliases[0]
-            aliases.extend(_aliases[1:])
-        aliases.insert(0, _name)
-        self.aliases = frozenset(aliases)
-        self.compact = compact
-        default = (
-            None if default is None else
-            default if isinstance(default, OptionResult) else OptionResult(default)
-        )
-        super().__init__(name, args, dest, default, separators)
-        self.action = action or store
-        _handle_default(self)
-        if self.separators == ("",):
-            self.compact = True
-            self.separators = (" ",)
 
 
 def safe_dcls_kw(**kwargs):
@@ -357,167 +311,6 @@ class Arg:
     def __repr__(self):
         n, v = f"'{self.name}'", str(self.value)
         return (n if n == v else f"{n}: {v}") + (f" = '{self.default}'" if self.default is not None else "")
-
-
-class ArgsMeta(type):
-    """`Args` 类的元类"""
-
-    def __getattr__(self, name: str):
-        return type("_S", (), {"__getitem__": partial(self.__class__.__getitem__, self, key=name), "__call__": None})()
-
-    def __getitem__(self, item: Union[Arg, tuple[Arg, ...], str, tuple[Any, ...]], key: str | None = None):
-        """构造参数集合
-
-        Args:
-            item (Union[Arg, tuple[Arg, ...], str, Any]): 参数单元或参数单元组或构建参数单元的值
-            key (str, optional): 参数单元的名称. Defaults to None.
-
-        Returns:
-            Args: 参数集合
-        """
-        data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
-        if isinstance(data[0], Arg):
-            return self(*data)
-        return self(Arg(key, *data)) if key else self(Arg(*data))  # type: ignore
-
-
-class Args(metaclass=ArgsMeta):
-    """参数集合
-
-    用于代表命令节点需求的一系列参数
-
-    一般而言, 使用特殊方法 `__getitem__` 来构造参数集合, 例如:
-
-        >>> Args["name", str]["age", int]
-        Args('name': str, 'age': int)
-
-    也可以使用特殊方法 `__getattr__` 来构造参数集合, 例如:
-
-        >>> Args.name[str]
-        Args('name': str)
-    """
-    argument: list[Arg]
-    """参数单元组"""
-    optional_count: int
-    """可选参数的数量"""
-
-    def __init__(self, *args: Arg, separators: str | Iterable[str] | None = None):
-        """
-        构造一个 `Args`
-
-        Args:
-            *args (Arg): 参数单元
-            separators (str | Iterable[str] | None, optional): 可选的为所有参数单元指定分隔符
-        """
-        self._visit = set()
-        self.optional_count = 0
-        self.argument = list(args)
-        self.__check_vars__()
-        if separators is not None:
-            self.separate(*((separators,) if isinstance(separators, str) else tuple(separators)))
-
-    __slots__ = "argument", "optional_count", "_visit"
-
-    def separate(self, *separator: str) -> Self:
-        """设置参数的分隔符
-
-        Args:
-            *separator (str): 分隔符
-
-        Returns:
-            Self: 参数集合自身
-        """
-        for arg in self.argument:
-            arg.separators = separator
-        return self
-
-    def __check_vars__(self):
-        """检查当前所有参数单元
-
-        Raises:
-            InvalidParam: 当检查到参数单元不符合要求时
-        """
-        _tmp = []
-        _visit = set()
-        for arg in self.argument:
-            if arg.name in _visit:
-                continue
-            _tmp.append(arg)
-            _visit.add(arg.name)
-            if arg.name in self._visit:
-                continue
-            self._visit.add(arg.name)
-            if ArgFlag.OPTIONAL in arg.flag:
-                self.optional_count += 1
-        self.argument.clear()
-        self.argument.extend(_tmp)
-        del _tmp
-        del _visit
-
-    def __len__(self):
-        return len(self.argument)
-
-    def __getitem__(self, item: Union[Arg, tuple[Arg, ...], str, tuple[Any, ...]]) -> Self | Arg:
-        """获取或添加一个参数单元
-
-        Args:
-            item (Union[Arg, tuple[Arg, ...], str, Any]): 参数单元或参数单元名称或参数单元值
-
-        Returns:
-            Self | Arg: 参数集合自身或需要的参数单元
-        """
-        if isinstance(item, str) and (res := next(filter(lambda x: x.name == item, self.argument), None)):
-            return res
-        data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
-        if isinstance(data[0], Arg):
-            self.argument.extend(data)  # type: ignore
-        else:
-            self.argument.append(Arg(*data))  # type: ignore
-        self.__check_vars__()
-        return self
-
-    def __merge__(self, other: Args | Arg | Sequence | None) -> Self:
-        """合并另一个参数集合
-
-        Args:
-            other (Args | Arg | Sequence): 另一个参数集合
-
-        Returns:
-            Self: 参数集合自身
-        """
-        if isinstance(other, Args):
-            self.argument.extend(other.argument)
-            self.__check_vars__()
-            del other
-        elif isinstance(other, Arg):
-            self.argument.append(other)
-            self.__check_vars__()
-        elif isinstance(other, Sequence):
-            self.__getitem__(tuple(other))
-        return self
-
-    __add__ = __merge__
-    __iadd__ = __merge__
-    __lshift__ = __merge__
-    __iter__ = lambda self: iter(self.argument)
-
-    def __truediv__(self, other) -> Self:
-        self.separate(*other if isinstance(other, (list, tuple, set)) else other)
-        return self
-
-    def __eq__(self, other):
-        return self.argument == other.argument
-
-    def __repr__(self):
-        return (
-            f"Args({', '.join([f'{arg}' for arg in self.argument])})"
-            if self.argument else "Empty"
-        )
-
-    @property
-    def empty(self) -> bool:
-        """判断当前参数集合是否为空"""
-        return not self.argument
 
 
 class Arparma(Generic[TDC]):

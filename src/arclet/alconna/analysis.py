@@ -11,7 +11,7 @@ from nepattern.util import TPattern
 from tarina import Empty, lang, split, split_once
 from typing_extensions import Self, TypeAlias
 
-from .base import STRING, Args, Option, HeadResult, OptionResult, ArgumentMissing, NullMessage, ParamsUnmatched, Arparma
+from .base import STRING, Arg, Option, HeadResult, OptionResult, ArgumentMissing, NullMessage, ParamsUnmatched, Arparma
 from .typing import TDC
 
 
@@ -264,7 +264,7 @@ class Analyser(Generic[TDC]):
     """可能紧凑的需要逐个解析的节点"""
     command_header: Header = field(default=False)
     """命令头部"""
-    self_args: Args = field(init=False)
+    self_args: list[Arg] = field(init=False)
     """命令自身参数"""
     options_result: dict[str, OptionResult] = field(init=False)
     """选项的解析结果"""
@@ -288,9 +288,10 @@ class Analyser(Generic[TDC]):
         self.reset()
         self.command_header = Header.generate(self.command.command, self.command.prefixes, self.command.meta.compact)
         self.self_args = self.command.args
-        if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
+        optional_count = sum(arg.optional for arg in self.self_args)
+        if self.command.nargs > 0 and self.command.nargs > optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = sum(arg.default is not None for arg in self.self_args.argument)
+        _de_count = sum(arg.default is not None for arg in self.self_args)
         if _de_count and _de_count == self.command.nargs:
             self.default_main_only = True
 
@@ -302,7 +303,7 @@ class Analyser(Generic[TDC]):
         self.header_result = None
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} of {self.command.name}>"
+        return f"<{self.__class__.__name__} of {self.command}>"
 
     def process(self, argv: Argv[TDC]) -> Arparma[TDC]:
         """主体解析函数, 应针对各种情况进行解析
@@ -384,12 +385,12 @@ class Analyser(Generic[TDC]):
 TCompile: TypeAlias = Callable[[Analyser, Set[str]], None]
 
 
-def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
+def analyse_args(argv: Argv, args: list[Arg]) -> dict[str, Any]:
     """
     分析 `Args` 部分
     """
     result: dict[str, Any] = {}
-    for arg in args.argument:
+    for arg in args:
         key = arg.name
         value = arg.value
         default_val = arg.default
