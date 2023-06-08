@@ -28,14 +28,9 @@ pip install --upgrade arclet-alconna
 pip install --upgrade arclet-alconna[full]
 ```
 
-完整安装
-```bash
-pip install --upgrade arclet-alconna[all]
-```
-
 ## 文档
 
-文档链接: [👉指路](https://arcletproject.github.io/docs/alconna/tutorial)
+文档链接: [👉指路](https://arclet.top/tutorial/alconna)
 
 相关文档: [📚文档](https://graiax.cn/guide/message_parser/alconna.html)
 
@@ -64,7 +59,7 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 
 ## 特点
 
-* 高效. 在 i5-10210U 处理器上, 性能大约为 `71000~289000 msg/s`; 测试脚本: [benchmark](benchmark.py)
+* 高效. 在 i5-10210U 处理器上, 性能大约为 `+71000~289000 msg/s`; 测试脚本: [benchmark](benchmark.py)
 * 直观的命令组件创建方式
 * 强大的类型解析与类型转换功能
 * 自定义的帮助信息格式与命令解析控制

@@ -1,18 +1,18 @@
-from arclet.alconna import Alconna, Option, Subcommand, Args, CompSession
+from arclet.alconna import Alconna, Option, CommandMeta, Args, CompSession, Arg, OptionResult
 
+api_list = ["saucenao", "ascii2d", "ehentai", "iqdb", "tracemoe"]
 alc = Alconna(
-    "/pip",
-    Subcommand(
-        "install",
-        Option("--upgrade", help_text="升级包"),
-        Option("-i|--index-url", Args["url", "url"]),
-        Args["pak", str],
-        help_text="安装一个包",
+    "setu",
+    Args['content', str],
+    Option("use", Args['api', api_list], help_text="选择搜图使用的 API"),
+    Option("count", Args(Arg("num", int)), help_text="设置每次搜图展示的最多数量"),
+    Option("--similarity|-s", Args.val[float], help_text="设置相似度过滤的值", default=OptionResult(args={"val": 0.5})),
+    Option("--timeout|-t", Args["sec", int], help_text="设置超时时间", default=OptionResult(args={"sec": 60})),
+    meta=CommandMeta(
+        "依据输入的图片寻找可能的原始图片来源",
+        usage="可以传入图片, 也可以是图片的网络链接",
+        example="setu搜索 [图片]",
     ),
-    Option("--retries", Args["retries", int], help_text="设置尝试次数"),
-    Option("-t|--timeout", Args["sec", int], help_text="设置超时时间"),
-    Option("--exists-action", Args["action", str], help_text="添加行为"),
-    Option("--trusted-host", Args["host", str], help_text="选择可信赖地址"),
 )
 interface = CompSession(alc)
 

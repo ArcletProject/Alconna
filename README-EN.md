@@ -26,12 +26,11 @@ pip
 ```shell
 $ pip install --upgrade arclet-alconna
 $ pip install --upgrade arclet-alconna[full]
-$ pip install --upgrade arclet-alconna[all]
 ```
 
 ## Documentation
 
-Official Document : [👉Link](https://arcletproject.github.io/docs/alconna/tutorial)
+Official Document : [👉Link](https://arclet.top/tutorial/alconna)
 
 Relevant Document : [📚Docs](https://graiax.cn/guide/message_parser/alconna.html)
 
