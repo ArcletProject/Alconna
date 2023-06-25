@@ -11,7 +11,7 @@ from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
 
 from nepattern import AllParam, AnyOne, BasePattern, RawStr, UnionPattern, all_patterns, type_parser
 from tarina import Empty, get_signature, lang
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 from .exceptions import InvalidParam
 from .typing import KeyWordVar, MultiVar
@@ -24,7 +24,7 @@ def safe_dcls_kw(**kwargs):
 
 
 _T = TypeVar("_T")
-TAValue = Union[BasePattern, AllParam.__class__, type, str]
+TAValue: TypeAlias = Union[BasePattern[_T], type[_T], str]
 STRING = all_patterns()[str]
 
 
@@ -53,14 +53,14 @@ class Field(Generic[_T]):
 
 
 @dc.dataclass(**safe_dcls_kw(init=False, eq=True, unsafe_hash=True, slots=True))
-class Arg:
+class Arg(Generic[_T]):
     """参数单元"""
 
     name: str = dc.field(compare=True, hash=True)
     """参数单元的名称"""
-    value: BasePattern = dc.field(compare=False, hash=True)
+    value: BasePattern[_T] = dc.field(compare=False, hash=True)
     """参数单元的值"""
-    field: Field[Any] = dc.field(compare=False, hash=False)
+    field: Field[_T] = dc.field(compare=False, hash=False)
     """参数单元的字段"""
     notice: str | None = dc.field(compare=False, hash=False)
     """参数单元的注释"""
@@ -75,7 +75,7 @@ class Arg:
     def __init__(
         self,
         name: str,
-        value: TAValue | None = None,
+        value: TAValue[_T] | None = None,
         field: Field[_T] | _T | None = None,
         seps: str | Iterable[str] = " ",
         notice: str | None = None,
@@ -85,7 +85,7 @@ class Arg:
 
         Args:
             name (str): 参数单元的名称
-            value (TAValue, optional): 参数单元的值. Defaults to None.
+            value (TAValue[_T], optional): 参数单元的值. Defaults to None.
             field (Field[_T], optional): 参数单元的字段. Defaults to None.
             seps (str | Iterable[str], optional): 参数单元使用的分隔符. Defaults to " ".
             notice (str, optional): 参数单元的注释. Defaults to None.
@@ -126,6 +126,12 @@ class Arg:
         n, v = f"'{self.name}'", str(self.value)
         return (n if n == v else f"{n}: {v}") + (f" = '{self.field.display}'" if self.field.display is not None else "")
 
+    def __add__(self, other) -> "Args":
+        if isinstance(other, Arg):
+            return Args(self, other)
+        raise TypeError(f"unsupported operand type(s) for +: 'Arg' and '{other.__class__.__name__}'")
+    
+
 
 class ArgsMeta(type):
     """`Args` 类的元类"""
@@ -164,7 +170,7 @@ class Args(metaclass=ArgsMeta):
         >>> Args.name[str]
         Args('name': str)
     """
-    argument: list[Arg]
+    argument: list[Arg[Any]]
     """参数单元组"""
     var_positional: MultiVar | None
     """可变参数"""
@@ -211,7 +217,7 @@ class Args(metaclass=ArgsMeta):
             _args.add(name, value=anno, default=de)
         return _args, method
 
-    def __init__(self, *args: Arg, separators: str | Iterable[str] | None = None, **kwargs: TAValue):
+    def __init__(self, *args: Arg[Any], separators: str | Iterable[str] | None = None, **kwargs: TAValue[Any]):
         """
         构造一个 `Args`
 
@@ -233,7 +239,7 @@ class Args(metaclass=ArgsMeta):
 
     __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "keyword_only", "_visit"
 
-    def add(self, name: str, *, value: TAValue, default: Any = None, flags: list[ArgFlag] | None = None) -> Self:
+    def add(self, name: str, *, value: TAValue[Any], default: Any = None, flags: list[ArgFlag] | None = None) -> Self:
         """添加一个参数
 
         Args:

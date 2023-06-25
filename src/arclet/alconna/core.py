@@ -144,9 +144,9 @@ class Alconna(Subcommand, Generic[TDC]):
             ns_config = config.namespaces.setdefault(namespace, Namespace(namespace))
         else:
             ns_config = namespace
-        self.prefixes = next(filter(lambda x: isinstance(x, list), args), ns_config.prefixes.copy())  # type: ignore
+        self.prefixes = next((i for i in args if isinstance(i, list)), ns_config.prefixes.copy())  # type: ignore
         try:
-            self.command = next(filter(lambda x: not isinstance(x, (list, Option, Subcommand, Args, Arg)), args))
+            self.command = next(i for i in args if not isinstance(i, (list, Option, Subcommand, Args, Arg)))
         except StopIteration:
             self.command = "" if self.prefixes else handle_argv()
         self.namespace = ns_config.name
@@ -161,9 +161,7 @@ class Alconna(Subcommand, Generic[TDC]):
         add_builtin_options(options, ns_config)
         name = f"{self.command or self.prefixes[0]}"  # type: ignore
         self.path = f"{self.namespace}::{name}"
-        _args = Args()
-        for i in filter(lambda x: isinstance(x, (Args, Arg)), args):
-            _args << i
+        _args = sum((i for i in args if isinstance(i, (Args, Arg))), Args())
         super().__init__(
             "ALCONNA::",
             _args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description
@@ -230,7 +228,7 @@ class Alconna(Subcommand, Generic[TDC]):
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
-                    command_manager.add_shortcut(self, key, {"command": cmd})
+                    command_manager.add_shortcut(self, key, {"command": cmd})  # type: ignore
                     return lang.require("shortcut", "add_success").format(shortcut=key, target=self.path)
                 raise ValueError(
                     lang.require("shortcut", "recent_command_error")
