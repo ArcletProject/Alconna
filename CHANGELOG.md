@@ -1,6 +1,16 @@
 # 更新日志
 
-# Alconna 1.7.7
+## Alconna 1.7.8
+
+### 改进:
+
+- `Arg` 现在可使用泛型参数
+
+### 修复:
+
+- 修复 `Args.from_callable` 无法正确解析 kwonly 参数的 bug
+
+## Alconna 1.7.7
 
 ### 改进:
 

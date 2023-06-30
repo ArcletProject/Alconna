@@ -30,7 +30,7 @@ pip install --upgrade arclet-alconna[full]
 
 ## 文档
 
-文档链接: [👉指路](https://arclet.top/tutorial/alconna)
+文档链接: [👉指路](https://arclet.top/docs/tutorial/alconna)
 
 相关文档: [📚文档](https://graiax.cn/guide/message_parser/alconna.html)
 
