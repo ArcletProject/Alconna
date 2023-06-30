@@ -317,7 +317,7 @@ class Args(metaclass=ArgsMeta):
                     raise InvalidParam(lang.require("args", "exclude_mutable_args"))
                 self.keyword_only.append(arg.name)
                 if arg.value.sep in arg.separators:
-                    _tmp.insert(-1, Arg(f"_key_{arg.name}", value=f"-*{arg.name}"))
+                    _tmp.insert(-1, Arg(f"_key_{arg.name}", value=f"re:-*{arg.name}"))
                     _tmp[-1].value = arg.value.base
             if arg.optional:
                 if self.var_keyword or self.var_positional:
