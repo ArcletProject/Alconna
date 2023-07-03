@@ -1,5 +1,18 @@
 # 更新日志
 
+## Alconna 1.7.9
+
+### 改进:
+- `Arparma.call` 现在适配 `positional_only` 参数, 并会将 `var_positional`, `var_keyword` 的参数解包
+- kwonly 的 arg 现在不再要求传入顺序与定义顺序一致：
+    ```python
+    from arclet.alconna import Kw, Args, Alconna
+  
+    alc = Alconna("draw", Args["width", Kw[float]]["height", Kw[float]])
+    assert alc.parse("draw --width=360.0 --height=240.0").matched
+    assert alc.parse("draw --height=240.0 width=360.0").matched
+    ```
+
 ## Alconna 1.7.8
 
 ### 改进:
