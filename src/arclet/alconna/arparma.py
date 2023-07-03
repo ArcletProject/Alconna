@@ -213,7 +213,7 @@ class Arparma(Generic[TDC]):
         kw_args = {}
         data = {**self.all_matched_args, **additional}
         for p in get_signature(target):
-            if p.kind == p.POSITIONAL_ONLY:
+            if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD):
                 pos_args.append(data[p.name])
             elif p.kind == p.VAR_POSITIONAL:
                 pos_args.extend(data[p.name])

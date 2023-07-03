@@ -177,17 +177,36 @@ def test_pattern():
 
 
 def test_callable():
-    def test(foo: str, bar: int, baz: bool = False, *, qux: bool, quux: str = ""):
+    def test(
+        a: int,
+        b: bool,
+        *args: str,
+        c: float = 1.0,
+        d: int = 1,
+        e: bool = False,
+        **kwargs: str,
+    ):
         ...
 
     arg16, _ = Args.from_callable(test)
-    assert len(arg16.argument) == 5
-    assert analyse_args(arg16, ["abc 123 True --qux quux=1"]) == {
-        "foo": "abc",
-        "bar": 123,
-        "baz": True,
-        "qux": True,
-        "quux": "1",
+    assert len(arg16.argument) == 7
+    assert analyse_args(arg16, ["1 True 2 3 4 c=5.0 d=6 -no-e f=g h=i"]) == {
+        'a': 1,
+        'args': ('2', '3', '4'),
+        'b': True,
+        'c': 5.0,
+        'd': 6,
+        'e': False,
+        'kwargs': {'f': 'g', 'h': 'i'}
+    }
+    assert analyse_args(arg16, ["1 True 2 3 4 -no-e c=7.2 f=x h=y"]) == {
+        'a': 1,
+        'args': ('2', '3', '4'),
+        'b': True,
+        'c': 7.2,
+        'd': 1,
+        'e': False,
+        'kwargs': {'f': 'x', 'h': 'y'}
     }
 
 

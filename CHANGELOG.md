@@ -1,5 +1,11 @@
 # 更新日志
 
+## Alconna 1.7.11
+
+### 修复:
+- 修复 `Arparma.call` 导致 `pos | kw` 参数解包错误的 bug
+- 修复 kwbool 参数无法解析 `-no-xx` 的 bug
+
 ## Alconna 1.7.10
 
 ### 修复:

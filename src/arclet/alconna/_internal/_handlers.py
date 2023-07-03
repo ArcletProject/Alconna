@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     from ._analyser import Analyser, SubAnalyser
     from ._argv import Argv
 
+pat = re.compile("(?:-*no)?-*(?P<name>.+)")
+
 def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
     value, arg = args.argument.var_positional
     argv.context = arg
@@ -42,7 +44,7 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             break
-        if _str and split_once(may_arg.lstrip("-"), kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:
+        if _str and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:
             argv.rollback(may_arg)
             break
         if (res := value.base.exec(may_arg)).flag != 'valid':
@@ -111,24 +113,27 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
         if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
             argv.rollback(may_arg)
             break
-        key, _m_arg = split_once(may_arg.lstrip("-"), kwonly_seps1, argv.filter_crlf)
-        if key not in args.argument.keyword_only:
+        key, _m_arg = split_once(may_arg, kwonly_seps1, argv.filter_crlf)
+        _key = pat.match(key)["name"]
+        if _key not in args.argument.keyword_only:
             argv.rollback(may_arg)
+            if args.argument.var_keyword:
+                break
             for arg in args.argument.keyword_only.values():
-                if arg.value.base.exec(key).flag == 'valid':  # type: ignore
-                    raise ParamsUnmatched(lang.require("args", "key_missing").format(target=key, key=arg.name))
+                if arg.value.base.exec(may_arg).flag == 'valid':  # type: ignore
+                    raise ParamsUnmatched(lang.require("args", "key_missing").format(target=may_arg, key=arg.name))
             for name in args.argument.keyword_only:
-                if levenshtein(key, name) >= config.fuzzy_threshold:
-                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=key))
-            raise ParamsUnmatched(lang.require("args", "key_not_found").format(name=key))
-        arg = args.argument.keyword_only[key]
+                if levenshtein(_key, name) >= config.fuzzy_threshold:
+                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=_key))
+            raise ParamsUnmatched(lang.require("args", "key_not_found").format(name=_key))
+        arg = args.argument.keyword_only[_key]
         value = arg.value.base  # type: ignore
         default_val = arg.field.default
         if not _m_arg:
             if isinstance(value, KWBool):
                 _m_arg = key
             else:
-                _m_arg, _ = argv.next(args.argument.keyword_only[key].separators)
+                _m_arg, _ = argv.next(args.argument.keyword_only[_key].separators)
         res = (
             value.invalidate(_m_arg, default_val)
             if value.anti
@@ -141,7 +146,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
                 count += 1
                 continue
             raise ParamsUnmatched(*res.error.args)
-        result[key] = res._value  # noqa
+        result[_key] = res._value  # noqa
         count += 1
 
 
