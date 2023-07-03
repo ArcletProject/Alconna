@@ -7,7 +7,7 @@ import sys
 from copy import deepcopy
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union
+from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, Type
 
 from nepattern import AllParam, AnyOne, BasePattern, RawStr, UnionPattern, all_patterns, type_parser
 from tarina import Empty, get_signature, lang
@@ -24,7 +24,7 @@ def safe_dcls_kw(**kwargs):
 
 
 _T = TypeVar("_T")
-TAValue: TypeAlias = Union[BasePattern[_T], type[_T], str]
+TAValue: TypeAlias = Union[BasePattern[_T], Type[_T], str]
 STRING = all_patterns()[str]
 
 
