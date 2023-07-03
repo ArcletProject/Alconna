@@ -207,10 +207,21 @@ class Arparma(Generic[TDC]):
         Raises:
             RuntimeError: 如果 Arparma 未匹配, 则抛出 RuntimeError
         """
-        if self.matched:
-            names = {p.name for p in get_signature(target)}
-            return target(**{k: v for k, v in {**self.all_matched_args, **additional}.items() if k in names})
-        raise RuntimeError
+        if not self.matched:
+            raise RuntimeError("No matched")
+        pos_args = []
+        kw_args = {}
+        data = {**self.all_matched_args, **additional}
+        for p in get_signature(target):
+            if p.kind == p.POSITIONAL_ONLY:
+                pos_args.append(data[p.name])
+            elif p.kind == p.VAR_POSITIONAL:
+                pos_args.extend(data[p.name])
+            elif p.kind == p.VAR_KEYWORD:
+                kw_args = {**kw_args, **data[p.name]}
+            else:
+                kw_args[p.name] = data[p.name]
+        return target(*pos_args, **kw_args)
 
     def fail(self, exc: type[BaseException] | BaseException | str):
         """生成一个失败的 `Arparma`"""

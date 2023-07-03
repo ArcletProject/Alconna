@@ -142,14 +142,23 @@ def test_kwonly():
         "foo": "abc",
         "bar": 123,
     }
-    arg14_1 = Args["--width;?", Kw[int], 1280]["--height?", Kw[int], 960]
+    arg14_1 = Args["width;?", Kw[int], 1280]["height?", Kw[int], 960]
     assert analyse_args(arg14_1, ["--width=960 --height=960"]) == {
-        "--width": 960,
-        "--height": 960,
+        "width": 960,
+        "height": 960,
+    }
+    assert analyse_args(arg14_1, ["--height=480 --width=960"]) == {
+        "width": 960,
+        "height": 480,
     }
     arg14_2 = Args.foo[str]["bar", KeyWordVar(int, " ")]["baz", KeyWordVar(bool, ":")]
     assert analyse_args(arg14_2, ["abc -bar 123 baz:false"]) == {
         "bar": 123,
+        "baz": False,
+        "foo": "abc",
+    }
+    assert analyse_args(arg14_2, ["abc baz:false -bar 456"]) == {
+        "bar": 456,
         "baz": False,
         "foo": "abc",
     }
@@ -168,15 +177,17 @@ def test_pattern():
 
 
 def test_callable():
-    def test(foo: str, bar: int, baz: bool = False):
+    def test(foo: str, bar: int, baz: bool = False, *, qux: bool, quux: str = ""):
         ...
 
     arg16, _ = Args.from_callable(test)
-    assert len(arg16.argument) == 3
-    assert analyse_args(arg16, ["abc 123 True"]) == {
+    assert len(arg16.argument) == 5
+    assert analyse_args(arg16, ["abc 123 True --qux quux=1"]) == {
         "foo": "abc",
         "bar": 123,
         "baz": True,
+        "qux": True,
+        "quux": "1",
     }
 
 

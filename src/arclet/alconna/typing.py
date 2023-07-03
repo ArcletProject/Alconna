@@ -109,4 +109,10 @@ class MultiVar(BasePattern):
 Nargs = MultiVar
 Kw = _Kw()
 
-__all__ = ["DataCollection", "TDC", "MultiVar", "Nargs", "Kw", "KeyWordVar", "TPrefixes", "CommandMeta"]
+
+class KWBool(BasePattern):
+    """对布尔参数的包装"""
+    ...
+
+
+__all__ = ["DataCollection", "TDC", "MultiVar", "Nargs", "Kw", "KeyWordVar", "TPrefixes", "CommandMeta", "KWBool"]

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Iterable
 
 from nepattern import AllParam, AnyOne, AnyString, BasePattern
 from nepattern.util import TPattern
-from tarina import Empty, lang
+from tarina import Empty, lang, split_once
 
 from ..action import Action
 from ..args import STRING, Arg, Args
@@ -17,7 +17,7 @@ from ..exceptions import (
 )
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
-from ..typing import KeyWordVar, MultiVar
+from ..typing import KWBool
 from ._header import Double, Header
 from ._util import levenshtein
 
@@ -25,144 +25,134 @@ if TYPE_CHECKING:
     from ._analyser import Analyser, SubAnalyser
     from ._argv import Argv
 
-
-def _handle_keyword(
-    argv: Argv,
-    value: KeyWordVar,
-    may_arg: Any,
-    seps: tuple[str, ...],
-    result_dict: dict[str, Any],
-    default_val: Any,
-    optional: bool,
-    key: str | None = None,
-    fuzzy: bool = False,
-):
-    """处理关键字参数
-
-    Args:
-        argv (Argv): 命令行参数
-        value (KeyWordVar): 关键字参数
-        may_arg (Any): 可能的参数
-        seps (tuple[str, ...]): 分隔符
-        result_dict (dict[str, Any]): 结果字典
-        default_val (Any): 默认值
-        optional (bool): 是否可选
-        key (str | None, optional): 关键字. Defaults to None.
-        fuzzy (bool, optional): 是否模糊匹配. Defaults to False.
-    """
-    if _kwarg := re.match(fr'^([^{value.sep}]+){value.sep}(.*?)$', may_arg):
-        key = key or _kwarg[1]
-        if (_key := _kwarg[1]) != key:
-            argv.rollback(may_arg)
-            if fuzzy and levenshtein(_key, key) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=_key, target=key))
-            if default_val is None:
-                raise ParamsUnmatched(lang.require("fuzzy", "matched").format(source=_key, target=key))
-            result_dict[_key] = None if default_val is Empty else default_val
-            return
-        if not (_m_arg := _kwarg[2]):
-            _m_arg, _ = argv.next(seps)
-        res = value.base.exec(_m_arg, default_val)
-        if res.flag != 'valid':
-            argv.rollback(may_arg)
-        if res.flag == 'error':
-            if optional:
-                return
-            raise ParamsUnmatched(*res.error.args)
-        result_dict[_kwarg[1]] = res._value  # type: ignore
-        return
-    argv.rollback(may_arg)
-    raise ParamsUnmatched(lang.require("args", "key_missing").format(target=may_arg, key=key))
-
-
-def _loop_kw(argv: Argv, _loop: int, seps: tuple[str, ...], value: MultiVar, default: Any):
-    """循环关键字参数"""
-    result = {}
-    for _ in range(_loop):
-        _m_arg, _m_str = argv.next(seps)
-        if not _m_arg:
-            continue
-        if _m_str and _m_arg in argv.param_ids:
-            argv.rollback(_m_arg)
-            break
-        try:
-            _handle_keyword(argv, value.base, _m_arg, seps, result, default, False)  # type: ignore
-        except ParamsUnmatched:
-            break
-    if not result:
-        if value.flag == '+':
-            raise ParamsUnmatched
-        result = [default] if default else []
-    return result
-
-
-def _loop(
-    argv: Argv, _loop: int, seps: tuple[str, ...], value: MultiVar, default: Any, kw: KeyWordVar | None
-):
-    """循环参数"""
-    result = []
-    for _ in range(_loop):
-        _m_arg, _m_str = argv.next(seps)
-        if not _m_arg:
-            continue
-        if _m_str and (
-            _m_arg in argv.param_ids or
-            (kw and re.match(fr'^([^{kw.sep}]+){kw.sep}(.*?)$', _m_arg))
-        ):
-            argv.rollback(_m_arg)
-            break
-        if (res := value.base.exec(_m_arg)).flag != 'valid':
-            argv.rollback(_m_arg)
-            break
-        result.append(res._value)  # type: ignore
-    if not result:
-        if value.flag == '+':
-            raise ParamsUnmatched
-        result = [default] if default else []
-    return tuple(result)
-
-
-def multi_arg_handler(argv: Argv, args: Args, arg: Arg, result_dict: dict[str, Any],):
-    """处理可变参数
-
-    Args:
-        argv (Argv): 命令行参数
-        args (Args): 参数集合
-        arg (Arg): 参数单元
-        result_dict (dict[str, Any]): 结果字典
-    """
-    seps = arg.separators
-    value: MultiVar = arg.value  # type: ignore
+def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
+    value, arg = args.argument.var_positional
+    argv.context = arg
     key = arg.name
-    default = arg.field.default
-    kw = value.base.__class__ == KeyWordVar
-    _rest = len(args) - len(result_dict)
-    _all_count = len(argv.release(seps))
-    if not kw and not args.var_keyword or kw and not args.var_positional:
-        loop = _all_count - _rest + 1
-    elif not kw:
-        loop = _all_count - (_rest - 2*(args.var_keyword.flag == "*"))
-    else:
-        loop = _all_count - (_rest - 2*(args.var_positional.flag == "*"))
+    default_val = arg.field.default
+    _result = []
+    kwonly_seps = tuple(arg.value.sep for arg in args.argument.keyword_only.values())  # type: ignore
+    loop = len(argv.release(arg.separators))
     if value.length > 0:
         loop = min(loop, value.length)
-    result_dict[key] = (
-        _loop_kw(argv, loop, seps, value, default) if kw
-        else _loop(argv, loop, seps, value, default, value.base if kw else None)
-    )
-    if kw:
-        kwargs = result_dict[key]
-        if not isinstance(kwargs, dict):
-            kwargs = {key: kwargs}
-        result_dict[key] = kwargs
-    else:
-        varargs = result_dict[key]
-        if not isinstance(varargs, Iterable):
-            varargs = (varargs, )
-        elif not isinstance(varargs, tuple):
-            varargs = tuple(varargs)
-        result_dict[key] = varargs
+    for _ in range(loop):
+        may_arg, _str = argv.next(arg.separators)
+        if _str and may_arg in argv.completion_names:
+            raise SpecialOptionTriggered("completion")
+        if not may_arg or (_str and may_arg in argv.param_ids):
+            argv.rollback(may_arg)
+            break
+        if _str and split_once(may_arg.lstrip("-"), kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:
+            argv.rollback(may_arg)
+            break
+        if (res := value.base.exec(may_arg)).flag != 'valid':
+            argv.rollback(may_arg)
+            break
+        _result.append(res._value)  # type: ignore
+    if not _result:
+        if default_val is not None:
+            _result = default_val if isinstance(default_val, Iterable) else ()
+        elif value.flag == '*':
+            _result = ()
+        else:
+            raise ArgumentMissing(lang.require("args", "missing").format(key=key))
+    result[key] = tuple(_result)
 
+def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
+    value, arg = args.argument.var_keyword
+    argv.context = arg
+    name = arg.name
+    default_val = arg.field.default
+    _result = {}
+    loop = len(argv.release(arg.separators))
+    if value.length > 0:
+        loop = min(loop, value.length)
+    for _ in range(loop):
+        may_arg, _str = argv.next(arg.separators)
+        if _str and may_arg in argv.completion_names:
+            raise SpecialOptionTriggered("completion")
+        if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
+            argv.rollback(may_arg)
+            break
+        if value.base.sep in arg.separators:
+            key = may_arg.lstrip("-")
+            _m_arg, _ = argv.next(arg.separators)
+        elif _kwarg := re.match(fr'^(-*[^{value.base.sep}]+){value.base.sep}(.*?)$', may_arg):
+            key = _kwarg[1]
+            if not (_m_arg := _kwarg[2]):
+                _m_arg, _ = argv.next(arg.separators)
+        else:
+            argv.rollback(may_arg)
+            break
+        if (res := value.base.base.exec(_m_arg)).flag != 'valid':
+            argv.rollback(may_arg)
+            break
+        _result[key] = res._value  # type: ignore
+    if not _result:
+        if default_val is not None:
+            _result = default_val if isinstance(default_val, dict) else {}
+        elif value.flag == '*':
+            _result = {}
+        else:
+            raise ArgumentMissing(lang.require("args", "missing").format(key=name))
+    result[name] = _result
+
+def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
+    kwonly_seps = set()
+    for arg in args.argument.keyword_only.values():
+        kwonly_seps.update(arg.separators)
+    kwonly_seps1 = tuple(arg.value.sep for arg in args.argument.keyword_only.values())  # type: ignore
+    target = len(args.argument.keyword_only)
+    count = 0
+    while count < target:
+        may_arg, _str = argv.next(tuple(kwonly_seps))
+        if _str and may_arg in argv.completion_names:
+            raise SpecialOptionTriggered("completion")
+        if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
+            argv.rollback(may_arg)
+            break
+        key, _m_arg = split_once(may_arg.lstrip("-"), kwonly_seps1, argv.filter_crlf)
+        if key not in args.argument.keyword_only:
+            argv.rollback(may_arg)
+            for arg in args.argument.keyword_only.values():
+                if arg.value.base.exec(key).flag == 'valid':  # type: ignore
+                    raise ParamsUnmatched(lang.require("args", "key_missing").format(target=key, key=arg.name))
+            for name in args.argument.keyword_only:
+                if levenshtein(key, name) >= config.fuzzy_threshold:
+                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=key))
+            raise ParamsUnmatched(lang.require("args", "key_not_found").format(name=key))
+        arg = args.argument.keyword_only[key]
+        value = arg.value.base  # type: ignore
+        default_val = arg.field.default
+        if not _m_arg:
+            if isinstance(value, KWBool):
+                _m_arg = key
+            else:
+                _m_arg, _ = argv.next(args.argument.keyword_only[key].separators)
+        res = (
+            value.invalidate(_m_arg, default_val)
+            if value.anti
+            else value.validate(_m_arg, default_val)
+        )
+        if res.flag != 'valid':
+            argv.rollback(_m_arg)
+        if res.flag == 'error':
+            if arg.optional:
+                count += 1
+                continue
+            raise ParamsUnmatched(*res.error.args)
+        result[key] = res._value  # noqa
+        count += 1
+
+
+    if count < target:
+        for key, arg in args.argument.keyword_only.items():
+            if key in result:
+                continue
+            if arg.field.default is not None:
+                result[key] = None if arg.field.default is Empty else arg.field.default
+            elif not arg.optional:
+                raise ArgumentMissing(lang.require("args", "missing").format(key=key))
 
 def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
@@ -176,7 +166,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
         dict[str, Any]: 解析结果
     """
     result: dict[str, Any] = {}
-    for arg in args.argument:
+    for arg in args.argument.normal:
         argv.context = arg
         key = arg.name
         value = arg.value
@@ -188,42 +178,38 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             argv.rollback(may_arg)
             if default_val is not None:
                 result[key] = None if default_val is Empty else default_val
-            elif value.__class__ is MultiVar and value.flag == '*':  # type: ignore
-                result[key] = ()
             elif not arg.optional:
                 raise ArgumentMissing(lang.require("args", "missing").format(key=key))
             continue
-        if value.__class__ is MultiVar:
-            argv.rollback(may_arg)
-            multi_arg_handler(argv, args, arg, result)  # type: ignore
-        elif value.__class__ is KeyWordVar:
-            _handle_keyword(
-                argv, value, may_arg, arg.separators,  # type: ignore
-                result, default_val, arg.optional, key, argv.fuzzy_match  # type: ignore
-            )
-        elif value == AllParam:
+        if value == AllParam:
             argv.rollback(may_arg)
             result[key] = argv.converter(argv.release(arg.separators))
             argv.current_index = argv.ndata
             return result
-        elif value == AnyOne or (value == STRING and _str):
+        if value == AnyOne or (value == STRING and _str):
             result[key] = may_arg
-        elif value == AnyString:
+            continue
+        if value == AnyString:
             result[key] = str(may_arg)
-        else:
-            res = (
-                value.invalidate(may_arg, default_val)
-                if value.anti
-                else value.validate(may_arg, default_val)
-            )
-            if res.flag != 'valid':
-                argv.rollback(may_arg)
-            if res.flag == 'error':
-                if arg.optional:
-                    continue
-                raise ParamsUnmatched(*res.error.args)
-            if not arg.anonymous:
-                result[key] = res._value  # type: ignore
+            continue
+        res = (
+            value.invalidate(may_arg, default_val)
+            if value.anti
+            else value.validate(may_arg, default_val)
+        )
+        if res.flag != 'valid':
+            argv.rollback(may_arg)
+        if res.flag == 'error':
+            if arg.optional:
+                continue
+            raise ParamsUnmatched(*res.error.args)
+        result[key] = res._value  # noqa
+    if args.argument.var_positional:
+        step_varpos(argv, args, result)
+    if args.argument.keyword_only:
+        step_keyword(argv, args, result)
+    if args.argument.var_keyword:
+        step_varkey(argv, args, result)
     argv.context = None
     return result
 

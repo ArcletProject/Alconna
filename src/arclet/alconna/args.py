@@ -14,7 +14,7 @@ from tarina import Empty, get_signature, lang
 from typing_extensions import Self, TypeAlias
 
 from .exceptions import InvalidParam
-from .typing import KeyWordVar, MultiVar
+from .typing import KeyWordVar, MultiVar, KWBool
 
 
 def safe_dcls_kw(**kwargs):
@@ -70,7 +70,6 @@ class Arg(Generic[_T]):
     """参数单元使用的分隔符"""
     optional: bool = dc.field(compare=False, hash=False)
     hidden: bool = dc.field(compare=False, hash=False)
-    anonymous: bool = dc.field(compare=False, hash=False)
 
     def __init__(
         self,
@@ -118,7 +117,6 @@ class Arg(Generic[_T]):
         self.flag = set(flags)
         self.optional = ArgFlag.OPTIONAL in self.flag
         self.hidden = ArgFlag.HIDDEN in self.flag
-        self.anonymous = self.name.startswith("_key_")
         if ArgFlag.ANTI in self.flag and self.value not in (AnyOne, AllParam):
             self.value = deepcopy(self.value).reverse()
 
@@ -154,6 +152,15 @@ class ArgsMeta(type):
             return self(*data)
         return self(Arg(key, *data)) if key else self(Arg(*data))  # type: ignore
 
+NULL = {Empty: None, None: Empty}
+
+class _argument(list):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.normal: list[Arg[Any]] = []
+        self.var_positional: tuple[MultiVar, Arg[Any]] | None = None
+        self.var_keyword: tuple[MultiVar, Arg[Any]] | None = None
+        self.keyword_only: dict[str, Arg[Any]] = {}
 
 class Args(metaclass=ArgsMeta):
     """参数集合
@@ -170,16 +177,7 @@ class Args(metaclass=ArgsMeta):
         >>> Args.name[str]
         Args('name': str)
     """
-    argument: list[Arg[Any]]
-    """参数单元组"""
-    var_positional: MultiVar | None
-    """可变参数"""
-    var_keyword: MultiVar | None
-    """可变关键字参数"""
-    keyword_only: list[str]
-    """仅关键字参数的名称"""
-    optional_count: int
-    """可选参数的数量"""
+    argument: _argument
 
     @classmethod
     def from_callable(cls, target: Callable) -> tuple[Args, bool]:
@@ -200,16 +198,13 @@ class Args(metaclass=ArgsMeta):
                 continue
             anno = param.annotation
             de = param.default
-            NULL = {Empty: None, None: Empty}
             if anno == inspect.Signature.empty:
                 anno = type(de) if de not in NULL else AnyOne
             de = NULL.get(de, de)
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
-                    anno = BasePattern(f"(?:-*no)?-*{name}", 3, bool, lambda _, x: not x.lstrip("-").startswith('no'))
-                    _args.keyword_only.append(name)
-                else:
-                    anno = KeyWordVar(anno, sep=' ')
+                    anno = KWBool(f"(?:-*no)?-*{name}", 3, bool, lambda _, x: not x.lstrip("-").startswith('no'))
+                anno = KeyWordVar(anno)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")
             if param.kind == param.VAR_KEYWORD:
@@ -227,17 +222,14 @@ class Args(metaclass=ArgsMeta):
             **kwargs (TAValue): 剩余的参数单元值
         """
         self._visit = set()
-        self.var_positional = None
-        self.var_keyword = None
-        self.keyword_only = []
         self.optional_count = 0
-        self.argument = list(args)
+        self.argument = _argument(args)
         self.argument.extend(Arg(k, type_parser(v), Field()) for k, v in kwargs.items())
         self.__check_vars__()
         if separators is not None:
             self.separate(*((separators,) if isinstance(separators, str) else tuple(separators)))
 
-    __slots__ = "var_positional", "var_keyword", "argument", "optional_count", "keyword_only", "_visit"
+    __slots__ = "argument", "optional_count", "_visit"
 
     def add(self, name: str, *, value: TAValue[Any], default: Any = None, flags: list[ArgFlag] | None = None) -> Self:
         """添加一个参数
@@ -305,24 +297,25 @@ class Args(metaclass=ArgsMeta):
             self._visit.add(arg.name)
             if isinstance(arg.value, MultiVar):
                 if isinstance(arg.value.base, KeyWordVar):
-                    if self.var_keyword:
+                    if self.argument.var_keyword:
                         raise InvalidParam(lang.require("args", "duplicate_kwargs"))
-                    self.var_keyword = arg.value
-                elif self.var_positional:
+                    self.argument.var_keyword = (arg.value, arg)
+                elif self.argument.var_positional:
                     raise InvalidParam(lang.require("args", "duplicate_varargs"))
+                elif self.argument.keyword_only:
+                    raise InvalidParam(lang.require("args", "exclude_mutable_args"))
                 else:
-                    self.var_positional = arg.value
-            if isinstance(arg.value, KeyWordVar):
-                if self.var_keyword or self.var_positional:
+                    self.argument.var_positional = (arg.value, arg)
+            elif isinstance(arg.value, KeyWordVar):
+                if self.argument.var_keyword:
                     raise InvalidParam(lang.require("args", "exclude_mutable_args"))
-                self.keyword_only.append(arg.name)
-                if arg.value.sep in arg.separators:
-                    _tmp.insert(-1, Arg(f"_key_{arg.name}", value=f"re:-*{arg.name}"))
-                    _tmp[-1].value = arg.value.base
-            if arg.optional:
-                if self.var_keyword or self.var_positional:
-                    raise InvalidParam(lang.require("args", "exclude_mutable_args"))
-                self.optional_count += 1
+                self.argument.keyword_only[arg.name] = arg
+            else:
+                self.argument.normal.append(arg)
+                if arg.optional:
+                    if self.argument.var_keyword or self.argument.var_positional:
+                        raise InvalidParam(lang.require("args", "exclude_mutable_args"))
+                    self.optional_count += 1
         self.argument.clear()
         self.argument.extend(_tmp)
         del _tmp
@@ -362,7 +355,7 @@ class Args(metaclass=ArgsMeta):
         if isinstance(other, Args):
             self.argument.extend(other.argument)
             self.__check_vars__()
-            self.keyword_only = list(set(self.keyword_only + other.keyword_only))
+            self.argument.keyword_only.update(other.argument.keyword_only)
             del other
         elif isinstance(other, Arg):
             self.argument.append(other)
@@ -385,7 +378,7 @@ class Args(metaclass=ArgsMeta):
 
     def __repr__(self):
         return (
-            f"Args({', '.join([f'{arg}' for arg in self.argument if not arg.anonymous])})"
+            f"Args({', '.join([f'{arg}' for arg in self.argument])})"
             if self.argument else "Empty"
         )
 
