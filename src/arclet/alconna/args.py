@@ -299,6 +299,8 @@ class Args(metaclass=ArgsMeta):
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.argument.var_keyword:
                         raise InvalidParam(lang.require("args", "duplicate_kwargs"))
+                    if self.argument.var_positional and arg.value.base.sep in self.argument.var_positional[1].separators:
+                        raise InvalidParam("varkey cannot use the same sep as varpos's Arg")
                     self.argument.var_keyword = (arg.value, arg)
                 elif self.argument.var_positional:
                     raise InvalidParam(lang.require("args", "duplicate_varargs"))

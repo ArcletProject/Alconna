@@ -80,15 +80,15 @@ def test_multi():
     assert analyse_args(arg8_3, ["1 2 3 4"]).get("multi") == (1, 2, 3)
     arg8_4 = (
         Args()
-        .add("multi", value=Nargs(int, "*"))
+        .add("multi", value=Nargs(str, "*"))
         .add("kwargs", value=Nargs(Kw @ str, "*"))
     )
-    assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("multi") == (1, 2, 3, 4)
+    assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("multi") == ('1', '2', '3', '4')
     assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("kwargs") == {
         "a": "b",
         "c": "d",
     }
-    assert analyse_args(arg8_4, ["1 2 3 4"]).get("multi") == (1, 2, 3, 4)
+    assert analyse_args(arg8_4, ["1 2 3 4"]).get("multi") == ('1', '2', '3', '4')
     assert analyse_args(arg8_4, ["a=b c=d"]).get("kwargs") == {"a": "b", "c": "d"}
 
 

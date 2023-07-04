@@ -27,6 +27,26 @@ if TYPE_CHECKING:
 
 pat = re.compile("(?:-*no)?-*(?P<name>.+)")
 
+
+def _validate(
+    argv: Argv, key: str, value: BasePattern, result: dict[str, Any], may_arg: Any, default_val: Any,
+    optional: bool, _str: bool
+):
+    if value == AnyOne or (value == STRING and _str):
+        result[key] = may_arg
+        return
+    if value == AnyString:
+        result[key] = str(may_arg)
+        return
+    res = value.invalidate(may_arg, default_val) if value.anti else value.validate(may_arg, default_val)
+    if res.flag != 'valid':
+        argv.rollback(may_arg)
+    if res.flag == 'error':
+        if optional:
+            return
+        raise ParamsUnmatched(*res.error.args)
+    result[key] = res._value  # noqa
+
 def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
     value, arg = args.argument.var_positional
     argv.context = arg
@@ -44,13 +64,19 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             break
-        if _str and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:
+        if (
+            _str and kwonly_seps and
+            split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only
+        ):
+            argv.rollback(may_arg)
+            break
+        if _str and args.argument.var_keyword and args.argument.var_keyword[0].base.sep in may_arg:  # type: ignore
             argv.rollback(may_arg)
             break
         if (res := value.base.exec(may_arg)).flag != 'valid':
             argv.rollback(may_arg)
             break
-        _result.append(res._value)  # type: ignore
+        _result.append(res._value)  # noqa
     if not _result:
         if default_val is not None:
             _result = default_val if isinstance(default_val, Iterable) else ()
@@ -76,20 +102,16 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
         if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
             argv.rollback(may_arg)
             break
-        if value.base.sep in arg.separators:
-            key = may_arg.lstrip("-")
-            _m_arg, _ = argv.next(arg.separators)
-        elif _kwarg := re.match(fr'^(-*[^{value.base.sep}]+){value.base.sep}(.*?)$', may_arg):
-            key = _kwarg[1]
-            if not (_m_arg := _kwarg[2]):
-                _m_arg, _ = argv.next(arg.separators)
-        else:
+        if not (_kwarg := re.match(fr'^(-*[^{value.base.sep}]+){value.base.sep}(.*?)$', may_arg)):
             argv.rollback(may_arg)
             break
+        key = _kwarg[1]
+        if not (_m_arg := _kwarg[2]):
+            _m_arg, _ = argv.next(arg.separators)
         if (res := value.base.base.exec(_m_arg)).flag != 'valid':
             argv.rollback(may_arg)
             break
-        _result[key] = res._value  # type: ignore
+        _result[key] = res._value  # noqa
     if not _result:
         if default_val is not None:
             _result = default_val if isinstance(default_val, dict) else {}
@@ -134,21 +156,8 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
                 _m_arg = key
             else:
                 _m_arg, _ = argv.next(args.argument.keyword_only[_key].separators)
-        res = (
-            value.invalidate(_m_arg, default_val)
-            if value.anti
-            else value.validate(_m_arg, default_val)
-        )
-        if res.flag != 'valid':
-            argv.rollback(_m_arg)
-        if res.flag == 'error':
-            if arg.optional:
-                count += 1
-                continue
-            raise ParamsUnmatched(*res.error.args)
-        result[_key] = res._value  # noqa
+        _validate(argv, _key, value, result, _m_arg, default_val, arg.optional, _str)
         count += 1
-
 
     if count < target:
         for key, arg in args.argument.keyword_only.items():
@@ -191,24 +200,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             result[key] = argv.converter(argv.release(arg.separators))
             argv.current_index = argv.ndata
             return result
-        if value == AnyOne or (value == STRING and _str):
-            result[key] = may_arg
-            continue
-        if value == AnyString:
-            result[key] = str(may_arg)
-            continue
-        res = (
-            value.invalidate(may_arg, default_val)
-            if value.anti
-            else value.validate(may_arg, default_val)
-        )
-        if res.flag != 'valid':
-            argv.rollback(may_arg)
-        if res.flag == 'error':
-            if arg.optional:
-                continue
-            raise ParamsUnmatched(*res.error.args)
-        result[key] = res._value  # noqa
+        _validate(argv, key, value, result, may_arg, default_val, arg.optional, _str)
     if args.argument.var_positional:
         step_varpos(argv, args, result)
     if args.argument.keyword_only:
@@ -234,7 +226,7 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     if opt.compact:
         for al in opt.aliases:
             if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
-                argv.rollback(mat.groupdict()['rest'], replace=True)
+                argv.rollback(mat['rest'], replace=True)
                 error = False
                 break
     elif opt.action.type == 2:

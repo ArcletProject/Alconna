@@ -1,5 +1,13 @@
 # 更新日志
 
+## Alconna 1.7.12
+
+### 改进
+- multi keyword 参数的键值分隔符现在不允许与 multi 参数的分隔符相同
+
+### 修复
+- 修复 multi-var 会一并解析 multi-key-var 的bug
+
 ## Alconna 1.7.11
 
 ### 修复:
