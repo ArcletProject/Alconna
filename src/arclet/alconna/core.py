@@ -171,7 +171,7 @@ class Alconna(Subcommand, Generic[TDC]):
         for behavior in behaviors or []:
             self.behaviors.extend(requirement_handler(behavior))
         command_manager.register(self)
-        self._executors: list[ArparmaExecutor] = []
+        self._executors: dict[ArparmaExecutor, Any] = {}
         self.union = set()
 
     @property
@@ -308,7 +308,7 @@ class Alconna(Subcommand, Generic[TDC]):
             arp = arp.execute(self.behaviors)
             if self._executors:
                 for ext in self._executors:
-                    arp.call(ext.target)
+                    self._executors[ext] = arp.call(ext.target)
         return duplication(arp) if duplication else arp
 
     def bind(self, active: bool = True):
@@ -320,9 +320,14 @@ class Alconna(Subcommand, Generic[TDC]):
         def wrapper(target: Callable[..., T]) -> ArparmaExecutor[T]:
             ext = ArparmaExecutor(target, lambda: command_manager.get_result(self))
             if active:
-                self._executors.append(ext)
+                self._executors[ext] = None
             return ext
         return wrapper
+
+    @property
+    def exec_result(self) -> dict[str, Any]:
+        return {ext.target.__name__: res for ext, res in self._executors.items() if res is not None}
+
 
     def __truediv__(self, other) -> Self:
         return self.reset_namespace(other)

@@ -512,6 +512,7 @@ def test_completion_interface():
 
 
 def test_call():
+    from dataclasses import dataclass
 
     alc22 = Alconna("core22", Args.foo[int], Args.bar[str])
     alc22("core22 123 abc")
@@ -527,6 +528,15 @@ def test_call():
     alc22.parse("core22 321 abc")
     assert cb.result == 642
 
+    alc22_1 = Alconna("core22_1", Args["name", str])
+
+    @alc22_1.bind()
+    @dataclass
+    class A:
+        name: str
+
+    alc22_1.parse("core22_1 abc")
+    assert alc22_1.exec_result["A"] == A("abc")
 
 def test_nest_subcommand():
     class A:
