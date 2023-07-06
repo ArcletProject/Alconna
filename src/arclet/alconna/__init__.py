@@ -18,8 +18,6 @@ from .builtin import set_default
 from .model import OptionResult, SubcommandResult, HeadResult
 from .output import output_manager
 from .formatter import TextFormatter
-from .duplication import Duplication
-from .stub import ArgsStub, OptionStub, SubcommandStub
 
 __version__ = "1.7.12"
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, is_dataclass
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
@@ -15,13 +15,11 @@ from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Option, Subcommand
 from .config import Namespace, config
-from .duplication import Duplication
 from .exceptions import ExecuteFailed, NullMessage
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
 from .typing import TDC, CommandMeta, DataCollection, TPrefixes
 
-T_Duplication = TypeVar('T_Duplication', bound=Duplication)
 T = TypeVar("T")
 TDC1 = TypeVar("TDC1", bound=DataCollection[Any])
 
@@ -171,7 +169,7 @@ class Alconna(Subcommand, Generic[TDC]):
         for behavior in behaviors or []:
             self.behaviors.extend(requirement_handler(behavior))
         command_manager.register(self)
-        self._executors: list[ArparmaExecutor] = []
+        self._executors: dict[ArparmaExecutor, Any] = {}
         self.union = set()
 
     @property
@@ -284,17 +282,17 @@ class Alconna(Subcommand, Generic[TDC]):
         ...
 
     @overload
-    def parse(self, message, *, duplication: type[T_Duplication]) -> T_Duplication:
+    def parse(self, message, *, _config: type[T]) -> T:
         ...
 
-    def parse(self, message: TDC, *, duplication: type[T_Duplication] | None = None) -> Arparma[TDC] | T_Duplication:
+    def parse(self, message: TDC, *, _config: type[T] | None = None) -> Arparma[TDC] | T:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类
         
         Args:
             message (TDC): 命令消息
-            duplication (type[T_Duplication], optional): 指定的`副本`类型
+            _config (type[T], optional): 可选的解析结果配置
         Returns:
-            Arparma[TDC] | T_Duplication: 若`duplication`参数为`None`则返回`Arparma`对象, 否则返回`duplication`类型的对象
+            Arparma[TDC] | T: 解析结果
         Raises:
             NullMessage: 传入的消息为空时抛出
         """
@@ -308,8 +306,12 @@ class Alconna(Subcommand, Generic[TDC]):
             arp = arp.execute(self.behaviors)
             if self._executors:
                 for ext in self._executors:
-                    arp.call(ext.target)
-        return duplication(arp) if duplication else arp
+                    self._executors[ext] = arp.call(ext.target)
+        if _config:
+            if not is_dataclass(_config):
+                raise TypeError("The type of _config must be a dataclass")
+            return arp.call(_config)
+        return arp
 
     def bind(self, active: bool = True):
         """绑定命令执行器
@@ -320,9 +322,14 @@ class Alconna(Subcommand, Generic[TDC]):
         def wrapper(target: Callable[..., T]) -> ArparmaExecutor[T]:
             ext = ArparmaExecutor(target, lambda: command_manager.get_result(self))
             if active:
-                self._executors.append(ext)
+                self._executors[ext] = None
             return ext
         return wrapper
+
+    @property
+    def exec_result(self) -> dict[str, Any]:
+        return {ext.target.__name__: res for ext, res in self._executors.items() if res is not None}
+
 
     def __truediv__(self, other) -> Self:
         return self.reset_namespace(other)

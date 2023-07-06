@@ -1,32 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, overload, cast
+from typing import Any, Callable, overload
 
 from .arparma import Arparma, ArparmaBehavior
-from .core import Alconna
-from .duplication import Duplication
-from .stub import ArgsStub, OptionStub, SubcommandStub
 from .exceptions import BehaveCancelled
 
-__all__ = ["set_default", "generate_duplication"]
-
-
-def generate_duplication(alc: Alconna) -> type[Duplication]:
-    """依据给定的命令生成一个解析结果的检查类。"""
-    from .base import Option, Subcommand
-    options = filter(lambda x: isinstance(x, Option), alc.options)
-    subcommands = filter(lambda x: isinstance(x, Subcommand), alc.options)
-    return cast(type[Duplication], type(
-        f"{alc.name.strip('/.-:')}Interface",
-        (Duplication,), {
-            "__annotations__": {
-                "args": ArgsStub,
-                **{opt.dest: OptionStub for opt in options},
-                **{sub.dest: SubcommandStub for sub in subcommands},
-            }
-        }
-    ))
+__all__ = ["set_default"]
 
 
 class _MISSING_TYPE: pass
