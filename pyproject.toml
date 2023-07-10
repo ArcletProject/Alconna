@@ -14,7 +14,7 @@ dependencies = [
     "tarina>=0.3.3",
 ]
 dynamic = ["version"]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 readme = "README-EN.md"
 license = {text = "MIT"}
 keywords = [

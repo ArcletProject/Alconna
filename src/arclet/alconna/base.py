@@ -61,15 +61,12 @@ class CommandNode:
     """命令节点响应动作"""
     help_text: str
     """命令节点帮助信息"""
-    requires: list[str]
-    """命令节点需求前缀"""
 
     def __init__(
         self, name: str, args: Arg | Args | None = None,
         dest: str | None = None, default: Any = None, action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
-        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
     ):
         """
         初始化命令节点
@@ -82,14 +79,10 @@ class CommandNode:
             action (Action | None, optional): 命令节点响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             help_text (str | None, optional): 命令帮助信息
-            requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令节点需求前缀
         """
         if not name:
             raise InvalidParam(lang.require("common", "name_empty"))
-        _parts = name.split(" ")
-        self.name = _parts[-1]
-        self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []
-        self.requires.extend(_parts[:-1])
+        self.name = name.replace(" ", "_")
         self.args = Args() + args
         self.default = default
         self.action = action or store
@@ -98,9 +91,7 @@ class CommandNode:
             (separators,) if isinstance(separators, str) else tuple(separators)
         )
         self.nargs = len(self.args.argument)
-        self.dest = (
-            dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name.lstrip('-')
-        ).lstrip('-')
+        self.dest = (dest or self.name.lstrip('-')).lstrip('-')
         self.help_text = help_text or self.dest
         self._hash = self._calc_hash()
 
@@ -161,7 +152,6 @@ class Option(CommandNode):
         dest: str | None = None, default: Any = None, action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
-        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
         compact: bool = False, priority: int = 0,
     ):
         """初始化命令选项
@@ -175,7 +165,6 @@ class Option(CommandNode):
             action (Action | None, optional): 命令选项响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             help_text (str | None, optional): 命令选项帮助信息
-            requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令选项需求前缀
             compact (bool, optional): 是否允许名称与后随参数之间无分隔符
             priority (int, optional): 命令选项优先级
         """
@@ -195,7 +184,7 @@ class Option(CommandNode):
             None if default is None else
             default if isinstance(default, OptionResult) else OptionResult(default)
         )
-        super().__init__(name, args, dest, default, action, separators, help_text, requires)
+        super().__init__(name, args, dest, default, action, separators, help_text)
         if self.separators == ("",):
             self.compact = True
             self.separators = (" ",)
@@ -223,7 +212,7 @@ class Option(CommandNode):
         if isinstance(other, Option):
             return Subcommand(
                 self.name, other, self.args, dest=self.dest,
-                separators=self.separators, help_text=self.help_text, requires=self.requires
+                separators=self.separators, help_text=self.help_text,
             )
         if isinstance(other, (Arg, Args)):
             self.args += other
@@ -267,7 +256,6 @@ class Subcommand(CommandNode):
         dest: str | None = None, default: Any = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
-        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
     ):
         """初始化子命令
 
@@ -279,7 +267,6 @@ class Subcommand(CommandNode):
             action (Action | None, optional): 子命令选项响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 子命令分隔符
             help_text (str | None, optional): 子命令选项帮助信息
-            requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 子命令选项需求前缀
         """
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         for li in filter(lambda x: isinstance(x, list), args):
@@ -291,7 +278,7 @@ class Subcommand(CommandNode):
         super().__init__(
             name,
             reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            dest, default, None, separators, help_text, requires
+            dest, default, None, separators, help_text
         )
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:

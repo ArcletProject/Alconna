@@ -19,7 +19,7 @@ from .model import OptionResult, SubcommandResult, HeadResult
 from .output import output_manager
 from .formatter import TextFormatter
 
-__version__ = "1.7.12"
+__version__ = "2.0.0a1"
 
 # backward compatibility
 Arpamar = Arparma
