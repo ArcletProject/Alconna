@@ -1,11 +1,23 @@
 # 更新日志
 
+## Alconna 1.7.13
+
+### 新增:
+- 两个 Alconna 之间支持相加操作，其结果为左边的 Alconna, 但是其 options 合并了右边命令 的 options
+
+### 改进:
+- `Args.from_callable` 增加一个 `kw_sep` 参数来自定义 kw 参数的分隔符
+- 两个 Alconna 相加
+
+### 修复:
+- 修复 kwonly 参数的名字携带 `-` 时无法解析的 bug
+
 ## Alconna 1.7.12
 
-### 改进
+### 改进:
 - multi keyword 参数的键值分隔符现在不允许与 multi 参数的分隔符相同
 
-### 修复
+### 修复:
 - 修复 multi-var 会一并解析 multi-key-var 的bug
 
 ## Alconna 1.7.11

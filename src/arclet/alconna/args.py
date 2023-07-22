@@ -180,11 +180,12 @@ class Args(metaclass=ArgsMeta):
     argument: _argument
 
     @classmethod
-    def from_callable(cls, target: Callable) -> tuple[Args, bool]:
+    def from_callable(cls, target: Callable, kw_sep: str = "=") -> tuple[Args, bool]:
         """从可调用函数中构造Args
 
         Args:
             target (Callable): 目标函数
+            kw_sep (str, optional): 关键字参数的分隔符. Defaults to "=".
 
         Returns:
             tuple[Args, bool]: 参数集合, 是否为方法
@@ -204,7 +205,7 @@ class Args(metaclass=ArgsMeta):
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
                     anno = KWBool(f"(?:-*no)?-*{name}", 3, bool, lambda _, x: not x.lstrip("-").startswith('no'))
-                anno = KeyWordVar(anno)
+                anno = KeyWordVar(anno, sep=kw_sep)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")
             if param.kind == param.VAR_KEYWORD:
