@@ -28,24 +28,22 @@ if TYPE_CHECKING:
 pat = re.compile("(?:-*no)?-*(?P<name>.+)")
 
 
-def _validate(
-    argv: Argv, key: str, value: BasePattern, result: dict[str, Any], may_arg: Any, default_val: Any,
-    optional: bool, _str: bool
-):
+def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dict[str, Any], arg: Any, _str: bool):
     if value == AnyOne or (value == STRING and _str):
-        result[key] = may_arg
+        result[target.name] = arg
         return
     if value == AnyString:
-        result[key] = str(may_arg)
+        result[target.name] = str(arg)
         return
-    res = value.invalidate(may_arg, default_val) if value.anti else value.validate(may_arg, default_val)
+    default_val = target.field.default
+    res = value.invalidate(arg, default_val) if value.anti else value.validate(arg, default_val)
     if res.flag != 'valid':
-        argv.rollback(may_arg)
+        argv.rollback(arg)
     if res.flag == 'error':
-        if optional:
+        if target.optional:
             return
         raise ParamsUnmatched(*res.error.args)
-    result[key] = res._value  # noqa
+    result[target.name] = res._value  # noqa
 
 def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
     value, arg = args.argument.var_positional
@@ -138,6 +136,8 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
         key, _m_arg = split_once(may_arg, kwonly_seps1, argv.filter_crlf)
         _key = pat.match(key)["name"]
         if _key not in args.argument.keyword_only:
+            _key = key
+        if _key not in args.argument.keyword_only:
             argv.rollback(may_arg)
             if args.argument.var_keyword:
                 break
@@ -150,13 +150,12 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             raise ParamsUnmatched(lang.require("args", "key_not_found").format(name=_key))
         arg = args.argument.keyword_only[_key]
         value = arg.value.base  # type: ignore
-        default_val = arg.field.default
         if not _m_arg:
             if isinstance(value, KWBool):
                 _m_arg = key
             else:
                 _m_arg, _ = argv.next(args.argument.keyword_only[_key].separators)
-        _validate(argv, _key, value, result, _m_arg, default_val, arg.optional, _str)
+        _validate(argv, arg, value, result, _m_arg, _str)
         count += 1
 
     if count < target:
@@ -182,25 +181,23 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for arg in args.argument.normal:
         argv.context = arg
-        key = arg.name
-        value = arg.value
-        default_val = arg.field.default
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.completion_names:
             raise SpecialOptionTriggered("completion")
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
-            if default_val is not None:
-                result[key] = None if default_val is Empty else default_val
+            if (de := arg.field.default) is not None:
+                result[arg.name] = None if de is Empty else de
             elif not arg.optional:
-                raise ArgumentMissing(lang.require("args", "missing").format(key=key))
+                raise ArgumentMissing(lang.require("args", "missing").format(key=arg.name))
             continue
+        value = arg.value
         if value == AllParam:
             argv.rollback(may_arg)
-            result[key] = argv.converter(argv.release(arg.separators))
+            result[arg.name] = argv.converter(argv.release(arg.separators))
             argv.current_index = argv.ndata
             return result
-        _validate(argv, key, value, result, may_arg, default_val, arg.optional, _str)
+        _validate(argv, arg, value, result, may_arg, _str)
     if args.argument.var_positional:
         step_varpos(argv, args, result)
     if args.argument.keyword_only:

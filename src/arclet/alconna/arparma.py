@@ -336,9 +336,9 @@ class Arparma(Generic[TDC]):
         return self.all_matched_args.get(item, self.query(item.replace('_', '.')))
 
     def __repr__(self):
-        if self.error_info:
+        if not self.matched:
             attrs = ((s, getattr(self, s, None)) for s in ("matched", "header_match", "error_data", "error_info"))
-            return ", ".join([f"{a}={v}" for a, v in attrs if v is not None])
+            return ", ".join([f"{a}={v}" for a, v in attrs])
         else:
             attrs = {
                 "matched": self.matched, "header_match": self.header_match,

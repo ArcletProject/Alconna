@@ -28,6 +28,8 @@ TDC1 = TypeVar("TDC1", bound=DataCollection[Any])
 
 def handle_argv():
     path = Path(sys.argv[0])
+    if str(path) == ".":
+        path = path.absolute()
     head = path.stem
     if head == "__main__":
         head = path.parent.stem
@@ -336,7 +338,9 @@ class Alconna(Subcommand, Generic[TDC]):
 
     def __add__(self, other) -> Self:
         command_manager.delete(self)
-        if isinstance(other, CommandMeta):
+        if isinstance(other, Alconna):
+            self.options.extend(other.options)
+        elif isinstance(other, CommandMeta):
             self.meta = other
         elif isinstance(other, Option):
             self.options.append(other)
