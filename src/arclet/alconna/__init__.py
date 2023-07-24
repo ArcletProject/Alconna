@@ -21,7 +21,7 @@ from .formatter import TextFormatter
 from .duplication import Duplication
 from .stub import ArgsStub, OptionStub, SubcommandStub
 
-__version__ = "1.7.13"
+__version__ = "1.7.14"
 
 # backward compatibility
 Arpamar = Arparma
