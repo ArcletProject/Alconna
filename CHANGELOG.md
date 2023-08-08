@@ -1,5 +1,14 @@
 # 更新日志
 
+## Alconna 1.7.15
+
+### 改进:
+- 升级 `nepattern` 依赖至 0.5.13
+- `__init__.py` 内使用 re-export 格式
+
+## 修复:
+- 修复 `Arparma.fail` 的问题
+
 ## Alconna 1.7.14
 
 ### 修复:
