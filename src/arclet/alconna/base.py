@@ -28,7 +28,7 @@ def _handle_default(node: CommandNode):
         if act.type == 1:
             if not isinstance(node.default.value, list):
                 node.default.value = [node.default.value]
-            if act.value[0] is ...:
+            if act.value[0] is ...:  # type: ignore
                 node.action = Action(act.type, node.default.value[:])
         if act.type == 2 and not isinstance(node.default.value, int):
             node.default.value = 1
@@ -38,7 +38,7 @@ def _handle_default(node: CommandNode):
         if act.type == 1:
             if not isinstance(node.default, list):
                 node.default = [node.default]
-            if act.value[0] is ...:
+            if act.value[0] is ...:  # type: ignore
                 node.action = Action(act.type, node.default[:])
         if act.type == 2 and not isinstance(node.default, int):
             node.default = 1
@@ -282,8 +282,9 @@ class Subcommand(CommandNode):
             requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 子命令选项需求前缀
         """
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
-        for li in filter(lambda x: isinstance(x, list), args):
-            self.options.extend(li)
+        for li in args:
+            if isinstance(li, list):
+                self.options.extend(li)
         default = (
             None if default is None else
             default if isinstance(default, SubcommandResult) else SubcommandResult(default)

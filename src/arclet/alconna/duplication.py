@@ -23,12 +23,12 @@ class Duplication:
                 if value is ArgsStub:
                     setattr(self, key, ArgsStub(source.args).set_result(target.main_args))
                 elif value is SubcommandStub:
-                    for subcommand in filter(lambda x: isinstance(x, Subcommand), source.options):
-                        if subcommand.dest == key:
+                    for subcommand in source.options:
+                        if isinstance(subcommand, Subcommand) and subcommand.dest == key:
                             setattr(self, key, SubcommandStub(subcommand).set_result(target.subcommands.get(key, None)))
                 elif value is OptionStub:
-                    for option in filter(lambda x: isinstance(x, Option), source.options):
-                        if option.dest == key:
+                    for option in source.options:
+                        if isinstance(option, Option) and option.dest == key:
                             setattr(self, key, OptionStub(option).set_result(target.options.get(key, None)))
             elif key != 'header':
                 setattr(self, key, target.all_matched_args.get(key, Empty))

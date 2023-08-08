@@ -252,7 +252,7 @@ class TextFormatter:
         opt_string = "".join(
             [
                 self.opt(opt).replace("\n", "\n  ").replace("# ", "* ")
-                for opt in filter(lambda x: isinstance(x, Option), node.options)
+                for opt in node.options if isinstance(opt, Option)
             ]
         )
         sub_string = "".join(
@@ -274,12 +274,12 @@ class TextFormatter:
         """子节点列表的描述"""
         option_string = "".join(
             [
-                self.opt(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
-                if opt.name not in self.ignore_names
+                self.opt(opt) for opt in parts
+                if isinstance(opt, Option) and opt.name not in self.ignore_names
             ]
         )
         subcommand_string = "".join(
-            [self.sub(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts)]
+            [self.sub(sub) for sub in parts if isinstance(sub, Subcommand)]
         )
         option_help = f"{lang.require('format', 'options')}:\n" if option_string else ""
         subcommand_help = f"{lang.require('format', 'subcommands')}:\n" if subcommand_string else ""

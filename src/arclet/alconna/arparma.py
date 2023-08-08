@@ -185,6 +185,8 @@ class Arparma(Generic[TDC]):
         Returns:
             Self: 返回自身
         """
+        if not behaviors:
+            return self
         for b in behaviors:
             b.before_operate(self)
         for b in behaviors:
@@ -223,9 +225,9 @@ class Arparma(Generic[TDC]):
                 kw_args[p.name] = data[p.name]
         return target(*pos_args, **kw_args)
 
-    def fail(self, exc: type[BaseException] | BaseException | str):
+    def fail(self, exc: type[BaseException] | BaseException):
         """生成一个失败的 `Arparma`"""
-        return Arparma(self._source, self.origin, False, self.header_match, error_info=exc)
+        return Arparma(self.source, self.origin, False, self.header_match, error_info=exc)
 
     def __require__(self, parts: list[str]) -> tuple[dict[str, Any] | OptionResult | SubcommandResult | None, str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
@@ -296,7 +298,7 @@ class Arparma(Generic[TDC]):
             default (D | None, optional): 如果查询失败, 则返回该值
         """
         if path:
-            return res if generic_isinstance(res := self.query(path, Empty), arg_type) else default
+            return res if generic_isinstance(res := self.query(path, Empty), arg_type) else default  # type: ignore
         with suppress(StopIteration):
             return next(v for v in self.all_matched_args.values() if generic_isinstance(v, arg_type))
         return default
@@ -362,7 +364,7 @@ class ArparmaBehavior(metaclass=ABCMeta):
         """在操作前调用, 用于准备数据"""
         if not self.record:
             return
-        if not (_record := self.record.get(interface.token, None)):
+        if not (_record := self.record.get(interface.token)):
             return
         for path, (past, current) in _record.items():
             source, end = interface.__require__(path.split("."))
