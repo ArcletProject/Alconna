@@ -69,24 +69,6 @@ class Trace:
     separators: tuple[str, ...]
     body: list[Option | Subcommand]
 
-    # def union(self, others: list[Trace]):
-    #     """合并多个 Trace 对象
-    #
-    #     Args:
-    #         others (list[Trace]): 待合并的 Trace 对象列表
-    #
-    #     Returns:
-    #         Trace: 合并后的 Trace 对象
-    #     """
-    #     if not others:
-    #         return self
-    #     if others[0] == self:
-    #         return self.union(others[1:])
-    #     pfs = self.head.copy()
-    #     pfs['prefix'] = list({*self.head['prefix'], *others[0].head['prefix']})
-    #     return Trace(pfs, self.args, self.separators, list({*self.body, *others[0].body})).union(others[1:])
-
-
 class TextFormatter:
     """帮助文档格式化器
 
