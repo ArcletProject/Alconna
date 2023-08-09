@@ -35,7 +35,7 @@ def test_type_convert():
 
 
 def test_regex():
-    arg3 = Args.foo["abc[0-9]{3}"]
+    arg3 = Args.foo["re:abc[0-9]{3}"]
     assert analyse_args(arg3, ["abc123"]) == {"foo": "abc123"}
     assert analyse_args(arg3, ["abc"], raise_exception=False) != {"foo": "abc"}
 
@@ -93,7 +93,7 @@ def test_multi():
 
 
 def test_anti():
-    arg9 = Args().add("anti", value=r"(.+?)/(.+?)\.py", flags=[ArgFlag.ANTI])
+    arg9 = Args().add("anti", value=r"re:(.+?)/(.+?)\.py", flags=[ArgFlag.ANTI])
     assert analyse_args(arg9, ["a/b.mp3"]) == {"anti": "a/b.mp3"}
     assert analyse_args(arg9, ["a/b.py"], raise_exception=False) != {"anti": "a/b.py"}
 
@@ -116,9 +116,6 @@ def test_union():
     assert analyse_args(arg11_1, ["1.2"]) == analyse_args(arg11, ["1.2"])
     assert analyse_args(arg11_1, ["abc"]) == {"bar": "abc"}
     assert analyse_args(arg11_1, ["cba"], raise_exception=False) != {"bar": "cba"}
-    arg11_2 = Args.bar["int|float"]
-    assert analyse_args(arg11_2, ["1.2"]) == analyse_args(arg11_1, ["1.2"])
-
 
 def test_optional():
     arg13 = Args.foo[str].add("bar", value=int, flags="?")

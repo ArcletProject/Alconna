@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+from weakref import WeakKeyDictionary
 
 from nepattern import AllParam, AnyOne, AnyString
 from tarina import Empty, lang
@@ -68,22 +69,22 @@ class Trace:
     separators: tuple[str, ...]
     body: list[Option | Subcommand]
 
-    def union(self, others: list[Trace]):
-        """合并多个 Trace 对象
-
-        Args:
-            others (list[Trace]): 待合并的 Trace 对象列表
-
-        Returns:
-            Trace: 合并后的 Trace 对象
-        """
-        if not others:
-            return self
-        if others[0] == self:
-            return self.union(others[1:])
-        pfs = self.head.copy()
-        pfs['prefix'] = list({*self.head['prefix'], *others[0].head['prefix']})
-        return Trace(pfs, self.args, self.separators, list({*self.body, *others[0].body})).union(others[1:])
+    # def union(self, others: list[Trace]):
+    #     """合并多个 Trace 对象
+    #
+    #     Args:
+    #         others (list[Trace]): 待合并的 Trace 对象列表
+    #
+    #     Returns:
+    #         Trace: 合并后的 Trace 对象
+    #     """
+    #     if not others:
+    #         return self
+    #     if others[0] == self:
+    #         return self.union(others[1:])
+    #     pfs = self.head.copy()
+    #     pfs['prefix'] = list({*self.head['prefix'], *others[0].head['prefix']})
+    #     return Trace(pfs, self.args, self.separators, list({*self.body, *others[0].body})).union(others[1:])
 
 
 class TextFormatter:
@@ -93,7 +94,7 @@ class TextFormatter:
     """
 
     def __init__(self):
-        self.data = {}
+        self.data = WeakKeyDictionary()
         self.ignore_names = set()
 
     def add(self, base: Alconna):
@@ -111,15 +112,12 @@ class TextFormatter:
             },
             base.args, base.separators, base.options.copy()
         )
-        self.data.setdefault(base.path, []).append(res)
+        self.data[base] = res
         return self
 
-    def remove(self, base: Alconna | str):
+    def remove(self, base: Alconna):
         """移除目标命令"""
-        if isinstance(base, str):
-            self.data.pop(base)
-        else:
-            self.data.pop(base.path)
+        self.data.pop(base)
 
     def format_node(self, parts: list | None = None):
         """格式化命令节点
@@ -127,8 +125,7 @@ class TextFormatter:
         Args:
             parts (list | None, optional): 可能的节点路径.
         """
-        def _handle(traces: list[Trace]):
-            trace = traces[0].union(traces[1:])
+        def _handle(trace: Trace):
             if not parts or parts == ['']:
                 return self.format(trace)
             _cache = resolve_requires(trace.body)
