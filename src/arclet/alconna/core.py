@@ -43,7 +43,7 @@ def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> No
     options.append(
         Option(
             "|".join(ns.builtin_option_name['shortcut']),
-            Args["delete;?", "delete"]["name", str]["command", str, "_"],
+            Args["action?", "delete|list"]["name?", str]["command", str, "_"],
             help_text=lang.require("builtin", "option_shortcut")
         )
     )
@@ -210,7 +210,7 @@ class Alconna(Subcommand, Generic[TDC]):
         """返回该命令注册的快捷命令"""
         return command_manager.list_shortcut(self)
 
-    def shortcut(self, key: str, args: ShortcutArgs[TDC] | None = None, delete: bool = False):
+    def shortcut(self, key: str, args: ShortcutArgs | None = None, delete: bool = False):
         """操作快捷命令
 
         Args:

@@ -425,6 +425,8 @@ def test_shortcut():
     assert res9.foo is True
     assert not alc16_2.parse("3test").matched
 
+    alc16.parse("core16 --shortcut list")
+
 
 def test_help():
     from arclet.alconna.exceptions import SpecialOptionTriggered

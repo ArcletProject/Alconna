@@ -8,7 +8,7 @@ import shelve
 import weakref
 from copy import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Match, TypedDict, Union, overload
+from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from tarina import LRU, lang
@@ -25,25 +25,15 @@ if TYPE_CHECKING:
     from .core import Alconna
 
 
-    class ShortcutArgs(TypedDict, Generic[TDC]):
-        """快捷指令参数"""
+class ShortcutArgs(TypedDict):
+    """快捷指令参数"""
 
-        command: NotRequired[TDC]
-        """快捷指令的命令"""
-        args: NotRequired[list[Any]]
-        """快捷指令的附带参数"""
-        fuzzy: NotRequired[bool]
-        """是否允许命令后随参数"""
-else:
-    class ShortcutArgs(TypedDict):
-        """快捷指令参数"""
-
-        command: NotRequired[DataCollection[Any]]
-        """快捷指令的命令"""
-        args: NotRequired[list[Any]]
-        """快捷指令的附带参数"""
-        fuzzy: NotRequired[bool]
-        """是否允许命令后随参数"""
+    command: NotRequired[DataCollection[Any]]
+    """快捷指令的命令"""
+    args: NotRequired[list[Any]]
+    """快捷指令的附带参数"""
+    fuzzy: NotRequired[bool]
+    """是否允许命令后随参数"""
 
 
 class CommandManager:
@@ -200,7 +190,7 @@ class CommandManager:
         if not enabled and command not in self.__abandons:
             self.__abandons.append(command)
 
-    def add_shortcut(self, target: Alconna[TDC], key: str, source: Arparma | ShortcutArgs[TDC]):
+    def add_shortcut(self, target: Alconna, key: str, source: Arparma | ShortcutArgs):
         """添加快捷命令
 
         Args:
@@ -219,7 +209,7 @@ class CommandManager:
         else:
             raise ValueError(lang.require("manager", "incorrect_shortcut").format(target=f"{key}"))
 
-    def list_shortcut(self, target: Alconna[TDC]) -> list[str]:
+    def list_shortcut(self, target: Alconna) -> list[str]:
         """列出快捷命令
 
         Args:
@@ -243,13 +233,13 @@ class CommandManager:
     @overload
     def find_shortcut(
         self, target: Alconna[TDC]
-    ) -> list[Union[Arparma[TDC], ShortcutArgs[TDC]]]:
+    ) -> list[Union[Arparma[TDC], ShortcutArgs]]:
         ...
 
     @overload
     def find_shortcut(
         self, target: Alconna[TDC], query: str
-    ) -> tuple[Arparma[TDC] | ShortcutArgs[TDC], Match[str] | None]:
+    ) -> tuple[Arparma[TDC] | ShortcutArgs, Match[str] | None]:
         ...
 
     def find_shortcut(self, target: Alconna[TDC], query: str | None = None):

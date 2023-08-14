@@ -279,7 +279,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         if isinstance(short, Arparma):
             return short
 
-        argv.build(argv.converter(short.get('command', self.command.command or self.command.name)))
+        argv.build(short.get('command', argv.converter(self.command.command or self.command.name)))
         if not short.get('fuzzy') and data:
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=data[0]))
             if self.command.meta.raise_exception:
