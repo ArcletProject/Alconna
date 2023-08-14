@@ -19,7 +19,7 @@ from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
 from ..typing import KWBool
 from ._header import Double, Header
-from ._util import levenshtein
+from ._util import levenshtein, escape, unescape
 
 if TYPE_CHECKING:
     from ._analyser import Analyser, SubAnalyser
@@ -483,7 +483,7 @@ def handle_help(analyser: Analyser, argv: Argv):
     return analyser.export(argv, True, SpecialOptionTriggered('help'))
 
 
-_args = Args["delete;?", "delete"]["name", str]["command", str, "_"]
+_args = Args["action?", "delete|list"]["name?", str]["command", str, "_"]
 
 
 def handle_shortcut(analyser: Analyser, argv: Argv):
@@ -494,16 +494,91 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
     except SpecialOptionTriggered:
         return handle_completion(analyser, argv)
     try:
-        msg = analyser.command.shortcut(
-            opt_v["name"],
-            None if opt_v["command"] == "_" else {"command": argv.converter(opt_v["command"])},
-            bool(opt_v.get("delete"))
-        )
-        output_manager.send(analyser.command.name, lambda: msg)
+        if opt_v.get("action") == "list":
+            data = analyser.command.get_shortcuts()
+            output_manager.send(analyser.command.name, lambda: "\n".join(data))
+        else:
+            if not opt_v.get("name"):
+                raise ParamsUnmatched(lang.require("shortcut", "name_require"))
+            msg = analyser.command.shortcut(
+                opt_v["name"],
+                None if opt_v["command"] == "_" else {"command": argv.converter(opt_v["command"])},
+                bool(opt_v.get("action"))
+            )
+            output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
         output_manager.send(analyser.command.name, lambda: str(e))
     return analyser.export(argv, True, SpecialOptionTriggered('shortcut'))
 
+
+INDEX_SLOT = re.compile(r"\{%(\d+)\}")
+WILDCARD_SLOT = re.compile(r"\{\*(.*)\}", re.DOTALL)
+
+def _gen_extend(data: list, sep: str):
+    extend = []
+    for slot in data:
+        if isinstance(slot, str) and extend and isinstance(extend[-1], str):
+            extend[-1] += sep + slot
+        else:
+            extend.append(slot)
+    return extend
+
+def _handle_multi_slot(argv: Argv, unit: str, data: list, index: int, current: int, offset: int):
+    slot = data[index]
+
+    if not isinstance(slot, str):
+        left, right = unit.split(f"{{%{index}}}", 1)
+        argv.raw_data[current] = left
+        argv.raw_data.insert(current + 1, slot)
+        if right:
+            argv.raw_data[current + 2] = right
+            offset += 1
+    else:
+        argv.raw_data[current + offset] =  unescape(unit.replace(f"{{%{index}}}", slot))
+    return offset
+def _handle_shortcut_data(argv: Argv, data: list):
+    data_len = len(data)
+    record = set()
+    offset = 0
+    for i, unit in enumerate(argv.raw_data.copy()):
+        if not data_len:
+            break
+        if not isinstance(unit, str):
+            continue
+        unit = escape(unit)
+        if mat := INDEX_SLOT.fullmatch( unit):
+            index = int(mat[1])
+            if index >= data_len:
+                continue
+            argv.raw_data[i + offset] = data[index]
+            record.add(index)
+        elif res := INDEX_SLOT.findall(unit):
+            for index in map(int, res):
+                if index >= data_len:
+                    continue
+                offset = _handle_multi_slot(argv, unit, data, index, i, offset)
+                record.add(index)
+        elif mat := WILDCARD_SLOT.search(unit):
+            extend = _gen_extend(data, mat[1] or ' ')
+            if unit == f"{{*{mat[1]}}}":
+                argv.raw_data.extend(extend)
+            else:
+                argv.raw_data[i + offset] = unescape(unit.replace(f"{{*{mat[1]}}}", "".join(map(str, extend))))
+            data.clear()
+            break
+    return [unit for i, unit in enumerate(data) if i not in record]
+
+
+def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, str]):
+    for j, unit in enumerate(argv.raw_data):
+        if not isinstance(unit, str):
+            continue
+        unit = escape(unit)
+        for i, c in enumerate(groups):
+            unit = unit.replace(f"{{{i}}}", c)
+        for k, v in gdict.items():
+            unit = unit.replace(f"{{{k}}}", v)
+        argv.raw_data[j] = unescape(unit)
 
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
     if trig.field.completion:

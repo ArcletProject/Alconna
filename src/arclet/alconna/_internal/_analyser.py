@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from re import Match
 from typing import TYPE_CHECKING, Any, Callable, Generic, Set
@@ -24,10 +23,10 @@ from ..typing import TDC
 from ._handlers import (
     analyse_args, analyse_header, analyse_param,
     handle_completion, handle_help, handle_opt_default,
-    handle_shortcut, prompt
+    handle_shortcut, prompt, _handle_shortcut_data, _handle_shortcut_reg
 )
 from ._header import Header
-from ._util import levenshtein, escape, unescape
+from ._util import levenshtein
 
 if TYPE_CHECKING:
     from ..core import Alconna
@@ -280,44 +279,19 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         if isinstance(short, Arparma):
             return short
 
-        argv.build(short.get('command', argv.converter(self.command.command) or argv.converter(self.command.name)))
+        argv.build(argv.converter(short.get('command', self.command.command or self.command.name)))
         if not short.get('fuzzy') and data:
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=data[0]))
             if self.command.meta.raise_exception:
                 raise exc
             return self.export(argv, True, exc)
-        data_index = 0
-        for i, unit in enumerate(argv.raw_data):
-            if not data:
-                break
-            if not isinstance(unit, str):
-                continue
-            unit = escape(unit)
-            if unit == f"{{%{data_index}}}":
-                argv.raw_data[i] = data.pop(0)
-                data_index += 1
-            elif f"{{%{data_index}}}" in unit:
-                argv.raw_data[i] = unescape(unit.replace(f"{{%{data_index}}}", str(data.pop(0))))
-                data_index += 1
-            elif mat := re.search(r"\{\*(.*)\}", unit, re.DOTALL):
-                sep = mat[1]
-                argv.raw_data[i] = unescape(unit.replace(f"{{*{sep}}}", (sep or ' ').join(map(str, data))))
-                data.clear()
-
+        argv.addon(short.get('args', []))
+        data = _handle_shortcut_data(argv, data)
         argv.bak_data = argv.raw_data.copy()
-        argv.addon(data).addon(short.get('args', []))
+        argv.addon(data)
         if reg:
-            groups: tuple[str, ...] = reg.groups()
-            gdict: dict[str, str] = reg.groupdict()
-            for j, unit in enumerate(argv.raw_data):
-                if not isinstance(unit, str):
-                    continue
-                unit = escape(unit)
-                for i, c in enumerate(groups):
-                    unit = unit.replace(f"{{{i}}}", c)
-                for k, v in gdict.items():
-                    unit = unit.replace(f"{{{k}}}", v)
-                argv.raw_data[j] = unescape(unit)
+            _handle_shortcut_reg(argv, reg.groups(), reg.groupdict())
+        argv.bak_data = argv.raw_data.copy()
         if argv.message_cache:
             argv.token = argv.generate_token(argv.raw_data)
         return self.process(argv)

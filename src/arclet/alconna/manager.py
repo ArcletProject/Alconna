@@ -211,13 +211,34 @@ class CommandManager:
         namespace, name = self._command_part(target.path)
         argv = self.resolve(target)
         if isinstance(source, dict):
-            source['command'] = source.get('command', argv.converter(target.command or target.name))
+            source['command'] = argv.converter(source.get('command', target.command or target.name))
             source.setdefault('fuzzy', True)
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
         elif source.matched:
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
         else:
             raise ValueError(lang.require("manager", "incorrect_shortcut").format(target=f"{key}"))
+
+    def list_shortcut(self, target: Alconna[TDC]) -> list[str]:
+        """列出快捷命令
+
+        Args:
+            target (Alconna): 目标命令
+
+        Returns:
+            list[str]: 快捷命令的名称
+        """
+        namespace, name = self._command_part(target.path)
+        result = []
+        for i in self.__shortcuts:
+            if not i.startswith(f"{namespace}.{name}::"):
+                continue
+            short = self.__shortcuts[i]
+            if isinstance(short, dict):
+                result.append(i.split('::')[1] + (" ..." if short.get('fuzzy') else ""))
+            else:
+                result.append(i.split('::')[1])
+        return result
 
     @overload
     def find_shortcut(

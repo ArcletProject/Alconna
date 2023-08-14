@@ -206,6 +206,10 @@ class Alconna(Subcommand, Generic[TDC]):
         """返回该命令的帮助信息"""
         return self.formatter.format_node()
 
+    def get_shortcuts(self) -> list[str]:
+        """返回该命令注册的快捷命令"""
+        return command_manager.list_shortcut(self)
+
     def shortcut(self, key: str, args: ShortcutArgs[TDC] | None = None, delete: bool = False):
         """操作快捷命令
 
