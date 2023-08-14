@@ -47,7 +47,7 @@ from .typing import Kw as Kw
 from .typing import MultiVar as MultiVar
 from .typing import Nargs as Nargs
 
-__version__ = "1.7.16"
+__version__ = "1.7.17"
 
 # backward compatibility
 Arpamar = Arparma

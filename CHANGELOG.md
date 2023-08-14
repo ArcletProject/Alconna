@@ -1,5 +1,17 @@
 # 更新日志
 
+## Alconna 1.7.17
+
+### 新增:
+- 内置选项 `shortcut` 的第一个参数加入了 `list`, 用于展示该命令下的所有快捷指令
+
+### 改进:
+- `Argv` 在 checker 失败后现在会尝试使用 converter 转换为正确的类型
+- `ShortcutArgs` 中 command 的 slot 现在会保留尾随参数的类型，而不是全部转换为 str
+
+### 修复:
+- `ShortcutArgs` 中 slot 的 index 现在正确指向尾随参数的位置
+
 ## Alconna 1.7.16
 
 ### 改进:
