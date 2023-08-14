@@ -104,7 +104,12 @@ class Argv(Generic[TDC]):
         """
         self.reset()
         if self.checker and not self.checker(data):
-            raise TypeError(data)
+            if not self.converter:
+                raise TypeError(data)
+            try:
+                data = self.converter(data)
+            except Exception as e:
+                raise TypeError(data) from e
         self.origin = data
         if data.__class__ is str:
             data = [data]  # type: ignore
