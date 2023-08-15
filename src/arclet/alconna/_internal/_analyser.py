@@ -260,7 +260,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
     def shortcut(
-        self, argv: Argv[TDC], data: list[Any], short: Arparma | ShortcutArgs, reg: Match | None
+        self, argv: Argv[TDC], data: list[Any], short: Arparma | ShortcutArgs, reg: Match | None = None
     ) -> Arparma[TDC]:
         """处理被触发的快捷命令
 

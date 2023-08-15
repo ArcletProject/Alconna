@@ -222,7 +222,7 @@ class Argv(Generic[TDC]):
         data = self.bak_data if recover else self.raw_data[self.current_index:]
         for _data in data:
             if _data.__class__ is str:
-                _result.extend(split(_data, separate or (' ',)))
+                _result.extend(split(_data, separate or (' ',), self.filter_crlf))
             else:
                 _result.append(_data)
         return _result

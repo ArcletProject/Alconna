@@ -407,7 +407,7 @@ def test_shortcut():
 
     alc16_1 = Alconna("exec", Args["content", str])
     alc16_1.shortcut("echo", {"command": "exec print({%0})"})
-    alc16_1.shortcut("echo1", {"command": "exec print(\\'{*\n}\\')"})
+    alc16_1.shortcut("echo1", {"command": "exec print(\\\\'{*\n}\\\\')"})
     res5 = alc16_1.parse("echo 123")
     assert res5.content == "print(123)"
     assert not alc16_1.parse("echo 123 456").matched
@@ -415,17 +415,24 @@ def test_shortcut():
     assert res6.content == "print('123\n456\n789')"
     res7 = alc16_1.parse([123])
     assert not res7.matched
+    res8 = alc16_1.parse(r"echo \\'123\\'")
+    assert res8.content == "print('123')"
 
     alc16_2 = Alconna([1, 2, '3'], "core16_2", Args["foo", bool])
     alc16_2.shortcut("test", {"command": [1, "core16_2 True"]})
     assert alc16_2.parse([1, "core16_2 True"]).matched
-    res8 = alc16_2.parse("test")
-    assert res8.foo is True
-    res9 = alc16_2.parse([2, "test"])
+    res9 = alc16_2.parse("test")
     assert res9.foo is True
+    res10 = alc16_2.parse([2, "test"])
+    assert res10.foo is True
     assert not alc16_2.parse("3test").matched
 
     alc16.parse("core16 --shortcut list")
+
+    alc16_3 = Alconna(["/", "!"], "core16_3", Args["foo", bool])
+    print(alc16_3.shortcut("test", {"prefix": True, "args": ["False"]}))
+    assert not alc16_3.parse("test").matched
+    assert alc16_3.parse("/test").foo is False
 
 
 def test_help():

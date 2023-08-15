@@ -523,49 +523,55 @@ def _gen_extend(data: list, sep: str):
             extend.append(slot)
     return extend
 
-def _handle_multi_slot(argv: Argv, unit: str, data: list, index: int, current: int, offset: int):
+def _handle_multi_slot(argv: Argv, unit: str, data: list, index: int):
     slot = data[index]
-
     if not isinstance(slot, str):
         left, right = unit.split(f"{{%{index}}}", 1)
-        argv.raw_data[current] = left
-        argv.raw_data.insert(current + 1, slot)
-        if right:
-            argv.raw_data[current + 2] = right
-            offset += 1
+        if left.strip():
+            argv.raw_data.append(left.strip())
+        argv.raw_data.append(slot)
+        if right.strip():
+            argv.raw_data.append(right.strip())
     else:
-        argv.raw_data[current + offset] =  unescape(unit.replace(f"{{%{index}}}", slot))
-    return offset
+        argv.raw_data.append(unescape(unit.replace(f"{{%{index}}}", slot)))
+
 def _handle_shortcut_data(argv: Argv, data: list):
     data_len = len(data)
+    if not data_len:
+        return []
     record = set()
-    offset = 0
-    for i, unit in enumerate(argv.raw_data.copy()):
-        if not data_len:
-            break
+    argv.filter_crlf = not argv.filter_crlf
+    units = argv.release()
+    argv.filter_crlf = not argv.filter_crlf
+    argv.raw_data.clear()
+    for unit in units:
         if not isinstance(unit, str):
+            argv.raw_data.append(unit)
             continue
         unit = escape(unit)
-        if mat := INDEX_SLOT.fullmatch( unit):
+        if mat := INDEX_SLOT.fullmatch(unit):
             index = int(mat[1])
             if index >= data_len:
                 continue
-            argv.raw_data[i + offset] = data[index]
+            argv.raw_data.append(data[index])
             record.add(index)
         elif res := INDEX_SLOT.findall(unit):
             for index in map(int, res):
                 if index >= data_len:
                     continue
-                offset = _handle_multi_slot(argv, unit, data, index, i, offset)
+                _handle_multi_slot(argv, unit, data, index)
                 record.add(index)
         elif mat := WILDCARD_SLOT.search(unit):
             extend = _gen_extend(data, mat[1] or ' ')
             if unit == f"{{*{mat[1]}}}":
                 argv.raw_data.extend(extend)
             else:
-                argv.raw_data[i + offset] = unescape(unit.replace(f"{{*{mat[1]}}}", "".join(map(str, extend))))
+                argv.raw_data.append(unescape(unit.replace(f"{{*{mat[1]}}}", "".join(map(str, extend)))))
             data.clear()
             break
+        else:
+            argv.raw_data.append(unescape(unit))
+    argv.ndata = len(argv.raw_data)
     return [unit for i, unit in enumerate(data) if i not in record]
 
 

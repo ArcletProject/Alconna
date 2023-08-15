@@ -34,6 +34,8 @@ class ShortcutArgs(TypedDict):
     """快捷指令的附带参数"""
     fuzzy: NotRequired[bool]
     """是否允许命令后随参数"""
+    prefix: NotRequired[bool]
+    """是否调用时保留指令前缀"""
 
 
 class CommandManager:
@@ -201,11 +203,26 @@ class CommandManager:
         namespace, name = self._command_part(target.path)
         argv = self.resolve(target)
         if isinstance(source, dict):
-            source['command'] = argv.converter(source.get('command', target.command or target.name))
             source.setdefault('fuzzy', True)
+            source.setdefault('prefix', False)
+            if source.get("prefix") and target.prefixes:
+                out = []
+                for prefix in target.prefixes:
+                    if not isinstance(prefix, str):
+                        continue
+                    _src = source.copy()
+                    _src['command'] = argv.converter(prefix + source.get('command', str(target.command or target.name)))
+                    self.__shortcuts[f"{namespace}.{name}::{prefix}{key}"] = _src
+                    out.append(lang.require("shortcut", "add_success").format(
+                        shortcut=f"{prefix}{key}", target=target.path)
+                    )
+                return "\n".join(out)
+            source['command'] = argv.converter(source.get('command', target.command or target.name))
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
+            return lang.require("shortcut", "add_success").format(shortcut=key, target=target.path)
         elif source.matched:
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
+            return lang.require("shortcut", "add_success").format(shortcut=key, target=target.path)
         else:
             raise ValueError(lang.require("manager", "incorrect_shortcut").format(target=f"{key}"))
 
