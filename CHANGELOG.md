@@ -1,5 +1,10 @@
 # 更新日志
 
+## Alconna 1.7.18
+
+### 新增:
+`ShortcutArgs` 加入一个 `prefix: bool` 参数，控制快捷指令是否保留源指令的前缀
+
 ## Alconna 1.7.17
 
 ### 新增:

@@ -407,7 +407,7 @@ def test_shortcut():
 
     alc16_1 = Alconna("exec", Args["content", str])
     alc16_1.shortcut("echo", {"command": "exec print({%0})"})
-    alc16_1.shortcut("echo1", {"command": "exec print(\\\\'{*\n}\\\\')"})
+    alc16_1.shortcut("echo1", {"command": "exec print(\\'{*\n}\\')"})
     res5 = alc16_1.parse("echo 123")
     assert res5.content == "print(123)"
     assert not alc16_1.parse("echo 123 456").matched
@@ -415,7 +415,7 @@ def test_shortcut():
     assert res6.content == "print('123\n456\n789')"
     res7 = alc16_1.parse([123])
     assert not res7.matched
-    res8 = alc16_1.parse(r"echo \\'123\\'")
+    res8 = alc16_1.parse("echo \\\\'123\\\\'")
     assert res8.content == "print('123')"
 
     alc16_2 = Alconna([1, 2, '3'], "core16_2", Args["foo", bool])
