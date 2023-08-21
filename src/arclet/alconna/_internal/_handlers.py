@@ -198,6 +198,15 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             argv.current_index = argv.ndata
             return result
         _validate(argv, arg, value, result, may_arg, _str)
+    if args.argument.unpack:
+        arg, unpack = args.argument.unpack
+        try:
+            result[arg.name] = arg.value.origin(**analyse_args(argv, unpack))
+        except Exception as e:
+            if (de := arg.field.default) is not None:
+                result[arg.name] = None if de is Empty else de
+            elif not arg.optional:
+                raise e
     if args.argument.var_positional:
         step_varpos(argv, args, result)
     if args.argument.keyword_only:

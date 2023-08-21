@@ -7,14 +7,14 @@ import sys
 from copy import deepcopy
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, Type
+from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, Type, List
 
 from nepattern import AllParam, AnyOne, BasePattern, RawStr, UnionPattern, all_patterns, type_parser
 from tarina import Empty, get_signature, lang
 from typing_extensions import Self, TypeAlias
 
 from .exceptions import InvalidParam
-from .typing import KeyWordVar, MultiVar, KWBool
+from .typing import KeyWordVar, MultiVar, KWBool, UnpackVar
 
 
 def safe_dcls_kw(**kwargs):
@@ -154,13 +154,30 @@ class ArgsMeta(type):
 
 NULL = {Empty: None, None: Empty}
 
-class _argument(list):
+class _argument(List[Arg[Any]]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.normal: list[Arg[Any]] = []
         self.var_positional: tuple[MultiVar, Arg[Any]] | None = None
         self.var_keyword: tuple[MultiVar, Arg[Any]] | None = None
         self.keyword_only: dict[str, Arg[Any]] = {}
+        self.unpack: tuple[Arg, Args] | None = None
+
+def gen_unpack(fields: tuple[dc.Field, ...]):
+    unpack = Args()
+    for field in fields:
+        if field.default != dc.MISSING:
+            _de = field.default
+        elif field.default_factory != dc.MISSING:
+            _de = field.default_factory()
+        else:
+            _de = Empty
+        _de = NULL.get(_de, _de)
+        _type = field.type
+        if getattr(field, "kw_only", False):
+            _type = KeyWordVar(_type)
+        unpack.add(field.name, value=field.type, default=_de)
+    return unpack
 
 class Args(metaclass=ArgsMeta):
     """参数集合
@@ -296,6 +313,13 @@ class Args(metaclass=ArgsMeta):
             if arg.name in self._visit:
                 continue
             self._visit.add(arg.name)
+            if isinstance(arg.value, UnpackVar):
+                if len(self._visit) > 1:
+                    raise InvalidParam("Unpack var can only put in the first position")
+                if len(self.argument) > 1:
+                    raise InvalidParam("Args can only contain one arg if using Unpack var")
+                self.argument.unpack = (arg, gen_unpack(arg.value.fields))
+                break
             if isinstance(arg.value, MultiVar):
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.argument.var_keyword:
@@ -370,7 +394,9 @@ class Args(metaclass=ArgsMeta):
     __add__ = __merge__
     __iadd__ = __merge__
     __lshift__ = __merge__
-    __iter__ = lambda self: iter(self.argument)
+
+    def __iter__(self):
+        return iter(self.argument)
 
     def __truediv__(self, other) -> Self:
         self.separate(*other if isinstance(other, (list, tuple, set)) else other)
@@ -380,10 +406,7 @@ class Args(metaclass=ArgsMeta):
         return self.argument == other.argument
 
     def __repr__(self):
-        return (
-            f"Args({', '.join([f'{arg}' for arg in self.argument])})"
-            if self.argument else "Empty"
-        )
+        return f"Args({', '.join([f'{arg}' for arg in self.argument])})" if self.argument else "Empty"
 
     @property
     def empty(self) -> bool:

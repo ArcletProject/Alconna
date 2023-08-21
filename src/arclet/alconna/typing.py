@@ -1,7 +1,7 @@
 """Alconna 参数相关"""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, is_dataclass, fields
 from typing import Any, Dict, Iterator, List, Literal, Protocol, Tuple, TypeVar, Union, runtime_checkable
 
 from nepattern import BasePattern, MatchMode, type_parser
@@ -67,7 +67,8 @@ class KeyWordVar(BasePattern):
 
 class _Kw:
     __slots__ = ()
-    __getitem__ = lambda s, i: KeyWordVar(i)
+    def __getitem__(self, item):
+        return KeyWordVar(item)
     __matmul__ = __getitem__
     __rmatmul__ = __getitem__
 
@@ -115,4 +116,25 @@ class KWBool(BasePattern):
     ...
 
 
-__all__ = ["DataCollection", "TDC", "MultiVar", "Nargs", "Kw", "KeyWordVar", "TPrefixes", "CommandMeta", "KWBool"]
+class UnpackVar(BasePattern):
+    """特殊参数，利用dataclass 的 field 生成 arg 信息，并返回dcls"""
+
+    def __init__(self, dcls: Any):
+        """构建一个可变参数
+
+        Args:
+            dcls: dataclass 类
+        """
+        if not is_dataclass(dcls):
+            raise TypeError(dcls)
+        self.fields = fields(dcls)  # can override if other use Pydantic?
+        alias = f"{dcls.__name__}(" + ", ".join(f"{f.name}: {f.type.__name__}" for f in self.fields)
+        super().__init__(r"", MatchMode.KEEP, dcls, alias=alias)  # type: ignore
+
+
+class _Up:
+    __slots__ = ()
+    def __mul__(self, other):
+        return UnpackVar(other)
+
+Up = _Up()

@@ -233,6 +233,24 @@ def test_annotated():
     assert analyse_args(arg18, ["0 0"], raise_exception=False) != {"foo": 0, "bar": 0}
 
 
+def test_unpack():
+    from dataclasses import dataclass, field
+    from arclet.alconna.typing import UnpackVar
+
+    @dataclass
+    class People:
+        name: str
+        age: int = field(default=16)
+
+    arg19 = Args["people", UnpackVar(People)]
+    assert analyse_args(
+        arg19, ["alice", 16]
+    ) == {"people": People("alice", 16)}
+    assert analyse_args(
+        arg19, ["bob"]
+    ) == {"people": People("bob", 16)}
+
+
 if __name__ == "__main__":
     import pytest
 

@@ -46,6 +46,8 @@ from .typing import KeyWordVar as KeyWordVar
 from .typing import Kw as Kw
 from .typing import MultiVar as MultiVar
 from .typing import Nargs as Nargs
+from .typing import UnpackVar as UnpackVar
+from .typing import Up as Up
 
 __version__ = "1.7.18"
 
