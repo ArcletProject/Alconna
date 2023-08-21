@@ -1,33 +1,34 @@
-from arclet.alconna import Alconna
+from arclet.alconna import Alconna, additional
 from arclet.alconna.core import ArparmaExecutor
+from tarina import is_awaitable
 from dataclasses import dataclass, field
-from typing import TypeVar, Callable, Any, Optional
-from weakref import WeakValueDictionary
+from typing import TypeVar, Tuple, Callable, Any, Optional
+from weakref import WeakKeyDictionary
 
 TCall = TypeVar("TCall", bound=Callable)
 
 
 @dataclass
 class Commands:
-    executors: dict[Alconna, ArparmaExecutor] = field(default_factory=dict)
+    executors: WeakKeyDictionary[Alconna, Tuple[ArparmaExecutor, bool]] = field(default_factory=WeakKeyDictionary)
 
-    def on(self, alc: Alconna):
+    def __post_init__(self):
+        additional(commander=lambda: self)
+
+    def on(self, alc: Alconna, block: bool = True):
         def wrapper(func: TCall) -> TCall:
-            self.executors[alc] = alc.bind(False)(func)
+            self.executors[alc] = (alc.bind(False)(func), block)
             return func
 
         return wrapper
 
-    def test(self, message: Optional[Any] = None):
-        for alc, executor in self.executors.items():
-            res = alc.parse(message) if message else alc()
-            if res.matched:
-                return executor.result
-
-    def broadcast(self, message: Optional[Any] = None):
-        data = WeakValueDictionary()
-        for alc, executor in self.executors.items():
-            res = alc.parse(message) if message else alc()
-            if res.matched:
-                data[alc.path] = executor.result
+    async def broadcast(self, message: Optional[Any] = None):
+        data = {}
+        for alc, (executor, block) in self.executors.items():
+            arp = alc.parse(message) if message else alc()
+            if arp.matched:
+                res = executor.result
+                data[alc.path] = (await res) if is_awaitable(res) else res
+                if block:
+                    break
         return data

@@ -5,7 +5,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from functools import lru_cache
 from types import MappingProxyType
-from typing import Any, Callable, Generic, Mapping, TypeVar, overload
+from typing import Any, Callable, ClassVar, Generic, Mapping, TypeVar, overload
 
 from tarina import Empty, generic_isinstance, get_signature, lang
 from typing_extensions import Self
@@ -109,6 +109,8 @@ class Arparma(Generic[TDC]):
         self.options = options or {}
         self.subcommands = subcommands or {}
 
+    additional: ClassVar[dict[str, Callable[[], Any]]] = {}
+
     def _clr(self):
         ks = list(self.__dict__.keys())
         for k in ks:
@@ -198,12 +200,11 @@ class Arparma(Generic[TDC]):
                 return self.fail(e)
         return self
 
-    def call(self, target: Callable[..., T], **additional) -> T:
+    def call(self, target: Callable[..., T]) -> T:
         """依据 `Arparma` 中的数据调用函数
 
         Args:
             target (Callable[..., T]): 要调用的函数
-            **additional (Any): 附加参数
         Returns:
             T: 函数返回值
         Raises:
@@ -213,7 +214,14 @@ class Arparma(Generic[TDC]):
             raise RuntimeError("No matched")
         pos_args = []
         kw_args = {}
-        data = {**self.all_matched_args, **additional}
+        data = {
+            **self.all_matched_args,
+            **{k: v() for k, v in self.additional.items()},
+            "all_args": self.all_matched_args,
+            "options": self.options,
+            "subcommands": self.subcommands
+        }
+
         for p in get_signature(target):
             if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD):
                 pos_args.append(data[p.name])
@@ -420,3 +428,7 @@ def requirement_handler(behavior: ArparmaBehavior) -> list[ArparmaBehavior]:
         res.extend(requirement_handler(b))
     res.append(behavior)
     return res
+
+
+def additional(**supplier: Callable[[], Any]):
+    Arparma.additional.update(supplier)

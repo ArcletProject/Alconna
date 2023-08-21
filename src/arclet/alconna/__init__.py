@@ -19,6 +19,7 @@ from .argv import argv_config as argv_config
 from .argv import set_default_argv_type as set_default_argv_type
 from .arparma import Arparma as Arparma
 from .arparma import ArparmaBehavior as ArparmaBehavior
+from .arparma import additional as additional
 from .base import Option as Option
 from .base import Subcommand as Subcommand
 from .builtin import set_default as set_default
