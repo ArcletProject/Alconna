@@ -144,6 +144,7 @@ class Arparma(Generic[TDC]):
         self.subcommands = subcommands or {}
 
     _additional: ClassVar[dict[str, Callable[[], Any]]] = {}
+    query = _Query[Any]()
 
     def _clr(self):
         ks = list(self.__dict__.keys())
@@ -249,8 +250,8 @@ class Arparma(Generic[TDC]):
         pos_args = []
         kw_args = {}
         data = {
-            **self.all_matched_args,
             **{k: v() for k, v in self._additional.items()},
+            **self.all_matched_args,
             "all_args": self.all_matched_args,
             "options": self.options,
             "subcommands": self.subcommands
@@ -293,7 +294,7 @@ class Arparma(Generic[TDC]):
             return getattr(self, prefix, {}), parts.pop(0)
         return None, prefix
 
-    query = _Query[Any]()
+    def query_with(self, arg_type: type[T], *args): return self.query[arg_type](*args)
 
     def find(self, path: str) -> bool:
         """查询路径是否存在
@@ -334,9 +335,7 @@ class Arparma(Generic[TDC]):
         if isinstance(item, str):
             return self.query(item)
         if isinstance(item, tuple):
-            return [
-                i for i in self.all_matched_args.values() if generic_isinstance(i, item[0])
-            ][item[1]]
+            return [i for i in self.all_matched_args.values() if generic_isinstance(i, item[0])][item[1]]
         return next(i for i in self.all_matched_args.values() if generic_isinstance(i, item))
 
     def __getattr__(self, item: str):

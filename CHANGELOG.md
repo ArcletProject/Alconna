@@ -1,9 +1,19 @@
 # 更新日志
 
+## Alconna 1.7.19
+
+### 新增:
+- 加入 `UnpackVar`，其接受 `dataclass` 并转为 Args，将解析结果构造为 dcls 实例
+- 增加 `Arparma.addition` 类方法，用来为 `Arparma.call` 增加额外参数的工厂函数
+
+### 改进:
+- `Arparma.query` 改用描述器实现，并支持如 `arp.query[int]("foo.bar")` 的语法，以替代原先的 `query_with` (query_with 方法仍然保留)
+- `Arparma[...]` 增加如 `arp[int, 2]` 的支持，即选择第 i 个匹配类型的参数
+
 ## Alconna 1.7.18
 
 ### 新增:
-`ShortcutArgs` 加入一个 `prefix: bool` 参数，控制快捷指令是否保留源指令的前缀
+- `ShortcutArgs` 加入一个 `prefix: bool` 参数，控制快捷指令是否保留源指令的前缀
 
 ## Alconna 1.7.17
 
