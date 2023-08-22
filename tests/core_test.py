@@ -30,7 +30,8 @@ def test_alconna_create():
     )
     assert alc_1.parse("core_1 abc 123").matched is False
     assert alc_1.parse("core_1 abc abc").matched is True
-
+    query = alc_1.parse("core_1 abc abc").query[str]
+    assert query("bar") == "abc"
 
 def test_alconna_multi_match():
     alc1 = Alconna(
@@ -147,7 +148,7 @@ def test_alconna_special_help():
         "Cal",
         Subcommand(
             "-div",
-            Option("--round|-r", Args.decimal[int], help_text="保留n位小数"),
+            Option("--round|-r", Args["decimal", int], help_text="保留n位小数"),
             Args(num_a=int, num_b=int),
             help_text="除法计算",
         ),
@@ -317,9 +318,9 @@ def test_alconna_synthesise():
         "cpp", Args["match", MultiVar(int, "+")], Arg("lines", AllParam, seps="\n")
     )
     print("")
-    print(msg := ("cpp 1 2\n" "#include <iostream>\n" "int main() {...}"))
+    print(msg := "cpp 1 2\n" "#include <iostream>\n" "int main() {...}")
     print((res := alc10_1.parse(msg)))
-    print("\n".join(res.query_with(List[str], "lines", [])))
+    print("\n".join(res.query[List[str]]("lines", [])))
 
 
 def test_simple_override():
@@ -474,13 +475,13 @@ def test_completion():
         + Option("fool")
         + Option(
             "foo",
-            Args.bar[
-                "a|b|c", Field(completion=lambda: "test completion; choose a, b or c")
+            Args[
+                "bar", "a|b|c", Field(completion=lambda: "test completion; choose a, b or c")
             ],
         )
         + Option(
             "off",
-            Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])],
+            Args["baz", "aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])],
         )
         + Args["test", int, Field(1, completion=lambda: "try -1 ?")]
     )
@@ -492,13 +493,13 @@ def test_completion():
     alc20.parse("core20 fool --comp")
     alc20.parse("core20 off c --comp")
 
-    alc20_1 = Alconna("core20_1", Args.foo[int], Option("bar"))
+    alc20_1 = Alconna("core20_1", Args["foo", int], Option("bar"))
     res = alc20_1.parse("core20_1 -cp")
     assert isinstance(res.error_info, SpecialOptionTriggered)
 
 
 def test_completion_interface():
-    alc21 = Alconna("core21", Args.foo[int], Args.bar[str])
+    alc21 = Alconna("core21", Args["foo", int], Args["bar", str])
     print("\n", "no interface [failed]:", alc21.parse("core21"))
     print("\n", "interface [pending]:")
     with CompSession(alc21) as comp:
@@ -523,7 +524,7 @@ def test_completion_interface():
 def test_call():
     from dataclasses import dataclass
 
-    alc22 = Alconna("core22", Args.foo[int], Args.bar[str])
+    alc22 = Alconna("core22", Args["foo", int], Args["bar", str])
     alc22("core22 123 abc")
 
     @alc22.bind(False)
@@ -552,7 +553,7 @@ def test_nest_subcommand():
         pass
     alc23 = Alconna(
         "core23",
-        Args.foo[int],
+        Args["foo", int],
         Subcommand(
             "bar",
             Subcommand(
@@ -593,7 +594,7 @@ def test_action():
         "core24", Option("--yes|-y", action=store_true), Args["module", AllParam]
     )
     res = alc24.parse("core24 -y abc def")
-    assert res.query("yes.value") is True
+    assert res.query[bool]("yes.value") is True
     assert res.module == ["abc", "def"]
 
     alc24_1 = Alconna(
@@ -617,12 +618,12 @@ def test_action():
         "-Fabc -Fdef --flag xyz --i 4 --i 5 "
         "foo bar --q foo bar --qq"
     )
-    assert res.query("i.foo") == 5
-    assert res.query("a.value") == [1, 1]
-    assert res.query("flag.flag") == ["abc", "def", "xyz"]
-    assert res.query("v.value") == 3
-    assert res.query("xyz.value") == 4
-    assert res.query("foo_bar_q.value") == 3
+    assert res.query[int]("i.foo") == 5
+    assert res.query["list[int]"]("a.value") == [1, 1]
+    assert res.query["list[str]"]("flag.flag") == ["abc", "def", "xyz"]
+    assert res.query[int]("v.value") == 3
+    assert res.query[int]("xyz.value") == 4
+    assert res.query[int]("foo_bar_q.value") == 3
 
     alc24_3 = Alconna(
         "core24_3", Option("-t", default=False, action=append_value(True))

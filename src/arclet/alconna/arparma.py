@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from contextlib import suppress
 from dataclasses import dataclass, field
 from functools import lru_cache
 from types import MappingProxyType
-from typing import Any, Callable, ClassVar, Generic, Mapping, TypeVar, overload
+from typing import Any, Callable, ClassVar, Generic, TypeVar, cast, overload
 
 from tarina import Empty, generic_isinstance, get_signature, lang
 from typing_extensions import Self
@@ -15,6 +14,7 @@ from .model import HeadResult, OptionResult, SubcommandResult
 from .typing import TDC
 
 T = TypeVar('T')
+T1 = TypeVar('T1')
 D = TypeVar('D')
 
 
@@ -55,6 +55,40 @@ def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult])
         return _handle_sub(_end, _parts, __src.subcommands)
     return __src.args, _end
 
+
+class _Query(Generic[T]):
+    source: Arparma
+    def __get__(self, instance: Arparma, owner: type) -> _Query[T]:
+        self.source = instance
+        return self
+
+    def __set_name__(self, owner, name):
+        self.name = name
+
+    def __getitem__(self, item: type[T1]) -> _Query[T1]:
+        return cast("_Query[T1]", self)
+
+    @overload
+    def __call__(self, path: str) -> T | None:
+        ...
+
+    @overload
+    def __call__(self, path: str, default: D) -> T | D:
+        ...
+
+    def __call__(self, path: str, default: D | None = None) ->  T | D | None:
+        """查询 `Arparma` 中的数据
+
+        Args:
+            path (str): 要查询的路径
+            default (T | None, optional): 如果查询失败, 则返回该值
+        """
+        source, endpoint = self.source.__require__(path.split('.'))
+        if source is None:
+            return default
+        if isinstance(source, (OptionResult, SubcommandResult)):
+            return getattr(source, endpoint, default) if endpoint else source  # type: ignore
+        return source.get(endpoint, default) if endpoint else MappingProxyType(source)  # type: ignore
 
 class Arparma(Generic[TDC]):
     """承载解析结果与操作数据的接口类
@@ -109,7 +143,7 @@ class Arparma(Generic[TDC]):
         self.options = options or {}
         self.subcommands = subcommands or {}
 
-    additional: ClassVar[dict[str, Callable[[], Any]]] = {}
+    _additional: ClassVar[dict[str, Callable[[], Any]]] = {}
 
     def _clr(self):
         ks = list(self.__dict__.keys())
@@ -216,7 +250,7 @@ class Arparma(Generic[TDC]):
         kw_args = {}
         data = {
             **self.all_matched_args,
-            **{k: v() for k, v in self.additional.items()},
+            **{k: v() for k, v in self._additional.items()},
             "all_args": self.all_matched_args,
             "options": self.options,
             "subcommands": self.subcommands
@@ -259,57 +293,7 @@ class Arparma(Generic[TDC]):
             return getattr(self, prefix, {}), parts.pop(0)
         return None, prefix
 
-    @overload
-    def query(self, path: str) -> Mapping[str, Any] | Any | None:
-        ...
-
-    @overload
-    def query(self, path: str, default: T) -> T | Mapping[str, Any] | Any:
-        ...
-
-    def query(self, path: str, default: T | None = None) -> Any | Mapping[str, Any] | T | None:
-        """查询 `Arparma` 中的数据
-
-        Args:
-            path (str): 要查询的路径
-            default (T | None, optional): 如果查询失败, 则返回该值
-        """
-        source, endpoint = self.__require__(path.split('.'))
-        if source is None:
-            return default
-        if isinstance(source, (OptionResult, SubcommandResult)):
-            return getattr(source, endpoint, default) if endpoint else source
-        return source.get(endpoint, default) if endpoint else MappingProxyType(source)
-
-    @overload
-    def query_with(self, arg_type: type[T]) -> T | None:
-        ...
-
-    @overload
-    def query_with(self, arg_type: type[T], path: str) -> T | None:
-        ...
-
-    @overload
-    def query_with(self, arg_type: type[T], *, default: D) -> T | D:
-        ...
-
-    @overload
-    def query_with(self, arg_type: type[T], path: str, default: D) -> T | D:
-        ...
-
-    def query_with(self, arg_type: type[T], path: str | None = None, default: D | None = None) -> T | D | None:
-        """查询 `Arparma` 中的数据并检查类型
-
-        Args:
-            arg_type (type[T]): 要检查的类型
-            path (str | None, optional): 要查询的路径
-            default (D | None, optional): 如果查询失败, 则返回该值
-        """
-        if path:
-            return res if generic_isinstance(res := self.query(path, Empty), arg_type) else default  # type: ignore
-        with suppress(StopIteration):
-            return next(v for v in self.all_matched_args.values() if generic_isinstance(v, arg_type))
-        return default
+    query = _Query[Any]()
 
     def find(self, path: str) -> bool:
         """查询路径是否存在
@@ -322,15 +306,25 @@ class Arparma(Generic[TDC]):
         """
         return self.query(path, Empty) != Empty
 
-    @overload
-    def __getitem__(self, item: type[T]) -> T | None:
-        ...
+    exist = find
+
+    @classmethod
+    def addition(cls, **supplier: Callable[[], Any]):
+        cls._additional.update(supplier)
 
     @overload
     def __getitem__(self, item: str) -> Any:
         ...
 
-    def __getitem__(self, item: str | type[T]) -> T | Any | None:
+    @overload
+    def __getitem__(self, item: type[T]) -> T | None:
+        ...
+
+    @overload
+    def __getitem__(self, item: tuple[type[T], int]) -> T | None:
+        ...
+
+    def __getitem__(self, item: str | type[T] | tuple[type[T], int]) -> T | Any | None:
         """查询 `Arparma` 中的数据
 
         Args:
@@ -339,8 +333,11 @@ class Arparma(Generic[TDC]):
 
         if isinstance(item, str):
             return self.query(item)
-        if data := self.query_with(item):
-            return data
+        if isinstance(item, tuple):
+            return [
+                i for i in self.all_matched_args.values() if generic_isinstance(i, item[0])
+            ][item[1]]
+        return next(i for i in self.all_matched_args.values() if generic_isinstance(i, item))
 
     def __getattr__(self, item: str):
         return self.all_matched_args.get(item, self.query(item.replace('_', '.')))
@@ -428,7 +425,3 @@ def requirement_handler(behavior: ArparmaBehavior) -> list[ArparmaBehavior]:
         res.extend(requirement_handler(b))
     res.append(behavior)
     return res
-
-
-def additional(**supplier: Callable[[], Any]):
-    Arparma.additional.update(supplier)

@@ -1,4 +1,4 @@
-from arclet.alconna import Alconna, additional
+from arclet.alconna import Alconna, Arparma
 from arclet.alconna.core import ArparmaExecutor
 from tarina import is_awaitable
 from dataclasses import dataclass, field
@@ -13,7 +13,7 @@ class Commands:
     executors: WeakKeyDictionary[Alconna, Tuple[ArparmaExecutor, bool]] = field(default_factory=WeakKeyDictionary)
 
     def __post_init__(self):
-        additional(commander=lambda: self)
+        Arparma.addition(commander=lambda: self)
 
     def on(self, alc: Alconna, block: bool = True):
         def wrapper(func: TCall) -> TCall:
