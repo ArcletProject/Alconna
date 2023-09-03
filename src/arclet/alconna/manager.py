@@ -277,7 +277,7 @@ class CommandManager:
             except KeyError as e:
                 for k in self.__shortcuts:
                     prefix, key = k.rsplit("::", 1)
-                    if f"{namespace}.{name}" == prefix and (mat := re.match(key, query)):
+                    if f"{namespace}.{name}" == prefix and (mat := re.fullmatch(key, query)):
                         return self.__shortcuts[k], mat
                 raise ValueError(
                     lang.require("manager", "target_command_error").format(target=f"{namespace}.{name}", shortcut=query)

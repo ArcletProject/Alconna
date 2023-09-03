@@ -435,6 +435,12 @@ def test_shortcut():
     assert not alc16_3.parse("test").matched
     assert alc16_3.parse("/test").foo is False
 
+    alc16_4 = Alconna("core16_4")
+    alc16_4.shortcut("test", {"fuzzy": False})
+    assert alc16_4.parse("test").matched
+    assert not alc16_4.parse("tes").matched
+    assert not alc16_4.parse("testtt").matched
+    assert not alc16_4.parse("test t").matched
 
 def test_help():
     from arclet.alconna.exceptions import SpecialOptionTriggered
