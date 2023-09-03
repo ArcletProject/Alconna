@@ -405,6 +405,8 @@ def test_shortcut():
     alc16.parse("core16 --shortcut TESTac 'core16 2{%0}'")
     res4 = alc16.parse("TESTac 456")
     assert res4.foo == 2456
+    alc16.shortcut("tTest", {})
+    assert alc16.parse("tTest123").matched
 
     alc16_1 = Alconna("exec", Args["content", str])
     alc16_1.shortcut("echo", {"command": "exec print({%0})"})

@@ -260,12 +260,13 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
     def shortcut(
-        self, argv: Argv[TDC], data: list[Any], short: Arparma | ShortcutArgs, reg: Match | None = None
+        self, argv: Argv[TDC], trigger: str, data: list[Any], short: Arparma | ShortcutArgs, reg: Match | None = None
     ) -> Arparma[TDC]:
         """处理被触发的快捷命令
 
         Args:
             argv (Argv[TDC]): 命令行参数
+            trigger (str): 触发词
             data (list[Any]): 剩余参数
             short (Arparma | ShortcutArgs): 快捷命令
             reg (Match | None): 可能的正则匹配结果
@@ -285,6 +286,8 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             if self.command.meta.raise_exception:
                 raise exc
             return self.export(argv, True, exc)
+        if short.get('fuzzy') and reg and len(trigger) > reg.span()[1]:
+            argv.addon((trigger[reg.span()[1]:],))
         argv.addon(short.get('args', []))
         data = _handle_shortcut_data(argv, data)
         argv.bak_data = argv.raw_data.copy()
@@ -334,7 +337,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 data = argv.release()
                 self.reset()
                 argv.reset()
-                return self.shortcut(argv, data, *_res)
+                return self.shortcut(argv, _next, data, *_res)
 
         except FuzzyMatchSuccess as Fuzzy:
             output_manager.send(self.command.name, lambda: str(Fuzzy))

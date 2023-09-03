@@ -228,7 +228,7 @@ class Alconna(Subcommand, Generic[TDC]):
             if delete:
                 command_manager.delete_shortcut(self, key)
                 return lang.require("shortcut", "delete_success").format(shortcut=key, target=self.path)
-            if args:
+            if args is not None:
                 return command_manager.add_shortcut(self, key, args)
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
