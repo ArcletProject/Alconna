@@ -1,5 +1,16 @@
 # 更新日志
 
+## Alconna 1.7.20
+
+### 改进:
+- 当 shortcut 的 `command` 参数为 `$` 时，快捷指令将会使用源指令的命令名
+- ShortcutArgs 的 `fuzzy` 参数为 `False` 时，快捷指令将是严格匹配（即不允许前缀匹配）
+- ShortcutArgs 的 `fuzzy` 参数为 `True` 时，快捷指令将是模糊匹配（即允许前缀匹配），并且多余的字符会被作为参数写入
+- shortcut 的参数中 `command` 现在的默认值是 `$` 而非 `_`
+
+### 修复:
+- 修改了文字拼写错误
+
 ## Alconna 1.7.19
 
 ### 新增:
