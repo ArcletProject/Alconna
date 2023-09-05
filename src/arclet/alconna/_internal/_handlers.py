@@ -492,7 +492,7 @@ def handle_help(analyser: Analyser, argv: Argv):
     return analyser.export(argv, True, SpecialOptionTriggered('help'))
 
 
-_args = Args["action?", "delete|list"]["name?", str]["command", str, "_"]
+_args = Args["action?", "delete|list"]["name?", str]["command", str, "$"]
 
 
 def handle_shortcut(analyser: Analyser, argv: Argv):
@@ -509,11 +509,14 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
         else:
             if not opt_v.get("name"):
                 raise ParamsUnmatched(lang.require("shortcut", "name_require"))
-            msg = analyser.command.shortcut(
-                opt_v["name"],
-                None if opt_v["command"] == "_" else {"command": argv.converter(opt_v["command"])},
-                bool(opt_v.get("action"))
-            )
+            if opt_v.get("action") == "delete":
+                msg = analyser.command.shortcut(opt_v["name"], delete=True)
+            elif opt_v["command"] == "_":
+                msg = analyser.command.shortcut(opt_v["name"], None)
+            elif opt_v["command"] == "$":
+                msg = analyser.command.shortcut(opt_v["name"], {})
+            else:
+                msg = analyser.command.shortcut(opt_v["name"], {"command": argv.converter(opt_v["command"])})
             output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
         output_manager.send(analyser.command.name, lambda: str(e))

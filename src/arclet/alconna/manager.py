@@ -211,7 +211,7 @@ class CommandManager:
                     if not isinstance(prefix, str):
                         continue
                     _src = source.copy()
-                    _src['command'] = argv.converter(prefix + source.get('command', str(target.command or target.name)))
+                    _src['command'] = argv.converter(prefix + source.get('command', str(target.command)))
                     self.__shortcuts[f"{namespace}.{name}::{prefix}{key}"] = _src
                     out.append(lang.require("shortcut", "add_success").format(
                         shortcut=f"{prefix}{key}", target=target.path)

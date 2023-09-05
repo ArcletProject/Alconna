@@ -99,8 +99,6 @@ class Arg(Generic[_T]):
         default = field if isinstance(field, Field) else Field(field)
         if isinstance(_value, UnionPattern) and _value.optional:
             default.default = Empty if default.default is None else default.default
-        if default.default == "...":
-            default.default = Empty
         if _value is Empty:
             raise InvalidParam(lang.require("args", "value_error").format(target=name))
         self.value = _value
@@ -318,7 +316,8 @@ class Args(metaclass=ArgsMeta):
                     raise InvalidParam("Unpack var can only put in the first position")
                 if len(self.argument) > 1:
                     raise InvalidParam("Args can only contain one arg if using Unpack var")
-                self.argument.unpack = (arg, gen_unpack(arg.value.fields))
+                _gen_unpack = getattr(arg.value, "unpack", gen_unpack)
+                self.argument.unpack = (arg, _gen_unpack(arg.value.fields))
                 break
             if isinstance(arg.value, MultiVar):
                 if isinstance(arg.value.base, KeyWordVar):

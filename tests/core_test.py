@@ -443,6 +443,8 @@ def test_shortcut():
     assert not alc16_4.parse("tes").matched
     assert not alc16_4.parse("testtt").matched
     assert not alc16_4.parse("test t").matched
+    alc16_4.parse("core16_4 --shortcut test1")
+    assert alc16_4.parse("test1").matched
 
 def test_help():
     from arclet.alconna.exceptions import SpecialOptionTriggered

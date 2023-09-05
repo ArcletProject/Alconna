@@ -43,7 +43,7 @@ def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> No
     options.append(
         Option(
             "|".join(ns.builtin_option_name['shortcut']),
-            Args["action?", "delete|list"]["name?", str]["command", str, "_"],
+            Args["action?", "delete|list"]["name?", str]["command", str, "$"],
             help_text=lang.require("builtin", "option_shortcut")
         )
     )
