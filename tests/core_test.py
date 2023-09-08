@@ -302,7 +302,7 @@ def test_alconna_synthesise():
     from typing import List
     from nepattern import BasePattern, MatchMode
 
-    cnt = BasePattern(r".*(\d+)张.*", MatchMode.REGEX_CONVERT, int, lambda _, x: int(x))
+    cnt = BasePattern(r".*(\d+)张.*", MatchMode.REGEX_CONVERT, int, lambda _, x: int(x[1]))
     alc10 = Alconna(
         Arg("min", cnt, seps="到"),
         Arg("max;?", cnt),
@@ -599,6 +599,7 @@ def test_nest_subcommand():
 
 def test_action():
     from arclet.alconna import append, append_value, count, store_true
+    from typing import List
 
     alc24 = Alconna(
         "core24", Option("--yes|-y", action=store_true), Args["module", AllParam]
@@ -629,8 +630,8 @@ def test_action():
         "foo bar --q foo bar --qq"
     )
     assert res.query[int]("i.foo") == 5
-    assert res.query["list[int]"]("a.value") == [1, 1]
-    assert res.query["list[str]"]("flag.flag") == ["abc", "def", "xyz"]
+    assert res.query[List[int]]("a.value") == [1, 1]
+    assert res.query[List[str]]("flag.flag") == ["abc", "def", "xyz"]
     assert res.query[int]("v.value") == 3
     assert res.query[int]("xyz.value") == 4
     assert res.query[int]("foo_bar_q.value") == 3

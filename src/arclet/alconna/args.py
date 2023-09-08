@@ -9,7 +9,7 @@ from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, Type, List
 
-from nepattern import AllParam, AnyOne, BasePattern, RawStr, UnionPattern, all_patterns, type_parser
+from nepattern import AllParam, AnyOne, BasePattern, MatchMode, RawStr, UnionPattern, all_patterns, type_parser
 from tarina import Empty, get_signature, lang
 from typing_extensions import Self, TypeAlias
 
@@ -219,7 +219,7 @@ class Args(metaclass=ArgsMeta):
             de = NULL.get(de, de)
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
-                    anno = KWBool(f"(?:-*no)?-*{name}", 3, bool, lambda _, x: not x.lstrip("-").startswith('no'))
+                    anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith('no'))
                 anno = KeyWordVar(anno, sep=kw_sep)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")

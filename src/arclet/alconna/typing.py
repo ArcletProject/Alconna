@@ -59,7 +59,7 @@ class KeyWordVar(BasePattern):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         self.sep = sep
         assert isinstance(self.base, BasePattern)
-        super().__init__(r"(.+?)", MatchMode.KEEP, self.base.origin, alias=f"@{sep}{self.base}")
+        super().__init__(model=MatchMode.KEEP, origin=self.base.origin, alias=f"@{sep}{self.base}")
 
     def __repr__(self):
         return self.alias
@@ -101,7 +101,7 @@ class MultiVar(BasePattern):
             self.flag = "+"
             self.length = 1
         origin = Dict[str, self.base.origin] if isinstance(self.base, KeyWordVar) else Tuple[self.base.origin, ...]
-        super().__init__(r"(.+?)", MatchMode.KEEP, origin, alias=alias)
+        super().__init__(model=MatchMode.KEEP, origin=origin, alias=alias)
 
     def __repr__(self):
         return self.alias
@@ -129,7 +129,7 @@ class UnpackVar(BasePattern):
             raise TypeError(dcls)
         self.fields = fields(dcls)  # can override if other use Pydantic?
         alias = f"{dcls.__name__}(" + ", ".join(f"{f.name}: {f.type.__name__}" for f in self.fields)
-        super().__init__(r"", MatchMode.KEEP, dcls, alias=alias)  # type: ignore
+        super().__init__(model=MatchMode.KEEP, origin=dcls, alias=alias)  # type: ignore
 
 
 class _Up:

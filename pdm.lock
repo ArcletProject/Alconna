@@ -6,7 +6,7 @@ groups = ["default", "dev"]
 cross_platform = true
 static_urls = false
 lock_version = "4.3"
-content_hash = "sha256:e627dfed8e3c3a33cc5ea453b5128ccbad9330c1049258c93a4eb1b9a23bfb72"
+content_hash = "sha256:1895dbd1b114cc783bdbd80cf72876d50770f85153cbe9f5f239b72ed4bbdfe8"
 
 [[package]]
 name = "arclet-alconna-tools"
@@ -128,7 +128,7 @@ files = [
 
 [[package]]
 name = "nepattern"
-version = "0.5.13"
+version = "0.5.14"
 requires_python = ">=3.8"
 summary = "a complex pattern, support typing"
 dependencies = [
@@ -136,8 +136,8 @@ dependencies = [
     "typing-extensions>=4.5.0",
 ]
 files = [
-    {file = "nepattern-0.5.13-py3-none-any.whl", hash = "sha256:cbd536df2119f1552e416baa11f4bc50627fb97308c84f8a31405eda2c5ba97e"},
-    {file = "nepattern-0.5.13.tar.gz", hash = "sha256:1d0c6d7f7f122037c2342c7160aa3a4350cfa7c4726da39216cb823a07261720"},
+    {file = "nepattern-0.5.14-py3-none-any.whl", hash = "sha256:2dd1bdb9b722da8099d52794a1d1c7fa7ace220badac10b91ec8b6ff053a7c51"},
+    {file = "nepattern-0.5.14.tar.gz", hash = "sha256:d9cda6e6033645a57bec70e3e5f8998cbca278a78e38b55f96d9c2f419fdcc24"},
 ]
 
 [[package]]
