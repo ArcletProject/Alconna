@@ -130,7 +130,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
         may_arg, _str = argv.next(tuple(kwonly_seps))
         if _str and may_arg in argv.completion_names:
             raise SpecialOptionTriggered("completion")
-        if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
+        if not may_arg or not _str:
             argv.rollback(may_arg)
             break
         key, _m_arg = split_once(may_arg, kwonly_seps1, argv.filter_crlf)
@@ -139,7 +139,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             _key = key
         if _key not in args.argument.keyword_only:
             argv.rollback(may_arg)
-            if args.argument.var_keyword:
+            if args.argument.var_keyword or (_str and may_arg in argv.param_ids):
                 break
             for arg in args.argument.keyword_only.values():
                 if arg.value.base.exec(may_arg).flag == 'valid':  # type: ignore
@@ -184,7 +184,12 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.completion_names:
             raise SpecialOptionTriggered("completion")
-        if not may_arg or (_str and may_arg in argv.param_ids):
+        if _str and may_arg in argv.param_ids and arg.optional:
+            if (de := arg.field.default) is not None:
+                result[arg.name] = None if de is Empty else de
+            argv.rollback(may_arg)
+            continue
+        if not may_arg:
             argv.rollback(may_arg)
             if (de := arg.field.default) is not None:
                 result[arg.name] = None if de is Empty else de

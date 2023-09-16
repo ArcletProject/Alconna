@@ -688,6 +688,55 @@ def test_default():
     assert res7.query("test.bar.value") is True
 
 
+def test_conflict():
+    core26 = Alconna(
+        "core26",
+        Option("--foo", Args["bar", str]),
+        Option("--bar"),
+        Option("--baz", Args["qux?", str]),
+        Option("--qux")
+    )
+    res1 = core26.parse("core26 --foo bar --bar")
+    assert res1.matched
+    assert res1.find("options.bar")
+
+    res2 = core26.parse("core26 --foo --bar")
+    assert res2.matched
+    assert res2.query[str]("foo.bar") == "--bar"
+    assert not res2.find("options.bar")
+
+    res3 = core26.parse("core26 --foo bar --baz qux")
+    assert res3.matched
+    assert res3.query[str]("foo.bar") == "bar"
+    assert res3.query[str]("baz.qux") == "qux"
+
+    res4 = core26.parse("core26 --baz --qux")
+    assert res4.matched
+    assert res4.find("options.baz")
+    assert res4.query[str]("baz.qux", "unknown") == "unknown"
+    assert res4.find("options.qux")
+
+    core26_1 = Alconna(
+        "core26_1",
+        Option("--foo", Args["bar", int]),
+        Option("--bar"),
+        Option("--baz", Args["qux?", int]),
+        Option("--qux")
+    )
+    res5 = core26_1.parse("core26_1 --foo 123 --bar")
+    assert res5.matched
+    assert res5.query[int]("foo.bar") == 123
+    assert res5.find("options.bar")
+
+    res6 = core26_1.parse("core26_1 --foo --bar")
+    assert not res6.matched
+
+    res7 = core26_1.parse("core26_1 --foo 123 --baz 321")
+    assert res7.matched
+
+    res8 = core26_1.parse("core26_1 --baz --qux")
+    assert res8.matched
+
 if __name__ == "__main__":
 
     pytest.main([__file__, "-vs"])
