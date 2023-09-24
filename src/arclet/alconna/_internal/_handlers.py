@@ -57,8 +57,8 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
         loop = min(loop, value.length)
     for _ in range(loop):
         may_arg, _str = argv.next(arg.separators)
-        if _str and may_arg in argv.completion_names:
-            raise SpecialOptionTriggered("completion")
+        if _str and may_arg in argv.special:
+            raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             break
@@ -95,8 +95,8 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
         loop = min(loop, value.length)
     for _ in range(loop):
         may_arg, _str = argv.next(arg.separators)
-        if _str and may_arg in argv.completion_names:
-            raise SpecialOptionTriggered("completion")
+        if _str and may_arg in argv.special:
+            raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
             argv.rollback(may_arg)
             break
@@ -128,8 +128,8 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
     count = 0
     while count < target:
         may_arg, _str = argv.next(tuple(kwonly_seps))
-        if _str and may_arg in argv.completion_names:
-            raise SpecialOptionTriggered("completion")
+        if _str and may_arg in argv.special:
+            raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or not _str:
             argv.rollback(may_arg)
             break
@@ -182,8 +182,8 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     for arg in args.argument.normal:
         argv.context = arg
         may_arg, _str = argv.next(arg.separators)
-        if _str and may_arg in argv.completion_names:
-            raise SpecialOptionTriggered("completion")
+        if _str and may_arg in argv.special:
+            raise SpecialOptionTriggered(argv.special[may_arg])
         if _str and may_arg in argv.param_ids and arg.optional:
             if (de := arg.field.default) is not None:
                 result[arg.name] = None if de is Empty else de

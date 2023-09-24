@@ -51,10 +51,9 @@ def ensure_node(targets: list[str], options: list[Option | Subcommand]):
         if isinstance(opt, Option) and targets[0] in opt.aliases:
             return opt
         if isinstance(opt, Subcommand):
-            if targets[0] == opt.name:
+            if targets[0] == opt.name and not targets[1:]:
                 return opt
-            rest = targets[1:]
-            if rest and (sub := ensure_node(rest, opt.options)):
+            if sub := ensure_node(targets[1:], opt.options):
                 return sub
 
 
@@ -119,7 +118,7 @@ class TextFormatter:
             if not _parts:
                 return self.format(trace)
             if isinstance(_cache, dict):
-                if ensure := ensure_node(_parts[-1], trace.body):
+                if ensure := ensure_node(_parts, trace.body):
                     _cache = ensure
                 else:
                     _opts, _visited = [], set()

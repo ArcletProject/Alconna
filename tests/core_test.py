@@ -447,12 +447,28 @@ def test_shortcut():
     assert alc16_4.parse("test1").matched
 
 def test_help():
+    from arclet.alconna import output_manager
     from arclet.alconna.exceptions import SpecialOptionTriggered
 
-    alc17 = Alconna("core17") + Option("foo", Args["bar", str])
-    res = alc17.parse("core17 --help")
-    assert isinstance(res.error_info, SpecialOptionTriggered)
-    alc17.parse("core17 --help foo")
+    alc17 = Alconna(
+        "core17",
+        Option("foo", Args["bar", str], help_text="Foo bar"),
+        Subcommand("add", Args["bar", str], help_text="Add bar"),
+    )
+    with output_manager.capture("core17") as cap:
+        output_manager.set_action(lambda x: x, "core17")
+        res = alc17.parse("core17 --help")
+        assert isinstance(res.error_info, SpecialOptionTriggered)
+        assert cap["output"] == "core17 \nUnknown\n\n可用的子命令有:\n* Add bar\n  add <bar: str> \n可用的选项有:\n* Foo bar\n  foo <bar: str> \n"
+    with output_manager.capture("core17") as cap:
+        alc17.parse("core17 --help foo")
+        assert cap["output"] == "[foo] <bar: str> \nFoo bar\n\n"
+    with output_manager.capture("core17") as cap:
+        alc17.parse("core17 foo --help")
+        assert cap["output"] == "[foo] <bar: str> \nFoo bar\n\n"
+    with output_manager.capture("core17") as cap:
+        alc17.parse("core17 add --help")
+        assert cap["output"] == "add <bar: str> \nAdd bar\n\n"
     alc17_1 = Alconna(
         "core17_1",
         Option("foo bar abc baz", Args["qux", int]),
@@ -460,7 +476,21 @@ def test_help():
     )
     alc17_1.parse("core17_1 --help")
     alc17_1.parse("core17_1 --help aaa")
-
+    alc17_2 = Alconna(
+        "core17_2",
+        Subcommand(
+            "foo",
+            Args["abc", str],
+            Option("bar", Args["baz", str], help_text="Foo bar"),
+            help_text="sub Foo",
+        )
+    )
+    with output_manager.capture("core17_2") as cap:
+        alc17_2.parse("core17_2 --help foo bar")
+        assert cap["output"] == "[bar] <baz: str> \nFoo bar\n\n"
+    with output_manager.capture("core17_2") as cap:
+        alc17_2.parse("core17_2 --help foo")
+        assert cap["output"] == "foo <abc: str> \nsub Foo\n\n可用的选项有:\n* Foo bar\n  bar <baz: str> \n"
 
 def test_hide_annotation():
     alc18 = Alconna("core18", Args["foo", int])
