@@ -17,7 +17,7 @@ setup(
     packages=find_namespace_packages(where="src"),
     install_requires=[
         "typing-extensions>=4.5.0",
-        "nepattern<0.6.0, >=0.5.6",
+        "nepattern>=0.5.6, <0.7.0",
         "tarina>=0.3.3",
     ],
     extras_require={
