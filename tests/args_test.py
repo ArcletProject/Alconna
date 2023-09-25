@@ -249,6 +249,10 @@ def test_unpack():
     assert analyse_args(
         arg19, ["bob"]
     ) == {"people": People("bob", 16)}
+    arg19_1 = Args["people", UnpackVar(People, kw_only=True)].separate("&")
+    assert analyse_args(
+        arg19_1, ["name=alice&age=16"]
+    ) == {"people": People("alice", 16)}
 
 
 if __name__ == "__main__":

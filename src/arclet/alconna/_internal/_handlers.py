@@ -206,6 +206,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     if args.argument.unpack:
         arg, unpack = args.argument.unpack
         try:
+            unpack.separate(*arg.separators)
             result[arg.name] = arg.value.origin(**analyse_args(argv, unpack))
         except Exception as e:
             if (de := arg.field.default) is not None:

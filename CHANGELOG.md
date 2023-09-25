@@ -1,5 +1,15 @@
 # 更新日志
 
+## Alconna 1.7.24
+
+### 改进：
+- `UnpackVar` 现在支持 `kw_only` 参数
+- `UnpackVar` 现在支持给 kw 参数指定分隔符
+
+### 修复：
+- 修复 `UnpackVar` 的分隔符未跟随源参数的 bug
+- 修复 `UnpackVar` 处理 `kw_only` 未生效的 bug
+
 ## Alconna 1.7.23
 
 ### 修复：

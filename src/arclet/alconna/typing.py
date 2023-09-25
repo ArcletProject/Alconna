@@ -119,7 +119,7 @@ class KWBool(BasePattern):
 class UnpackVar(BasePattern):
     """特殊参数，利用dataclass 的 field 生成 arg 信息，并返回dcls"""
 
-    def __init__(self, dcls: Any):
+    def __init__(self, dcls: Any, kw_only: bool = False, kw_sep: str = '='):
         """构建一个可变参数
 
         Args:
@@ -127,9 +127,10 @@ class UnpackVar(BasePattern):
         """
         if not is_dataclass(dcls):
             raise TypeError(dcls)
+        self.kw_only = kw_only
+        self.kw_sep = kw_sep
         self.fields = fields(dcls)  # can override if other use Pydantic?
-        alias = f"{dcls.__name__}(" + ", ".join(f"{f.name}: {f.type.__name__}" for f in self.fields)
-        super().__init__(model=MatchMode.KEEP, origin=dcls, alias=alias)  # type: ignore
+        super().__init__(model=MatchMode.KEEP, origin=dcls, alias=f"{dcls.__name__}")  # type: ignore
 
 
 class _Up:

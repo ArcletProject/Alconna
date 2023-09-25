@@ -161,9 +161,9 @@ class _argument(List[Arg[Any]]):
         self.keyword_only: dict[str, Arg[Any]] = {}
         self.unpack: tuple[Arg, Args] | None = None
 
-def gen_unpack(fields: tuple[dc.Field, ...]):
+def gen_unpack(var: UnpackVar):
     unpack = Args()
-    for field in fields:
+    for field in var.fields:
         if field.default != dc.MISSING:
             _de = field.default
         elif field.default_factory != dc.MISSING:
@@ -172,9 +172,10 @@ def gen_unpack(fields: tuple[dc.Field, ...]):
             _de = Empty
         _de = NULL.get(_de, _de)
         _type = field.type
-        if getattr(field, "kw_only", False):
-            _type = KeyWordVar(_type)
-        unpack.add(field.name, value=field.type, default=_de)
+        if getattr(field, "kw_only", var.kw_only):
+            _type = KeyWordVar(_type, sep=var.kw_sep)
+        unpack.add(field.name, value=_type, default=_de)
+    var.alias = f"{var.alias}{'()' if unpack.empty else f'{unpack}'[4:]}"
     return unpack
 
 class Args(metaclass=ArgsMeta):
@@ -317,7 +318,7 @@ class Args(metaclass=ArgsMeta):
                 if len(self.argument) > 1:
                     raise InvalidParam("Args can only contain one arg if using Unpack var")
                 _gen_unpack = getattr(arg.value, "unpack", gen_unpack)
-                self.argument.unpack = (arg, _gen_unpack(arg.value.fields))
+                self.argument.unpack = (arg, _gen_unpack(arg.value))
                 break
             if isinstance(arg.value, MultiVar):
                 if isinstance(arg.value.base, KeyWordVar):
