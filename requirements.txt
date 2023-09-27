@@ -1,3 +1,0 @@
-typing_extensions>=4.5.0
-nepattern>=0.5.6, <0.7.0
-tarina>=0.3.3
