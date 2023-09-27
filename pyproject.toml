@@ -55,7 +55,6 @@ dev = [
     "coverage~=7.0.1",
     "pydeps~=1.11.0",
     "fix-future-annotations>=0.4.0",
-    "viztracer>=0.15.6",
 ]
 
 [tool.pdm.scripts]
