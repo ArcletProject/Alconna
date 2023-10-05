@@ -104,7 +104,12 @@ class Argv(Generic[TDC]):
         """
         self.reset()
         if self.checker and not self.checker(data):
-            raise TypeError(data)
+            if not self.converter:
+                raise TypeError(data)
+            try:
+                data = self.converter(data)
+            except Exception as e:
+                raise TypeError(data) from e
         self.origin = data
         if data.__class__ is str:
             data = [data]  # type: ignore
@@ -217,7 +222,7 @@ class Argv(Generic[TDC]):
         data = self.bak_data if recover else self.raw_data[self.current_index:]
         for _data in data:
             if _data.__class__ is str:
-                _result.extend(split(_data, separate or (' ',)))
+                _result.extend(split(_data, separate or (' ',), self.filter_crlf))
             else:
                 _result.append(_data)
         return _result

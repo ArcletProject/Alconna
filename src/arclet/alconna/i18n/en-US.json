@@ -47,6 +47,7 @@
     "key_missing": "{target} missing its key. Do you forget to add '{key}='?"
   },
   "shortcut": {
+    "name_require": "Name of shortcut cannot be empty",
     "delete_success": "Delete shortcut: \"{shortcut}\" for {target} successfully",
     "add_success": "Add shortcut: \"{shortcut}\" for {target} successfully",
     "recent_command_error": "command {target} is not same as recent message's command {source}",

@@ -35,7 +35,7 @@ def test_type_convert():
 
 
 def test_regex():
-    arg3 = Args.foo["abc[0-9]{3}"]
+    arg3 = Args.foo["re:abc[0-9]{3}"]
     assert analyse_args(arg3, ["abc123"]) == {"foo": "abc123"}
     assert analyse_args(arg3, ["abc"], raise_exception=False) != {"foo": "abc"}
 
@@ -93,7 +93,7 @@ def test_multi():
 
 
 def test_anti():
-    arg9 = Args().add("anti", value=r"(.+?)/(.+?)\.py", flags=[ArgFlag.ANTI])
+    arg9 = Args().add("anti", value=r"re:(.+?)/(.+?)\.py", flags=[ArgFlag.ANTI])
     assert analyse_args(arg9, ["a/b.mp3"]) == {"anti": "a/b.mp3"}
     assert analyse_args(arg9, ["a/b.py"], raise_exception=False) != {"anti": "a/b.py"}
 
@@ -116,9 +116,6 @@ def test_union():
     assert analyse_args(arg11_1, ["1.2"]) == analyse_args(arg11, ["1.2"])
     assert analyse_args(arg11_1, ["abc"]) == {"bar": "abc"}
     assert analyse_args(arg11_1, ["cba"], raise_exception=False) != {"bar": "cba"}
-    arg11_2 = Args.bar["int|float"]
-    assert analyse_args(arg11_2, ["1.2"]) == analyse_args(arg11_1, ["1.2"])
-
 
 def test_optional():
     arg13 = Args.foo[str].add("bar", value=int, flags="?")
@@ -166,7 +163,7 @@ def test_kwonly():
 
 def test_pattern():
     test_type = BasePattern(
-        "(.+?).py", MatchMode.REGEX_CONVERT, list, lambda _, x: x.split("/"), "test"
+        "(.+?).py", MatchMode.REGEX_CONVERT, list, lambda _, x: x[1].split("/"), "test"
     )
     arg15 = Args().add("bar", value=test_type)
     assert analyse_args(arg15, ["abc.py"]) == {"bar": ["abc"]}
@@ -234,6 +231,28 @@ def test_annotated():
     ]
     assert analyse_args(arg18, ["123 -123"]) == {"foo": 123, "bar": -123}
     assert analyse_args(arg18, ["0 0"], raise_exception=False) != {"foo": 0, "bar": 0}
+
+
+def test_unpack():
+    from dataclasses import dataclass, field
+    from arclet.alconna.typing import UnpackVar
+
+    @dataclass
+    class People:
+        name: str
+        age: int = field(default=16)
+
+    arg19 = Args["people", UnpackVar(People)]
+    assert analyse_args(
+        arg19, ["alice", 16]
+    ) == {"people": People("alice", 16)}
+    assert analyse_args(
+        arg19, ["bob"]
+    ) == {"people": People("bob", 16)}
+    arg19_1 = Args["people", UnpackVar(People, kw_only=True)].separate("&")
+    assert analyse_args(
+        arg19_1, ["name=alice&age=16"]
+    ) == {"people": People("alice", 16)}
 
 
 if __name__ == "__main__":

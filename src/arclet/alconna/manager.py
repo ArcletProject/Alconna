@@ -8,7 +8,7 @@ import shelve
 import weakref
 from copy import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Match, TypedDict, Union, overload
+from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from tarina import LRU, lang
@@ -25,25 +25,17 @@ if TYPE_CHECKING:
     from .core import Alconna
 
 
-    class ShortcutArgs(TypedDict, Generic[TDC]):
-        """快捷指令参数"""
+class ShortcutArgs(TypedDict):
+    """快捷指令参数"""
 
-        command: NotRequired[TDC]
-        """快捷指令的命令"""
-        args: NotRequired[list[Any]]
-        """快捷指令的附带参数"""
-        fuzzy: NotRequired[bool]
-        """是否允许命令后随参数"""
-else:
-    class ShortcutArgs(TypedDict):
-        """快捷指令参数"""
-
-        command: NotRequired[DataCollection[Any]]
-        """快捷指令的命令"""
-        args: NotRequired[list[Any]]
-        """快捷指令的附带参数"""
-        fuzzy: NotRequired[bool]
-        """是否允许命令后随参数"""
+    command: NotRequired[DataCollection[Any]]
+    """快捷指令的命令"""
+    args: NotRequired[list[Any]]
+    """快捷指令的附带参数"""
+    fuzzy: NotRequired[bool]
+    """是否允许命令后随参数"""
+    prefix: NotRequired[bool]
+    """是否调用时保留指令前缀"""
 
 
 class CommandManager:
@@ -200,7 +192,7 @@ class CommandManager:
         if not enabled and command not in self.__abandons:
             self.__abandons.append(command)
 
-    def add_shortcut(self, target: Alconna[TDC], key: str, source: Arparma | ShortcutArgs[TDC]):
+    def add_shortcut(self, target: Alconna, key: str, source: Arparma | ShortcutArgs):
         """添加快捷命令
 
         Args:
@@ -211,24 +203,60 @@ class CommandManager:
         namespace, name = self._command_part(target.path)
         argv = self.resolve(target)
         if isinstance(source, dict):
-            source['command'] = source.get('command', argv.converter(target.command or target.name))
             source.setdefault('fuzzy', True)
+            source.setdefault('prefix', False)
+            if source.get("prefix") and target.prefixes:
+                out = []
+                for prefix in target.prefixes:
+                    if not isinstance(prefix, str):
+                        continue
+                    _src = source.copy()
+                    _src['command'] = argv.converter(prefix + source.get('command', str(target.command)))
+                    self.__shortcuts[f"{namespace}.{name}::{prefix}{key}"] = _src
+                    out.append(lang.require("shortcut", "add_success").format(
+                        shortcut=f"{prefix}{key}", target=target.path)
+                    )
+                return "\n".join(out)
+            source['command'] = argv.converter(source.get('command', target.command or target.name))
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
+            return lang.require("shortcut", "add_success").format(shortcut=key, target=target.path)
         elif source.matched:
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
+            return lang.require("shortcut", "add_success").format(shortcut=key, target=target.path)
         else:
             raise ValueError(lang.require("manager", "incorrect_shortcut").format(target=f"{key}"))
+
+    def list_shortcut(self, target: Alconna) -> list[str]:
+        """列出快捷命令
+
+        Args:
+            target (Alconna): 目标命令
+
+        Returns:
+            list[str]: 快捷命令的名称
+        """
+        namespace, name = self._command_part(target.path)
+        result = []
+        for i in self.__shortcuts:
+            if not i.startswith(f"{namespace}.{name}::"):
+                continue
+            short = self.__shortcuts[i]
+            if isinstance(short, dict):
+                result.append(i.split('::')[1] + (" ..." if short.get('fuzzy') else ""))
+            else:
+                result.append(i.split('::')[1])
+        return result
 
     @overload
     def find_shortcut(
         self, target: Alconna[TDC]
-    ) -> list[Union[Arparma[TDC], ShortcutArgs[TDC]]]:
+    ) -> list[Union[Arparma[TDC], ShortcutArgs]]:
         ...
 
     @overload
     def find_shortcut(
         self, target: Alconna[TDC], query: str
-    ) -> tuple[Arparma[TDC] | ShortcutArgs[TDC], Match[str] | None]:
+    ) -> tuple[Arparma[TDC] | ShortcutArgs, Match[str] | None]:
         ...
 
     def find_shortcut(self, target: Alconna[TDC], query: str | None = None):
@@ -247,9 +275,13 @@ class CommandManager:
             try:
                 return self.__shortcuts[f"{namespace}.{name}::{query}"], None
             except KeyError as e:
-                for k in self.__shortcuts:
+                for k, args in self.__shortcuts.items():
                     prefix, key = k.rsplit("::", 1)
-                    if f"{namespace}.{name}" == prefix and (mat := re.match(key, query)):
+                    if f"{namespace}.{name}" != prefix:
+                        continue
+                    if isinstance(args, dict) and args["fuzzy"] and (mat := re.match(key, query)):
+                        return args, mat
+                    elif mat := re.fullmatch(key, query):
                         return self.__shortcuts[k], mat
                 raise ValueError(
                     lang.require("manager", "target_command_error").format(target=f"{namespace}.{name}", shortcut=query)

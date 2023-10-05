@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import builtins
 import re
-from copy import deepcopy
+from copy import copy
 from inspect import isclass
 from typing import Any, Callable
 
@@ -29,12 +30,14 @@ def handle_bracket(name: str, mapping: dict):
             elif len(res) == 1 or not res[1]:
                 parts[i] = f"(?P<{res[0]}>.+)"
             elif not res[0]:
-                parts[
-                    i
-                ] = f"{pattern_map[res[1]].pattern if res[1] in pattern_map else res[1]}"
+                pat = pattern_map.get(builtins.__dict__.get(res[1], res[1]), res[1])
+                parts[i] = str(pat.pattern if isinstance(pat, BasePattern) else pat)
             elif res[1] in pattern_map:
                 mapping[res[0]] = pattern_map[res[1]]
                 parts[i] = f"(?P<{res[0]}>{pattern_map[res[1]].pattern})"
+            elif (key := builtins.__dict__.get(res[1], res[1])) in pattern_map:
+                mapping[res[0]] = pattern_map[key]
+                parts[i] = f"(?P<{res[0]}>{pattern_map[key].pattern})"
             else:
                 parts[i] = f"(?P<{res[0]}>{res[1]})"
     return unescape("".join(parts)), True
@@ -225,7 +228,7 @@ class Header:
                 return cls((command, prefixes), {f"{h}{_cmd}" for h in prefixes}, mapping, compact, compp)
             return cls((command, prefixes), Double(prefixes, _cmd), mapping, compact)
         else:
-            _cmd = deepcopy(type_parser(command))
+            _cmd = copy(type_parser(command))
             if not prefixes:
                 return cls((command, prefixes), _cmd, {}, compact, _cmd.prefixed())
             if isinstance(prefixes[0], tuple):

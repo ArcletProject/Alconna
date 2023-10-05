@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+from weakref import WeakKeyDictionary
 
 from nepattern import AllParam, AnyOne, AnyString
 from tarina import Empty, lang
@@ -45,12 +46,15 @@ def resolve_requires(options: list[Option | Subcommand]):
     return reqs
 
 
-def ensure_node(target: str, options: list[Option | Subcommand]):
+def ensure_node(targets: list[str], options: list[Option | Subcommand]):
     for opt in options:
-        if isinstance(opt, Option) and target in opt.aliases:
+        if isinstance(opt, Option) and targets[0] in opt.aliases:
             return opt
         if isinstance(opt, Subcommand):
-            return opt if target == opt.name else ensure_node(target, opt.options)
+            if targets[0] == opt.name and not targets[1:]:
+                return opt
+            if sub := ensure_node(targets[1:], opt.options):
+                return sub
 
 
 @dataclass(eq=True)
@@ -64,24 +68,6 @@ class Trace:
     separators: tuple[str, ...]
     body: list[Option | Subcommand]
 
-    def union(self, others: list[Trace]):
-        """合并多个 Trace 对象
-
-        Args:
-            others (list[Trace]): 待合并的 Trace 对象列表
-
-        Returns:
-            Trace: 合并后的 Trace 对象
-        """
-        if not others:
-            return self
-        if others[0] == self:
-            return self.union(others[1:])
-        pfs = self.head.copy()
-        pfs['prefix'] = list({*self.head['prefix'], *others[0].head['prefix']})
-        return Trace(pfs, self.args, self.separators, list({*self.body, *others[0].body})).union(others[1:])
-
-
 class TextFormatter:
     """帮助文档格式化器
 
@@ -89,7 +75,7 @@ class TextFormatter:
     """
 
     def __init__(self):
-        self.data = {}
+        self.data = WeakKeyDictionary()
         self.ignore_names = set()
 
     def add(self, base: Alconna):
@@ -107,15 +93,12 @@ class TextFormatter:
             },
             base.args, base.separators, base.options.copy()
         )
-        self.data.setdefault(base.path, []).append(res)
+        self.data[base] = res
         return self
 
-    def remove(self, base: Alconna | str):
+    def remove(self, base: Alconna):
         """移除目标命令"""
-        if isinstance(base, str):
-            self.data.pop(base)
-        else:
-            self.data.pop(base.path)
+        self.data.pop(base)
 
     def format_node(self, parts: list | None = None):
         """格式化命令节点
@@ -123,8 +106,7 @@ class TextFormatter:
         Args:
             parts (list | None, optional): 可能的节点路径.
         """
-        def _handle(traces: list[Trace]):
-            trace = traces[0].union(traces[1:])
+        def _handle(trace: Trace):
             if not parts or parts == ['']:
                 return self.format(trace)
             _cache = resolve_requires(trace.body)
@@ -136,7 +118,7 @@ class TextFormatter:
             if not _parts:
                 return self.format(trace)
             if isinstance(_cache, dict):
-                if ensure := ensure_node(_parts[-1], trace.body):
+                if ensure := ensure_node(_parts, trace.body):
                     _cache = ensure
                 else:
                     _opts, _visited = [], set()
@@ -248,7 +230,7 @@ class TextFormatter:
         opt_string = "".join(
             [
                 self.opt(opt).replace("\n", "\n  ").replace("# ", "* ")
-                for opt in filter(lambda x: isinstance(x, Option), node.options)
+                for opt in node.options if isinstance(opt, Option)
             ]
         )
         sub_string = "".join(
@@ -270,12 +252,12 @@ class TextFormatter:
         """子节点列表的描述"""
         option_string = "".join(
             [
-                self.opt(opt) for opt in filter(lambda x: isinstance(x, Option), parts)
-                if opt.name not in self.ignore_names
+                self.opt(opt) for opt in parts
+                if isinstance(opt, Option) and opt.name not in self.ignore_names
             ]
         )
         subcommand_string = "".join(
-            [self.sub(sub) for sub in filter(lambda x: isinstance(x, Subcommand), parts)]
+            [self.sub(sub) for sub in parts if isinstance(sub, Subcommand)]
         )
         option_help = f"{lang.require('format', 'options')}:\n" if option_string else ""
         subcommand_help = f"{lang.require('format', 'subcommands')}:\n" if subcommand_string else ""

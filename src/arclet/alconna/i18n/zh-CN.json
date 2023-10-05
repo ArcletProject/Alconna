@@ -47,8 +47,9 @@
     "key_missing": "{target} 缺少键. 你是不是忘了带上 '{key}=' ?"
   },
   "shortcut": {
-    "delete_success": "{target} 的快截指令: \"{shortcut}\" 删除成功",
-    "add_success": "{target} 的快截指令: \"{shortcut}\" 添加成功",
+    "name_require": "快捷命令的名字不能为空",
+    "delete_success": "{target} 的快捷指令: \"{shortcut}\" 删除成功",
+    "add_success": "{target} 的快捷指令: \"{shortcut}\" 添加成功",
     "recent_command_error": "历史记录对应的命令 {source} 与 本命令 {target} 不一致"
   },
   "manager": {

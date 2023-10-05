@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import Any, Callable
 
-from ._internal._argv import Argv
+from ._internal._argv import Argv as Argv
 from .typing import TDC
 
 __argv_type__: ContextVar[type[Argv]] = ContextVar("argv_type", default=Argv)

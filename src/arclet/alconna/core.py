@@ -41,7 +41,7 @@ def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> No
     options.append(
         Option(
             "|".join(ns.builtin_option_name['shortcut']),
-            Args["delete;?", "delete"]["name", str]["command", str, "_"],
+            Args["action?", "delete|list"]["name?", str]["command", str, "$"],
             help_text=lang.require("builtin", "option_shortcut")
         )
     )
@@ -204,7 +204,11 @@ class Alconna(Subcommand, Generic[TDC]):
         """返回该命令的帮助信息"""
         return self.formatter.format_node()
 
-    def shortcut(self, key: str, args: ShortcutArgs[TDC] | None = None, delete: bool = False):
+    def get_shortcuts(self) -> list[str]:
+        """返回该命令注册的快捷命令"""
+        return command_manager.list_shortcut(self)
+
+    def shortcut(self, key: str, args: ShortcutArgs | None = None, delete: bool = False):
         """操作快捷命令
 
         Args:
@@ -222,14 +226,12 @@ class Alconna(Subcommand, Generic[TDC]):
             if delete:
                 command_manager.delete_shortcut(self, key)
                 return lang.require("shortcut", "delete_success").format(shortcut=key, target=self.path)
-            if args:
-                command_manager.add_shortcut(self, key, args)
-                return lang.require("shortcut", "add_success").format(shortcut=key, target=self.path)
+            if args is not None:
+                return command_manager.add_shortcut(self, key, args)
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
                 if alc and alc == self:
-                    command_manager.add_shortcut(self, key, {"command": cmd})  # type: ignore
-                    return lang.require("shortcut", "add_success").format(shortcut=key, target=self.path)
+                    return command_manager.add_shortcut(self, key, {"command": cmd})  # type: ignore
                 raise ValueError(
                     lang.require("shortcut", "recent_command_error")
                     .format(target=self.path, source=getattr(alc, "path", "Unknown"))

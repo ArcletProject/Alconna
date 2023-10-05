@@ -30,7 +30,8 @@ def test_alconna_create():
     )
     assert alc_1.parse("core_1 abc 123").matched is False
     assert alc_1.parse("core_1 abc abc").matched is True
-
+    query = alc_1.parse("core_1 abc abc").query[str]
+    assert query("bar") == "abc"
 
 def test_alconna_multi_match():
     alc1 = Alconna(
@@ -147,7 +148,7 @@ def test_alconna_special_help():
         "Cal",
         Subcommand(
             "-div",
-            Option("--round|-r", Args.decimal[int], help_text="保留n位小数"),
+            Option("--round|-r", Args["decimal", int], help_text="保留n位小数"),
             Args(num_a=int, num_b=int),
             help_text="除法计算",
         ),
@@ -301,7 +302,7 @@ def test_alconna_synthesise():
     from typing import List
     from nepattern import BasePattern, MatchMode
 
-    cnt = BasePattern(r".*(\d+)张.*", MatchMode.REGEX_CONVERT, int, lambda _, x: int(x))
+    cnt = BasePattern(r".*(\d+)张.*", MatchMode.REGEX_CONVERT, int, lambda _, x: int(x[1]))
     alc10 = Alconna(
         Arg("min", cnt, seps="到"),
         Arg("max;?", cnt),
@@ -317,9 +318,9 @@ def test_alconna_synthesise():
         "cpp", Args["match", MultiVar(int, "+")], Arg("lines", AllParam, seps="\n")
     )
     print("")
-    print(msg := ("cpp 1 2\n" "#include <iostream>\n" "int main() {...}"))
+    print(msg := "cpp 1 2\n" "#include <iostream>\n" "int main() {...}")
     print((res := alc10_1.parse(msg)))
-    print("\n".join(res.query_with(List[str], "lines", [])))
+    print("\n".join(res.query[List[str]]("lines", [])))
 
 
 def test_simple_override():
@@ -404,6 +405,8 @@ def test_shortcut():
     alc16.parse("core16 --shortcut TESTac 'core16 2{%0}'")
     res4 = alc16.parse("TESTac 456")
     assert res4.foo == 2456
+    alc16.shortcut("tTest", {})
+    assert alc16.parse("tTest123").matched
 
     alc16_1 = Alconna("exec", Args["content", str])
     alc16_1.shortcut("echo", {"command": "exec print({%0})"})
@@ -415,24 +418,57 @@ def test_shortcut():
     assert res6.content == "print('123\n456\n789')"
     res7 = alc16_1.parse([123])
     assert not res7.matched
+    res8 = alc16_1.parse("echo \\\\'123\\\\'")
+    assert res8.content == "print('123')"
 
     alc16_2 = Alconna([1, 2, '3'], "core16_2", Args["foo", bool])
     alc16_2.shortcut("test", {"command": [1, "core16_2 True"]})
     assert alc16_2.parse([1, "core16_2 True"]).matched
-    res8 = alc16_2.parse("test")
-    assert res8.foo is True
-    res9 = alc16_2.parse([2, "test"])
+    res9 = alc16_2.parse("test")
     assert res9.foo is True
+    res10 = alc16_2.parse([2, "test"])
+    assert res10.foo is True
     assert not alc16_2.parse("3test").matched
 
+    alc16.parse("core16 --shortcut list")
+
+    alc16_3 = Alconna(["/", "!"], "core16_3", Args["foo", bool])
+    print(alc16_3.shortcut("test", {"prefix": True, "args": ["False"]}))
+    assert not alc16_3.parse("test").matched
+    assert alc16_3.parse("/test").foo is False
+
+    alc16_4 = Alconna("core16_4")
+    alc16_4.shortcut("test", {"fuzzy": False})
+    assert alc16_4.parse("test").matched
+    assert not alc16_4.parse("tes").matched
+    assert not alc16_4.parse("testtt").matched
+    assert not alc16_4.parse("test t").matched
+    alc16_4.parse("core16_4 --shortcut test1")
+    assert alc16_4.parse("test1").matched
 
 def test_help():
+    from arclet.alconna import output_manager
     from arclet.alconna.exceptions import SpecialOptionTriggered
 
-    alc17 = Alconna("core17") + Option("foo", Args["bar", str])
-    res = alc17.parse("core17 --help")
-    assert isinstance(res.error_info, SpecialOptionTriggered)
-    alc17.parse("core17 --help foo")
+    alc17 = Alconna(
+        "core17",
+        Option("foo", Args["bar", str], help_text="Foo bar"),
+        Subcommand("add", Args["bar", str], help_text="Add bar"),
+    )
+    with output_manager.capture("core17") as cap:
+        output_manager.set_action(lambda x: x, "core17")
+        res = alc17.parse("core17 --help")
+        assert isinstance(res.error_info, SpecialOptionTriggered)
+        assert cap["output"] == "core17 \nUnknown\n\n可用的子命令有:\n* Add bar\n  add <bar: str> \n可用的选项有:\n* Foo bar\n  foo <bar: str> \n"
+    with output_manager.capture("core17") as cap:
+        alc17.parse("core17 --help foo")
+        assert cap["output"] == "[foo] <bar: str> \nFoo bar\n\n"
+    with output_manager.capture("core17") as cap:
+        alc17.parse("core17 foo --help")
+        assert cap["output"] == "[foo] <bar: str> \nFoo bar\n\n"
+    with output_manager.capture("core17") as cap:
+        alc17.parse("core17 add --help")
+        assert cap["output"] == "add <bar: str> \nAdd bar\n\n"
     alc17_1 = Alconna(
         "core17_1",
         Option("foo bar abc baz", Args["qux", int]),
@@ -440,7 +476,21 @@ def test_help():
     )
     alc17_1.parse("core17_1 --help")
     alc17_1.parse("core17_1 --help aaa")
-
+    alc17_2 = Alconna(
+        "core17_2",
+        Subcommand(
+            "foo",
+            Args["abc", str],
+            Option("bar", Args["baz", str], help_text="Foo bar"),
+            help_text="sub Foo",
+        )
+    )
+    with output_manager.capture("core17_2") as cap:
+        alc17_2.parse("core17_2 --help foo bar")
+        assert cap["output"] == "[bar] <baz: str> \nFoo bar\n\n"
+    with output_manager.capture("core17_2") as cap:
+        alc17_2.parse("core17_2 --help foo")
+        assert cap["output"] == "foo <abc: str> \nsub Foo\n\n可用的选项有:\n* Foo bar\n  bar <baz: str> \n"
 
 def test_hide_annotation():
     alc18 = Alconna("core18", Args["foo", int])
@@ -465,13 +515,13 @@ def test_completion():
         + Option("fool")
         + Option(
             "foo",
-            Args.bar[
-                "a|b|c", Field(completion=lambda: "test completion; choose a, b or c")
+            Args[
+                "bar", "a|b|c", Field(completion=lambda: "test completion; choose a, b or c")
             ],
         )
         + Option(
             "off",
-            Args.baz["aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])],
+            Args["baz", "aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])],
         )
         + Args["test", int, Field(1, completion=lambda: "try -1 ?")]
     )
@@ -483,13 +533,13 @@ def test_completion():
     alc20.parse("core20 fool --comp")
     alc20.parse("core20 off c --comp")
 
-    alc20_1 = Alconna("core20_1", Args.foo[int], Option("bar"))
+    alc20_1 = Alconna("core20_1", Args["foo", int], Option("bar"))
     res = alc20_1.parse("core20_1 -cp")
     assert isinstance(res.error_info, SpecialOptionTriggered)
 
 
 def test_completion_interface():
-    alc21 = Alconna("core21", Args.foo[int], Args.bar[str])
+    alc21 = Alconna("core21", Args["foo", int], Args["bar", str])
     print("\n", "no interface [failed]:", alc21.parse("core21"))
     print("\n", "interface [pending]:")
     with CompSession(alc21) as comp:
@@ -514,7 +564,7 @@ def test_completion_interface():
 def test_call():
     from dataclasses import dataclass
 
-    alc22 = Alconna("core22", Args.foo[int], Args.bar[str])
+    alc22 = Alconna("core22", Args["foo", int], Args["bar", str])
     alc22("core22 123 abc")
 
     @alc22.bind(False)
@@ -543,7 +593,7 @@ def test_nest_subcommand():
         pass
     alc23 = Alconna(
         "core23",
-        Args.foo[int],
+        Args["foo", int],
         Subcommand(
             "bar",
             Subcommand(
@@ -579,12 +629,13 @@ def test_nest_subcommand():
 
 def test_action():
     from arclet.alconna import append, append_value, count, store_true
+    from typing import List
 
     alc24 = Alconna(
         "core24", Option("--yes|-y", action=store_true), Args["module", AllParam]
     )
     res = alc24.parse("core24 -y abc def")
-    assert res.query("yes.value") is True
+    assert res.query[bool]("yes.value") is True
     assert res.module == ["abc", "def"]
 
     alc24_1 = Alconna(
@@ -608,12 +659,12 @@ def test_action():
         "-Fabc -Fdef --flag xyz --i 4 --i 5 "
         "foo bar --q foo bar --qq"
     )
-    assert res.query("i.foo") == 5
-    assert res.query("a.value") == [1, 1]
-    assert res.query("flag.flag") == ["abc", "def", "xyz"]
-    assert res.query("v.value") == 3
-    assert res.query("xyz.value") == 4
-    assert res.query("foo_bar_q.value") == 3
+    assert res.query[int]("i.foo") == 5
+    assert res.query[List[int]]("a.value") == [1, 1]
+    assert res.query[List[str]]("flag.flag") == ["abc", "def", "xyz"]
+    assert res.query[int]("v.value") == 3
+    assert res.query[int]("xyz.value") == 4
+    assert res.query[int]("foo_bar_q.value") == 3
 
     alc24_3 = Alconna(
         "core24_3", Option("-t", default=False, action=append_value(True))
@@ -666,6 +717,55 @@ def test_default():
     assert res7.query("foo.value") == [423, 423]
     assert res7.query("test.bar.value") is True
 
+
+def test_conflict():
+    core26 = Alconna(
+        "core26",
+        Option("--foo", Args["bar", str]),
+        Option("--bar"),
+        Option("--baz", Args["qux?", str]),
+        Option("--qux")
+    )
+    res1 = core26.parse("core26 --foo bar --bar")
+    assert res1.matched
+    assert res1.find("options.bar")
+
+    res2 = core26.parse("core26 --foo --bar")
+    assert res2.matched
+    assert res2.query[str]("foo.bar") == "--bar"
+    assert not res2.find("options.bar")
+
+    res3 = core26.parse("core26 --foo bar --baz qux")
+    assert res3.matched
+    assert res3.query[str]("foo.bar") == "bar"
+    assert res3.query[str]("baz.qux") == "qux"
+
+    res4 = core26.parse("core26 --baz --qux")
+    assert res4.matched
+    assert res4.find("options.baz")
+    assert res4.query[str]("baz.qux", "unknown") == "unknown"
+    assert res4.find("options.qux")
+
+    core26_1 = Alconna(
+        "core26_1",
+        Option("--foo", Args["bar", int]),
+        Option("--bar"),
+        Option("--baz", Args["qux?", int]),
+        Option("--qux")
+    )
+    res5 = core26_1.parse("core26_1 --foo 123 --bar")
+    assert res5.matched
+    assert res5.query[int]("foo.bar") == 123
+    assert res5.find("options.bar")
+
+    res6 = core26_1.parse("core26_1 --foo --bar")
+    assert not res6.matched
+
+    res7 = core26_1.parse("core26_1 --foo 123 --baz 321")
+    assert res7.matched
+
+    res8 = core26_1.parse("core26_1 --baz --qux")
+    assert res8.matched
 
 if __name__ == "__main__":
 

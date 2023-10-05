@@ -1,5 +1,91 @@
 # 更新日志
 
+## Alconna 1.7.24
+
+### 改进：
+- `UnpackVar` 现在支持 `kw_only` 参数
+- `UnpackVar` 现在支持给 kw 参数指定分隔符
+
+### 修复：
+- 修复 `UnpackVar` 的分隔符未跟随源参数的 bug
+- 修复 `UnpackVar` 处理 `kw_only` 未生效的 bug
+
+## Alconna 1.7.23
+
+### 修复：
+- 处理 Args 时如果传入的参数是内置特殊选项的名字，则优先退出参数解析 (如 `--help`)
+- 修复 `Formatter` 未能正确处理 `Subcommand` 的 bug
+
+## Alconna 1.7.22
+
+### 改进：
+- 处理 Args 时如果传入的参数同时是某个选项/子命令的名字，只有在参数设为 `optional=True` 才会退出参数解析
+
+## Alconna 1.7.21
+
+### 改进：
+- 升级 `NEPattern` 至 0.5.14
+
+## Alconna 1.7.20
+
+### 改进:
+- 当 shortcut 的 `command` 参数为 `$` 时，快捷指令将会使用源指令的命令名
+- ShortcutArgs 的 `fuzzy` 参数为 `False` 时，快捷指令将是严格匹配（即不允许前缀匹配）
+- ShortcutArgs 的 `fuzzy` 参数为 `True` 时，快捷指令将是模糊匹配（即允许前缀匹配），并且多余的字符会被作为参数写入
+- shortcut 的参数中 `command` 现在的默认值是 `$` 而非 `_`
+
+### 修复:
+- 修改了文字拼写错误
+
+## Alconna 1.7.19
+
+### 新增:
+- 加入 `UnpackVar`，其接受 `dataclass` 并转为 Args，将解析结果构造为 dcls 实例
+- 增加 `Arparma.addition` 类方法，用来为 `Arparma.call` 增加额外参数的工厂函数
+
+### 改进:
+- `Arparma.query` 改用描述器实现，并支持如 `arp.query[int]("foo.bar")` 的语法，以替代原先的 `query_with` (query_with 方法仍然保留)
+- `Arparma[...]` 增加如 `arp[int, 2]` 的支持，即选择第 i 个匹配类型的参数
+
+## Alconna 1.7.18
+
+### 新增:
+- `ShortcutArgs` 加入一个 `prefix: bool` 参数，控制快捷指令是否保留源指令的前缀
+
+## Alconna 1.7.17
+
+### 新增:
+- 内置选项 `shortcut` 的第一个参数加入了 `list`, 用于展示该命令下的所有快捷指令
+
+### 改进:
+- `Argv` 在 checker 失败后现在会尝试使用 converter 转换为正确的类型
+- `ShortcutArgs` 中 command 的 slot 现在会保留尾随参数的类型，而不是全部转换为 str
+
+### 修复:
+- `ShortcutArgs` 中 slot 的 index 现在正确指向尾随参数的位置
+
+## Alconna 1.7.16
+
+### 改进:
+- `Formatter` 现只接受某些名称相同的命令
+
+### 修复:
+- 修复因 `nepattern` 0.5.13 的改动导致的 bug
+
+## Alconna 1.7.15
+
+### 改进:
+- 升级 `nepattern` 依赖至 0.5.13
+- `__init__.py` 内使用 re-export 格式
+
+### 修复:
+- 修复 `Arparma.fail` 的问题
+
+## Alconna 1.7.14
+
+### 修复:
+- 修复帮助信息生成时节点遍历的错误
+
 ## Alconna 1.7.13
 
 ### 新增:

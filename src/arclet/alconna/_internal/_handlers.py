@@ -19,7 +19,7 @@ from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
 from ..typing import KWBool
 from ._header import Double, Header
-from ._util import levenshtein
+from ._util import levenshtein, escape, unescape
 
 if TYPE_CHECKING:
     from ._analyser import Analyser, SubAnalyser
@@ -57,8 +57,8 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
         loop = min(loop, value.length)
     for _ in range(loop):
         may_arg, _str = argv.next(arg.separators)
-        if _str and may_arg in argv.completion_names:
-            raise SpecialOptionTriggered("completion")
+        if _str and may_arg in argv.special:
+            raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             break
@@ -95,8 +95,8 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
         loop = min(loop, value.length)
     for _ in range(loop):
         may_arg, _str = argv.next(arg.separators)
-        if _str and may_arg in argv.completion_names:
-            raise SpecialOptionTriggered("completion")
+        if _str and may_arg in argv.special:
+            raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
             argv.rollback(may_arg)
             break
@@ -128,9 +128,9 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
     count = 0
     while count < target:
         may_arg, _str = argv.next(tuple(kwonly_seps))
-        if _str and may_arg in argv.completion_names:
-            raise SpecialOptionTriggered("completion")
-        if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
+        if _str and may_arg in argv.special:
+            raise SpecialOptionTriggered(argv.special[may_arg])
+        if not may_arg or not _str:
             argv.rollback(may_arg)
             break
         key, _m_arg = split_once(may_arg, kwonly_seps1, argv.filter_crlf)
@@ -139,7 +139,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             _key = key
         if _key not in args.argument.keyword_only:
             argv.rollback(may_arg)
-            if args.argument.var_keyword:
+            if args.argument.var_keyword or (_str and may_arg in argv.param_ids):
                 break
             for arg in args.argument.keyword_only.values():
                 if arg.value.base.exec(may_arg).flag == 'valid':  # type: ignore
@@ -182,9 +182,14 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     for arg in args.argument.normal:
         argv.context = arg
         may_arg, _str = argv.next(arg.separators)
-        if _str and may_arg in argv.completion_names:
-            raise SpecialOptionTriggered("completion")
-        if not may_arg or (_str and may_arg in argv.param_ids):
+        if _str and may_arg in argv.special:
+            raise SpecialOptionTriggered(argv.special[may_arg])
+        if _str and may_arg in argv.param_ids and arg.optional:
+            if (de := arg.field.default) is not None:
+                result[arg.name] = None if de is Empty else de
+            argv.rollback(may_arg)
+            continue
+        if not may_arg:
             argv.rollback(may_arg)
             if (de := arg.field.default) is not None:
                 result[arg.name] = None if de is Empty else de
@@ -198,6 +203,16 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             argv.current_index = argv.ndata
             return result
         _validate(argv, arg, value, result, may_arg, _str)
+    if args.argument.unpack:
+        arg, unpack = args.argument.unpack
+        try:
+            unpack.separate(*arg.separators)
+            result[arg.name] = arg.value.origin(**analyse_args(argv, unpack))
+        except Exception as e:
+            if (de := arg.field.default) is not None:
+                result[arg.name] = None if de is Empty else de
+            elif not arg.optional:
+                raise e
     if args.argument.var_positional:
         step_varpos(argv, args, result)
     if args.argument.keyword_only:
@@ -483,7 +498,7 @@ def handle_help(analyser: Analyser, argv: Argv):
     return analyser.export(argv, True, SpecialOptionTriggered('help'))
 
 
-_args = Args["delete;?", "delete"]["name", str]["command", str, "_"]
+_args = Args["action?", "delete|list"]["name?", str]["command", str, "$"]
 
 
 def handle_shortcut(analyser: Analyser, argv: Argv):
@@ -494,16 +509,94 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
     except SpecialOptionTriggered:
         return handle_completion(analyser, argv)
     try:
-        msg = analyser.command.shortcut(
-            opt_v["name"],
-            None if opt_v["command"] == "_" else {"command": argv.converter(opt_v["command"])},
-            bool(opt_v.get("delete"))
-        )
-        output_manager.send(analyser.command.name, lambda: msg)
+        if opt_v.get("action") == "list":
+            data = analyser.command.get_shortcuts()
+            output_manager.send(analyser.command.name, lambda: "\n".join(data))
+        else:
+            if not opt_v.get("name"):
+                raise ParamsUnmatched(lang.require("shortcut", "name_require"))
+            if opt_v.get("action") == "delete":
+                msg = analyser.command.shortcut(opt_v["name"], delete=True)
+            elif opt_v["command"] == "_":
+                msg = analyser.command.shortcut(opt_v["name"], None)
+            elif opt_v["command"] == "$":
+                msg = analyser.command.shortcut(opt_v["name"], {})
+            else:
+                msg = analyser.command.shortcut(opt_v["name"], {"command": argv.converter(opt_v["command"])})
+            output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
         output_manager.send(analyser.command.name, lambda: str(e))
     return analyser.export(argv, True, SpecialOptionTriggered('shortcut'))
 
+
+INDEX_SLOT = re.compile(r"\{%(\d+)\}")
+WILDCARD_SLOT = re.compile(r"\{\*(.*)\}", re.DOTALL)
+
+def _gen_extend(data: list, sep: str):
+    extend = []
+    for slot in data:
+        if isinstance(slot, str) and extend and isinstance(extend[-1], str):
+            extend[-1] += sep + slot
+        else:
+            extend.append(slot)
+    return extend
+
+def _handle_multi_slot(argv: Argv, unit: str, data: list, index: int, current: int, offset: int):
+    slot = data[index]
+    if not isinstance(slot, str):
+        left, right = unit.split(f"{{%{index}}}", 1)
+        if left.strip():
+            argv.raw_data[current] = left.strip()
+        argv.raw_data.insert(current + 1, slot)
+        if right.strip():
+            argv.raw_data[current + 2] = right.strip()
+            offset += 1
+    else:
+        argv.raw_data[current + offset] =  unescape(unit.replace(f"{{%{index}}}", slot))
+    return offset
+
+def _handle_shortcut_data(argv: Argv, data: list):
+    data_len = len(data)
+    if not data_len:
+        return []
+    record = set()
+    offset = 0
+    for i, unit in enumerate(argv.raw_data.copy()):
+        if not isinstance(unit, str):
+            continue
+        unit = escape(unit)
+        if mat := INDEX_SLOT.fullmatch(unit):
+            index = int(mat[1])
+            if index >= data_len:
+                continue
+            argv.raw_data[i + offset] = data[index]
+            record.add(index)
+        elif res := INDEX_SLOT.findall(unit):
+            for index in map(int, res):
+                if index >= data_len:
+                    continue
+                offset = _handle_multi_slot(argv, unit, data, index, i, offset)
+                record.add(index)
+        elif mat := WILDCARD_SLOT.search(unit):
+            extend = _gen_extend(data, mat[1] or ' ')
+            if unit == f"{{*{mat[1]}}}":
+                argv.raw_data.extend(extend)
+            else:
+                argv.raw_data[i + offset] = unescape(unit.replace(f"{{*{mat[1]}}}", "".join(map(str, extend))))
+            data.clear()
+            break
+    return [unit for i, unit in enumerate(data) if i not in record]
+
+def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, str]):
+    for j, unit in enumerate(argv.raw_data):
+        if not isinstance(unit, str):
+            continue
+        unit = escape(unit)
+        for i, c in enumerate(groups):
+            unit = unit.replace(f"{{{i}}}", c)
+        for k, v in gdict.items():
+            unit = unit.replace(f"{{{k}}}", v)
+        argv.raw_data[j] = unescape(unit)
 
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
     if trig.field.completion:

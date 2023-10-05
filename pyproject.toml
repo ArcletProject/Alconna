@@ -10,8 +10,8 @@ authors = [
 ]
 dependencies = [
     "typing-extensions>=4.5.0",
-    "nepattern<0.6.0, >=0.5.8",
-    "tarina>=0.3.3",
+    "nepattern<0.6.0, >=0.5.14",
+    "tarina>=0.4.1",
 ]
 dynamic = ["version"]
 requires-python = ">=3.9"
@@ -55,7 +55,6 @@ dev = [
     "coverage~=7.0.1",
     "pydeps~=1.11.0",
     "fix-future-annotations>=0.4.0",
-    "viztracer>=0.15.6",
 ]
 
 [tool.pdm.scripts]

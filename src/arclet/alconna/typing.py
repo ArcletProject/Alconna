@@ -1,7 +1,7 @@
 """Alconna 参数相关"""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, is_dataclass, fields
 from typing import Any, Dict, Iterator, List, Literal, Protocol, Tuple, TypeVar, Union, runtime_checkable
 
 from nepattern import BasePattern, MatchMode, type_parser
@@ -59,7 +59,7 @@ class KeyWordVar(BasePattern):
         self.base = value if isinstance(value, BasePattern) else type_parser(value)
         self.sep = sep
         assert isinstance(self.base, BasePattern)
-        super().__init__(r"(.+?)", MatchMode.KEEP, self.base.origin, alias=f"@{sep}{self.base}")
+        super().__init__(model=MatchMode.KEEP, origin=self.base.origin, alias=f"@{sep}{self.base}")
 
     def __repr__(self):
         return self.alias
@@ -67,7 +67,8 @@ class KeyWordVar(BasePattern):
 
 class _Kw:
     __slots__ = ()
-    __getitem__ = lambda s, i: KeyWordVar(i)
+    def __getitem__(self, item):
+        return KeyWordVar(item)
     __matmul__ = __getitem__
     __rmatmul__ = __getitem__
 
@@ -100,7 +101,7 @@ class MultiVar(BasePattern):
             self.flag = "+"
             self.length = 1
         origin = Dict[str, self.base.origin] if isinstance(self.base, KeyWordVar) else Tuple[self.base.origin, ...]
-        super().__init__(r"(.+?)", MatchMode.KEEP, origin, alias=alias)
+        super().__init__(model=MatchMode.KEEP, origin=origin, alias=alias)
 
     def __repr__(self):
         return self.alias
@@ -115,4 +116,26 @@ class KWBool(BasePattern):
     ...
 
 
-__all__ = ["DataCollection", "TDC", "MultiVar", "Nargs", "Kw", "KeyWordVar", "TPrefixes", "CommandMeta", "KWBool"]
+class UnpackVar(BasePattern):
+    """特殊参数，利用dataclass 的 field 生成 arg 信息，并返回dcls"""
+
+    def __init__(self, dcls: Any, kw_only: bool = False, kw_sep: str = '='):
+        """构建一个可变参数
+
+        Args:
+            dcls: dataclass 类
+        """
+        if not is_dataclass(dcls):
+            raise TypeError(dcls)
+        self.kw_only = kw_only
+        self.kw_sep = kw_sep
+        self.fields = fields(dcls)  # can override if other use Pydantic?
+        super().__init__(model=MatchMode.KEEP, origin=dcls, alias=f"{dcls.__name__}")  # type: ignore
+
+
+class _Up:
+    __slots__ = ()
+    def __mul__(self, other):
+        return UnpackVar(other)
+
+Up = _Up()
