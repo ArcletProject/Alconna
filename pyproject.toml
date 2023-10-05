@@ -10,7 +10,7 @@ authors = [
 ]
 dependencies = [
     "typing-extensions>=4.5.0",
-    "nepattern<0.6.0, >=0.5.14",
+    "nepattern<1.0.0,>=0.6.2",
     "tarina>=0.4.1",
 ]
 dynamic = ["version"]
@@ -31,10 +31,10 @@ classifiers=[
     "Typing :: Typed",
     "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
 ]
 [project.urls]

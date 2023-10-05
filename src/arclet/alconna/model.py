@@ -3,15 +3,6 @@ _repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in 
 
 
 @dataclass(init=False, eq=True)
-class Sentence:
-    __slots__ = ("name",)
-    __str__ = lambda self: self.name
-    __repr__ = lambda self: self.name
-    def __init__(self, name):
-        self.name = name
-
-
-@dataclass(init=False, eq=True)
 class OptionResult:
     __slots__ = ("value", "args")
     __repr__ = _repr_

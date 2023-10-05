@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, is_dataclass, fields
 from typing import Any, Dict, Iterator, List, Literal, Protocol, Tuple, TypeVar, Union, runtime_checkable
 
-from nepattern import BasePattern, MatchMode, type_parser
+from nepattern import BasePattern, MatchMode, parser
 
 TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
@@ -44,6 +44,18 @@ class CommandMeta:
 
 TDC = TypeVar("TDC", bound=DataCollection[Any])
 
+class _AllParamPattern(BasePattern[Any, Any]):
+    def __init__(self):
+        super().__init__(mode=MatchMode.KEEP, origin=Any, alias="*")
+
+    def match(self, input_: Any) -> Any:  # pragma: no cover
+        return input_
+
+    def __calc_eq__(self, other):  # pragma: no cover
+        return isinstance(other, _AllParamPattern)
+
+
+AllParam = _AllParamPattern()
 
 class KeyWordVar(BasePattern):
     """对具名参数的包装"""
@@ -56,10 +68,10 @@ class KeyWordVar(BasePattern):
             value (type | BasePattern): 参数的值
             sep (str, optional): 参数的分隔符
         """
-        self.base = value if isinstance(value, BasePattern) else type_parser(value)
+        self.base = value if isinstance(value, BasePattern) else parser(value)
         self.sep = sep
         assert isinstance(self.base, BasePattern)
-        super().__init__(model=MatchMode.KEEP, origin=self.base.origin, alias=f"@{sep}{self.base}")
+        super().__init__(mode=MatchMode.KEEP, origin=self.base.origin, alias=f"@{sep}{self.base}")
 
     def __repr__(self):
         return self.alias
@@ -86,7 +98,7 @@ class MultiVar(BasePattern):
             value (type | BasePattern): 参数的值
             flag (int | Literal["+", "*"]): 参数的标记
         """
-        self.base = value if isinstance(value, BasePattern) else type_parser(value)
+        self.base = value if isinstance(value, BasePattern) else parser(value)
         assert isinstance(self.base, BasePattern)
         if not isinstance(flag, int):
             alias = f"({self.base}{flag})"
@@ -101,7 +113,7 @@ class MultiVar(BasePattern):
             self.flag = "+"
             self.length = 1
         origin = Dict[str, self.base.origin] if isinstance(self.base, KeyWordVar) else Tuple[self.base.origin, ...]
-        super().__init__(model=MatchMode.KEEP, origin=origin, alias=alias)
+        super().__init__(mode=MatchMode.KEEP, origin=origin, alias=alias)
 
     def __repr__(self):
         return self.alias
@@ -130,7 +142,7 @@ class UnpackVar(BasePattern):
         self.kw_only = kw_only
         self.kw_sep = kw_sep
         self.fields = fields(dcls)  # can override if other use Pydantic?
-        super().__init__(model=MatchMode.KEEP, origin=dcls, alias=f"{dcls.__name__}")  # type: ignore
+        super().__init__(mode=MatchMode.KEEP, origin=dcls, alias=f"{dcls.__name__}")  # type: ignore
 
 
 class _Up:

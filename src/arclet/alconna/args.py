@@ -4,17 +4,16 @@ import dataclasses as dc
 import inspect
 import re
 import sys
-from copy import deepcopy
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, Type, List
 
-from nepattern import AllParam, AnyOne, BasePattern, MatchMode, RawStr, UnionPattern, all_patterns, type_parser
+from nepattern import BasePattern, MatchMode, RawStr, UnionPattern, parser, NONE, ANY, AntiPattern
 from tarina import Empty, get_signature, lang
 from typing_extensions import Self, TypeAlias
 
 from .exceptions import InvalidParam
-from .typing import KeyWordVar, MultiVar, KWBool, UnpackVar
+from .typing import KeyWordVar, MultiVar, KWBool, UnpackVar, AllParam
 
 
 def safe_dcls_kw(**kwargs):
@@ -24,8 +23,7 @@ def safe_dcls_kw(**kwargs):
 
 
 _T = TypeVar("_T")
-TAValue: TypeAlias = Union[BasePattern[_T], Type[_T], str]
-STRING = all_patterns()[str]
+TAValue: TypeAlias = Union[BasePattern[_T, Any], Type[_T], str]
 
 
 class ArgFlag(str, Enum):
@@ -39,7 +37,7 @@ class ArgFlag(str, Enum):
 class Field(Generic[_T]):
     """标识参数单元字段"""
 
-    default: _T | None = dc.field(default=None)
+    default: _T | type[Empty] = dc.field(default=Empty)
     """参数单元的默认值"""
     alias: str | None = dc.field(default=None)
     """参数单元默认值的别名"""
@@ -58,7 +56,7 @@ class Arg(Generic[_T]):
 
     name: str = dc.field(compare=True, hash=True)
     """参数单元的名称"""
-    value: BasePattern[_T] = dc.field(compare=False, hash=True)
+    value: BasePattern[_T, Any] = dc.field(compare=False, hash=True)
     """参数单元的值"""
     field: Field[_T] = dc.field(compare=False, hash=False)
     """参数单元的字段"""
@@ -75,7 +73,7 @@ class Arg(Generic[_T]):
         self,
         name: str,
         value: TAValue[_T] | None = None,
-        field: Field[_T] | _T | None = None,
+        field: Field[_T] | _T | type[Empty] = Empty,
         seps: str | Iterable[str] = " ",
         notice: str | None = None,
         flags: list[ArgFlag] | None = None,
@@ -85,7 +83,7 @@ class Arg(Generic[_T]):
         Args:
             name (str): 参数单元的名称
             value (TAValue[_T], optional): 参数单元的值. Defaults to None.
-            field (Field[_T], optional): 参数单元的字段. Defaults to None.
+            field (Field[_T], optional): 参数单元的字段. Defaults to Empty.
             seps (str | Iterable[str], optional): 参数单元使用的分隔符. Defaults to " ".
             notice (str, optional): 参数单元的注释. Defaults to None.
             flags (list[ArgFlag], optional): 参数单元的标识. Defaults to None.
@@ -95,11 +93,11 @@ class Arg(Generic[_T]):
         if not name.strip():
             raise InvalidParam(lang.require("args", "name_empty"))
         self.name = name
-        _value = type_parser(value or RawStr(name))
+        _value = parser(value or RawStr(name))
         default = field if isinstance(field, Field) else Field(field)
         if isinstance(_value, UnionPattern) and _value.optional:
-            default.default = Empty if default.default is None else default.default
-        if _value is Empty:
+            default.default = None if default.default is Empty else default.default
+        if _value == NONE:
             raise InvalidParam(lang.require("args", "value_error").format(target=name))
         self.value = _value
         self.field = default
@@ -115,12 +113,12 @@ class Arg(Generic[_T]):
         self.flag = set(flags)
         self.optional = ArgFlag.OPTIONAL in self.flag
         self.hidden = ArgFlag.HIDDEN in self.flag
-        if ArgFlag.ANTI in self.flag and self.value not in (AnyOne, AllParam):
-            self.value = deepcopy(self.value).reverse()
+        if ArgFlag.ANTI in self.flag and self.value not in (ANY, AllParam):
+            self.value = AntiPattern(self.value)
 
     def __repr__(self):
         n, v = f"'{self.name}'", str(self.value)
-        return (n if n == v else f"{n}: {v}") + (f" = '{self.field.display}'" if self.field.display is not None else "")
+        return (n if n == v else f"{n}: {v}") + (f" = '{self.field.display}'" if self.field.display is not Empty else "")
 
     def __add__(self, other) -> "Args":
         if isinstance(other, Arg):
@@ -150,8 +148,6 @@ class ArgsMeta(type):
             return self(*data)
         return self(Arg(key, *data)) if key else self(Arg(*data))  # type: ignore
 
-NULL = {Empty: None, None: Empty}
-
 class _argument(List[Arg[Any]]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -170,7 +166,6 @@ def gen_unpack(var: UnpackVar):
             _de = field.default_factory()
         else:
             _de = Empty
-        _de = NULL.get(_de, _de)
         _type = field.type
         if getattr(field, "kw_only", var.kw_only):
             _type = KeyWordVar(_type, sep=var.kw_sep)
@@ -216,8 +211,7 @@ class Args(metaclass=ArgsMeta):
             anno = param.annotation
             de = param.default
             if anno == inspect.Signature.empty:
-                anno = type(de) if de not in NULL else AnyOne
-            de = NULL.get(de, de)
+                anno = type(de) if de not in {Empty, None} else ANY
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
                     anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith('no'))
@@ -229,26 +223,24 @@ class Args(metaclass=ArgsMeta):
             _args.add(name, value=anno, default=de)
         return _args, method
 
-    def __init__(self, *args: Arg[Any], separators: str | Iterable[str] | None = None, **kwargs: TAValue[Any]):
+    def __init__(self, *args: Arg[Any], separators: str | Iterable[str] | None = None):
         """
         构造一个 `Args`
 
         Args:
             *args (Arg): 参数单元
             separators (str | Iterable[str] | None, optional): 可选的为所有参数单元指定分隔符
-            **kwargs (TAValue): 剩余的参数单元值
         """
         self._visit = set()
         self.optional_count = 0
         self.argument = _argument(args)
-        self.argument.extend(Arg(k, type_parser(v), Field()) for k, v in kwargs.items())
         self.__check_vars__()
         if separators is not None:
             self.separate(*((separators,) if isinstance(separators, str) else tuple(separators)))
 
     __slots__ = "argument", "optional_count", "_visit"
 
-    def add(self, name: str, *, value: TAValue[Any], default: Any = None, flags: list[ArgFlag] | None = None) -> Self:
+    def add(self, name: str, *, value: TAValue[Any], default: Any = Empty, flags: list[ArgFlag] | None = None) -> Self:
         """添加一个参数
 
         Args:
@@ -264,23 +256,6 @@ class Args(metaclass=ArgsMeta):
             return self
         self.argument.append(Arg(name, value, default, flags=flags))
         self.__check_vars__()
-        return self
-
-    def default(self, **kwargs) -> Self:
-        """设置参数的默认值
-
-        Args:
-            **kwargs: 参数名称与默认值的映射
-
-        Returns:
-            Self: 参数集合自身
-        """
-        for arg in self.argument:
-            if v := (kwargs.get(arg.name)):
-                if isinstance(v, Field):
-                    arg.field = v
-                else:
-                    arg.field.default = v
         return self
 
     def separate(self, *separator: str) -> Self:

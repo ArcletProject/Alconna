@@ -4,58 +4,27 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from weakref import WeakKeyDictionary
 
-from nepattern import AllParam, AnyOne, AnyString
+from nepattern import ANY, AnyString
 from tarina import Empty, lang
 
 from .args import Arg, Args
 from .base import Option, Subcommand
+from .typing import AllParam
 
 if TYPE_CHECKING:
     from .core import Alconna
 
-
-def resolve_requires(options: list[Option | Subcommand]):
-    """Resolve the requires of options."""
-    reqs: dict[str, dict | Option | Subcommand] = {}
-
-    def _u(target, source):
-        for k in source:
-            if k not in target or isinstance(target[k], (Option, Subcommand)):
-                target.update(source)
-                break
-            _u(target[k], source[k])
-
+def resolve(parts: list[str], options: list[Option | Subcommand]):
+    if not parts:
+        return None
+    pf = parts.pop(0)
     for opt in options:
-        if not opt.requires:
-            # reqs.setdefault(opt.name, opt)
-            [reqs.setdefault(i, opt) for i in opt.aliases] if isinstance(opt, Option) else None
-            reqs.setdefault(opt.name, resolve_requires(opt.options)) if isinstance(opt, Subcommand) else None
-        else:
-            _reqs = _cache = {}
-            for req in opt.requires:
-                if not _reqs:
-                    _reqs[req] = {}
-                    _cache = _reqs[req]
-                else:
-                    _cache[req] = {}
-                    _cache = _cache[req]
-            # _cache[opt.name] = opt  # type: ignore
-            [_cache.setdefault(i, opt) for i in opt.aliases] if isinstance(opt, Option) else None  # type: ignore
-            _cache.setdefault(opt.name, resolve_requires(opt.options)) if isinstance(opt, Subcommand) else None
-            _u(reqs, _reqs)
-    return reqs
-
-
-def ensure_node(targets: list[str], options: list[Option | Subcommand]):
-    for opt in options:
-        if isinstance(opt, Option) and targets[0] in opt.aliases:
+        if isinstance(opt, Option) and pf in opt.aliases:
             return opt
-        if isinstance(opt, Subcommand):
-            if targets[0] == opt.name and not targets[1:]:
+        if isinstance(opt, Subcommand) and pf == opt.name:
+            if not parts:
                 return opt
-            if sub := ensure_node(targets[1:], opt.options):
-                return sub
-
+            return sub if (sub := resolve(parts, opt.options)) else opt
 
 @dataclass(eq=True)
 class Trace:
@@ -109,37 +78,15 @@ class TextFormatter:
         def _handle(trace: Trace):
             if not parts or parts == ['']:
                 return self.format(trace)
-            _cache = resolve_requires(trace.body)
-            _parts = []
-            for text in parts:
-                if isinstance(_cache, dict) and text in _cache:
-                    _cache = _cache[text]
-                    _parts.append(text)
-            if not _parts:
-                return self.format(trace)
-            if isinstance(_cache, dict):
-                if ensure := ensure_node(_parts, trace.body):
-                    _cache = ensure
-                else:
-                    _opts, _visited = [], set()
-                    for k, i in _cache.items():
-                        if isinstance(i, dict):
-                            _opts.append(Option(k, requires=_parts))
-                        elif i not in _visited:
-                            _opts.append(i)
-                            _visited.add(i)
-                    return self.format(Trace(
-                        {"name": _parts[-1], 'prefix': [], 'description': _parts[-1]}, Args(), trace.separators,
-                        _opts
-                    ))
-            if isinstance(_cache, Option):
+            end = resolve(parts, trace.body)
+            if isinstance(end, Option):
                 return self.format(Trace(
-                    {"name": "", "prefix": list(_cache.aliases), "description": _cache.help_text}, _cache.args,
-                    _cache.separators, []
+                    {"name": "", "prefix": list(end.aliases), "description": end.help_text}, end.args,
+                    end.separators, []
                 ))
-            if isinstance(_cache, Subcommand):
+            if isinstance(end, Subcommand):
                 return self.format(Trace(
-                    {"name": _cache.name, "prefix": [], "description": _cache.help_text}, _cache.args,
+                    {"name": end.name, "prefix": [], "description": end.help_text}, end.args,
                     _cache.separators, _cache.options  # type: ignore
                 ))
             return self.format(trace)
@@ -171,11 +118,9 @@ class TextFormatter:
         if parameter.value is AllParam:
             return f"<...{name}>"
         arg = f"[{name}" if parameter.optional else f"<{name}"
-        if parameter.value not in (AnyOne, AnyString):
+        if parameter.value not in (ANY, AnyString):
             arg += f": {parameter.value}"
-        if parameter.field.display is Empty:
-            arg += " = None"
-        elif parameter.field.display is not None:
+        if parameter.field.display is not Empty:
             arg += f" = {parameter.field.display}"
         return f"{arg}]" if parameter.optional else f"{arg}>"
 
@@ -218,7 +163,7 @@ class TextFormatter:
 
     def opt(self, node: Option) -> str:
         """对单个选项的描述"""
-        alias_text = " ".join(node.requires) + (' ' if node.requires else '') + "|".join(node.aliases)
+        alias_text = "|".join(node.aliases)
         return (
             f"* {node.help_text}\n"
             f"  {alias_text}{node.separators[0]}{self.parameters(node.args)}\n"
@@ -226,7 +171,6 @@ class TextFormatter:
 
     def sub(self, node: Subcommand) -> str:
         """对单个子命令的描述"""
-        name = " ".join(node.requires) + (' ' if node.requires else '') + node.name
         opt_string = "".join(
             [
                 self.opt(opt).replace("\n", "\n  ").replace("# ", "* ")
@@ -243,7 +187,7 @@ class TextFormatter:
         sub_help = f"  {lang.require('format', 'subcommands.subs')}:\n  " if sub_string else ""
         return (
             f"* {node.help_text}\n"
-            f"  {name}{tuple(node.separators)[0]}{self.parameters(node.args)}\n"
+            f"  {node.name}{tuple(node.separators)[0]}{self.parameters(node.args)}\n"
             f"{sub_help}{sub_string}"
             f"{opt_help}{opt_string}"
         ).rstrip(' ')

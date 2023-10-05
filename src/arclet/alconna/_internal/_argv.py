@@ -19,16 +19,10 @@ class Argv(Generic[TDC]):
     namespace: InitVar[Namespace] = field(default=config.default_namespace)
     fuzzy_match: bool = field(default=False)
     """当前命令是否模糊匹配"""
-    preprocessors: dict[type, Callable[..., Any]] = field(default_factory=dict)
-    """命令元素的预处理器"""
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
     """将命令元素转换为文本, 或者返回None以跳过该元素"""
     separators: tuple[str, ...] = field(default=(' ',))
     """命令分隔符"""
-    filter_out: list[type] = field(default_factory=list)
-    """需要过滤掉的命令元素"""
-    checker: Callable[[Any], bool] | None = field(default=None)
-    """检查传入命令"""
     converter: Callable[[str | list], TDC] = field(default=lambda x: x)
     """将字符串或列表转为目标命令类型"""
     filter_crlf: bool = field(default=True)
@@ -66,10 +60,7 @@ class Argv(Generic[TDC]):
         )
         self.completion_names = namespace.builtin_option_name['completion']
         if __cache := self.__class__._cache.get(self.__class__, {}):
-            self.preprocessors.update(__cache.get("preprocessors") or {})
-            self.filter_out.extend(__cache.get("filter_out") or [])
             self.to_text = __cache.get("to_text") or self.to_text
-            self.checker = __cache.get("checker") or self.checker
             self.converter = __cache.get("converter") or self.converter
 
     def reset(self):
@@ -103,23 +94,12 @@ class Argv(Generic[TDC]):
             Self: 自身
         """
         self.reset()
-        if self.checker and not self.checker(data):
-            if not self.converter:
-                raise TypeError(data)
-            try:
-                data = self.converter(data)
-            except Exception as e:
-                raise TypeError(data) from e
         self.origin = data
         if data.__class__ is str:
             data = [data]  # type: ignore
         i = 0
         raw_data = self.raw_data
         for unit in data:
-            if (utype := unit.__class__) in self.filter_out:
-                continue
-            if (proc := self.preprocessors.get(utype)) and (res := proc(unit)):
-                unit = res
             if (text := self.to_text(unit)) is None:
                 raw_data.append(unit)
             elif not (res := text.strip()):

@@ -3,19 +3,19 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, Iterable
 
-from nepattern import AllParam, AnyOne, AnyString, BasePattern
+from nepattern import ANY, AnyString, BasePattern, STRING
 from nepattern.util import TPattern
 from tarina import Empty, lang, split_once
 
 from ..action import Action
-from ..args import STRING, Arg, Args
+from ..args import Arg, Args
 from ..base import Option, Subcommand
 from ..completion import Prompt, comp_ctx
 from ..config import config
 from ..exceptions import (
     ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 )
-from ..model import HeadResult, OptionResult, Sentence
+from ..model import HeadResult, OptionResult
 from ..output import output_manager
 from ..typing import KWBool
 from ._header import Double, Header
@@ -29,20 +29,20 @@ pat = re.compile("(?:-*no)?-*(?P<name>.+)")
 
 
 def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dict[str, Any], arg: Any, _str: bool):
-    if value == AnyOne or (value == STRING and _str):
+    if value == ANY or (value == STRING and _str):
         result[target.name] = arg
         return
     if value == AnyString:
         result[target.name] = str(arg)
         return
     default_val = target.field.default
-    res = value.invalidate(arg, default_val) if value.anti else value.validate(arg, default_val)
+    res = value.validate(arg, default_val)
     if res.flag != 'valid':
         argv.rollback(arg)
     if res.flag == 'error':
         if target.optional:
             return
-        raise ParamsUnmatched(*res.error.args)
+        raise ParamsUnmatched(*res.error().args)
     result[target.name] = res._value  # noqa
 
 def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
@@ -197,7 +197,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
                 raise ArgumentMissing(lang.require("args", "missing").format(key=arg.name))
             continue
         value = arg.value
-        if value == AllParam:
+        if value.alias == "*":
             argv.rollback(may_arg)
             result[arg.name] = argv.converter(argv.release(arg.separators))
             argv.current_index = argv.ndata
@@ -312,16 +312,8 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
         _data, _index = argv.data_set()
         try:
             if param.__class__ is Option:
-                if param.requires and analyser.sentences != param.requires:
-                    return lang.require("option", "require_error").format(
-                        source=param.name, target=' '.join(analyser.sentences)
-                    )
                 analyse_option(analyser, argv, param)
             else:
-                if param.command.requires and analyser.sentences != param.command.requires:
-                    return lang.require("subcommand", "require_error").format(
-                        source=param.command.name, target=' '.join(analyser.sentences)
-                    )
                 try:
                     param.process(argv)
                 finally:
@@ -376,25 +368,13 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         if analyser.args_result:
             argv.context = None
             return True
-    if _param.__class__ is Sentence:
-        analyser.sentences.append(argv.next()[0])
-        return True
     if _param.__class__ is Option:
-        if _param.requires and analyser.sentences != _param.requires:
-            raise ParamsUnmatched(
-                lang.require("option", "require_error").format(source=_param.name, target=' '.join(analyser.sentences))
-            )
         analyse_option(analyser, argv, _param)
     elif _param.__class__ is list:
         exc: Exception | None = None
         for opt in _param:
             _data, _index = argv.data_set()
             try:
-                if opt.requires and analyser.sentences != opt.requires:
-                    raise ParamsUnmatched(lang.require("option", "require_error").format(
-                        source=opt.name, target=' '.join(analyser.sentences)
-                    ))
-                analyser.sentences = []
                 analyse_option(analyser, argv, opt)
                 _data.clear()
                 exc = None
@@ -405,19 +385,12 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         if exc:
             raise exc  # type: ignore  # noqa
     elif _param is not None:
-        if _param.command.requires and analyser.sentences != _param.command.requires:
-            raise ParamsUnmatched(
-                lang.require("subcommand", "require_error").format(
-                    source=_param.command.name, target=' '.join(analyser.sentences)
-                )
-            )
         try:
             _param.process(argv)
         finally:
             analyser.subcommands_result[_param.command.dest] = _param.result()
     else:
         return False
-    analyser.sentences.clear()
     argv.context = None
     return True
 
@@ -444,12 +417,12 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
             argv.rollback(head_text[len(mat[0]):], replace=True)
             return HeadResult(mat[0], mat[0], True, mat.groupdict(), mapping)
     if isinstance(content, BasePattern):
-        if (val := content.exec(head_text, Empty)).success:
-            return HeadResult(head_text, val.value, True, fixes=mapping)
-        if header.compact and (val := header.compact_pattern.exec(head_text, Empty)).success:
+        if (val := content.validate(head_text)).success:
+            return HeadResult(head_text, val._value, True, fixes=mapping)
+        if header.compact and (val := header.compact_pattern.validate(head_text)).success:
             if _str:
-                argv.rollback(head_text[len(str(val.value)):], replace=True)
-            return HeadResult(val.value, val.value, True, fixes=mapping)
+                argv.rollback(head_text[len(str(val._value)):], replace=True)
+            return HeadResult(val.value, val._value, True, fixes=mapping)
 
     may_cmd, _m_str = argv.next()
     if content.__class__ is list and _m_str:
@@ -610,20 +583,6 @@ def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
     return [Prompt(analyser.command.formatter.param(trig), False)]
 
 
-def _prompt_sentence(analyser: Analyser):
-    res: list[str] = []
-    s_len = len(stc := analyser.sentences)
-    for opt in filter(
-        lambda x: len(x.requires) >= s_len and x.requires[s_len - 1] == stc[-1],
-        analyser.command.options,
-    ):
-        if len(opt.requires) > s_len:
-            res.append(opt.requires[s_len])
-        else:
-            res.extend(opt.aliases if isinstance(opt, Option) else [opt.name])
-    return [Prompt(i) for i in res]
-
-
 def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
     res: list[Prompt] = []
     if not analyser.args_result and analyser.self_args.argument:
@@ -636,9 +595,7 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
         lambda x: x.name not in argv.completion_names,
         analyser.command.options,
     ):
-        if opt.requires and all(opt.requires[0] not in i for i in got):
-            res.append(Prompt(opt.requires[0]))
-        elif opt.dest not in got:
+        if opt.dest not in got:
             res.extend([Prompt(al) for al in opt.aliases] if isinstance(opt, Option) else [Prompt(opt.name)])
     return res
 
@@ -646,7 +603,7 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
 def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
     """获取补全列表"""
     _trigger = trigger or argv.context
-    got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
+    got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys()]
     if isinstance(_trigger, Arg):
         return _prompt_unit(analyser, argv, _trigger)
     elif isinstance(_trigger, Subcommand):
@@ -662,7 +619,7 @@ def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
     if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):
         out = [i for i in _res if i not in got]
         return [Prompt(i, True, target) for i in (out or _res)]
-    return _prompt_sentence(analyser) if analyser.sentences else _prompt_none(analyser, argv, got)
+    return _prompt_none(analyser, argv, got)
 
 
 def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None):

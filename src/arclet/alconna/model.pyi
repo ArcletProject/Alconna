@@ -2,17 +2,6 @@ from __future__ import annotations
 from typing import Any
 from nepattern import BasePattern
 
-class Sentence:
-    """句段
-
-    句段由 `Analyser` 编译而来, 代表选项或者子命令的需求前缀。
-
-    Attributes:
-        name (str): 句段名称
-    """
-    name: str
-    def __init__(self, name: str) -> None: ...
-
 class OptionResult:
     """选项解析结果
 

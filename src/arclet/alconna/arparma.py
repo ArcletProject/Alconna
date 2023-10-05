@@ -100,7 +100,6 @@ class Arparma(Generic[TDC]):
         error_info (type[BaseException] | BaseException | str): 错误信息
         error_data (list[str | Any]): 错误数据
         main_args (dict[str, Any]): 主参数匹配结果
-        other_args (dict[str, Any]): 其他参数匹配结果
         options (dict[str, OptionResult]): 选项匹配结果
         subcommands (dict[str, SubcommandResult]): 子命令匹配结果
     """
@@ -139,7 +138,6 @@ class Arparma(Generic[TDC]):
         self.error_info = error_info
         self.error_data = error_data or []
         self.main_args = main_args or {}
-        self.other_args = {}
         self.options = options or {}
         self.subcommands = subcommands or {}
 
@@ -179,30 +177,28 @@ class Arparma(Generic[TDC]):
     @property
     def all_matched_args(self) -> dict[str, Any]:
         """返回 Alconna 中所有 Args 解析到的值"""
-        return {**self.main_args, **self.other_args}
+        other_args = {}
+        def _unpack_opts(_data):
+            for _v in _data.values():
+                other_args.update(_v.args)
+
+        def _unpack_subs(_data):
+            for _v in _data.values():
+                other_args.update(_v.args)
+                if _v.options:
+                    _unpack_opts(_v.options)
+                if _v.subcommands:
+                    _unpack_subs(_v.subcommands)
+
+        _unpack_opts(self.options)
+        _unpack_subs(self.subcommands)
+        return {**self.main_args, **other_args}
 
     @property
     def token(self) -> int:
         """返回命令的 Token"""
         from .manager import command_manager
         return command_manager.get_token(self)
-
-    def _unpack_opts(self, _data):
-        for _v in _data.values():
-            self.other_args = {**self.other_args, **_v.args}
-
-    def _unpack_subs(self, _data):
-        for _v in _data.values():
-            self.other_args = {**self.other_args, **_v.args}
-            if _v.options:
-                self._unpack_opts(_v.options)
-            if _v.subcommands:
-                self._unpack_subs(_v.subcommands)
-
-    def unpack(self) -> None:
-        """处理 `Arparma` 中的数据"""
-        self._unpack_opts(self.options)
-        self._unpack_subs(self.subcommands)
 
     @staticmethod
     def behave_cancel():

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from re import Match
 from typing import TYPE_CHECKING, Any, Callable, Generic, Set
 
-from tarina import lang
+from tarina import lang, Empty
 from typing_extensions import Self, TypeAlias
 
 from ..action import Action
@@ -17,7 +17,7 @@ from ..exceptions import (
     ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 )
 from ..manager import ShortcutArgs, command_manager
-from ..model import HeadResult, OptionResult, Sentence, SubcommandResult
+from ..model import HeadResult, OptionResult, SubcommandResult
 from ..output import output_manager
 from ..typing import TDC
 from ._handlers import (
@@ -39,7 +39,7 @@ _SPECIAL = {
 }
 
 
-def _compile_opts(option: Option, data: dict[str, Sentence | Option | list[Option] | SubAnalyser]):
+def _compile_opts(option: Option, data: dict[str, Option | list[Option] | SubAnalyser]):
     """处理选项
 
     Args:
@@ -53,9 +53,6 @@ def _compile_opts(option: Option, data: dict[str, Sentence | Option | list[Optio
             if isinstance(li, list):
                 li.append(option)
                 li.sort(key=lambda x: x.priority, reverse=True)
-            elif isinstance(li, Sentence):
-                data[alias] = option
-                continue
             else:
                 data[alias] = sorted([li, option], key=lambda x: x.priority, reverse=True)
         else:
@@ -74,7 +71,7 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
             if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(opts)
             _compile_opts(opts, analyser.compile_params)  # type: ignore
-            if opts.default:
+            if opts.default is not Empty:
                 analyser.default_opt_result[opts.dest] = (opts.default, opts.action)
             pids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
@@ -86,10 +83,6 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
                 analyser.compact_params.append(sub)
             if sub.command.default:
                 analyser.default_sub_result[opts.dest] = sub.command.default
-        if opts.requires:
-            pids.update(opts.requires)
-            for k in opts.requires:
-                analyser.compile_params.setdefault(k, Sentence(name=k))
 
 
 @dataclass
@@ -101,7 +94,7 @@ class SubAnalyser(Generic[TDC]):
     """命令是否只有主参数"""
     need_main_args: bool = field(default=False)
     """是否需要主参数"""
-    compile_params: dict[str, Sentence | Option | list[Option] | SubAnalyser[TDC]] = field(default_factory=dict)
+    compile_params: dict[str, Option | list[Option] | SubAnalyser[TDC]] = field(default_factory=dict)
     """编译的节点"""
     compact_params: list[Option | SubAnalyser[TDC]] = field(default_factory=list)
     """可能紧凑的需要逐个解析的节点"""
@@ -117,8 +110,6 @@ class SubAnalyser(Generic[TDC]):
     """头部的解析结果"""
     value_result: Any = field(init=False)
     """值的解析结果"""
-    sentences: list[str] = field(init=False)
-    """暂存传入的所有句段"""
     default_opt_result: dict[str, tuple[OptionResult, Action]] = field(default_factory=dict)
     """默认选项的解析结果"""
     default_sub_result: dict[str, SubcommandResult] = field(default_factory=dict)
@@ -163,7 +154,6 @@ class SubAnalyser(Generic[TDC]):
         self.args_result = {}
         self.options_result = {}
         self.subcommands_result = {}
-        self.sentences = []
         self.value_result = None
         self.header_result = None
 
@@ -420,7 +410,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             result.main_args = self.args_result
             result.options = self.options_result
             result.subcommands = self.subcommands_result
-            result.unpack()
             if argv.message_cache:
                 command_manager.record(argv.token, result)
                 self.used_tokens.add(argv.token)
