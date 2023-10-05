@@ -1,17 +1,31 @@
 from __future__ import annotations
 
-import builtins
 import re
-from copy import copy
 from inspect import isclass
 from typing import Any, Callable
 
-from nepattern import BasePattern, UnionPattern, all_patterns, type_parser
+from nepattern import BasePattern, UnionPattern, all_patterns, parser, MatchMode
 from nepattern.util import TPattern
-from tarina import Empty, lang
+from tarina import lang
 
 from ..typing import TPrefixes
 from ._util import escape, unescape
+
+
+def prefixed(pat: BasePattern):
+    if pat.mode not in (MatchMode.REGEX_MATCH, MatchMode.REGEX_CONVERT):
+        return pat
+    new_pat = BasePattern(
+        pattern=pat.pattern,
+        mode=pat.mode,
+        origin=pat.origin,
+        converter=pat.converter,
+        alias=pat.alias,
+        previous=pat.previous,
+        validators=pat.validators,
+    )
+    new_pat.regex_pattern = re.compile(f"^{new_pat.pattern}")
+    return new_pat
 
 
 def handle_bracket(name: str, mapping: dict):
@@ -30,14 +44,11 @@ def handle_bracket(name: str, mapping: dict):
             elif len(res) == 1 or not res[1]:
                 parts[i] = f"(?P<{res[0]}>.+)"
             elif not res[0]:
-                pat = pattern_map.get(builtins.__dict__.get(res[1], res[1]), res[1])
+                pat = pattern_map.get(res[1], res[1])
                 parts[i] = str(pat.pattern if isinstance(pat, BasePattern) else pat)
             elif res[1] in pattern_map:
                 mapping[res[0]] = pattern_map[res[1]]
                 parts[i] = f"(?P<{res[0]}>{pattern_map[res[1]].pattern})"
-            elif (key := builtins.__dict__.get(res[1], res[1])) in pattern_map:
-                mapping[res[0]] = pattern_map[key]
-                parts[i] = f"(?P<{res[0]}>{pattern_map[key].pattern})"
             else:
                 parts[i] = f"(?P<{res[0]}>{res[1]})"
     return unescape("".join(parts)), True
@@ -80,8 +91,8 @@ class Pair:
         cmd, mat = self._match(command, pbfn, comp)
         if cmd is None:
             return
-        if self.is_prefix_pat and (val := self.prefix.exec(_pf, Empty)).success:
-            return (_pf, command), (val.value, command), True, self.gd_supplier(mat)
+        if self.is_prefix_pat and (val := self.prefix.validate(_pf)).success:
+            return (_pf, command), (val._value, command), True, self.gd_supplier(mat)
         if not isclass(_pf) and _pf == self.prefix or _pf.__class__ == self.prefix:
             return (_pf, command), (_pf, command), True, self.gd_supplier(mat)
 
@@ -109,12 +120,12 @@ class Double:
             elif isinstance(h, BasePattern):
                 patterns.append(h)
             else:
-                patterns.append(type_parser(h))
+                patterns.append(parser(h))
         self.patterns = UnionPattern(patterns)
         if isinstance(command, BasePattern):
             self.command = command
             self.prefix = set(texts) if texts else None
-            self.comp_pattern = command.prefixed()
+            self.comp_pattern = prefixed(command)
             self.cmd_type = 0
         elif not texts:
             self.prefix = None
@@ -146,27 +157,27 @@ class Double:
 
     def match0(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
         if self.prefix and p_str and pf in self.prefix:
-            if (val := self.command.exec(cmd, Empty)).success:
-                return (pf, cmd), (pf, val.value), True, None
-            if comp and (val := self.comp_pattern.exec(cmd, Empty)).success:
+            if (val := self.command.validate(cmd)).success:
+                return (pf, cmd), (pf, val._value), True, None
+            if comp and (val := self.comp_pattern.validate(cmd)).success:
                 if c_str:
-                    pbfn(cmd[len(str(val.value)):], replace=True)
-                return (pf, cmd), (pf, cmd[: len(str(val.value))]), True, None
+                    pbfn(cmd[len(str(val._value)):], replace=True)
+                return (pf, cmd), (pf, cmd[:len(str(val._value))]), True, None
             return
-        if (val := self.patterns.exec(pf, Empty)).success:
-            if (val2 := self.command.exec(cmd, Empty)).success:
-                return (pf, cmd), (val.value, val2.value), True, None
-            if comp and (val2 := self.comp_pattern.exec(cmd, Empty)).success:
+        if (val := self.patterns.validate(pf)).success:
+            if (val2 := self.command.validate(cmd)).success:
+                return (pf, cmd), (val._value, val2._value), True, None
+            if comp and (val2 := self.comp_pattern.validate(cmd)).success:
                 if c_str:
-                    pbfn(cmd[len(str(val2.value)):], replace=True)
-                return (pf, cmd), (val.value, cmd[: len(str(val2.value))]), True, None
+                    pbfn(cmd[len(str(val2._value)):], replace=True)
+                return (pf, cmd), (val._value, cmd[:len(str(val2._value))]), True, None
             return
 
     def match1(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
         if p_str or not c_str:
             return
-        if (val := self.patterns.exec(pf, Empty)).success and (mat := self.command.fullmatch(cmd)):
-            return (pf, cmd), (val.value, cmd), True, mat.groupdict()
+        if (val := self.patterns.validate(pf)).success and (mat := self.command.fullmatch(cmd)):
+            return (pf, cmd), (val._value, cmd), True, mat.groupdict()
         if comp and (mat := self.comp_pattern.match(cmd)):
             pbfn(cmd[len(mat[0]):], replace=True)
             return (pf, cmd), (pf, mat[0]), True, mat.groupdict()
@@ -194,12 +205,12 @@ class Double:
                 pbfn(name[len(mat[0]):], replace=True)
                 return mat[0], mat[0], True, mat.groupdict()
             return
-        if (val := self.patterns.exec(pf, Empty)).success:
+        if (val := self.patterns.validate(pf)).success:
             if mat := self.command.fullmatch(cmd):
-                return (pf, cmd), (val.value, cmd), True, mat.groupdict()
+                return (pf, cmd), (val._value, cmd), True, mat.groupdict()
             if comp and (mat := self.command.match(cmd)):
                 pbfn(cmd[len(mat[0]):], replace=True)
-                return (pf, cmd), (val.value, mat[0]), True, mat.groupdict()
+                return (pf, cmd), (val._value, mat[0]), True, mat.groupdict()
 
 
 class Header:
@@ -268,9 +279,9 @@ class Header:
                 return cls((command, prefixes), {f"{h}{_cmd}" for h in prefixes}, mapping, compact, compp)
             return cls((command, prefixes), Double(prefixes, _cmd), mapping, compact)
         else:
-            _cmd = copy(type_parser(command))
+            _cmd = parser(command)
             if not prefixes:
-                return cls((command, prefixes), _cmd, {}, compact, _cmd.prefixed())
+                return cls((command, prefixes), _cmd, {}, compact, prefixed(_cmd))
             if isinstance(prefixes[0], tuple):
                 raise TypeError(lang.require("header", "prefix_error"))
             return cls((command, prefixes), Double(prefixes, _cmd), {}, compact)

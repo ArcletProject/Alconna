@@ -4,9 +4,9 @@ from __future__ import annotations
 from dataclasses import replace
 from functools import reduce
 from typing import Any, Iterable, Sequence, overload
-from typing_extensions import Self
 
-from tarina import lang
+from tarina import lang, Empty
+from typing_extensions import Self
 
 from .action import Action, store
 from .args import Arg, Args
@@ -15,7 +15,7 @@ from .model import OptionResult, SubcommandResult
 
 
 def _handle_default(node: CommandNode):
-    if node.default is None:
+    if node.default is Empty:
         return
     act = node.action
     if act.type == 1 and not isinstance(act.value, list):
@@ -69,7 +69,7 @@ class CommandNode:
         name: str,
         args: Arg | Args | None = None,
         dest: str | None = None,
-        default: Any = None,
+        default: Any = Empty,
         action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
@@ -124,7 +124,7 @@ class CommandNode:
         data = {}
         if not self.args.empty:
             data["args"] = self.args
-        if self.default is not None:
+        if self.default is not Empty:
             data["default"] = self.default
         return f"{self.__class__.__name__}({self.dest!r}, {', '.join(f'{k}={v!r}' for k, v in data.items())})"
 
@@ -146,7 +146,7 @@ class Option(CommandNode):
     相比命令节点, 命令选项可以设置别名, 优先级, 允许名称与后随参数之间无分隔符
     """
 
-    default: OptionResult | None
+    default: OptionResult | type[Empty]
     """命令选项默认值"""
     aliases: frozenset[str]
     """命令选项别名"""
@@ -161,13 +161,13 @@ class Option(CommandNode):
         args: Arg | Args | None = None,
         alias: Iterable[str] | None = None,
         dest: str | None = None,
-        default: Any = None,
+        default: Any = Empty,
         action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
         compact: bool = False,
-        priority: int = 0,
+            priority: int = 0,
     ):
         """初始化命令选项
 
@@ -196,7 +196,8 @@ class Option(CommandNode):
         self.aliases = frozenset(aliases)
         self.priority = priority
         self.compact = compact
-        default = None if default is None else default if isinstance(default, OptionResult) else OptionResult(default)
+        if default is not Empty:
+            default = default if isinstance(default, OptionResult) else OptionResult(default)
         super().__init__(name, args, dest, default, action, separators, help_text, requires)
         if self.separators == ("",):
             self.compact = True
@@ -256,7 +257,7 @@ class Subcommand(CommandNode):
     与命令节点不同, 子命令可以包含多个命令选项与相对于自己的子命令
     """
 
-    default: SubcommandResult | None
+    default: SubcommandResult | type[Empty]
     """子命令默认值"""
     options: list[Option | Subcommand]
     """子命令包含的选项与子命令"""
@@ -266,7 +267,7 @@ class Subcommand(CommandNode):
         name: str,
         *args: Args | Arg | Option | Subcommand | list[Option | Subcommand],
         dest: str | None = None,
-        default: Any = None,
+        default: Any = Empty,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
@@ -287,8 +288,13 @@ class Subcommand(CommandNode):
         for li in args:
             if isinstance(li, list):
                 self.options.extend(li)
-        default = None if default is None else (default if isinstance(default, SubcommandResult) else SubcommandResult(default))  # noqa: E501
-        super().__init__(name, reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]), dest, default, None, separators, help_text, requires)  # type: ignore  # noqa: E501
+        if default is not Empty:
+            default = default if isinstance(default, SubcommandResult) else SubcommandResult(default)
+        super().__init__(
+            name,
+            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
+            dest, default, None, separators, help_text, requires,
+        )
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:
         """连接子命令与命令选项或命令节点

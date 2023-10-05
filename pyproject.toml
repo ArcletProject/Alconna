@@ -10,7 +10,7 @@ authors = [
 ]
 dependencies = [
     "typing-extensions>=4.5.0",
-    "nepattern>=0.6.4",
+    "nepattern<1.0.0,>=0.6.4",
     "tarina>=0.4.1",
 ]
 dynamic = ["version"]

@@ -4,11 +4,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from weakref import WeakKeyDictionary
 
-from nepattern import AllParam, AnyOne, AnyString
+from nepattern import ANY, AnyString
 from tarina import Empty, lang
 
 from .args import Arg, Args
 from .base import Option, Subcommand
+from .typing import AllParam
 
 if TYPE_CHECKING:
     from .core import Alconna
@@ -183,11 +184,9 @@ class TextFormatter:
         if parameter.value is AllParam:
             return f"<...{name}>"
         arg = f"[{name}" if parameter.optional else f"<{name}"
-        if parameter.value not in (AnyOne, AnyString):
+        if parameter.value not in (ANY, AnyString):
             arg += f": {parameter.value}"
-        if parameter.field.display is Empty:
-            arg += " = None"
-        elif parameter.field.display is not None:
+        if parameter.field.display is not Empty:
             arg += f" = {parameter.field.display}"
         return f"{arg}]" if parameter.optional else f"{arg}>"
 

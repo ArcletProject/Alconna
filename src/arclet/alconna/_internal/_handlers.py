@@ -3,12 +3,12 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, Iterable
 
-from nepattern import AllParam, AnyOne, AnyString, BasePattern
+from nepattern import ANY, AnyString, BasePattern, STRING
 from nepattern.util import TPattern
 from tarina import Empty, lang, split_once
 
 from ..action import Action
-from ..args import STRING, Arg, Args
+from ..args import Arg, Args
 from ..base import Option, Subcommand
 from ..completion import Prompt, comp_ctx
 from ..config import config
@@ -27,20 +27,20 @@ pat = re.compile("(?:-*no)?-*(?P<name>.+)")
 
 
 def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dict[str, Any], arg: Any, _str: bool):
-    if value == AnyOne or (value == STRING and _str):
+    if value == ANY or (value == STRING and _str):
         result[target.name] = arg
         return
     if value == AnyString:
         result[target.name] = str(arg)
         return
     default_val = target.field.default
-    res = value.invalidate(arg, default_val) if value.anti else value.validate(arg, default_val)
+    res = value.validate(arg, default_val)
     if res.flag != "valid":
         argv.rollback(arg)
     if res.flag == "error":
         if target.optional:
             return
-        raise InvalidParam(target.field.get_unmatch_tips(arg, res.error.args[0]))
+        raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]))
     result[target.name] = res._value  # noqa
 
 
@@ -68,7 +68,7 @@ def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict
         if _str and args.argument.vars_keyword and args.argument.vars_keyword[0][0].base.sep in may_arg:
             argv.rollback(may_arg)
             break
-        if (res := value.base.exec(may_arg)).flag != "valid":
+        if (res := value.base.validate(may_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result.append(res._value)  # noqa
@@ -108,7 +108,7 @@ def step_varkey(argv: Argv, slot: tuple[MultiKeyWordVar, Arg], result: dict[str,
         key = _kwarg[1]
         if not (_m_arg := _kwarg[2]):
             _m_arg, _ = argv.next(arg.separators)
-        if (res := value.base.base.exec(_m_arg)).flag != "valid":
+        if (res := value.base.base.validate(_m_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result[key] = res._value  # noqa
@@ -208,7 +208,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
                 raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=arg.name)))
             continue
         value = arg.value
-        if value == AllParam:
+        if value.alias == "*":
             argv.rollback(may_arg)
             result[arg.name] = argv.converter(argv.release(arg.separators))
             argv.current_index = argv.ndata
@@ -458,12 +458,12 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
             argv.rollback(head_text[len(mat[0]):], replace=True)
             return HeadResult(mat[0], mat[0], True, mat.groupdict(), mapping)
     if isinstance(content, BasePattern):
-        if (val := content.exec(head_text, Empty)).success:
-            return HeadResult(head_text, val.value, True, fixes=mapping)
-        if header.compact and (val := header.compact_pattern.exec(head_text, Empty)).success:
+        if (val := content.validate(head_text)).success:
+            return HeadResult(head_text, val._value, True, fixes=mapping)
+        if header.compact and (val := header.compact_pattern.validate(head_text)).success:
             if _str:
-                argv.rollback(head_text[len(str(val.value)):], replace=True)
-            return HeadResult(val.value, val.value, True, fixes=mapping)
+                argv.rollback(head_text[len(str(val._value)):], replace=True)
+            return HeadResult(val.value, val._value, True, fixes=mapping)
 
     may_cmd, _m_str = argv.next()
     if content.__class__ is list and _m_str:

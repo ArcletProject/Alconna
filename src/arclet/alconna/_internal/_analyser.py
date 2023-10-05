@@ -5,7 +5,7 @@ from re import Match
 from typing import TYPE_CHECKING, Any, Callable, Generic, Set
 from typing_extensions import Self, TypeAlias
 
-from tarina import lang
+from tarina import lang, Empty
 
 from ..action import Action
 from ..args import Args
@@ -74,7 +74,7 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
             if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):  # noqa: E501
                 analyser.compact_params.append(opts)
             _compile_opts(opts, analyser.compile_params)  # type: ignore
-            if opts.default:
+            if opts.default is not Empty:
                 analyser.default_opt_result[opts.dest] = (opts.default, opts.action)
             pids.update(opts.aliases)
         elif isinstance(opts, Subcommand):

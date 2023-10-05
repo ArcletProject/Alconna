@@ -1,5 +1,5 @@
 import time
-from arclet.alconna import Alconna, Args, AnyOne, command_manager, namespace
+from arclet.alconna import Alconna, Args, ANY, command_manager, namespace
 import cProfile
 import pstats
 
@@ -32,7 +32,7 @@ with namespace("test") as np:
     alc = Alconna(
         ["."],
         "test",
-        Args["bar", AnyOne]
+        Args["bar", ANY]
     )
 
 argv = command_manager.resolve(alc)
@@ -74,4 +74,4 @@ if __name__ == "__main__":
     stats = pstats.Stats(prof)
     stats.strip_dirs()
     stats.sort_stats('tottime')
-    stats.print_stats(20)
+    stats.print_stats(40)
