@@ -212,6 +212,7 @@ class CommandManager:
                         continue
                     _src = source.copy()
                     _src['command'] = argv.converter(prefix + source.get('command', str(target.command)))
+                    prefix = re.escape(prefix)
                     self.__shortcuts[f"{namespace}.{name}::{prefix}{key}"] = _src
                     out.append(lang.require("shortcut", "add_success").format(
                         shortcut=f"{prefix}{key}", target=target.path)

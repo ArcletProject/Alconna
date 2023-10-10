@@ -446,6 +446,11 @@ def test_shortcut():
     alc16_4.parse("core16_4 --shortcut test1")
     assert alc16_4.parse("test1").matched
 
+    alc16_5 = Alconna(["*", "+"], "core16_5", Args["foo", bool])
+    alc16_5.shortcut("test", {"prefix": True, "args": ["True"]})
+    assert alc16_5.parse("*core16_5 False").matched
+    assert alc16_5.parse("+test").foo is True
+
 def test_help():
     from arclet.alconna import output_manager
     from arclet.alconna.exceptions import SpecialOptionTriggered

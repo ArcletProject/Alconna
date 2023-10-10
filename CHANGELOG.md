@@ -1,5 +1,10 @@
 # 更新日志
 
+## Alconna 1.7.25
+
+### 修复：
+- 修复 `shortcut` 下 prefix 未转义的问题
+
 ## Alconna 1.7.24
 
 ### 改进：
