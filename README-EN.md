@@ -226,6 +226,16 @@ $ python fuzzy.py /test_fuzzy foo bar
 /test_fuzy not matched. Are you mean "!test_fuzzy"?
 ```
 
+## Examples
+
+| Name          | File                                     |
+|---------------|------------------------------------------|
+| Calculate     | [calculate.py](./example/calculate.py)   |
+| Execute       | [exec_code.py](./example/exec_code.py)   |
+| Request Route | [endpoint.py](./example/endpoint.py)     |
+| Image Search  | [img_search.py](./example/img_search.py) |
+| PIP           | [pip.py](./example/pip.py)               |
+
 ## License
 
 Alconna is licensed under the [MIT License](LICENSE).

@@ -323,7 +323,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             self.header_result = analyse_header(self.command_header, argv)
         except ParamsUnmatched as e:
             _next = e.args[1]
-            if _next.__class__ is not str:
+            if _next.__class__ is not str or not _next:
                 if self.command.meta.raise_exception:
                     raise e
                 return self.export(argv, True, e)

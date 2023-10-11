@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import inspect
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 from functools import lru_cache
 from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Generic, TypeVar, cast, overload
 
-from tarina import Empty, generic_isinstance, get_signature, lang
+from tarina import Empty, generic_isinstance, lang
 from typing_extensions import Self
 
 from .exceptions import BehaveCancelled, OutBoundsBehave
@@ -257,7 +258,10 @@ class Arparma(Generic[TDC]):
             "subcommands": self.subcommands
         }
 
-        for p in get_signature(target):
+        sig = inspect.signature(target)
+        for p in sig.parameters.values():
+            if p.name not in data:
+                continue
             if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD):
                 pos_args.append(data[p.name])
             elif p.kind == p.VAR_POSITIONAL:
@@ -266,7 +270,9 @@ class Arparma(Generic[TDC]):
                 kw_args = {**kw_args, **data[p.name]}
             else:
                 kw_args[p.name] = data[p.name]
-        return target(*pos_args, **kw_args)
+        bind = sig.bind(*pos_args, **kw_args)
+        bind.apply_defaults()
+        return target(*bind.args, **bind.kwargs)
 
     def fail(self, exc: type[BaseException] | BaseException):
         """生成一个失败的 `Arparma`"""
