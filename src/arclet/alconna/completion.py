@@ -127,11 +127,13 @@ class CompSession:
         else:
             argv.raw_data = argv.bak_data.copy()
             argv.addon(input_)
+        argv.raw_data = [i for i in argv.raw_data if i != ""]
         argv.bak_data = argv.raw_data.copy()
         argv.ndata = len(argv.bak_data)
         argv.current_index = 0
         if argv.message_cache:
             argv.token = argv.generate_token(argv.raw_data)
+        argv.origin = argv.converter(argv.raw_data)
         exc = None
         try:
             res = self.source.process(argv)
