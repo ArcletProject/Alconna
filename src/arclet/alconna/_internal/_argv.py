@@ -144,7 +144,6 @@ class Argv(Generic[TDC]):
         Returns:
             Self: 自身
         """
-        self.raw_data = self.bak_data.copy()
         for i, d in enumerate(data):
             if not d:
                 continue
@@ -155,7 +154,6 @@ class Argv(Generic[TDC]):
             else:
                 self.raw_data.append(d)
                 self.ndata += 1
-        self.current_index = 0
         self.bak_data = self.raw_data.copy()
         if self.message_cache:
             self.token = self.generate_token(self.raw_data)
@@ -207,6 +205,24 @@ class Argv(Generic[TDC]):
             self.current_index -= 1
         if replace:
             self.raw_data[self.current_index] = data
+
+    def free(self, separate: tuple[str, ...] | None = None):
+        """将当前位置的数据释放"""
+        separate = separate or self.separators
+        if self.current_index == self.ndata:
+            return
+        _current_data = self.raw_data[self.current_index]
+        if _current_data.__class__ is str:
+            _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)
+            if _rest_text:
+                self.bak_data.insert(self.current_index + 1, _rest_text)
+                self.raw_data.insert(self.current_index + 1, _rest_text)
+                self.ndata += 1
+            self.bak_data[self.current_index] = self.bak_data[self.current_index][:-len(_current_data)]
+            self.raw_data[self.current_index] = ""
+        else:
+            self.bak_data.pop(self.current_index)
+            self.raw_data.pop(self.current_index)
 
     def release(self, separate: tuple[str, ...] | None = None, recover: bool = False) -> list[str | Any]:
         """获取剩余的数据

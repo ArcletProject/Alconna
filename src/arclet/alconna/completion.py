@@ -5,9 +5,10 @@ from typing import TYPE_CHECKING
 
 from tarina import ContextModel, lang
 
-from .exceptions import PauseTriggered
+from .exceptions import PauseTriggered, ParamsUnmatched, SpecialOptionTriggered
 from .manager import command_manager
 from .output import output_manager
+from .arparma import Arparma
 
 if TYPE_CHECKING:
     from .core import Alconna
@@ -19,6 +20,11 @@ class Prompt:
     can_use: bool = field(default=True, hash=False)
     removal_prefix: str | None = field(default=None, hash=False)
 
+@dataclass
+class EnterResult:
+    result: Arparma | None = None
+    exception: Exception | None = None
+
 
 class CompSession:
     """补全会话，用于交互式处理触发的补全选项。
@@ -29,11 +35,13 @@ class CompSession:
         >>> with CompSession(alc) as comp:
         ...     res = alc.parse("test")
         ...
-        >>> if comp.available:
+        >>> while comp.available:
         ...     print(comp.current())
         ...     print(comp.tab())
-        ...     with comp:
-        ...         res = comp.enter()
+        ...     _res = comp.enter()
+        ...     if _res.result:
+        ...         res = _res.result
+        ...         break
         ...
         >>> print(res)
 
@@ -54,6 +62,7 @@ class CompSession:
         self.source = command_manager.require(source)
         self.index = 0
         self.prompts = []
+        self.trigger = None
         self._token = None
 
     @property
@@ -64,7 +73,7 @@ class CompSession:
     def current(self):
         """获取当前选中的补全选项的文本。"""
         if not self.prompts:
-            raise ValueError("No prompt available.")
+            raise ValueError(lang.require("completion", "prompt_empty"))
         return self.prompts[self.index].text
 
     def tab(self, offset: int = 1):
@@ -80,12 +89,12 @@ class CompSession:
             ValueError: 当前没有可用的补全选项。
         """
         if not self.prompts:
-            raise ValueError("No prompt available.")
+            raise ValueError(lang.require("completion", "prompt_empty"))
         self.index += offset
         self.index %= len(self.prompts)
         return self.prompts[self.index].text
 
-    def enter(self, content: list | None = None):
+    def enter(self, content: list | None = None) -> EnterResult:
         """确认当前补全选项。
 
         Args:
@@ -98,23 +107,49 @@ class CompSession:
             ValueError: 当前没有可用的补全选项, 或者当前补全选项不可用。
         """
         argv = command_manager.resolve(self.source.command)
+        _b, _r, _i, _n = argv.bak_data.copy(), argv.raw_data.copy(), argv.current_index, argv.ndata
         if content:
-            argv.addon(content)
-            self.clear()
-            return self.source.process(argv)
-        if not self.prompts:
-            raise ValueError("No prompt available.")
-        prompt = self.prompts[self.index]
-        if not prompt.can_use:
-            raise ValueError("This prompt cannot be used.")
-        if prompt.removal_prefix:
-            last = argv.bak_data[-1]
-            argv.bak_data[-1] = last[
-                : last.rfind(prompt.removal_prefix)
-            ]
-        argv.addon([prompt.text])
-        self.clear()
-        return self.source.process(argv)
+            input_ = content
+        else:
+            if not self.prompts:
+                return EnterResult(exception=ValueError(lang.require("completion", "prompt_empty")))
+            prompt = self.prompts[self.index]
+            if not prompt.can_use:
+                return EnterResult(exception=ValueError(lang.require("completion", "prompt_unavailable")))
+            if prompt.removal_prefix:
+                argv.bak_data[-1] = argv.bak_data[-1][:-len(prompt.removal_prefix)]
+                argv.next(move=True)
+            input_ = [prompt.text]
+        if isinstance(self.trigger, ParamsUnmatched):
+            argv.raw_data = argv.bak_data[:max(_i, 1)]
+            argv.addon(input_)
+            argv.raw_data.extend(_r[max(_i, 1):])
+        else:
+            argv.raw_data = argv.bak_data.copy()
+            argv.addon(input_)
+        argv.bak_data = argv.raw_data.copy()
+        argv.ndata = len(argv.bak_data)
+        argv.current_index = 0
+        if argv.message_cache:
+            argv.token = argv.generate_token(argv.raw_data)
+        exc = None
+        try:
+            res = self.source.process(argv)
+            if not res.matched:
+                exc = res.error_info
+            if isinstance(exc, SpecialOptionTriggered):
+                self.exit()
+                return EnterResult(res)
+        except Exception as e:
+            exc = e
+        if exc:
+            if isinstance(exc, PauseTriggered):
+                self.fresh(exc)
+                return EnterResult(exception=self.trigger if isinstance(self.trigger, ParamsUnmatched) else None)
+            argv.bak_data, argv.raw_data, argv.current_index, argv.ndata = _b, _r, _i, _n
+            return EnterResult(exception=exc)
+        self.exit()
+        return EnterResult(res)  # noqa
 
     def push(self, *suggests: Prompt):
         """添加补全选项。
@@ -135,10 +170,18 @@ class CompSession:
         self.source.reset()
         return self
 
+    def exit(self):
+        """退出补全会话。"""
+        self.clear()
+        if self._token:
+            comp_ctx.reset(self._token)
+            self._token = None
+        return self
+
     def lines(self):
         """获取补全选项的文本列表。"""
         return [
-            f"{'>' if self.index == index else '*'} {sug.text}"
+            f"{'>>' if self.index == index else '*'} {sug.text}"
             for index, sug in enumerate(self.prompts)
         ]
 
@@ -154,12 +197,19 @@ class CompSession:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._token:
-            comp_ctx.reset(self._token)
         if exc_type is PauseTriggered:
-            self.clear()
-            self.push(*exc_val.args[0])
+            self.fresh(exc_val)
             return True
 
+    def fresh(self, exc: PauseTriggered):
+        """刷新补全会话。
+
+        Args:
+            exc (PauseTriggered): 暂停异常。
+        """
+        self.clear()
+        self.push(*exc.args[0])
+        self.trigger = exc.args[1]
+        return True
 
 comp_ctx: ContextModel[CompSession] = ContextModel("comp_ctx")

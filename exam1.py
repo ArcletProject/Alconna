@@ -33,8 +33,11 @@ while interface.available:
             print(interface.tab())
         elif cmd.startswith(".enter"):
             content = cmd[6:].lstrip()
-            with interface:
-                res = interface.enter([content] if content else None)
+            _res = interface.enter([content] if content else None)
+            if _res.result:
+                res = _res.result
+            elif _res.exception:
+                print(_res.exception)
             break
         else:
             print(interface.current())

@@ -358,14 +358,15 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         rest = argv.release()
         if len(rest) > 0:
             if isinstance(rest[-1], str) and rest[-1] in argv.completion_names:
-                last = argv.bak_data[-1]
-                argv.bak_data[-1] = last[:last.rfind(rest[-1])]
+                argv.bak_data[-1] = argv.bak_data[-1][:-len(rest[-1])].rstrip()
                 return handle_completion(self, argv, rest[-2])
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next(move=False)[0]))
         else:
             exc = ArgumentMissing(lang.require("analyser", "param_missing"))
-        if isinstance(exc, ArgumentMissing) and comp_ctx.get(None):
-            raise PauseTriggered(prompt(self, argv))
+        if comp_ctx.get(None):
+            if isinstance(exc, ParamsUnmatched):
+                argv.free(argv.context.separators if argv.context else None)
+            raise PauseTriggered(prompt(self, argv), exc)
         if self.command.meta.raise_exception:
             raise exc
         return self.export(argv, True, exc)
@@ -382,13 +383,14 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         except (ParamsUnmatched, ArgumentMissing) as e1:
             if (rest := argv.release()) and isinstance(rest[-1], str):
                 if rest[-1] in argv.completion_names:
-                    last = argv.bak_data[-1]
-                    argv.bak_data[-1] = last[:last.rfind(rest[-1])]
+                    argv.bak_data[-1] = argv.bak_data[-1][:-len(rest[-1])].rstrip()
                     return handle_completion(self, argv)
                 if handler := argv.special.get(rest[-1]):
                     return _SPECIAL[handler](self, argv)
-            if isinstance(e1, ArgumentMissing) and comp_ctx.get(None):
-                raise PauseTriggered(prompt(self, argv)) from e1
+            if comp_ctx.get(None):
+                if isinstance(e1, ParamsUnmatched):
+                    argv.free(argv.context.separators if argv.context else None)
+                raise PauseTriggered(prompt(self, argv), e1) from e1
             if self.command.meta.raise_exception:
                 raise
             return self.export(argv, True, e1)

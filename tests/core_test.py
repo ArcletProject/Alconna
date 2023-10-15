@@ -528,7 +528,7 @@ def test_completion():
             "off",
             Args["baz", "aaa|aab|abc", Field(completion=lambda: ["aaa", "aab", "abc"])],
         )
-        + Args["test", int, Field(1, completion=lambda: "try -1 ?")]
+        + Args["test", int, Field(1, completion=lambda: "try -1")]
     )
 
     alc20.parse("core20 --comp")
@@ -545,25 +545,56 @@ def test_completion():
 
 def test_completion_interface():
     alc21 = Alconna("core21", Args["foo", int], Args["bar", str])
-    print("\n", "no interface [failed]:", alc21.parse("core21"))
-    print("\n", "interface [pending]:")
+    assert not alc21.parse("core21").matched
     with CompSession(alc21) as comp:
         alc21.parse("core21")
-    if comp.available:
-        print("\n", "current completion:", comp.current())
-        print("\n", "next completion:", comp.tab())
-        with comp:
-            comp.enter(["1"])
-        print("\n", "current completion:", comp.current())
-        assert comp.enter(["a"]).matched
+    assert comp.available
+    assert comp.current() == "<foo: int>"
+    assert comp.tab() == "<foo: int>"
+    res = comp.enter(["1"])
+    assert not res.exception
+    assert comp.current() == "<bar: str>"
+    res1 = comp.enter(["a"])
+    assert res1.result and res1.result.matched
 
-    with CompSession(alc21) as comp:
-        alc21.parse("core21 1 a --comp")
-    if comp.available:
-        print(comp)
-        comp.tab()
-        print(comp)
-        assert not comp.enter(["-h"]).matched
+    alc21_1 = Alconna("core21_1", Args["foo", int], Args["bar", str])
+    with CompSession(alc21_1) as comp:
+        alc21_1.parse("core21_1 aaa bbb")
+    assert comp.available
+    assert comp.current() == "<foo: int>"
+    res = comp.enter(["1"])
+    assert res.result and res.result.matched
+
+    with CompSession(alc21_1) as comp:
+        alc21_1.parse("core21_1 aaa")
+    assert comp.available
+    assert comp.current() == "<foo: int>"
+    comp.enter(["1"])
+    assert comp.current() == "<bar: str>"
+    res = comp.enter(["a"])
+    assert res.result and res.result.matched
+
+    alc21_2 = Alconna("core21_2", Args["foo", int], Args["bar", str])
+    with CompSession(alc21_2) as comp:
+        alc21_2.parse(["core21_2", ..., "bbb"])
+    assert comp.available
+    assert comp.current() == "<foo: int>"
+    res = comp.enter(["1"])
+    assert res.result and res.result.matched
+
+    with CompSession(alc21_2) as comp:
+        alc21_2.parse(["core21_2 123", ...])
+    assert comp.available
+    assert comp.current() == "<bar: str>"
+    res = comp.enter(["a"])
+    assert res.result and res.result.matched
+
+    with CompSession(alc21_2) as comp:
+        alc21_2.parse(["core21_2", 123, ...])
+    assert comp.available
+    assert comp.current() == "<bar: str>"
+    res = comp.enter(["a"])
+    assert res.result and res.result.matched
 
 
 def test_call():

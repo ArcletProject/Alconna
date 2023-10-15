@@ -355,10 +355,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
     _text, _str = argv.next(seps, move=False)
     if _str and _text in argv.special:
         if _text in argv.completion_names:
-            if argv.current_index < argv.ndata:
-                argv.bak_data = argv.bak_data[:argv.current_index+1]
-            last = argv.bak_data[-1]
-            argv.bak_data[-1] = last[:last.rfind(_text)]
+            argv.bak_data[argv.current_index] = argv.bak_data[argv.current_index].replace(_text, "")
         raise SpecialOptionTriggered(argv.special[_text])
     if not _str or not _text:
         _param = None
@@ -633,7 +630,7 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
         else:
             res.append(Prompt(analyser.command.formatter.param(unit), False))
     for opt in filter(
-        lambda x: x.name not in argv.completion_names,
+        lambda x: x.name not in (argv.special if len(analyser.command.options) > 3 else argv.completion_names),
         analyser.command.options,
     ):
         if opt.requires and all(opt.requires[0] not in i for i in got):
@@ -669,7 +666,7 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
     """处理补全选项触发"""
     if res := prompt(analyser, argv, trigger):
         if comp_ctx.get(None):
-            raise PauseTriggered(res)
+            raise PauseTriggered(res, trigger)
         output_manager.send(
             analyser.command.name,
             lambda: f"{lang.require('completion', 'node')}\n* " + "\n* ".join([i.text for i in res]),
