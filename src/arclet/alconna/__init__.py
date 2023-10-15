@@ -49,7 +49,7 @@ from .typing import Nargs as Nargs
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
 
-__version__ = "1.7.26"
+__version__ = "1.7.27"
 
 # backward compatibility
 Arpamar = Arparma

@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 
 from tarina import ContextModel, lang
 
-from .exceptions import PauseTriggered, ParamsUnmatched, SpecialOptionTriggered
+from .arparma import Arparma
+from .exceptions import ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 from .manager import command_manager
 from .output import output_manager
-from .arparma import Arparma
 
 if TYPE_CHECKING:
     from .core import Alconna
