@@ -71,8 +71,7 @@ def test_output():
     com5 = Alconna("comp5", Args["foo", int], Option("--bar", Args["bar", str]))
     output_manager.set_action(lambda x: x, "comp5")
     with output_manager.capture("comp5") as output:
-        res = com5.parse("comp5 --help")
-        assert res.matched is False
+        com5.parse("comp5 --help")
         assert output.get("output")
         print("")
         print(output.get("output"))

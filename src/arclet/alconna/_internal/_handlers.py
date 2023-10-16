@@ -42,11 +42,7 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dic
     if res.flag == 'error':
         if target.optional:
             return
-        raise (
-            ParamsUnmatched(tips)
-            if target.field.unmatch_tips and (tips := target.field.unmatch_tips(arg))
-            else ParamsUnmatched(*res.error.args)
-        )
+        raise ParamsUnmatched(target.field.get_unmatch_tips(arg, res.error.args[0]))
     result[target.name] = res._value  # noqa
 
 def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
@@ -85,11 +81,7 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
         elif value.flag == '*':
             _result = ()
         else:
-            raise ArgumentMissing(
-                tips
-                if arg.field.missing_tips and (tips := arg.field.missing_tips())
-                else lang.require("args", "missing").format(key=key)
-            )
+            raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
     result[key] = tuple(_result)
 
 def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
@@ -124,11 +116,7 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
         elif value.flag == '*':
             _result = {}
         else:
-            raise ArgumentMissing(
-                tips
-                if arg.field.missing_tips and (tips := arg.field.missing_tips())
-                else lang.require("args", "missing").format(key=name)
-            )
+            raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=name)))
     result[name] = _result
 
 def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
@@ -177,11 +165,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             if arg.field.default is not None:
                 result[key] = None if arg.field.default is Empty else arg.field.default
             elif not arg.optional:
-                raise ArgumentMissing(
-                    tips
-                    if arg.field.missing_tips and (tips := arg.field.missing_tips())
-                    else lang.require("args", "missing").format(key=key)
-                )
+                raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
 
 def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
@@ -210,11 +194,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             if (de := arg.field.default) is not None:
                 result[arg.name] = None if de is Empty else de
             elif not arg.optional:
-                raise ArgumentMissing(
-                    tips
-                    if arg.field.missing_tips and (tips := arg.field.missing_tips())
-                    else lang.require("args", "missing").format(key=arg.name)
-                )
+                raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=arg.name)))
             continue
         value = arg.value
         if value == AllParam:
@@ -616,8 +596,7 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
         argv.raw_data[j] = unescape(unit)
 
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
-    if trig.field.completion:
-        comp = trig.field.completion()
+    if comp := trig.field.get_completion():
         if isinstance(comp, str):
             return [Prompt(comp, False)]
         releases = argv.release(recover=True)
@@ -645,8 +624,8 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
     res: list[Prompt] = []
     if not analyser.args_result and analyser.self_args.argument:
         unit = analyser.self_args.argument[0]
-        if gen := unit.field.completion:
-            res.extend([Prompt(comp, False)] if isinstance(comp := gen(), str) else [Prompt(i, False) for i in comp])
+        if comp := unit.field.get_completion():
+            res.extend([Prompt(comp, False)] if isinstance(comp, str) else [Prompt(i, False) for i in comp])
         else:
             res.append(Prompt(analyser.command.formatter.param(unit), False))
     for opt in filter(

@@ -43,17 +43,35 @@ class Field(Generic[_T]):
     """参数单元的默认值"""
     alias: str | None = dc.field(default=None)
     """参数单元默认值的别名"""
-    completion: Callable[[], str | list[str]] | None = dc.field(default=None)
+    completion: Callable[[], str | list[str] | None] | None = dc.field(default=None)
     """参数单元的补全"""
-    unmatch_tips: Callable[[Any], str | None] | None = dc.field(default=None)
+    unmatch_tips: Callable[[Any], str] | None = dc.field(default=None)
     """参数单元的错误提示"""
-    missing_tips: Callable[[], str | None] | None = dc.field(default=None)
+    missing_tips: Callable[[], str] | None = dc.field(default=None)
     """参数单元的缺失提示"""
 
     @property
     def display(self):
         """返回参数单元的显示值"""
         return self.alias or self.default
+
+    def get_completion(self):
+        """返回参数单元的补全"""
+        return None if not self.completion else self.completion()
+
+    def get_unmatch_tips(self, value: Any, fallback: str):
+        """返回参数单元的错误提示"""
+        if not self.unmatch_tips:
+            return fallback
+        gen = self.unmatch_tips(value)
+        return gen or fallback
+
+    def get_missing_tips(self, fallback: str):
+        """返回参数单元的缺失提示"""
+        if not self.missing_tips:
+            return fallback
+        gen = self.missing_tips()
+        return gen or fallback
 
 
 @dc.dataclass(**safe_dcls_kw(init=False, eq=True, unsafe_hash=True, slots=True))

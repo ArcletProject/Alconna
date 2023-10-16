@@ -22,15 +22,18 @@ def test_config():
 
 
 def test_namespace():
-    config.default_namespace.prefixes = [...]
-
     np = Namespace("xxx", prefixes=[...])
     config.default_namespace = np
 
-    with namespace(config.default_namespace.name) as np:
-        np.prefixes = [...]
+    assert config.default_namespace == np
+    assert config.default_namespace.prefixes == [...]
 
-    config.default_namespace.prefixes = []
+    cfg3 = Alconna("cfg3")
+    assert cfg3.parse("cfg3").matched is False
+    assert cfg3.parse([..., "cfg3"]).matched is True
+
+    config.default_namespace = "Alconna"
+
 
 
 if __name__ == '__main__':
