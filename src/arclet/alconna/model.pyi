@@ -12,6 +12,7 @@ class Sentence:
     Attributes:
         name (str): 句段名称
     """
+
     name: str
     def __init__(self, name: str) -> None: ...
 
@@ -22,6 +23,7 @@ class OptionResult:
         value (Any): 选项值
         args (dict[str, Any]): 选项参数解析结果
     """
+
     value: Any
     args: dict[str, Any]
     def __init__(self, value: Any = ..., args: dict[str, Any] | None = ...) -> None: ...
@@ -35,6 +37,7 @@ class SubcommandResult:
         options (dict[str, OptionResult]): 子命令的子选项解析结果
         subcommands (dict[str, SubcommandResult]): 子命令的子子命令解析结果
     """
+
     value: Any
     args: dict[str, Any]
     options: dict[str, OptionResult]
@@ -44,7 +47,7 @@ class SubcommandResult:
         value: Any = ...,
         args: dict[str, Any] | None = ...,
         options: dict[str, OptionResult] | None = ...,
-        subcommands: dict[str, SubcommandResult] | None = ...
+        subcommands: dict[str, SubcommandResult] | None = ...,
     ) -> None: ...
 
 class HeadResult:
@@ -56,6 +59,7 @@ class HeadResult:
         matched (bool): 命令头是否匹配
         groups (dict[str, Any]): 命令头匹配组
     """
+
     origin: Any
     result: Any
     matched: bool
@@ -66,5 +70,5 @@ class HeadResult:
         result: Any = ...,
         matched: bool = ...,
         groups: dict[str, str] | None = ...,
-        fixes: dict[str, BasePattern] | None = ...
+        fixes: dict[str, BasePattern] | None = ...,
     ) -> None: ...

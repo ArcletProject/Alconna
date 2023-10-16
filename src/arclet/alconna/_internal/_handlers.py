@@ -35,13 +35,14 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dic
         return
     default_val = target.field.default
     res = value.invalidate(arg, default_val) if value.anti else value.validate(arg, default_val)
-    if res.flag != 'valid':
+    if res.flag != "valid":
         argv.rollback(arg)
-    if res.flag == 'error':
+    if res.flag == "error":
         if target.optional:
             return
         raise ParamsUnmatched(target.field.get_unmatch_tips(arg, res.error.args[0]))
     result[target.name] = res._value  # noqa
+
 
 def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
     value, arg = args.argument.var_positional
@@ -60,27 +61,25 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             break
-        if (
-            _str and kwonly_seps and
-            split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only
-        ):
+        if _str and kwonly_seps and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:  # noqa: E501
             argv.rollback(may_arg)
             break
         if _str and args.argument.var_keyword and args.argument.var_keyword[0].base.sep in may_arg:  # type: ignore
             argv.rollback(may_arg)
             break
-        if (res := value.base.exec(may_arg)).flag != 'valid':
+        if (res := value.base.exec(may_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result.append(res._value)  # noqa
     if not _result:
         if default_val is not None:
             _result = default_val if isinstance(default_val, Iterable) else ()
-        elif value.flag == '*':
+        elif value.flag == "*":
             _result = ()
         else:
             raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
     result[key] = tuple(_result)
+
 
 def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
     value, arg = args.argument.var_keyword
@@ -98,24 +97,25 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
         if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
             argv.rollback(may_arg)
             break
-        if not (_kwarg := re.match(fr'^(-*[^{value.base.sep}]+){value.base.sep}(.*?)$', may_arg)):
+        if not (_kwarg := re.match(rf"^(-*[^{value.base.sep}]+){value.base.sep}(.*?)$", may_arg)):
             argv.rollback(may_arg)
             break
         key = _kwarg[1]
         if not (_m_arg := _kwarg[2]):
             _m_arg, _ = argv.next(arg.separators)
-        if (res := value.base.base.exec(_m_arg)).flag != 'valid':
+        if (res := value.base.base.exec(_m_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result[key] = res._value  # noqa
     if not _result:
         if default_val is not None:
             _result = default_val if isinstance(default_val, dict) else {}
-        elif value.flag == '*':
+        elif value.flag == "*":
             _result = {}
         else:
             raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=name)))
     result[name] = _result
+
 
 def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
     kwonly_seps = set()
@@ -140,7 +140,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             if args.argument.var_keyword or (_str and may_arg in argv.param_ids):
                 break
             for arg in args.argument.keyword_only.values():
-                if arg.value.base.exec(may_arg).flag == 'valid':  # type: ignore
+                if arg.value.base.exec(may_arg).flag == "valid":  # type: ignore
                     raise ParamsUnmatched(lang.require("args", "key_missing").format(target=may_arg, key=arg.name))
             for name in args.argument.keyword_only:
                 if levenshtein(_key, name) >= config.fuzzy_threshold:
@@ -164,6 +164,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
                 result[key] = None if arg.field.default is Empty else arg.field.default
             elif not arg.optional:
                 raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
+
 
 def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
@@ -236,7 +237,7 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     if opt.compact:
         for al in opt.aliases:
             if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
-                argv.rollback(mat['rest'], replace=True)
+                argv.rollback(mat["rest"], replace=True)
                 error = False
                 break
     elif opt.action.type == 2:
@@ -312,13 +313,13 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
             if param.__class__ is Option:
                 if param.requires and analyser.sentences != param.requires:
                     return lang.require("option", "require_error").format(
-                        source=param.name, target=' '.join(analyser.sentences)
+                        source=param.name, target=" ".join(analyser.sentences)
                     )
                 analyse_option(analyser, argv, param)
             else:
                 if param.command.requires and analyser.sentences != param.command.requires:
                     return lang.require("subcommand", "require_error").format(
-                        source=param.command.name, target=' '.join(analyser.sentences)
+                        source=param.command.name, target=" ".join(analyser.sentences)
                     )
                 try:
                     param.process(argv)
@@ -377,7 +378,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
     if _param.__class__ is Option:
         if _param.requires and analyser.sentences != _param.requires:
             raise ParamsUnmatched(
-                lang.require("option", "require_error").format(source=_param.name, target=' '.join(analyser.sentences))
+                lang.require("option", "require_error").format(source=_param.name, target=" ".join(analyser.sentences))
             )
         analyse_option(analyser, argv, _param)
     elif _param.__class__ is list:
@@ -386,9 +387,11 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             _data, _index = argv.data_set()
             try:
                 if opt.requires and analyser.sentences != opt.requires:
-                    raise ParamsUnmatched(lang.require("option", "require_error").format(
-                        source=opt.name, target=' '.join(analyser.sentences)
-                    ))
+                    raise ParamsUnmatched(
+                        lang.require("option", "require_error").format(
+                            source=opt.name, target=" ".join(analyser.sentences)
+                        )
+                    )
                 analyser.sentences = []
                 analyse_option(analyser, argv, opt)
                 _data.clear()
@@ -403,7 +406,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         if _param.command.requires and analyser.sentences != _param.command.requires:
             raise ParamsUnmatched(
                 lang.require("subcommand", "require_error").format(
-                    source=_param.command.name, target=' '.join(analyser.sentences)
+                    source=_param.command.name, target=" ".join(analyser.sentences)
                 )
             )
         try:
@@ -436,14 +439,14 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
         elif content.__class__ is TPattern and (mat := content.fullmatch(head_text)):
             return HeadResult(head_text, head_text, True, mat.groupdict(), mapping)
         if header.compact and content.__class__ in (set, TPattern) and (mat := header.compact_pattern.match(head_text)):
-            argv.rollback(head_text[len(mat[0]):], replace=True)
+            argv.rollback(head_text[len(mat[0]) :], replace=True)
             return HeadResult(mat[0], mat[0], True, mat.groupdict(), mapping)
     if isinstance(content, BasePattern):
         if (val := content.exec(head_text, Empty)).success:
             return HeadResult(head_text, val.value, True, fixes=mapping)
         if header.compact and (val := header.compact_pattern.exec(head_text, Empty)).success:
             if _str:
-                argv.rollback(head_text[len(str(val.value)):], replace=True)
+                argv.rollback(head_text[len(str(val.value)) :], replace=True)
             return HeadResult(val.value, val.value, True, fixes=mapping)
 
     may_cmd, _m_str = argv.next()
@@ -490,7 +493,7 @@ def handle_help(analyser: Analyser, argv: Argv):
         analyser.command.name,
         lambda: analyser.command.formatter.format_node(_help_param),
     )
-    return analyser.export(argv, True, SpecialOptionTriggered('help'))
+    return analyser.export(argv, True, SpecialOptionTriggered("help"))
 
 
 _args = Args["action?", "delete|list"]["name?", str]["command", str, "$"]
@@ -521,11 +524,12 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
             output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
         output_manager.send(analyser.command.name, lambda: str(e))
-    return analyser.export(argv, True, SpecialOptionTriggered('shortcut'))
+    return analyser.export(argv, True, SpecialOptionTriggered("shortcut"))
 
 
 INDEX_SLOT = re.compile(r"\{%(\d+)\}")
 WILDCARD_SLOT = re.compile(r"\{\*(.*)\}", re.DOTALL)
+
 
 def _gen_extend(data: list, sep: str):
     extend = []
@@ -535,6 +539,7 @@ def _gen_extend(data: list, sep: str):
         else:
             extend.append(slot)
     return extend
+
 
 def _handle_multi_slot(argv: Argv, unit: str, data: list, index: int, current: int, offset: int):
     slot = data[index]
@@ -547,8 +552,9 @@ def _handle_multi_slot(argv: Argv, unit: str, data: list, index: int, current: i
             argv.raw_data[current + 2] = right.strip()
             offset += 1
     else:
-        argv.raw_data[current + offset] =  unescape(unit.replace(f"{{%{index}}}", slot))
+        argv.raw_data[current + offset] = unescape(unit.replace(f"{{%{index}}}", slot))
     return offset
+
 
 def _handle_shortcut_data(argv: Argv, data: list):
     data_len = len(data)
@@ -573,7 +579,7 @@ def _handle_shortcut_data(argv: Argv, data: list):
                 offset = _handle_multi_slot(argv, unit, data, index, i, offset)
                 record.add(index)
         elif mat := WILDCARD_SLOT.search(unit):
-            extend = _gen_extend(data, mat[1] or ' ')
+            extend = _gen_extend(data, mat[1] or " ")
             if unit == f"{{*{mat[1]}}}":
                 argv.raw_data.extend(extend)
             else:
@@ -581,6 +587,7 @@ def _handle_shortcut_data(argv: Argv, data: list):
             data.clear()
             break
     return [unit for i, unit in enumerate(data) if i not in record]
+
 
 def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, str]):
     for j, unit in enumerate(argv.raw_data):
@@ -592,6 +599,7 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
         for k, v in gdict.items():
             unit = unit.replace(f"{{{k}}}", v)
         argv.raw_data[j] = unescape(unit)
+
 
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
     if comp := trig.field.get_completion():
@@ -668,4 +676,4 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
             analyser.command.name,
             lambda: f"{lang.require('completion', 'node')}\n* " + "\n* ".join([i.text for i in res]),
         )
-    return analyser.export(argv, True, SpecialOptionTriggered('completion'))  # type: ignore
+    return analyser.export(argv, True, SpecialOptionTriggered("completion"))  # type: ignore

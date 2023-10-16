@@ -20,6 +20,7 @@ class Prompt:
     can_use: bool = field(default=True, hash=False)
     removal_prefix: str | None = field(default=None, hash=False)
 
+
 @dataclass
 class EnterResult:
     result: Arparma | None = None
@@ -117,13 +118,13 @@ class CompSession:
             if not prompt.can_use:
                 return EnterResult(exception=ValueError(lang.require("completion", "prompt_unavailable")))
             if prompt.removal_prefix:
-                argv.bak_data[-1] = argv.bak_data[-1][:-len(prompt.removal_prefix)]
+                argv.bak_data[-1] = argv.bak_data[-1][: -len(prompt.removal_prefix)]
                 argv.next(move=True)
             input_ = [prompt.text]
         if isinstance(self.trigger, ParamsUnmatched):
-            argv.raw_data = argv.bak_data[:max(_i, 1)]
+            argv.raw_data = argv.bak_data[: max(_i, 1)]
             argv.addon(input_)
-            argv.raw_data.extend(_r[max(_i, 1):])
+            argv.raw_data.extend(_r[max(_i, 1) :])
         else:
             argv.raw_data = argv.bak_data.copy()
             argv.addon(input_)
@@ -182,10 +183,7 @@ class CompSession:
 
     def lines(self):
         """获取补全选项的文本列表。"""
-        return [
-            f"{'>>' if self.index == index else '*'} {sug.text}"
-            for index, sug in enumerate(self.prompts)
-        ]
+        return [f"{'>>' if self.index == index else '*'} {sug.text}" for index, sug in enumerate(self.prompts)]
 
     def __repr__(self):
         return f"{lang.require('completion', 'node')}\n" + "\n".join(self.lines())
@@ -213,5 +211,6 @@ class CompSession:
         self.push(*exc.args[0])
         self.trigger = exc.args[1]
         return True
+
 
 comp_ctx: ContextModel[CompSession] = ContextModel("comp_ctx")

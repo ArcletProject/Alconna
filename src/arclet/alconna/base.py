@@ -65,8 +65,12 @@ class CommandNode:
     """命令节点需求前缀"""
 
     def __init__(
-        self, name: str, args: Arg | Args | None = None,
-        dest: str | None = None, default: Any = None, action: Action | None = None,
+        self,
+        name: str,
+        args: Arg | Args | None = None,
+        dest: str | None = None,
+        default: Any = None,
+        action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
@@ -94,13 +98,9 @@ class CommandNode:
         self.default = default
         self.action = action or store
         _handle_default(self)
-        self.separators = (' ',) if separators is None else (
-            (separators,) if isinstance(separators, str) else tuple(separators)
-        )
+        self.separators = (" ",) if separators is None else ((separators,) if isinstance(separators, str) else tuple(separators))  # noqa: E501
         self.nargs = len(self.args.argument)
-        self.dest = (
-            dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name.lstrip('-')
-        ).lstrip('-')
+        self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name.lstrip("-")).lstrip("-")  # noqa: E501
         self.help_text = help_text or self.dest
         self._hash = self._calc_hash()
 
@@ -157,12 +157,17 @@ class Option(CommandNode):
 
     def __init__(
         self,
-        name: str, args: Arg | Args | None = None, alias: Iterable[str] | None = None,
-        dest: str | None = None, default: Any = None, action: Action | None = None,
+        name: str,
+        args: Arg | Args | None = None,
+        alias: Iterable[str] | None = None,
+        dest: str | None = None,
+        default: Any = None,
+        action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
-        compact: bool = False, priority: int = 0,
+        compact: bool = False,
+        priority: int = 0,
     ):
         """初始化命令选项
 
@@ -191,10 +196,7 @@ class Option(CommandNode):
         self.aliases = frozenset(aliases)
         self.priority = priority
         self.compact = compact
-        default = (
-            None if default is None else
-            default if isinstance(default, OptionResult) else OptionResult(default)
-        )
+        default = None if default is None else default if isinstance(default, OptionResult) else OptionResult(default)
         super().__init__(name, args, dest, default, action, separators, help_text, requires)
         if self.separators == ("",):
             self.compact = True
@@ -221,10 +223,7 @@ class Option(CommandNode):
             TypeError: 如果other不是命令选项或命令节点, 则抛出此异常
         """
         if isinstance(other, Option):
-            return Subcommand(
-                self.name, other, self.args, dest=self.dest,
-                separators=self.separators, help_text=self.help_text, requires=self.requires
-            )
+            return Subcommand(self.name, other, self.args, dest=self.dest, separators=self.separators, help_text=self.help_text, requires=self.requires)  # noqa: E501
         if isinstance(other, (Arg, Args)):
             self.args += other
             self.nargs = len(self.args)
@@ -246,6 +245,7 @@ class Option(CommandNode):
         """
         if isinstance(other, str):
             from .core import Alconna
+
             return Alconna(other, self)
         raise TypeError(f"unsupported operand type(s) for +: '{other.__class__.__name__}' and 'Option'")
 
@@ -255,6 +255,7 @@ class Subcommand(CommandNode):
 
     与命令节点不同, 子命令可以包含多个命令选项与相对于自己的子命令
     """
+
     default: SubcommandResult | None
     """子命令默认值"""
     options: list[Option | Subcommand]
@@ -264,7 +265,8 @@ class Subcommand(CommandNode):
         self,
         name: str,
         *args: Args | Arg | Option | Subcommand | list[Option | Subcommand],
-        dest: str | None = None, default: Any = None,
+        dest: str | None = None,
+        default: Any = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
@@ -285,15 +287,8 @@ class Subcommand(CommandNode):
         for li in args:
             if isinstance(li, list):
                 self.options.extend(li)
-        default = (
-            None if default is None else
-            default if isinstance(default, SubcommandResult) else SubcommandResult(default)
-        )
-        super().__init__(
-            name,
-            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            dest, default, None, separators, help_text, requires
-        )
+        default = None if default is None else (default if isinstance(default, SubcommandResult) else SubcommandResult(default))  # noqa: E501
+        super().__init__(name, reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]), dest, default, None, separators, help_text, requires)  # type: ignore  # noqa: E501
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:
         """连接子命令与命令选项或命令节点
@@ -332,6 +327,7 @@ class Subcommand(CommandNode):
         """
         if isinstance(other, str):
             from .core import Alconna
+
             return Alconna(other, self)
         raise TypeError(f"unsupported operand type(s) for +: '{other.__class__.__name__}' and 'Subcommand'")
 

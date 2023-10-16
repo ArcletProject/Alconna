@@ -1,5 +1,5 @@
 def levenshtein(source: str, target: str) -> float:
-    """ `编辑距离算法`_, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似
+    """`编辑距离算法`_, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似
 
     Args:
         source (str): 源字符串
@@ -33,7 +33,7 @@ def escape(string: str) -> str:
 
 
 def unescape(string: str) -> str:
-    """逆转义字符串, 自动去除空白符 """
+    """逆转义字符串, 自动去除空白符"""
     for k, v in R_ESCAPE.items():
         string = string.replace(k, v)
     return string.strip()

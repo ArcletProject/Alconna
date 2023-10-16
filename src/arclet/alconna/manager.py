@@ -203,22 +203,22 @@ class CommandManager:
         namespace, name = self._command_part(target.path)
         argv = self.resolve(target)
         if isinstance(source, dict):
-            source.setdefault('fuzzy', True)
-            source.setdefault('prefix', False)
+            source.setdefault("fuzzy", True)
+            source.setdefault("prefix", False)
             if source.get("prefix") and target.prefixes:
                 out = []
                 for prefix in target.prefixes:
                     if not isinstance(prefix, str):
                         continue
                     _src = source.copy()
-                    _src['command'] = argv.converter(prefix + source.get('command', str(target.command)))
+                    _src["command"] = argv.converter(prefix + source.get("command", str(target.command)))
                     prefix = re.escape(prefix)
                     self.__shortcuts[f"{namespace}.{name}::{prefix}{key}"] = _src
-                    out.append(lang.require("shortcut", "add_success").format(
-                        shortcut=f"{prefix}{key}", target=target.path)
+                    out.append(
+                        lang.require("shortcut", "add_success").format(shortcut=f"{prefix}{key}", target=target.path)
                     )
                 return "\n".join(out)
-            source['command'] = argv.converter(source.get('command', target.command or target.name))
+            source["command"] = argv.converter(source.get("command", target.command or target.name))
             self.__shortcuts[f"{namespace}.{name}::{key}"] = source
             return lang.require("shortcut", "add_success").format(shortcut=key, target=target.path)
         elif source.matched:
@@ -243,21 +243,17 @@ class CommandManager:
                 continue
             short = self.__shortcuts[i]
             if isinstance(short, dict):
-                result.append(i.split('::')[1] + (" ..." if short.get('fuzzy') else ""))
+                result.append(i.split("::")[1] + (" ..." if short.get("fuzzy") else ""))
             else:
-                result.append(i.split('::')[1])
+                result.append(i.split("::")[1])
         return result
 
     @overload
-    def find_shortcut(
-        self, target: Alconna[TDC]
-    ) -> list[Union[Arparma[TDC], ShortcutArgs]]:
+    def find_shortcut(self, target: Alconna[TDC]) -> list[Union[Arparma[TDC], ShortcutArgs]]:
         ...
 
     @overload
-    def find_shortcut(
-        self, target: Alconna[TDC], query: str
-    ) -> tuple[Arparma[TDC] | ShortcutArgs, Match[str] | None]:
+    def find_shortcut(self, target: Alconna[TDC], query: str) -> tuple[Arparma[TDC] | ShortcutArgs, Match[str] | None]:
         ...
 
     def find_shortcut(self, target: Alconna[TDC], query: str | None = None):
@@ -302,7 +298,7 @@ class CommandManager:
             raise ValueError(command)
         return self.__commands[namespace][name]
 
-    def get_commands(self, namespace: str | Namespace = '') -> list[Alconna]:
+    def get_commands(self, namespace: str | Namespace = "") -> list[Alconna]:
         """获取命令列表"""
         if not namespace:
             return list(self.__analysers.keys())
@@ -312,13 +308,13 @@ class CommandManager:
             return []
         return list(self.__commands[namespace].values())
 
-    def test(self, message: TDC, namespace: str | Namespace = '') -> Arparma[TDC] | None:
+    def test(self, message: TDC, namespace: str | Namespace = "") -> Arparma[TDC] | None:
         """将一段命令给当前空间内的所有命令测试匹配"""
         for cmd in self.get_commands(namespace):
             if (res := cmd.parse(message)) and res.matched:
                 return res
 
-    def broadcast(self, message: TDC, namespace: str | Namespace = '') -> WeakValueDictionary[str, Arparma[TDC]]:
+    def broadcast(self, message: TDC, namespace: str | Namespace = "") -> WeakValueDictionary[str, Arparma[TDC]]:
         """将一段命令给当前空间内的所有命令测试匹配"""
         data = WeakValueDictionary()
         for cmd in self.get_commands(namespace):
@@ -334,7 +330,7 @@ class CommandManager:
         pages: str | None = None,
         footer: str | None = None,
         max_length: int = -1,
-        page: int = 1
+        page: int = 1,
     ) -> str:
         """
         获取所有命令的帮助信息
@@ -349,39 +345,44 @@ class CommandManager:
             page (int, optional): 当前页码. Defaults to 1.
         """
         pages = pages or lang.require("manager", "help_pages")
-        cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
+        cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or "")))
         header = header or lang.require("manager", "help_header")
         if max_length < 1:
-            command_string = "\n".join(
-                f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
-                for index, slot in enumerate(cmds)
-            ) if show_index else "\n".join(
-                f" - {cmd.name} : {cmd.meta.description}"
-                for cmd in cmds
+            command_string = (
+                "\n".join(
+                    f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
+                    for index, slot in enumerate(cmds)
+                )
+                if show_index
+                else "\n".join(f" - {cmd.name} : {cmd.meta.description}" for cmd in cmds)
             )
         else:
             max_page = len(cmds) // max_length + 1
             if page < 1 or page > max_page:
                 page = 1
             header += "\t" + pages.format(current=page, total=max_page)
-            command_string = "\n".join(
-                f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : {cmd.meta.description}"
-                for index, cmd in enumerate(
-                    cmds[(page - 1) * max_length: page * max_length], start=(page - 1) * max_length
+            command_string = (
+                "\n".join(
+                    f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : {cmd.meta.description}"
+                    for index, cmd in enumerate(
+                        cmds[(page - 1) * max_length : page * max_length], start=(page - 1) * max_length
+                    )
                 )
-            ) if show_index else "\n".join(
-                f" - {cmd.name} : {cmd.meta.description}"
-                for cmd in cmds[(page - 1) * max_length: page * max_length]
+                if show_index
+                else "\n".join(
+                    f" - {cmd.name} : {cmd.meta.description}"
+                    for cmd in cmds[(page - 1) * max_length : page * max_length]
+                )
             )
         help_names = set()
         for i in cmds:
-            help_names.update(i.namespace_config.builtin_option_name['help'])
+            help_names.update(i.namespace_config.builtin_option_name["help"])
         footer = footer or lang.require("manager", "help_footer").format(help="|".join(help_names))
         return f"{header}\n{command_string}\n{footer}"
 
     def all_command_raw_help(self, namespace: str | Namespace | None = None) -> dict[str, CommandMeta]:
         """获取所有命令的原始帮助信息"""
-        cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or '')))
+        cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or "")))
         return {cmd.path: copy(cmd.meta) for cmd in cmds}
 
     def command_help(self, command: str) -> str | None:
@@ -434,15 +435,15 @@ class CommandManager:
 
     def __repr__(self):
         return (
-            f"Current: {hex(id(self))} in {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}\n" +
-            "Commands:\n" +
-            f"[{', '.join([cmd.path for cmd in self.get_commands()])}]" +
-            "\nShortcuts:\n" +
-            "\n".join([f" {k} => {v}" for k, v in self.__shortcuts.items()]) +
-            "\nRecords:\n" +
-            "\n".join([f" [{k}]: {v[1].origin}" for k, v in enumerate(self.__record.items()[:20])]) +
-            "\nDisabled Commands:\n" +
-            f"[{', '.join(map(lambda x: x.path, self.__abandons))}]"
+            f"Current: {hex(id(self))} in {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}\n"
+            + "Commands:\n"
+            + f"[{', '.join([cmd.path for cmd in self.get_commands()])}]"
+            + "\nShortcuts:\n"
+            + "\n".join([f" {k} => {v}" for k, v in self.__shortcuts.items()])
+            + "\nRecords:\n"
+            + "\n".join([f" [{k}]: {v[1].origin}" for k, v in enumerate(self.__record.items()[:20])])
+            + "\nDisabled Commands:\n"
+            + f"[{', '.join(map(lambda x: x.path, self.__abandons))}]"
         )
 
 

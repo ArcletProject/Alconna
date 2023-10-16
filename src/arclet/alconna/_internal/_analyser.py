@@ -37,11 +37,7 @@ if TYPE_CHECKING:
     from ..core import Alconna
     from ._argv import Argv
 
-_SPECIAL = {
-    "help": handle_help,
-    "shortcut": handle_shortcut,
-    "completion": handle_completion
-}
+_SPECIAL = {"help": handle_help, "shortcut": handle_shortcut, "completion": handle_completion}
 
 
 def _compile_opts(option: Option, data: dict[str, Sentence | Option | list[Option] | SubAnalyser]):
@@ -76,7 +72,7 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
     """
     for opts in analyser.command.options:
         if isinstance(opts, Option):
-            if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):
+            if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):  # noqa: E501
                 analyser.compact_params.append(opts)
             _compile_opts(opts, analyser.compile_params)  # type: ignore
             if opts.default:
@@ -100,6 +96,7 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
 @dataclass
 class SubAnalyser(Generic[TDC]):
     """子解析器, 用于子命令的解析"""
+
     command: Subcommand
     """子命令"""
     default_main_only: bool = field(default=False)
@@ -157,9 +154,7 @@ class SubAnalyser(Generic[TDC]):
             for k, v in self.default_sub_result.items():
                 if k not in self.subcommands_result:
                     self.subcommands_result[k] = v
-        res = SubcommandResult(
-            self.value_result, self.args_result, self.options_result, self.subcommands_result
-        )
+        res = SubcommandResult(self.value_result, self.args_result, self.options_result, self.subcommands_result)
         self.reset()
         return res
 
@@ -233,6 +228,7 @@ class SubAnalyser(Generic[TDC]):
 
 class Analyser(SubAnalyser[TDC], Generic[TDC]):
     """命令解析器"""
+
     command: Alconna
     """命令实例"""
     used_tokens: set[int]
@@ -252,10 +248,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         self.used_tokens = set()
         self.command_header = Header.generate(alconna.command, alconna.prefixes, alconna.meta.compact)
         compiler = compiler or default_compiler
-        compiler(
-            self,
-            command_manager.resolve(self.command).param_ids
-        )
+        compiler(self, command_manager.resolve(self.command).param_ids)
 
     def _clr(self):
         self.used_tokens.clear()
@@ -285,15 +278,15 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         if isinstance(short, Arparma):
             return short
 
-        argv.build(short.get('command', argv.converter(self.command.command or self.command.name)))
-        if not short.get('fuzzy') and data:
+        argv.build(short.get("command", argv.converter(self.command.command or self.command.name)))
+        if not short.get("fuzzy") and data:
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=data[0]))
             if self.command.meta.raise_exception:
                 raise exc
             return self.export(argv, True, exc)
-        if short.get('fuzzy') and reg and len(trigger) > reg.span()[1]:
-            argv.addon((trigger[reg.span()[1]:],))
-        argv.addon(short.get('args', []))
+        if short.get("fuzzy") and reg and len(trigger) > reg.span()[1]:
+            argv.addon((trigger[reg.span()[1] :],))
+        argv.addon(short.get("args", []))
         data = _handle_shortcut_data(argv, data)
         argv.bak_data = argv.raw_data.copy()
         argv.addon(data)
@@ -318,11 +311,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             ParamsUnmatched: 参数不匹配
             ArgumentMissing: 参数缺失
         """
-        if (
-            argv.message_cache and
-            argv.token in self.used_tokens and
-            (res := command_manager.get_record(argv.token))
-        ):
+        if argv.message_cache and argv.token in self.used_tokens and (res := command_manager.get_record(argv.token)):
             return res
         try:
             self.header_result = analyse_header(self.command_header, argv)
@@ -363,7 +352,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         rest = argv.release()
         if len(rest) > 0:
             if isinstance(rest[-1], str) and rest[-1] in argv.completion_names:
-                argv.bak_data[-1] = argv.bak_data[-1][:-len(rest[-1])].rstrip()
+                argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
                 return handle_completion(self, argv, rest[-2])
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next(move=False)[0]))
         else:
@@ -388,7 +377,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         except (ParamsUnmatched, ArgumentMissing) as e1:
             if (rest := argv.release()) and isinstance(rest[-1], str):
                 if rest[-1] in argv.completion_names:
-                    argv.bak_data[-1] = argv.bak_data[-1][:-len(rest[-1])].rstrip()
+                    argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
                     return handle_completion(self, argv)
                 if handler := argv.special.get(rest[-1]):
                     return _SPECIAL[handler](self, argv)
@@ -404,7 +393,10 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             self.args_result = analyse_args(argv, self.self_args)
 
     def export(
-        self, argv: Argv[TDC], fail: bool = False, exception: BaseException | None = None,
+        self,
+        argv: Argv[TDC],
+        fail: bool = False,
+        exception: BaseException | None = None,
     ) -> Arparma[TDC]:
         """创建 `Arparma` 解析结果, 其一定是一次解析的最后部分
 

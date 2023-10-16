@@ -47,9 +47,10 @@ TDC = TypeVar("TDC", bound=DataCollection[Any])
 
 class KeyWordVar(BasePattern):
     """对具名参数的包装"""
+
     base: BasePattern
 
-    def __init__(self, value: BasePattern | Any, sep: str = '='):
+    def __init__(self, value: BasePattern | Any, sep: str = "="):
         """构建一个具名参数
 
         Args:
@@ -67,14 +68,17 @@ class KeyWordVar(BasePattern):
 
 class _Kw:
     __slots__ = ()
+
     def __getitem__(self, item):
         return KeyWordVar(item)
+
     __matmul__ = __getitem__
     __rmatmul__ = __getitem__
 
 
 class MultiVar(BasePattern):
     """对可变参数的包装"""
+
     base: BasePattern
     flag: Literal["+", "*"]
     length: int
@@ -113,13 +117,14 @@ Kw = _Kw()
 
 class KWBool(BasePattern):
     """对布尔参数的包装"""
+
     ...
 
 
 class UnpackVar(BasePattern):
     """特殊参数，利用dataclass 的 field 生成 arg 信息，并返回dcls"""
 
-    def __init__(self, dcls: Any, kw_only: bool = False, kw_sep: str = '='):
+    def __init__(self, dcls: Any, kw_only: bool = False, kw_sep: str = "="):
         """构建一个可变参数
 
         Args:
@@ -135,7 +140,9 @@ class UnpackVar(BasePattern):
 
 class _Up:
     __slots__ = ()
+
     def __mul__(self, other):
         return UnpackVar(other)
+
 
 Up = _Up()

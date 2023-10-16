@@ -16,6 +16,7 @@ from ..typing import TDC
 @dataclass(repr=True)
 class Argv(Generic[TDC]):
     """命令行参数"""
+
     namespace: InitVar[Namespace] = field(default=config.default_namespace)
     fuzzy_match: bool = field(default=False)
     """当前命令是否模糊匹配"""
@@ -23,7 +24,7 @@ class Argv(Generic[TDC]):
     """命令元素的预处理器"""
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
     """将命令元素转换为文本, 或者返回None以跳过该元素"""
-    separators: tuple[str, ...] = field(default=(' ',))
+    separators: tuple[str, ...] = field(default=(" ",))
     """命令分隔符"""
     filter_out: list[type] = field(default_factory=list)
     """需要过滤掉的命令元素"""
@@ -60,11 +61,11 @@ class Argv(Generic[TDC]):
         self.reset()
         self.special: dict[str, str] = {}
         self.special.update(
-            [(i, "help") for i in namespace.builtin_option_name['help']] +
-            [(i, "completion") for i in namespace.builtin_option_name['completion']] +
-            [(i, "shortcut") for i in namespace.builtin_option_name['shortcut']]
+            [(i, "help") for i in namespace.builtin_option_name["help"]]
+            + [(i, "completion") for i in namespace.builtin_option_name["completion"]]
+            + [(i, "shortcut") for i in namespace.builtin_option_name["shortcut"]]
         )
-        self.completion_names = namespace.builtin_option_name['completion']
+        self.completion_names = namespace.builtin_option_name["completion"]
         if __cache := self.__class__._cache.get(self.__class__, {}):
             self.preprocessors.update(__cache.get("preprocessors") or {})
             self.filter_out.extend(__cache.get("filter_out") or [])
@@ -218,7 +219,7 @@ class Argv(Generic[TDC]):
                 self.bak_data.insert(self.current_index + 1, _rest_text)
                 self.raw_data.insert(self.current_index + 1, _rest_text)
                 self.ndata += 1
-            self.bak_data[self.current_index] = self.bak_data[self.current_index][:-len(_current_data)]
+            self.bak_data[self.current_index] = self.bak_data[self.current_index][: -len(_current_data)]
             self.raw_data[self.current_index] = ""
         else:
             self.bak_data.pop(self.current_index)
@@ -235,10 +236,10 @@ class Argv(Generic[TDC]):
             list[str | Any]: 剩余的数据.
         """
         _result = []
-        data = self.bak_data if recover else self.raw_data[self.current_index:]
+        data = self.bak_data if recover else self.raw_data[self.current_index :]
         for _data in data:
             if _data.__class__ is str:
-                _result.extend(split(_data, separate or (' ',), self.filter_crlf))
+                _result.extend(split(_data, separate or (" ",), self.filter_crlf))
             else:
                 _result.append(_data)
         return _result

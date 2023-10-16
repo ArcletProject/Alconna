@@ -12,8 +12,8 @@ from .args import Args
 from .base import Option, Subcommand
 from .model import OptionResult, SubcommandResult
 
-T = TypeVar('T')
-T_Origin = TypeVar('T_Origin')
+T = TypeVar("T")
+T_Origin = TypeVar("T_Origin")
 
 
 @dataclass(init=True, eq=True)
@@ -43,6 +43,7 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
 @dataclass(init=True)
 class ArgsStub(BaseStub[Args]):
     """参数存根"""
+
     _value: dict[str, Any] = field(default_factory=dict)
     """解析结果"""
 
@@ -92,7 +93,7 @@ class ArgsStub(BaseStub[Args]):
         return len(self._value)
 
     def __getattribute__(self, item):
-        if item not in (_cache := super().__getattribute__('_value')):
+        if item not in (_cache := super().__getattribute__("_value")):
             return super().__getattribute__(item)
         return _cache.get(item, None)
 
@@ -105,6 +106,7 @@ class ArgsStub(BaseStub[Args]):
 @dataclass(init=True)
 class OptionStub(BaseStub[Option]):
     """选项存根"""
+
     args: ArgsStub = field(init=False)
     """选项的参数存根"""
     dest: str = field(init=False)
@@ -116,8 +118,8 @@ class OptionStub(BaseStub[Option]):
 
     def __post_init__(self):
         self.dest = self._origin.dest
-        self.aliases = [alias.lstrip('-') for alias in self._origin.aliases]
-        self.name = self._origin.name.lstrip('-')
+        self.aliases = [alias.lstrip("-") for alias in self._origin.aliases]
+        self.name = self._origin.name.lstrip("-")
         self.args = ArgsStub(self._origin.args)
 
     def set_result(self, result: OptionResult | None):
@@ -131,6 +133,7 @@ class OptionStub(BaseStub[Option]):
 @dataclass(init=True)
 class SubcommandStub(BaseStub[Subcommand]):
     """子命令存根"""
+
     args: ArgsStub = field(init=False)
     """子命令的参数存根"""
     dest: str = field(init=False)
@@ -144,7 +147,7 @@ class SubcommandStub(BaseStub[Subcommand]):
 
     def __post_init__(self):
         self.dest = self._origin.dest
-        self.name = self._origin.name.lstrip('-')
+        self.name = self._origin.name.lstrip("-")
         self.args = ArgsStub(self._origin.args)
         self.options = [OptionStub(opt) for opt in self._origin.options if isinstance(opt, Option)]
         self.subcommands = [SubcommandStub(sub) for sub in self._origin.options if isinstance(sub, Subcommand)]

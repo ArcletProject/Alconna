@@ -5,6 +5,7 @@ from typing import Any
 
 class ActType(IntEnum):
     """节点触发的动作类型"""
+
     STORE = 0
     """无 Args 时, 仅存储一个值, 默认为 Ellipsis; 有 Args 时, 后续的解析结果会覆盖之前的值"""
     APPEND = 1
@@ -22,6 +23,7 @@ class ActType(IntEnum):
 @dataclass(eq=True, frozen=True)
 class Action:
     """节点触发的动作"""
+
     type: ActType
     value: Any
 

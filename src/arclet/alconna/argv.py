@@ -20,7 +20,7 @@ def argv_config(
     to_text: Callable[[Any], str | None] | None = None,
     filter_out: list[type] | None = None,
     checker: Callable[[Any], bool] | None = None,
-    converter: Callable[[str | list], TDC] | None = None
+    converter: Callable[[str | list], TDC] | None = None,
 ):
     """配置命令行参数
 
@@ -32,6 +32,6 @@ def argv_config(
         checker (Callable[[Any], bool] | None, optional): 检查传入命令.
         converter (Callable[[str | list], TDC] | None, optional): 将字符串或列表转为目标命令类型.
     """
-    Argv._cache.setdefault(
-        target or __argv_type__.get(), {}
-    ).update({k: v for k, v in locals().items() if v is not None})
+    Argv._cache.setdefault(target or __argv_type__.get(), {}).update(
+        {k: v for k, v in locals().items() if v is not None}
+    )

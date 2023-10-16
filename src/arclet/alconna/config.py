@@ -24,6 +24,7 @@ class OptionNames(TypedDict):
 @dataclass(init=True, repr=True)
 class Namespace:
     """命名空间配置, 用于规定同一命名空间下的选项的默认配置"""
+
     name: str
     """命名空间名称"""
     prefixes: TPrefixes = field(default_factory=list)
@@ -102,6 +103,7 @@ class namespace(ContextManager[Namespace]):
 
 class _AlconnaConfig:
     """全局配置类"""
+
     command_max_count: int = 200
     """最大命令数量"""
     fuzzy_threshold: float = 0.6

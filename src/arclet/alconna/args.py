@@ -19,7 +19,7 @@ from .typing import KeyWordVar, KWBool, MultiVar, UnpackVar
 
 def safe_dcls_kw(**kwargs):
     if sys.version_info < (3, 10):  # pragma: no cover
-        kwargs.pop('slots')
+        kwargs.pop("slots")
     return kwargs
 
 
@@ -30,7 +30,8 @@ STRING = all_patterns()[str]
 
 class ArgFlag(str, Enum):
     """标识参数单元的特殊属性"""
-    OPTIONAL = '?'
+
+    OPTIONAL = "?"
     HIDDEN = "/"
     ANTI = "!"
 
@@ -57,7 +58,7 @@ class Field(Generic[_T]):
 
     def get_completion(self):
         """返回参数单元的补全"""
-        return None if not self.completion else self.completion()
+        return self.completion() if self.completion else None
 
     def get_unmatch_tips(self, value: Any, fallback: str):
         """返回参数单元的错误提示"""
@@ -112,7 +113,7 @@ class Arg(Generic[_T]):
             notice (str, optional): 参数单元的注释. Defaults to None.
             flags (list[ArgFlag], optional): 参数单元的标识. Defaults to None.
         """
-        if not isinstance(name, str) or name.startswith('$'):
+        if not isinstance(name, str) or name.startswith("$"):
             raise InvalidParam(lang.require("args", "name_error"))
         if not name.strip():
             raise InvalidParam(lang.require("args", "name_empty"))
@@ -148,7 +149,6 @@ class Arg(Generic[_T]):
         if isinstance(other, Arg):
             return Args(self, other)
         raise TypeError(f"unsupported operand type(s) for +: 'Arg' and '{other.__class__.__name__}'")
-    
 
 
 class ArgsMeta(type):
@@ -172,7 +172,9 @@ class ArgsMeta(type):
             return self(*data)
         return self(Arg(key, *data)) if key else self(Arg(*data))  # type: ignore
 
+
 NULL = {Empty: None, None: Empty}
+
 
 class _argument(List[Arg[Any]]):
     def __init__(self, *args, **kwargs):
@@ -182,6 +184,7 @@ class _argument(List[Arg[Any]]):
         self.var_keyword: tuple[MultiVar, Arg[Any]] | None = None
         self.keyword_only: dict[str, Arg[Any]] = {}
         self.unpack: tuple[Arg, Args] | None = None
+
 
 def gen_unpack(var: UnpackVar):
     unpack = Args()
@@ -200,6 +203,7 @@ def gen_unpack(var: UnpackVar):
     var.alias = f"{var.alias}{'()' if unpack.empty else f'{unpack}'[4:]}"
     return unpack
 
+
 class Args(metaclass=ArgsMeta):
     """参数集合
 
@@ -215,6 +219,7 @@ class Args(metaclass=ArgsMeta):
         >>> Args.name[str]
         Args('name': str)
     """
+
     argument: _argument
 
     @classmethod
@@ -242,7 +247,7 @@ class Args(metaclass=ArgsMeta):
             de = NULL.get(de, de)
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
-                    anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith('no'))
+                    anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith('no'))  # noqa: E501
                 anno = KeyWordVar(anno, sep=kw_sep)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")
@@ -346,7 +351,7 @@ class Args(metaclass=ArgsMeta):
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.argument.var_keyword:
                         raise InvalidParam(lang.require("args", "duplicate_kwargs"))
-                    if self.argument.var_positional and arg.value.base.sep in self.argument.var_positional[1].separators:
+                    if self.argument.var_positional and arg.value.base.sep in self.argument.var_positional[1].separators:  # noqa: E501
                         raise InvalidParam("varkey cannot use the same sep as varpos's Arg")
                     self.argument.var_keyword = (arg.value, arg)
                 elif self.argument.var_positional:

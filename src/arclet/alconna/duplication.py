@@ -11,11 +11,13 @@ from .stub import ArgsStub, BaseStub, OptionStub, SubcommandStub
 
 class Duplication:
     """`副本`, 用以更方便的检查、调用解析结果的类。"""
+
     header: dict[str, str]
 
     def __init__(self, target: Arparma):
         from .base import Option, Subcommand
         from .manager import command_manager
+
         source = command_manager.get_command(target.source)
         self.header = target.header.copy()
         for key, value in self.__annotations__.items():
@@ -30,11 +32,11 @@ class Duplication:
                     for option in source.options:
                         if isinstance(option, Option) and option.dest == key:
                             setattr(self, key, OptionStub(option).set_result(target.options.get(key, None)))
-            elif key != 'header':
+            elif key != "header":
                 setattr(self, key, target.all_matched_args.get(key, Empty))
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.__annotations__})'
+        return f"{self.__class__.__name__}({self.__annotations__})"
 
     def option(self, name: str) -> OptionStub | None:
         """获取指定名称的选项存根。"""

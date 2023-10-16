@@ -15,21 +15,29 @@ __all__ = ["set_default", "generate_duplication"]
 def generate_duplication(alc: Alconna) -> type[Duplication]:
     """依据给定的命令生成一个解析结果的检查类。"""
     from .base import Option, Subcommand
+
     options = filter(lambda x: isinstance(x, Option), alc.options)
     subcommands = filter(lambda x: isinstance(x, Subcommand), alc.options)
-    return cast(type[Duplication], type(
-        f"{alc.name.strip('/.-:')}Interface",
-        (Duplication,), {
-            "__annotations__": {
-                "args": ArgsStub,
-                **{opt.dest: OptionStub for opt in options},
-                **{sub.dest: SubcommandStub for sub in subcommands},
-            }
-        }
-    ))
+    return cast(
+        type[Duplication],
+        type(
+            f"{alc.name.strip('/.-:')}Interface",
+            (Duplication,),
+            {
+                "__annotations__": {
+                    "args": ArgsStub,
+                    **{opt.dest: OptionStub for opt in options},
+                    **{sub.dest: SubcommandStub for sub in subcommands},
+                }
+            },
+        ),
+    )
 
 
-class _MISSING_TYPE: pass
+class _MISSING_TYPE:
+    pass
+
+
 MISSING = _MISSING_TYPE()
 
 
@@ -56,17 +64,28 @@ class _SetDefault(ArparmaBehavior):
 
 
 @overload
-def set_default(*, value: Any, path: str,) -> _SetDefault:
+def set_default(
+    *,
+    value: Any,
+    path: str,
+) -> _SetDefault:
     ...
 
 
 @overload
-def set_default(*, factory: Callable[..., Any], path: str,) -> _SetDefault:
+def set_default(
+    *,
+    factory: Callable[..., Any],
+    path: str,
+) -> _SetDefault:
     ...
 
 
 def set_default(
-    *, value: Any = MISSING, factory: Callable[..., Any] = MISSING, path: str | None = None,
+    *,
+    value: Any = MISSING,
+    factory: Callable[..., Any] = MISSING,
+    path: str | None = None,
 ) -> _SetDefault:
     """
     设置一个选项的默认值, 在无该选项时会被设置

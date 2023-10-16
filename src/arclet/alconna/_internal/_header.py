@@ -45,6 +45,7 @@ def handle_bracket(name: str, mapping: dict):
 
 class Pair:
     """用于匹配前缀和命令的配对"""
+
     __slots__ = ("prefix", "pattern", "is_prefix_pat", "gd_supplier", "_match")
 
     def __init__(self, prefix: Any, pattern: TPattern | str):
@@ -58,7 +59,7 @@ class Pair:
                 if command == self.pattern:
                     return command, None
                 if comp and command.startswith(self.pattern):
-                    pbfn(command[len(self.pattern):], replace=True)
+                    pbfn(command[len(self.pattern) :], replace=True)
                     return self.pattern, None
                 return None, None
 
@@ -69,9 +70,10 @@ class Pair:
                 if mat := self.pattern.fullmatch(command):
                     return command, mat
                 if comp and (mat := self.pattern.match(command)):
-                    pbfn(command[len(mat[0]):], replace=True)
+                    pbfn(command[len(mat[0]) :], replace=True)
                     return mat[0], mat
                 return None, None
+
         self._match = _match
 
     def match(self, _pf: Any, command: str, pbfn: Callable[..., ...], comp: bool):
@@ -86,6 +88,7 @@ class Pair:
 
 class Double:
     """用于匹配前缀和命令的组合"""
+
     command: TPattern | BasePattern | str
 
     def __init__(
@@ -126,16 +129,16 @@ class Double:
                 return (pf, cmd), (pf, val.value), True, None
             if comp and (val := self.comp_pattern.exec(cmd, Empty)).success:
                 if c_str:
-                    pbfn(cmd[len(str(val.value)):], replace=True)
-                return (pf, cmd), (pf, cmd[:len(str(val.value))]), True, None
+                    pbfn(cmd[len(str(val.value)) :], replace=True)
+                return (pf, cmd), (pf, cmd[: len(str(val.value))]), True, None
             return
         if (val := self.patterns.exec(pf, Empty)).success:
             if (val2 := self.command.exec(cmd, Empty)).success:
                 return (pf, cmd), (val.value, val2.value), True, None
             if comp and (val2 := self.comp_pattern.exec(cmd, Empty)).success:
                 if c_str:
-                    pbfn(cmd[len(str(val2.value)):], replace=True)
-                return (pf, cmd), (val.value, cmd[:len(str(val2.value))]), True, None
+                    pbfn(cmd[len(str(val2.value)) :], replace=True)
+                return (pf, cmd), (val.value, cmd[: len(str(val2.value))]), True, None
             return
 
     def match1(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
@@ -144,7 +147,7 @@ class Double:
         if (val := self.patterns.exec(pf, Empty)).success and (mat := self.command.fullmatch(cmd)):
             return (pf, cmd), (val.value, cmd), True, mat.groupdict()
         if comp and (mat := self.comp_pattern.match(cmd)):
-            pbfn(cmd[len(mat[0]):], replace=True)
+            pbfn(cmd[len(mat[0]) :], replace=True)
             return (pf, cmd), (pf, mat[0]), True, mat.groupdict()
 
     def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
@@ -160,26 +163,27 @@ class Double:
                 return pf, pf, True, mat.groupdict()
             if comp and (mat := self.comp_pattern.match(pf)):
                 pbfn(cmd)
-                pbfn(pf[len(mat[0]):], replace=True)
+                pbfn(pf[len(mat[0]) :], replace=True)
                 return mat[0], mat[0], True, mat.groupdict()
             if not c_str:
                 return
             if mat := self.prefix.fullmatch((name := pf + cmd)):
                 return name, name, True, mat.groupdict()
             if comp and (mat := self.comp_pattern.match(name)):
-                pbfn(name[len(mat[0]):], replace=True)
+                pbfn(name[len(mat[0]) :], replace=True)
                 return mat[0], mat[0], True, mat.groupdict()
             return
         if (val := self.patterns.exec(pf, Empty)).success:
             if mat := self.command.fullmatch(cmd):
                 return (pf, cmd), (val.value, cmd), True, mat.groupdict()
             if comp and (mat := self.command.match(cmd)):
-                pbfn(cmd[len(mat[0]):], replace=True)
+                pbfn(cmd[len(mat[0]) :], replace=True)
                 return (pf, cmd), (val.value, mat[0]), True, mat.groupdict()
 
 
 class Header:
     """命令头部的匹配表达式"""
+
     __slots__ = ("origin", "content", "mapping", "compact", "compact_pattern")
 
     def __init__(
@@ -215,10 +219,10 @@ class Header:
                 return cls((command, prefixes), cmd, mapping, compact, re.compile(f"^{_cmd}"))
             if isinstance(prefixes[0], tuple):
                 return cls(
-                    (command, prefixes), [
-                        Pair(h[0], re.compile(re.escape(h[1]) + _cmd) if to_regex else h[1] + _cmd)
-                        for h in prefixes
-                    ], mapping, compact
+                    (command, prefixes),
+                    [Pair(h[0], re.compile(re.escape(h[1]) + _cmd) if to_regex else h[1] + _cmd) for h in prefixes],
+                    mapping,
+                    compact,
                 )
             if all(isinstance(h, str) for h in prefixes):
                 prf = "|".join(re.escape(h) for h in prefixes)

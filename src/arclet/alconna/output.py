@@ -9,6 +9,7 @@ from weakref import finalize
 @dataclass(init=True, unsafe_hash=True)
 class Sender:
     """发送器"""
+
     action: Callable[..., Any]
     """发送行为函数"""
     generator: Callable[[], str]
@@ -23,6 +24,7 @@ class Sender:
 @dataclass
 class OutputManager:
     """命令输出管理器"""
+
     cache: dict[str, Callable] = field(default_factory=dict)
     """缓存的输出行为"""
     outputs: dict[str, Sender] = field(default_factory=dict)

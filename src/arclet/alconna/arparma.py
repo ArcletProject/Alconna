@@ -14,9 +14,9 @@ from .exceptions import BehaveCancelled, OutBoundsBehave
 from .model import HeadResult, OptionResult, SubcommandResult
 from .typing import TDC
 
-T = TypeVar('T')
-T1 = TypeVar('T1')
-D = TypeVar('D')
+T = TypeVar("T")
+T1 = TypeVar("T1")
+D = TypeVar("D")
 
 
 def _handle_opt(_pf: str, _parts: list[str], _opts: dict[str, OptionResult]):
@@ -29,7 +29,7 @@ def _handle_opt(_pf: str, _parts: list[str], _opts: dict[str, OptionResult]):
         return _opts, _pf
     if (_end := _parts.pop(0)) == "value":
         return __src, _end
-    if _end == 'args':
+    if _end == "args":
         return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
     return __src.args, _end
 
@@ -44,7 +44,7 @@ def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult])
         return _subs, _pf
     if (_end := _parts.pop(0)) == "value":
         return __src, _end
-    if _end == 'args':
+    if _end == "args":
         return (__src.args, _parts.pop(0)) if _parts else (__src, _end)
     if _end == "options" and (_end in __src.options or not _parts):
         raise RuntimeError(lang.require("arparma", "ambiguous_name").format(target=f"{_pf}.{_end}"))
@@ -59,6 +59,7 @@ def _handle_sub(_pf: str, _parts: list[str], _subs: dict[str, SubcommandResult])
 
 class _Query(Generic[T]):
     source: Arparma
+
     def __get__(self, instance: Arparma, owner: type) -> _Query[T]:
         self.source = instance
         return self
@@ -77,19 +78,20 @@ class _Query(Generic[T]):
     def __call__(self, path: str, default: D) -> T | D:
         ...
 
-    def __call__(self, path: str, default: D | None = None) ->  T | D | None:
+    def __call__(self, path: str, default: D | None = None) -> T | D | None:
         """查询 `Arparma` 中的数据
 
         Args:
             path (str): 要查询的路径
             default (T | None, optional): 如果查询失败, 则返回该值
         """
-        source, endpoint = self.source.__require__(path.split('.'))
+        source, endpoint = self.source.__require__(path.split("."))
         if source is None:
             return default
         if isinstance(source, (OptionResult, SubcommandResult)):
             return getattr(source, endpoint, default) if endpoint else source  # type: ignore
         return source.get(endpoint, default) if endpoint else MappingProxyType(source)  # type: ignore
+
 
 class Arparma(Generic[TDC]):
     """承载解析结果与操作数据的接口类
@@ -105,6 +107,7 @@ class Arparma(Generic[TDC]):
         options (dict[str, OptionResult]): 选项匹配结果
         subcommands (dict[str, SubcommandResult]): 子命令匹配结果
     """
+
     header_match: HeadResult
     options: dict[str, OptionResult]
     subcommands: dict[str, SubcommandResult]
@@ -186,6 +189,7 @@ class Arparma(Generic[TDC]):
     def token(self) -> int:
         """返回命令的 Token"""
         from .manager import command_manager
+
         return command_manager.get_token(self)
 
     def _unpack_opts(self, _data):
@@ -255,7 +259,7 @@ class Arparma(Generic[TDC]):
             **self.all_matched_args,
             "all_args": self.all_matched_args,
             "options": self.options,
-            "subcommands": self.subcommands
+            "subcommands": self.subcommands,
         }
 
         sig = inspect.signature(target)
@@ -286,8 +290,8 @@ class Arparma(Generic[TDC]):
                 if part in src:
                     return src, part
             if part in {"options", "subcommands", "main_args", "other_args"}:
-                return getattr(self, part, {}), ''
-            return (self.all_matched_args, '') if part == "args" else (None, part)
+                return getattr(self, part, {}), ""
+            return (self.all_matched_args, "") if part == "args" else (None, part)
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
             raise RuntimeError(lang.require("arparma", "ambiguous_name").format(target=prefix))
@@ -300,7 +304,8 @@ class Arparma(Generic[TDC]):
             return getattr(self, prefix, {}), parts.pop(0)
         return None, prefix
 
-    def query_with(self, arg_type: type[T], *args): return self.query[arg_type](*args)
+    def query_with(self, arg_type: type[T], *args):
+        return self.query[arg_type](*args)
 
     def find(self, path: str) -> bool:
         """查询路径是否存在
@@ -345,7 +350,7 @@ class Arparma(Generic[TDC]):
         return next(i for i in self.all_matched_args.values() if generic_isinstance(i, item))
 
     def __getattr__(self, item: str):
-        return self.all_matched_args.get(item, self.query(item.replace('_', '.')))
+        return self.all_matched_args.get(item, self.query(item.replace("_", ".")))
 
     def __repr__(self):
         if not self.matched:
@@ -353,9 +358,12 @@ class Arparma(Generic[TDC]):
             return ", ".join([f"{a}={v}" for a, v in attrs])
         else:
             attrs = {
-                "matched": self.matched, "header_match": self.header_match,
-                "options": self.options, "subcommands": self.subcommands,
-                "main_args": self.main_args, "other_args": self.other_args
+                "matched": self.matched,
+                "header_match": self.header_match,
+                "options": self.options,
+                "subcommands": self.subcommands,
+                "main_args": self.main_args,
+                "other_args": self.other_args,
             }
             return ", ".join([f"{a}={v}" for a, v in attrs.items() if v])
 
@@ -367,6 +375,7 @@ class ArparmaBehavior(metaclass=ABCMeta):
     Attributes:
         requires (list[ArparmaBehavior]): 该行为器所依赖的行为器
     """
+
     record: dict[int, dict[str, tuple[Any, Any]]] = field(default_factory=dict, init=False, repr=False, hash=False)
     requires: list[ArparmaBehavior] = field(init=False, hash=False, repr=False)
 
@@ -404,6 +413,7 @@ class ArparmaBehavior(metaclass=ABCMeta):
             path (str): 要更新的路径
             value (Any): 要更新的值
         """
+
         def _update(tkn, src, pth, ep, val):
             _record = self.record.setdefault(tkn, {})
             if isinstance(src, dict):
@@ -426,7 +436,7 @@ class ArparmaBehavior(metaclass=ABCMeta):
 @lru_cache(4096)
 def requirement_handler(behavior: ArparmaBehavior) -> list[ArparmaBehavior]:
     res = []
-    for b in getattr(behavior, 'requires', []):
+    for b in getattr(behavior, "requires", []):
         res.extend(requirement_handler(b))
     res.append(behavior)
     return res
