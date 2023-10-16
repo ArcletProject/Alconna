@@ -803,6 +803,27 @@ def test_conflict():
     res8 = core26_1.parse("core26_1 --baz --qux")
     assert res8.matched
 
+def test_tips():
+    from typing import Literal
+
+    core27 = Alconna(
+        "core27",
+        Arg(
+            "arg1",
+            Literal["1", "2"],
+            Field( unmatch_tips=lambda x: f"参数arg必须是1或2哦，不能是{x}"),
+        ) + Arg(
+            "arg2",Literal["1", "2"],
+            Field(missing_tips=lambda: "缺少了arg参数哦"),
+        )
+    )
+    assert core27.parse("core27 1 1").matched
+    assert str(core27.parse("core27 3 1").error_info) == "参数arg必须是1或2哦，不能是3"
+    assert str(core27.parse("core27 1").error_info) == "缺少了arg参数哦"
+    assert str(core27.parse("core27 1 3").error_info) == "参数 3 不正确"
+    assert str(core27.parse("core27").error_info) == "参数 arg1 丢失"
+
+
 if __name__ == "__main__":
 
     pytest.main([__file__, "-vs"])
