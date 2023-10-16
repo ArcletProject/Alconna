@@ -1,5 +1,13 @@
 # 更新日志
 
+## Alconna 1.7.29
+
+### 新增
+- 可通过 `Arg.field` 添加关于参数的自定义错误提示 by @CMHopeSunshine in https://github.com/ArcletProject/Alconna/pull/81
+
+### 修复
+- 修复 `UnpackVar` 的 `kw_only` 参数未生效的问题
+
 ## Alconna 1.7.28
 
 ### 修复

@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - dev
+      - v2dev
+      - main
   pull_request:
 
 jobs:
