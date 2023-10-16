@@ -176,7 +176,7 @@ def gen_unpack(var: UnpackVar):
             _de = Empty
         _de = NULL.get(_de, _de)
         _type = field.type
-        if getattr(field, "kw_only", var.kw_only):
+        if getattr(field, "kw_only", None) or var.kw_only:
             _type = KeyWordVar(_type, sep=var.kw_sep)
         unpack.add(field.name, value=_type, default=_de)
     var.alias = f"{var.alias}{'()' if unpack.empty else f'{unpack}'[4:]}"
