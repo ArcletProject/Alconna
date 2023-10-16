@@ -7,14 +7,14 @@ import sys
 from copy import deepcopy
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, Type, List
+from typing import Any, Callable, Generic, Iterable, List, Sequence, Type, TypeVar, Union
+from typing_extensions import Self, TypeAlias
 
 from nepattern import AllParam, AnyOne, BasePattern, MatchMode, RawStr, UnionPattern, all_patterns, type_parser
 from tarina import Empty, get_signature, lang
-from typing_extensions import Self, TypeAlias
 
 from .exceptions import InvalidParam
-from .typing import KeyWordVar, MultiVar, KWBool, UnpackVar
+from .typing import KeyWordVar, KWBool, MultiVar, UnpackVar
 
 
 def safe_dcls_kw(**kwargs):

@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from re import Match
 from typing import TYPE_CHECKING, Any, Callable, Generic, Set
+from typing_extensions import Self, TypeAlias
 
 from tarina import lang
-from typing_extensions import Self, TypeAlias
 
 from ..action import Action
 from ..args import Args
@@ -13,17 +13,22 @@ from ..arparma import Arparma
 from ..base import Option, Subcommand
 from ..completion import comp_ctx
 from ..config import config
-from ..exceptions import (
-    ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
-)
+from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 from ..manager import ShortcutArgs, command_manager
 from ..model import HeadResult, OptionResult, Sentence, SubcommandResult
 from ..output import output_manager
 from ..typing import TDC
 from ._handlers import (
-    analyse_args, analyse_header, analyse_param,
-    handle_completion, handle_help, handle_opt_default,
-    handle_shortcut, prompt, _handle_shortcut_data, _handle_shortcut_reg
+    _handle_shortcut_data,
+    _handle_shortcut_reg,
+    analyse_args,
+    analyse_header,
+    analyse_param,
+    handle_completion,
+    handle_help,
+    handle_opt_default,
+    handle_shortcut,
+    prompt,
 )
 from ._header import Header
 from ._util import levenshtein

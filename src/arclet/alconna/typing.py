@@ -1,7 +1,7 @@
 """Alconna 参数相关"""
 from __future__ import annotations
 
-from dataclasses import dataclass, field, is_dataclass, fields
+from dataclasses import dataclass, field, fields, is_dataclass
 from typing import Any, Dict, Iterator, List, Literal, Protocol, Tuple, TypeVar, Union, runtime_checkable
 
 from nepattern import BasePattern, MatchMode, type_parser

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 _repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__]) + ")"
 
 

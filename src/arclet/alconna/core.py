@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
+from typing_extensions import Self
 
 from tarina import init_spec, lang
-from typing_extensions import Self
 
 from ._internal._analyser import Analyser, TCompile
 from .args import Arg, Args

@@ -12,14 +12,12 @@ from ..args import STRING, Arg, Args
 from ..base import Option, Subcommand
 from ..completion import Prompt, comp_ctx
 from ..config import config
-from ..exceptions import (
-    ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
-)
+from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
 from ..typing import KWBool
 from ._header import Double, Header
-from ._util import levenshtein, escape, unescape
+from ._util import escape, levenshtein, unescape
 
 if TYPE_CHECKING:
     from ._analyser import Analyser, SubAnalyser

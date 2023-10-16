@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Generic, TypeVar, cast, overload
+from typing_extensions import Self
 
 from tarina import Empty, generic_isinstance, lang
-from typing_extensions import Self
 
 from .exceptions import BehaveCancelled, OutBoundsBehave
 from .model import HeadResult, OptionResult, SubcommandResult

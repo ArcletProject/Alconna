@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, overload, cast
+from typing import Any, Callable, cast, overload
 
 from .arparma import Arparma, ArparmaBehavior
 from .core import Alconna
 from .duplication import Duplication
-from .stub import ArgsStub, OptionStub, SubcommandStub
 from .exceptions import BehaveCancelled
+from .stub import ArgsStub, OptionStub, SubcommandStub
 
 __all__ = ["set_default", "generate_duplication"]
 

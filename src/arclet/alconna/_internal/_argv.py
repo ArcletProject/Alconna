@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import InitVar, dataclass, field
 from typing import Any, Callable, ClassVar, Generic, Iterable
+from typing_extensions import Self
 
 from tarina import lang, split, split_once
-from typing_extensions import Self
 
 from ..args import Arg
 from ..base import Option, Subcommand

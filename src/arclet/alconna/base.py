@@ -1,12 +1,12 @@
 """Alconna 的基础内容相关"""
 from __future__ import annotations
 
-from functools import reduce
 from dataclasses import replace
+from functools import reduce
 from typing import Any, Iterable, Sequence, overload
+from typing_extensions import Self
 
 from tarina import lang
-from typing_extensions import Self
 
 from .action import Action, store
 from .args import Arg, Args

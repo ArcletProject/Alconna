@@ -10,8 +10,8 @@ from nepattern import BasePattern, UnionPattern, all_patterns, type_parser
 from nepattern.util import TPattern
 from tarina import Empty, lang
 
-from ._util import escape, unescape
 from ..typing import TPrefixes
+from ._util import escape, unescape
 
 
 def handle_bracket(name: str, mapping: dict):
