@@ -45,6 +45,10 @@ class Field(Generic[_T]):
     """参数单元默认值的别名"""
     completion: Callable[[], str | list[str]] | None = dc.field(default=None)
     """参数单元的补全"""
+    unmatch_tips: Callable[[Any], str | None] | None = dc.field(default=None)
+    """参数单元的错误提示"""
+    missing_tips: Callable[[], str | None] | None = dc.field(default=None)
+    """参数单元的缺失提示"""
 
     @property
     def display(self):

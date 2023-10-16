@@ -42,7 +42,11 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dic
     if res.flag == 'error':
         if target.optional:
             return
-        raise ParamsUnmatched(*res.error.args)
+        raise (
+            ParamsUnmatched(tips)
+            if target.field.unmatch_tips and (tips := target.field.unmatch_tips(arg))
+            else ParamsUnmatched(*res.error.args)
+        )
     result[target.name] = res._value  # noqa
 
 def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
@@ -81,7 +85,11 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
         elif value.flag == '*':
             _result = ()
         else:
-            raise ArgumentMissing(lang.require("args", "missing").format(key=key))
+            raise ArgumentMissing(
+                tips
+                if arg.field.missing_tips and (tips := arg.field.missing_tips())
+                else lang.require("args", "missing").format(key=key)
+            )
     result[key] = tuple(_result)
 
 def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
@@ -116,7 +124,11 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
         elif value.flag == '*':
             _result = {}
         else:
-            raise ArgumentMissing(lang.require("args", "missing").format(key=name))
+            raise ArgumentMissing(
+                tips
+                if arg.field.missing_tips and (tips := arg.field.missing_tips())
+                else lang.require("args", "missing").format(key=name)
+            )
     result[name] = _result
 
 def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
@@ -165,7 +177,11 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             if arg.field.default is not None:
                 result[key] = None if arg.field.default is Empty else arg.field.default
             elif not arg.optional:
-                raise ArgumentMissing(lang.require("args", "missing").format(key=key))
+                raise ArgumentMissing(
+                    tips
+                    if arg.field.missing_tips and (tips := arg.field.missing_tips())
+                    else lang.require("args", "missing").format(key=key)
+                )
 
 def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
@@ -194,7 +210,11 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             if (de := arg.field.default) is not None:
                 result[arg.name] = None if de is Empty else de
             elif not arg.optional:
-                raise ArgumentMissing(lang.require("args", "missing").format(key=arg.name))
+                raise ArgumentMissing(
+                    tips
+                    if arg.field.missing_tips and (tips := arg.field.missing_tips())
+                    else lang.require("args", "missing").format(key=arg.name)
+                )
             continue
         value = arg.value
         if value == AllParam:
