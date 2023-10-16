@@ -19,7 +19,7 @@ def generate_duplication(alc: Alconna) -> type[Duplication]:
     options = filter(lambda x: isinstance(x, Option), alc.options)
     subcommands = filter(lambda x: isinstance(x, Subcommand), alc.options)
     return cast(
-        type[Duplication],
+        "type[Duplication]",
         type(
             f"{alc.name.strip('/.-:')}Interface",
             (Duplication,),
