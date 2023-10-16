@@ -45,6 +45,10 @@ class Field(Generic[_T]):
     """参数单元默认值的别名"""
     completion: Callable[[], str | list[str]] | None = dc.field(default=None)
     """参数单元的补全"""
+    unmatch_tips: Callable[[Any], str | None] | None = dc.field(default=None)
+    """参数单元的错误提示"""
+    missing_tips: Callable[[], str | None] | None = dc.field(default=None)
+    """参数单元的缺失提示"""
 
     @property
     def display(self):
@@ -172,7 +176,7 @@ def gen_unpack(var: UnpackVar):
             _de = Empty
         _de = NULL.get(_de, _de)
         _type = field.type
-        if getattr(field, "kw_only", var.kw_only):
+        if getattr(field, "kw_only", None) or var.kw_only:
             _type = KeyWordVar(_type, sep=var.kw_sep)
         unpack.add(field.name, value=_type, default=_de)
     var.alias = f"{var.alias}{'()' if unpack.empty else f'{unpack}'[4:]}"
