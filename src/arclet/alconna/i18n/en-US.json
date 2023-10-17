@@ -9,7 +9,7 @@
     "prompt_unavailable": "This prompt cannot be used."
   },
   "fuzzy": {
-    "matched": "{target} is not matched. Do you mean \"{source}\"?"
+    "matched": "\"{target}\" is not matched. Do you mean \"{source}\"?"
   },
   "action": {
     "length_error": "The count of arguments of this action must same as the given Args",

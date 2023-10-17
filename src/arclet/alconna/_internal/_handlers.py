@@ -460,27 +460,30 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
         return HeadResult(*res, fixes=mapping)
     if _str:
         argv.rollback(may_cmd)
-        source = head_text
-    elif _m_str and may_cmd:
-        source = may_cmd
-    else:
-        argv.rollback(may_cmd)
-        raise ParamsUnmatched(lang.require("header", "error").format(target=head_text), None)
-    if argv.fuzzy_match:
-        _handle_fuzzy(header, source)
-    raise ParamsUnmatched(lang.require("header", "error").format(target=source), source)
+        if argv.fuzzy_match:
+            _handle_fuzzy(header, head_text)
+        raise ParamsUnmatched(lang.require("header", "error").format(target=head_text), head_text)
+    if _m_str and may_cmd:
+        if argv.fuzzy_match:
+            _handle_fuzzy(header, f"{head_text} {may_cmd}")
+        raise ParamsUnmatched(lang.require("header", "error").format(target=may_cmd), may_cmd)
+    argv.rollback(may_cmd)
+    raise ParamsUnmatched(lang.require("header", "error").format(target=head_text), None)
 
 
-def _handle_fuzzy(header, source):
+def _handle_fuzzy(header: Header, source: str):
     command = header.origin[0]
-    _prefixes = [i for i in header.origin[1] if i.__class__ is str]
-    headers_text = []
-    if _prefixes and _prefixes != [""]:
-        headers_text.extend(f"{i}{command}" for i in _prefixes)
-    elif command:
-        headers_text.append(str(command))
-    if source == command:
-        raise ParamsUnmatched(lang.require("header", "error").format(target=source))
+    if not header.origin[1]:
+        headers_text = [str(command)]
+    else:
+        headers_text = []
+        for prefix in header.origin[1]:
+            if isinstance(prefix, tuple):
+                headers_text.append(f"{prefix[0]} {prefix[1]}{command}")
+            elif isinstance(prefix, str):
+                headers_text.append(f"{prefix}{command}")
+            else:
+                headers_text.append(f"{prefix} {command}")
     for ht in headers_text:
         if levenshtein(source, ht) >= config.fuzzy_threshold:
             raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(target=source, source=ht))

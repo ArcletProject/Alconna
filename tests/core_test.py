@@ -286,16 +286,13 @@ def test_alconna_add_option():
 
 def test_from_callable():
     def test(wild, text: str, num: int, boolean: bool = False):
-        print("wild:", wild)
-        print("text:", text)
-        print("num:", num)
-        print("boolean:", boolean)
+        assert wild == "abc"
+        assert text == "def"
+        assert num == 123
+        assert not boolean
 
     alc9 = Alconna("core9", Args.from_callable(test)[0])
-    print("")
-    print("alc9: -----------------------------")
     alc9.parse("core9 abc def 123 False").call(test)
-    print("alc9: -----------------------------")
 
 
 def test_alconna_synthesise():
@@ -375,9 +372,42 @@ def test_alconna_group():
 
 
 def test_fuzzy():
+    from arclet.alconna import output_manager
     alc15 = Alconna("!core15", Args["foo", str], meta=CommandMeta(fuzzy_match=True))
-    assert alc15.parse("core15 foo bar").matched is False
-    assert alc15.parse([1, "core15", "foo", "bar"]).matched is False
+    with output_manager.capture("!core15") as cap:
+        output_manager.set_action(lambda x: x, "!core15")
+        res = alc15.parse("core15 foo bar")
+        assert res.matched is False
+        assert cap["output"] == '无法解析 "core15"。您想要输入的是不是 "!core15" ?'
+    with output_manager.capture("!core15") as cap:
+        output_manager.set_action(lambda x: x, "!core15")
+        res1 = alc15.parse([1, "core15", "foo", "bar"])
+        assert res1.matched is False
+        assert cap["output"] == '无法解析 "1 core15"。您想要输入的是不是 "!core15" ?'
+
+    alc15_1 = Alconna(["/"], "core15_1", meta=CommandMeta(fuzzy_match=True))
+    with output_manager.capture("core15_1") as cap:
+        output_manager.set_action(lambda x: x, "core15_1")
+        res2 = alc15_1.parse("core15_1")
+        assert res2.matched is False
+        assert cap["output"] == '无法解析 "core15_1"。您想要输入的是不是 "/core15_1" ?'
+    with output_manager.capture("core15_1") as cap:
+        output_manager.set_action(lambda x: x, "core15_1")
+        res2 = alc15_1.parse("@core15_1")
+        assert res2.matched is False
+        assert cap["output"] == '无法解析 "@core15_1"。您想要输入的是不是 "/core15_1" ?'
+
+    alc15_2 = Alconna([1], "core15_2", meta=CommandMeta(fuzzy_match=True))
+    with output_manager.capture("core15_2") as cap:
+        output_manager.set_action(lambda x: x, "core15_2")
+        res4 = alc15_2.parse("/core15_2")
+        assert res4.matched is False
+        assert cap["output"] == '无法解析 "/core15_2"。您想要输入的是不是 "1 core15_2" ?'
+    with output_manager.capture("core15_2") as cap:
+        output_manager.set_action(lambda x: x, "core15_2")
+        res5 = alc15_2.parse([2, "core15_2"])
+        assert res5.matched is False
+        assert cap["output"] == '无法解析 "2 core15_2"。您想要输入的是不是 "1 core15_2" ?'
 
 
 def test_shortcut():
