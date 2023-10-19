@@ -85,13 +85,10 @@ class TextFormatter:
         self.ignore_names.update(base.namespace_config.builtin_option_name["help"])
         self.ignore_names.update(base.namespace_config.builtin_option_name["shortcut"])
         self.ignore_names.update(base.namespace_config.builtin_option_name["completion"])
-        pfs = base.prefixes.copy()
-        if base.name in pfs:
-            pfs.remove(base.name)  # type: ignore
         res = Trace(
             {
-                "name": base.name,
-                "prefix": pfs or [],
+                "name": base.header_display,
+                "prefix": [],
                 "description": base.meta.description,
                 "usage": base.meta.usage,
                 "example": base.meta.example,
@@ -141,7 +138,7 @@ class TextFormatter:
                     )
             if isinstance(_cache, Option):
                 return self.format(
-                    Trace({"name": "", "prefix": list(_cache.aliases), "description": _cache.help_text}, _cache.args, _cache.separators, [])  # noqa: E501
+                    Trace({"name": "│".join(_cache.aliases), "prefix": [], "description": _cache.help_text}, _cache.args, _cache.separators, [])  # noqa: E501
                 )
             if isinstance(_cache, Subcommand):
                 return self.format(
@@ -157,10 +154,17 @@ class TextFormatter:
         Args:
             trace (Trace): 命令节点数据
         """
-        prefix = self.header(trace.head, trace.separators)
+        title, desc, usage, example = self.header(trace.head, trace.separators)
         param = self.parameters(trace.args)
         body = self.body(trace.body)
-        return prefix % (param, body)
+        res = f"{title} {param}\n{desc}"
+        if usage:
+            res += f"\n{usage}"
+        if body:
+            res += f"\n\n{body}"
+        if example:
+            res += f"\n{example}"
+        return res
 
     def param(self, parameter: Arg) -> str:
         """对单个参数的描述
@@ -206,24 +210,24 @@ class TextFormatter:
             else res
         )
 
-    def header(self, root: dict[str, Any], separators: tuple[str, ...]) -> str:
+    def header(self, root: dict[str, Any], separators: tuple[str, ...]) -> tuple[str, str, str, str]:
         """头部节点的描述
 
         Args:
             root (dict[str, Any]): 头部节点数据
             separators (tuple[str, ...]): 分隔符
         """
-        help_string = f"\n{desc}" if (desc := root.get("description")) else ""
-        usage = f"\n{lang.require('format', 'usage')}:\n{usage}" if (usage := root.get("usage")) else ""
-        example = f"\n{lang.require('format', 'example')}:\n{example}" if (example := root.get("example")) else ""
+        help_string = f"{desc}" if (desc := root.get("description")) else ""
+        usage = f"{lang.require('format', 'usage')}:\n{usage}" if (usage := root.get("usage")) else ""
+        example = f"{lang.require('format', 'example')}:\n{example}" if (example := root.get("example")) else ""
         prefixs = f"[{''.join(map(str, prefixs))}]" if (prefixs := root.get("prefix", [])) != [] else ""
         cmd = f"{prefixs}{root.get('name', '')}"
         command_string = cmd or (root["name"] + separators[0])
-        return f"{command_string} %s{help_string}{usage}\n\n%s{example}"
+        return command_string, help_string, usage, example
 
     def opt(self, node: Option) -> str:
         """对单个选项的描述"""
-        alias_text = " ".join(node.requires) + (" " if node.requires else "") + "|".join(node.aliases)
+        alias_text = " ".join(node.requires) + (" " if node.requires else "") + "│".join(node.aliases)
         return f"* {node.help_text}\n" f"  {alias_text}{node.separators[0]}{self.parameters(node.args)}\n"
 
     def sub(self, node: Subcommand) -> str:

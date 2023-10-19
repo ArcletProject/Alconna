@@ -1,8 +1,9 @@
 from typing import Union
 
+from nepattern import BasePattern, Bind, MatchMode
+
 from arclet.alconna import ArgFlag, Args, KeyWordVar, Kw, Nargs
 from devtool import analyse_args
-from nepattern import BasePattern, Bind, MatchMode
 
 
 def test_kwargs_create():
@@ -78,17 +79,13 @@ def test_multi():
     assert analyse_args(arg8_3, ["1 2 3"]).get("multi") == (1, 2, 3)
     assert analyse_args(arg8_3, ["1 2"]).get("multi") == (1, 2)
     assert analyse_args(arg8_3, ["1 2 3 4"]).get("multi") == (1, 2, 3)
-    arg8_4 = (
-        Args()
-        .add("multi", value=Nargs(str, "*"))
-        .add("kwargs", value=Nargs(Kw @ str, "*"))
-    )
-    assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("multi") == ('1', '2', '3', '4')
+    arg8_4 = Args().add("multi", value=Nargs(str, "*")).add("kwargs", value=Nargs(Kw @ str, "*"))
+    assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("multi") == ("1", "2", "3", "4")
     assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("kwargs") == {
         "a": "b",
         "c": "d",
     }
-    assert analyse_args(arg8_4, ["1 2 3 4"]).get("multi") == ('1', '2', '3', '4')
+    assert analyse_args(arg8_4, ["1 2 3 4"]).get("multi") == ("1", "2", "3", "4")
     assert analyse_args(arg8_4, ["a=b c=d"]).get("kwargs") == {"a": "b", "c": "d"}
 
 
@@ -116,6 +113,7 @@ def test_union():
     assert analyse_args(arg11_1, ["1.2"]) == analyse_args(arg11, ["1.2"])
     assert analyse_args(arg11_1, ["abc"]) == {"bar": "abc"}
     assert analyse_args(arg11_1, ["cba"], raise_exception=False) != {"bar": "cba"}
+
 
 def test_optional():
     arg13 = Args.foo[str].add("bar", value=int, flags="?")
@@ -162,15 +160,11 @@ def test_kwonly():
 
 
 def test_pattern():
-    test_type = BasePattern(
-        "(.+?).py", MatchMode.REGEX_CONVERT, list, lambda _, x: x[1].split("/"), "test"
-    )
+    test_type = BasePattern("(.+?).py", MatchMode.REGEX_CONVERT, list, lambda _, x: x[1].split("/"), "test")
     arg15 = Args().add("bar", value=test_type)
     assert analyse_args(arg15, ["abc.py"]) == {"bar": ["abc"]}
     assert analyse_args(arg15, ["abc/def.py"]) == {"bar": ["abc", "def"]}
-    assert analyse_args(arg15, ["abc/def.mp3"], raise_exception=False) != {
-        "bar": ["abc", "def"]
-    }
+    assert analyse_args(arg15, ["abc/def.mp3"], raise_exception=False) != {"bar": ["abc", "def"]}
 
 
 def test_callable():
@@ -188,22 +182,22 @@ def test_callable():
     arg16, _ = Args.from_callable(test)
     assert len(arg16.argument) == 7
     assert analyse_args(arg16, ["1 True 2 3 4 c=5.0 d=6 -no-e f=g h=i"]) == {
-        'a': 1,
-        'args': ('2', '3', '4'),
-        'b': True,
-        'c': 5.0,
-        'd': 6,
-        'e': False,
-        'kwargs': {'f': 'g', 'h': 'i'}
+        "a": 1,
+        "args": ("2", "3", "4"),
+        "b": True,
+        "c": 5.0,
+        "d": 6,
+        "e": False,
+        "kwargs": {"f": "g", "h": "i"},
     }
     assert analyse_args(arg16, ["1 True 2 3 4 -no-e c=7.2 f=x h=y"]) == {
-        'a': 1,
-        'args': ('2', '3', '4'),
-        'b': True,
-        'c': 7.2,
-        'd': 1,
-        'e': False,
-        'kwargs': {'f': 'x', 'h': 'y'}
+        "a": 1,
+        "args": ("2", "3", "4"),
+        "b": True,
+        "c": 7.2,
+        "d": 1,
+        "e": False,
+        "kwargs": {"f": "x", "h": "y"},
     }
 
 
@@ -211,30 +205,23 @@ def test_func_anno():
     from datetime import datetime
 
     def test(time: Union[int, str]) -> datetime:
-        return (
-            datetime.fromtimestamp(time)
-            if isinstance(time, int)
-            else datetime.fromisoformat(time)
-        )
+        return datetime.fromtimestamp(time) if isinstance(time, int) else datetime.fromisoformat(time)
 
     arg17 = Args["time", test]
-    assert analyse_args(arg17, ["1145-05-14"]) == {
-        "time": datetime.fromisoformat("1145-05-14")
-    }
+    assert analyse_args(arg17, ["1145-05-14"]) == {"time": datetime.fromisoformat("1145-05-14")}
 
 
 def test_annotated():
     from typing_extensions import Annotated
 
-    arg18 = Args["foo", Annotated[int, lambda x: x > 0]][
-        "bar", Bind[int, lambda x: x < 0]
-    ]
+    arg18 = Args["foo", Annotated[int, lambda x: x > 0]]["bar", Bind[int, lambda x: x < 0]]
     assert analyse_args(arg18, ["123 -123"]) == {"foo": 123, "bar": -123}
     assert analyse_args(arg18, ["0 0"], raise_exception=False) != {"foo": 0, "bar": 0}
 
 
 def test_unpack():
     from dataclasses import dataclass, field
+
     from arclet.alconna.typing import UnpackVar
 
     @dataclass
@@ -243,16 +230,10 @@ def test_unpack():
         age: int = field(default=16)
 
     arg19 = Args["people", UnpackVar(People)]
-    assert analyse_args(
-        arg19, ["alice", 16]
-    ) == {"people": People("alice", 16)}
-    assert analyse_args(
-        arg19, ["bob"]
-    ) == {"people": People("bob", 16)}
+    assert analyse_args(arg19, ["alice", 16]) == {"people": People("alice", 16)}
+    assert analyse_args(arg19, ["bob"]) == {"people": People("bob", 16)}
     arg19_1 = Args["people", UnpackVar(People, kw_only=True)].separate("&")
-    assert analyse_args(
-        arg19_1, ["name=alice&age=16"]
-    ) == {"people": People("alice", 16)}
+    assert analyse_args(arg19_1, ["name=alice&age=16"]) == {"people": People("alice", 16)}
 
 
 if __name__ == "__main__":

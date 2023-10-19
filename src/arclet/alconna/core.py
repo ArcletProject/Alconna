@@ -368,5 +368,10 @@ class Alconna(Subcommand, Generic[TDC]):
     def headers(self):
         return self.prefixes
 
+    @property
+    def header_display(self):
+        ana = command_manager.require(self)
+        return str(ana.command_header)
+
 
 __all__ = ["Alconna", "ArparmaExecutor"]

@@ -1,9 +1,9 @@
-from arclet.alconna import Alconna, Option, namespace, config, Namespace, command_manager
+from arclet.alconna import Alconna, Namespace, Option, command_manager, config, namespace
 
 
 def test_config():
     with namespace("cfg1") as np:
-        np.separators = {';'}
+        np.separators = {";"}
         cfg = Alconna("cfg") + Option("foo")
         assert cfg.parse("cfg foo").matched is False
         assert cfg.parse("cfg;foo").matched is True
@@ -13,11 +13,11 @@ def test_config():
         assert cfg1.parse("cfg1").matched is False
         assert cfg1.parse("!cfg1").matched is True
     with namespace("cfg3") as np:
-        np.builtin_option_name['help'] = {"帮助"}
+        np.builtin_option_name["help"] = {"帮助"}
         cfg2 = Alconna("cfg2")
         assert cfg2.options[0].name == "帮助"
-        print('')
-        print('\n', cfg2.parse("cfg2 帮助"))
+        print("")
+        print("\n", cfg2.parse("cfg2 帮助"))
         print(command_manager.all_command_help())
 
 
@@ -35,8 +35,7 @@ def test_namespace():
     config.default_namespace = "Alconna"
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     import pytest
 
     pytest.main([__file__, "-vs"])

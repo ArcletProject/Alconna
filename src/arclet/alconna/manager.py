@@ -345,16 +345,14 @@ class CommandManager:
             page (int, optional): 当前页码. Defaults to 1.
         """
         pages = pages or lang.require("manager", "help_pages")
-        cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or "")))
+        cmds = [cmd for cmd in self.get_commands(namespace or "") if not cmd.meta.hide]
+        slots = [(cmd.header_display, cmd.meta.description) for cmd in cmds]
         header = header or lang.require("manager", "help_header")
         if max_length < 1:
             command_string = (
-                "\n".join(
-                    f" {str(index).rjust(len(str(len(cmds))), '0')} {slot.name} : {slot.meta.description}"
-                    for index, slot in enumerate(cmds)
-                )
+                "\n".join(f" {str(index).rjust(len(str(len(cmds))), '0')} {slot[0]} : {slot[1]}" for index, slot in enumerate(slots))  # noqa: E501
                 if show_index
-                else "\n".join(f" - {cmd.name} : {cmd.meta.description}" for cmd in cmds)
+                else "\n".join(f" - {n} : {d}" for n, d in slots)
             )
         else:
             max_page = len(cmds) // max_length + 1
@@ -363,16 +361,11 @@ class CommandManager:
             header += "\t" + pages.format(current=page, total=max_page)
             command_string = (
                 "\n".join(
-                    f" {str(index).rjust(len(str(page * max_length)), '0')} {cmd.name} : {cmd.meta.description}"
-                    for index, cmd in enumerate(
-                        cmds[(page - 1) * max_length : page * max_length], start=(page - 1) * max_length
-                    )
+                    f" {str(index).rjust(len(str(page * max_length)), '0')} {slot[0]} : {slot[1]}"
+                    for index, slot in enumerate(slots[(page - 1) * max_length : page * max_length], start=(page - 1) * max_length)  # noqa: E501
                 )
                 if show_index
-                else "\n".join(
-                    f" - {cmd.name} : {cmd.meta.description}"
-                    for cmd in cmds[(page - 1) * max_length : page * max_length]
-                )
+                else "\n".join(f" - {n} : {d}" for n, d in slots[(page - 1) * max_length : page * max_length])
             )
         help_names = set()
         for i in cmds:

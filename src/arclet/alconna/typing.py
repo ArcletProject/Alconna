@@ -40,6 +40,8 @@ class CommandMeta:
     "命令是否保留换行字符"
     compact: bool = field(default=False)
     "命令是否允许第一个参数紧随头部"
+    extra: Dict[str, Any] = field(default_factory=dict, hash=False)
+    "命令的自定义额外信息"
 
 
 TDC = TypeVar("TDC", bound=DataCollection[Any])

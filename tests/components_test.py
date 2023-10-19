@@ -1,9 +1,9 @@
-from arclet.alconna import Alconna, Option, Args, Subcommand, Arparma, ArparmaBehavior
-from arclet.alconna.builtin import set_default, generate_duplication
+from arclet.alconna import Alconna, Args, Arparma, ArparmaBehavior, Option, Subcommand
+from arclet.alconna.builtin import generate_duplication, set_default
 from arclet.alconna.duplication import Duplication
-from arclet.alconna.stub import ArgsStub, OptionStub, SubcommandStub
-from arclet.alconna.output import output_manager
 from arclet.alconna.model import OptionResult
+from arclet.alconna.output import output_manager
+from arclet.alconna.stub import ArgsStub, OptionStub, SubcommandStub
 
 
 def test_behavior():
@@ -14,7 +14,7 @@ def test_behavior():
 
         @classmethod
         def operate(cls, interface: "Arparma"):
-            print('\ncom: ')
+            print("\ncom: ")
             print(interface.query("options.foo.value"))
             print(interface.query("options.baz.value"))
             interface.behave_fail()
@@ -35,9 +35,10 @@ def test_duplication():
         baz: str
 
     com4 = Alconna(
-        "comp4", Args["foo", int],
+        "comp4",
+        Args["foo", int],
         Option("--bar", Args["bar", str]),
-        Subcommand("sub", Option("--sub1", Args["baz", str]))
+        Subcommand("sub", Option("--sub1", Args["baz", str])),
     )
     res = com4.parse("comp4 123 --bar abc sub --sub1 xyz")
     assert res.matched is True
@@ -46,9 +47,9 @@ def test_duplication():
     assert duplication.testArgs.available is True
     assert duplication.testArgs.foo == 123
     assert duplication.bar.available is True
-    assert duplication.bar.args.bar == 'abc'
+    assert duplication.bar.args.bar == "abc"
     assert duplication.sub.available is True
-    assert duplication.sub.option("sub1").args.first == 'xyz'
+    assert duplication.sub.option("sub1").args.first == "xyz"
     duplication1 = com4.parse("comp4 123 --bar abc sub --sub1 xyz", duplication=Demo1)
     assert isinstance(duplication1, Demo1)
     assert isinstance(duplication1.foo, int)
@@ -63,7 +64,7 @@ def test_duplication():
 
 def test_output():
     print("")
-    output_manager.set_action(lambda x: {'bar': f'{x}!'}, "foo")
+    output_manager.set_action(lambda x: {"bar": f"{x}!"}, "foo")
     output_manager.set(lambda: "123", "foo")
     assert output_manager.send("foo") == {"bar": "123!"}
     assert output_manager.send("foo", lambda: "321") == {"bar": "321!"}
@@ -77,6 +78,8 @@ def test_output():
         print(output.get("output"))
     print(output.get("output"))  # capture will clear when exit context
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-vs"])

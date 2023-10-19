@@ -10,7 +10,7 @@ def test_collection():
     assert issubclass(list, DataCollection)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import pytest
 
     pytest.main([__file__, "-vs"])

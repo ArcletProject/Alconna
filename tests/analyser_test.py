@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Any, Union
 
+from nepattern import BasePattern, MatchMode
+
 from arclet.alconna import Alconna, Args, Option
 from arclet.alconna.argv import argv_config
-from nepattern import BasePattern, MatchMode
 
 
 @dataclass
@@ -22,7 +23,7 @@ class Segment:
         return Segment("text", {"text": content})
 
     @staticmethod
-    def face(id_: int, content: str = ''):
+    def face(id_: int, content: str = ""):
         return Segment("face", {"id": id_, "content": content})
 
     @staticmethod
@@ -32,9 +33,7 @@ class Segment:
 
 def gen_unit(type_: str):
     return BasePattern(
-        type_, MatchMode.TYPE_CONVERT, Any,
-        lambda _, seg: seg if seg.type == type_ else None,
-        type_, accepts=[Segment]
+        type_, MatchMode.TYPE_CONVERT, Any, lambda _, seg: seg if seg.type == type_ else None, type_, accepts=[Segment]
     )
 
 
@@ -63,22 +62,18 @@ def test_preprocessor():
 
 
 def test_with_set_unit():
-    argv_config(
-        preprocessors={Segment: lambda x: str(x) if x.type == "text" else None}
-    )
+    argv_config(preprocessors={Segment: lambda x: str(x) if x.type == "text" else None})
 
     ana2 = Alconna("ana2", Args["foo", At]["bar", Face])
     res = ana2.parse([Segment.text("ana2"), Segment.at(123456), Segment.face(103)])
     assert res.matched is True
-    assert res.foo.data['qq'] == '123456'
+    assert res.foo.data["qq"] == "123456"
     assert not ana2.parse([Segment.text("ana2"), Segment.face(103), Segment.at(123456)]).matched
     argv_config()
 
 
 def test_unhashable_unit():
-    argv_config(
-        preprocessors={Segment: lambda x: str(x) if x.type == "text" else None}
-    )
+    argv_config(preprocessors={Segment: lambda x: str(x) if x.type == "text" else None})
 
     ana3 = Alconna("ana3", Args["foo", At])
     print(ana3.parse(["ana3", Segment.at(123)]))
@@ -92,9 +87,7 @@ def test_unhashable_unit():
 
 
 def test_checker():
-    argv_config(
-        checker=lambda x: isinstance(x, list)
-    )
+    argv_config(checker=lambda x: isinstance(x, list))
     ana4 = Alconna("ana4", Args["foo", int])
     print(ana4.parse(["ana4", "123"]))
     try:
@@ -103,6 +96,7 @@ def test_checker():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-vs"])

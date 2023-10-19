@@ -85,6 +85,11 @@ class Pair:
         if not isclass(_pf) and _pf == self.prefix or _pf.__class__ == self.prefix:
             return (_pf, command), (_pf, command), True, self.gd_supplier(mat)
 
+    def __repr__(self):
+        prefix = f"{self.prefix}" if self.is_prefix_pat else self.prefix.__name__ if isinstance(self.prefix, type) else self.prefix.__class__.__name__  # noqa: E501
+        pattern = self.pattern if isinstance(self.pattern, str) else self.pattern.pattern
+        return f"({prefix}{pattern!r})"
+
 
 class Double:
     """用于匹配前缀和命令的组合"""
@@ -122,6 +127,22 @@ class Double:
             self.command = re.compile(command)
             self.cmd_type = 2
             self.comp_pattern = re.compile(f"^(?:{prf}){command}")
+
+    def __repr__(self):
+        if self.cmd_type == 0:
+            if self.prefix:
+                return f"[{'│'.join(self.prefix)}]{self.command}"  # type: ignore
+            return str(self.command)
+        if self.cmd_type == 1:
+            return self.command.pattern
+        cmd = self.command.pattern
+        prefixes = [str(self.patterns).replace("|", "│")]
+        for pf in self.prefix.pattern[:-len(cmd)][3:-1].split("|"):
+            for c in '()[]{}?*+-|^$\\.&~# \t\n\r\v\f':
+                if f"\\{c}" in pf:
+                    pf = pf.replace(f"\\{c}", c)
+            prefixes.append(pf)
+        return f"[{'│'.join(prefixes)}]{cmd}"
 
     def match0(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
         if self.prefix and p_str and pf in self.prefix:
@@ -199,6 +220,21 @@ class Header:
         self.mapping = mapping or {}
         self.compact = compact
         self.compact_pattern = compact_pattern
+
+    def __repr__(self):
+        if isinstance(self.content, set):
+            if not self.origin[1]:
+                return self.origin[0]
+            if self.origin[0]:
+                return f"[{'│'.join(self.origin[1])}]{self.origin[0]}" if len(self.content) > 1 else f"{self.content.copy().pop()}"  # noqa: E501
+            return '│'.join(self.origin[1])
+        if isinstance(self.content, TPattern):
+            if not self.origin[1]:
+                return self.origin[0]
+            return f"[{'│'.join(self.origin[1])}]{self.origin[0]}"
+        if isinstance(self.content, list):
+            return "│".join(map(str, self.content))
+        return str(self.content)
 
     @classmethod
     def generate(

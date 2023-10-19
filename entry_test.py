@@ -8,6 +8,6 @@ from tests.analyser_test import *
 
 if __name__ == '__main__':
     import pytest
-    pytest.main([__file__, "-v", "--durations=0"])
+    pytest.main([__file__, "-vs", "--durations=0"])
 
 
