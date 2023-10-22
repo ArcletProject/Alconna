@@ -345,4 +345,16 @@ class Subcommand(CommandNode):
         return self
 
 
-__all__ = ["CommandNode", "Option", "Subcommand"]
+class Help(Option):
+    def _calc_hash(self):
+        return hash("$ALCONNA_BUILTIN_OPTION_HELP")
+
+
+class Shortcut(Option):
+    def _calc_hash(self):
+        return hash("$ALCONNA_BUILTIN_OPTION_SHORTCUT")
+
+
+class Completion(Option):
+    def _calc_hash(self):
+        return hash("$ALCONNA_BUILTIN_OPTION_COMPLETION")

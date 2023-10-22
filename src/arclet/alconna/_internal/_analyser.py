@@ -10,7 +10,7 @@ from tarina import lang
 from ..action import Action
 from ..args import Args
 from ..arparma import Arparma
-from ..base import Option, Subcommand
+from ..base import Option, Subcommand, Help, Shortcut, Completion
 from ..completion import comp_ctx
 from ..config import config
 from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
@@ -71,7 +71,7 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
         pids (set[str]): 节点名集合
     """
     for opts in analyser.command.options:
-        if isinstance(opts, Option):
+        if isinstance(opts, Option) and not isinstance(opts, (Help, Shortcut, Completion)):
             if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):  # noqa: E501
                 analyser.compact_params.append(opts)
             _compile_opts(opts, analyser.compile_params)  # type: ignore
@@ -376,10 +376,10 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             return _SPECIAL[sot.args[0]](self, argv)
         except (ParamsUnmatched, ArgumentMissing) as e1:
             if (rest := argv.release()) and isinstance(rest[-1], str):
-                if rest[-1] in argv.completion_names:
+                if rest[-1] in argv.completion_names and "completion" not in argv.namespace.disable_builtin_options:
                     argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
                     return handle_completion(self, argv)
-                if handler := argv.special.get(rest[-1]):
+                if (handler := argv.special.get(rest[-1])) and handler not in argv.namespace.disable_builtin_options:
                     return _SPECIAL[handler](self, argv)
             if comp_ctx.get(None):
                 if isinstance(e1, ParamsUnmatched):

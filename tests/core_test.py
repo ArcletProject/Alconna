@@ -13,6 +13,7 @@ from arclet.alconna import (
     MultiVar,
     Option,
     Subcommand,
+    namespace,
 )
 
 
@@ -417,7 +418,7 @@ def test_shortcut():
     alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
     assert alc16.parse("core16 123 bar abcd").matched is True
     # 构造体缩写传入；{i} 将被可能的正则匹配替换
-    alc16.shortcut("TEST(\d+)(.+)", {"args": ["{0}", "bar {1}"]})
+    alc16.shortcut(r"TEST(\d+)(.+)", {"args": ["{0}", "bar {1}"]})
     res = alc16.parse("TEST123aa")
     assert res.matched is True
     assert res.foo == 123
@@ -431,7 +432,7 @@ def test_shortcut():
     res2 = alc16.parse("TEST3 442")
     assert res2.foo == 442
     # 指令缩写也支持正则
-    alc16.parse("core16 --shortcut TESTa4(\d+) 'core16 {0}'")
+    alc16.parse(r"core16 --shortcut TESTa4(\d+) 'core16 {0}'")
     res3 = alc16.parse("TESTa4257")
     assert res3.foo == 257
     alc16.parse("core16 --shortcut TESTac 'core16 2{%0}'")
@@ -849,6 +850,29 @@ def test_tips():
     assert str(core27.parse("core27 1").error_info) == "缺少了arg参数哦"
     assert str(core27.parse("core27 1 3").error_info) == "参数 3 不正确"
     assert str(core27.parse("core27").error_info) == "参数 arg1 丢失"
+
+
+def test_disable_builtin_option():
+    with namespace("test"):
+        core28 = Alconna("core28")
+        core28_1 = Alconna("core28_1", Args["text", MultiVar(str)])
+    core28.namespace_config.disable_builtin_options.add("shortcut")
+
+    res = core28.parse("core28 --shortcut 123 test")
+    assert not res.matched
+    assert str(res.error_info) == "参数 --shortcut 匹配失败"
+
+    res1 = core28_1.parse("core28_1 --shortcut 123 test")
+    assert res1.matched
+    assert res1.query("text") == ("--shortcut", "123", "test")
+
+    with namespace("test1") as ns:
+        ns.disable_builtin_options.add("help")
+        core28_2 = Alconna("core28_2", Option("--help"))
+
+    res2 = core28_2.parse("core28_2 --help")
+    assert res2.matched
+    assert res2.find("help")
 
 
 if __name__ == "__main__":

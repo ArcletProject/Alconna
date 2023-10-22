@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Callable, ClassVar, Generic, Iterable
 from typing_extensions import Self
 
@@ -17,7 +17,7 @@ from ..typing import TDC
 class Argv(Generic[TDC]):
     """命令行参数"""
 
-    namespace: InitVar[Namespace] = field(default=config.default_namespace)
+    namespace: Namespace = field(default=config.default_namespace)
     fuzzy_match: bool = field(default=False)
     """当前命令是否模糊匹配"""
     preprocessors: dict[type, Callable[..., Any]] = field(default_factory=dict)
@@ -57,15 +57,15 @@ class Argv(Generic[TDC]):
 
     _cache: ClassVar[dict[type, dict[str, Any]]] = {}
 
-    def __post_init__(self, namespace: Namespace):
+    def __post_init__(self):
         self.reset()
         self.special: dict[str, str] = {}
         self.special.update(
-            [(i, "help") for i in namespace.builtin_option_name["help"]]
-            + [(i, "completion") for i in namespace.builtin_option_name["completion"]]
-            + [(i, "shortcut") for i in namespace.builtin_option_name["shortcut"]]
+            [(i, "help") for i in self.namespace.builtin_option_name["help"]]
+            + [(i, "completion") for i in self.namespace.builtin_option_name["completion"]]
+            + [(i, "shortcut") for i in self.namespace.builtin_option_name["shortcut"]]
         )
-        self.completion_names = namespace.builtin_option_name["completion"]
+        self.completion_names = self.namespace.builtin_option_name["completion"]
         if __cache := self.__class__._cache.get(self.__class__, {}):
             self.preprocessors.update(__cache.get("preprocessors") or {})
             self.filter_out.extend(__cache.get("filter_out") or [])

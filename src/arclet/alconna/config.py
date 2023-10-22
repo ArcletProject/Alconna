@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, ContextManager, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ContextManager, Literal, TypedDict
 
 from tarina import lang
 
@@ -39,6 +39,7 @@ class Namespace:
     """默认是否抛出异常"""
     enable_message_cache: bool = field(default=True)
     """默认是否启用消息缓存"""
+    disable_builtin_options: set[Literal["help", "shortcut", "completion"]] = field(default_factory=set)
     builtin_option_name: OptionNames = field(
         default_factory=lambda: {
             "help": {"--help", "-h"},

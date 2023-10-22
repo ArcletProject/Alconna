@@ -57,7 +57,8 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
     for _ in range(loop):
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
-            raise SpecialOptionTriggered(argv.special[may_arg])
+            if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
+                raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             break
@@ -93,7 +94,8 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
     for _ in range(loop):
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
-            raise SpecialOptionTriggered(argv.special[may_arg])
+            if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
+                raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
             argv.rollback(may_arg)
             break
@@ -127,7 +129,8 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
     while count < target:
         may_arg, _str = argv.next(tuple(kwonly_seps))
         if _str and may_arg in argv.special:
-            raise SpecialOptionTriggered(argv.special[may_arg])
+            if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
+                raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or not _str:
             argv.rollback(may_arg)
             break
@@ -182,7 +185,8 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
         argv.context = arg
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
-            raise SpecialOptionTriggered(argv.special[may_arg])
+            if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
+                raise SpecialOptionTriggered(argv.special[may_arg])
         if _str and may_arg in argv.param_ids and arg.optional:
             if (de := arg.field.default) is not None:
                 result[arg.name] = None if de is Empty else de
@@ -353,9 +357,10 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
     """
     _text, _str = argv.next(seps, move=False)
     if _str and _text in argv.special:
-        if _text in argv.completion_names:
-            argv.bak_data[argv.current_index] = argv.bak_data[argv.current_index].replace(_text, "")
-        raise SpecialOptionTriggered(argv.special[_text])
+        if argv.special[_text] not in argv.namespace.disable_builtin_options:
+            if _text in argv.completion_names:
+                argv.bak_data[argv.current_index] = argv.bak_data[argv.current_index].replace(_text, "")
+            raise SpecialOptionTriggered(argv.special[_text])
     if not _str or not _text:
         _param = None
     elif _text in analyser.compile_params:

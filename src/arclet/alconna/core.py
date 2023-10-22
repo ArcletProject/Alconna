@@ -13,7 +13,7 @@ from tarina import init_spec, lang
 from ._internal._analyser import Analyser, TCompile
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
-from .base import Option, Subcommand
+from .base import Option, Subcommand, Help, Shortcut, Completion
 from .config import Namespace, config
 from .duplication import Duplication
 from .exceptions import ExecuteFailed, NullMessage
@@ -37,15 +37,18 @@ def handle_argv():
 
 
 def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> None:
-    options.append(Option("|".join(ns.builtin_option_name["help"]), help_text=lang.require("builtin", "option_help")))  # noqa: E501
-    options.append(
-        Option(
-            "|".join(ns.builtin_option_name["shortcut"]),
-            Args["action?", "delete|list"]["name?", str]["command", str, "$"],
-            help_text=lang.require("builtin", "option_shortcut"),
+    if "help" not in ns.disable_builtin_options:
+        options.append(Help("|".join(ns.builtin_option_name["help"]), help_text=lang.require("builtin", "option_help")))  # noqa: E501
+    if "shortcut" not in ns.disable_builtin_options:
+        options.append(
+            Shortcut(
+                "|".join(ns.builtin_option_name["shortcut"]),
+                Args["action?", "delete|list"]["name?", str]["command", str, "$"],
+                help_text=lang.require("builtin", "option_shortcut"),
+            )
         )
-    )
-    options.append(Option("|".join(ns.builtin_option_name["completion"]), help_text=lang.require("builtin", "option_completion")))  # noqa: E501
+    if "completion" not in ns.disable_builtin_options:
+        options.append(Completion("|".join(ns.builtin_option_name["completion"]), help_text=lang.require("builtin", "option_completion")))  # noqa: E501
 
 
 @dataclass(init=True, unsafe_hash=True)
