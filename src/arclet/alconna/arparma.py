@@ -118,7 +118,7 @@ class Arparma(Generic[TDC]):
         origin: TDC,
         matched: bool = False,
         header_match: HeadResult | None = None,
-        error_info: type[BaseException] | BaseException | None = None,
+        error_info: type[Exception] | Exception | None = None,
         error_data: list[str | Any] | None = None,
         main_args: dict[str, Any] | None = None,
         options: dict[str, OptionResult] | None = None,
@@ -130,7 +130,7 @@ class Arparma(Generic[TDC]):
             origin (TDC): 原始数据
             matched (bool, optional): 是否匹配
             header_match (HeadResult | None, optional): 命令头匹配结果
-            error_info (type[BaseException] | BaseException | None, optional): 错误信息
+            error_info (type[Exception] | Exception | None, optional): 错误信息
             error_data (list[str | Any] | None, optional): 错误数据
             main_args (dict[str, Any] | None, optional): 主参数匹配结果
             options (dict[str, OptionResult] | None, optional): 选项匹配结果
@@ -278,7 +278,7 @@ class Arparma(Generic[TDC]):
         bind.apply_defaults()
         return target(*bind.args, **bind.kwargs)
 
-    def fail(self, exc: type[BaseException] | BaseException):
+    def fail(self, exc: type[Exception] | Exception):
         """生成一个失败的 `Arparma`"""
         return Arparma(self.source, self.origin, False, self.header_match, error_info=exc)
 

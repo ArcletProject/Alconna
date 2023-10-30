@@ -10,10 +10,10 @@ from tarina import lang
 from ..action import Action
 from ..args import Args
 from ..arparma import Arparma
-from ..base import Option, Subcommand, Help, Shortcut, Completion
+from ..base import Completion, Help, Option, Shortcut, Subcommand
 from ..completion import comp_ctx
 from ..config import config
-from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
+from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 from ..manager import ShortcutArgs, command_manager
 from ..model import HeadResult, OptionResult, Sentence, SubcommandResult
 from ..output import output_manager
@@ -308,14 +308,14 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
 
         Raises:
             ValueError: 快捷命令查找失败
-            ParamsUnmatched: 参数不匹配
+            InvalidParam: 参数不匹配
             ArgumentMissing: 参数缺失
         """
         if argv.message_cache and argv.token in self.used_tokens and (res := command_manager.get_record(argv.token)):
             return res
         try:
             self.header_result = analyse_header(self.command_header, argv)
-        except ParamsUnmatched as e:
+        except InvalidParam as e:
             _next = e.args[1]
             if _next.__class__ is not str or not _next:
                 if self.command.meta.raise_exception:
@@ -338,7 +338,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             return self.export(argv, True)
 
         except RuntimeError as e:
-            exc = ParamsUnmatched(lang.require("header", "error").format(target=argv.release(recover=True)[0]))
+            exc = InvalidParam(lang.require("header", "error").format(target=argv.release(recover=True)[0]))
             if self.command.meta.raise_exception:
                 raise exc from e
             return self.export(argv, True, exc)
@@ -357,9 +357,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next(move=False)[0]))
         else:
             exc = ArgumentMissing(lang.require("analyser", "param_missing"))
-        if comp_ctx.get(None):
-            if isinstance(exc, ParamsUnmatched):
-                argv.free(argv.context.separators if argv.context else None)
+        if comp_ctx.get(None) and isinstance(exc, ArgumentMissing):
             raise PauseTriggered(prompt(self, argv), exc)
         if self.command.meta.raise_exception:
             raise exc
@@ -374,7 +372,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             return self.export(argv, True)
         except SpecialOptionTriggered as sot:
             return _SPECIAL[sot.args[0]](self, argv)
-        except (ParamsUnmatched, ArgumentMissing) as e1:
+        except (InvalidParam, ArgumentMissing) as e1:
             if (rest := argv.release()) and isinstance(rest[-1], str):
                 if rest[-1] in argv.completion_names and "completion" not in argv.namespace.disable_builtin_options:
                     argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
@@ -382,7 +380,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 if (handler := argv.special.get(rest[-1])) and handler not in argv.namespace.disable_builtin_options:
                     return _SPECIAL[handler](self, argv)
             if comp_ctx.get(None):
-                if isinstance(e1, ParamsUnmatched):
+                if isinstance(e1, InvalidParam):
                     argv.free(argv.context.separators if argv.context else None)
                 raise PauseTriggered(prompt(self, argv), e1) from e1
             if self.command.meta.raise_exception:

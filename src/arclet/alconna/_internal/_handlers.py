@@ -12,7 +12,7 @@ from ..args import STRING, Arg, Args
 from ..base import Option, Subcommand
 from ..completion import Prompt, comp_ctx
 from ..config import config
-from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
+from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
 from ..typing import KWBool
@@ -40,7 +40,7 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dic
     if res.flag == "error":
         if target.optional:
             return
-        raise ParamsUnmatched(target.field.get_unmatch_tips(arg, res.error.args[0]))
+        raise InvalidParam(target.field.get_unmatch_tips(arg, res.error.args[0]))
     result[target.name] = res._value  # noqa
 
 
@@ -144,11 +144,11 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
                 break
             for arg in args.argument.keyword_only.values():
                 if arg.value.base.exec(may_arg).flag == "valid":  # type: ignore
-                    raise ParamsUnmatched(lang.require("args", "key_missing").format(target=may_arg, key=arg.name))
+                    raise InvalidParam(lang.require("args", "key_missing").format(target=may_arg, key=arg.name))
             for name in args.argument.keyword_only:
                 if levenshtein(_key, name) >= config.fuzzy_threshold:
                     raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=_key))
-            raise ParamsUnmatched(lang.require("args", "key_not_found").format(name=_key))
+            raise InvalidParam(lang.require("args", "key_not_found").format(name=_key))
         arg = args.argument.keyword_only[_key]
         value = arg.value.base  # type: ignore
         if not _m_arg:
@@ -255,7 +255,7 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     if error:
         if argv.fuzzy_match and levenshtein(name, opt.name) >= config.fuzzy_threshold:
             raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
-        raise ParamsUnmatched(lang.require("option", "name_error").format(source=opt.name, target=name))
+        raise InvalidParam(lang.require("option", "name_error").format(source=opt.name, target=name))
     name = opt.dest
     return (
         (name, OptionResult(None, analyse_args(argv, opt.args)))
@@ -331,7 +331,7 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
                     analyser.subcommands_result[param.command.dest] = param.result()
             _data.clear()
             return True
-        except ParamsUnmatched as e:
+        except InvalidParam as e:
             if argv.context.__class__ is Arg:
                 raise e
             argv.data_reset(_data, _index)
@@ -367,7 +367,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         _param = analyser.compile_params[_text]
     elif analyser.compact_params and (res := analyse_compact_params(analyser, argv)):
         if res.__class__ is str:
-            raise ParamsUnmatched(res)
+            raise InvalidParam(res)
         argv.context = None
         return True
     else:
@@ -382,7 +382,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         return True
     if _param.__class__ is Option:
         if _param.requires and analyser.sentences != _param.requires:
-            raise ParamsUnmatched(
+            raise InvalidParam(
                 lang.require("option", "require_error").format(source=_param.name, target=" ".join(analyser.sentences))
             )
         analyse_option(analyser, argv, _param)
@@ -392,7 +392,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             _data, _index = argv.data_set()
             try:
                 if opt.requires and analyser.sentences != opt.requires:
-                    raise ParamsUnmatched(
+                    raise InvalidParam(
                         lang.require("option", "require_error").format(
                             source=opt.name, target=" ".join(analyser.sentences)
                         )
@@ -409,7 +409,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             raise exc  # type: ignore  # noqa
     elif _param is not None:
         if _param.command.requires and analyser.sentences != _param.command.requires:
-            raise ParamsUnmatched(
+            raise InvalidParam(
                 lang.require("subcommand", "require_error").format(
                     source=_param.command.name, target=" ".join(analyser.sentences)
                 )
@@ -467,13 +467,13 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
         argv.rollback(may_cmd)
         if argv.fuzzy_match:
             _handle_fuzzy(header, head_text)
-        raise ParamsUnmatched(lang.require("header", "error").format(target=head_text), head_text)
+        raise InvalidParam(lang.require("header", "error").format(target=head_text), head_text)
     if _m_str and may_cmd:
         if argv.fuzzy_match:
             _handle_fuzzy(header, f"{head_text} {may_cmd}")
-        raise ParamsUnmatched(lang.require("header", "error").format(target=may_cmd), may_cmd)
+        raise InvalidParam(lang.require("header", "error").format(target=may_cmd), may_cmd)
     argv.rollback(may_cmd)
-    raise ParamsUnmatched(lang.require("header", "error").format(target=head_text), None)
+    raise InvalidParam(lang.require("header", "error").format(target=head_text), None)
 
 
 def _handle_fuzzy(header: Header, source: str):
@@ -520,7 +520,7 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
             output_manager.send(analyser.command.name, lambda: "\n".join(data))
         else:
             if not opt_v.get("name"):
-                raise ParamsUnmatched(lang.require("shortcut", "name_require"))
+                raise ArgumentMissing(lang.require("shortcut", "name_require"))
             if opt_v.get("action") == "delete":
                 msg = analyser.command.shortcut(opt_v["name"], delete=True)
             elif opt_v["command"] == "_":

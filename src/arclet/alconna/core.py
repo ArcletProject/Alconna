@@ -13,7 +13,7 @@ from tarina import init_spec, lang
 from ._internal._analyser import Analyser, TCompile
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
-from .base import Option, Subcommand, Help, Shortcut, Completion
+from .base import Completion, Help, Option, Shortcut, Subcommand
 from .config import Namespace, config
 from .duplication import Duplication
 from .exceptions import ExecuteFailed, NullMessage

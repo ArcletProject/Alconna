@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from tarina import ContextModel, lang
 
 from .arparma import Arparma
-from .exceptions import ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
+from .exceptions import InvalidParam, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 from .manager import command_manager
 from .output import output_manager
 
@@ -24,7 +24,7 @@ class Prompt:
 @dataclass
 class EnterResult:
     result: Arparma | None = None
-    exception: Exception | None = None
+    exception: type[Exception] | Exception | None = None
 
 
 class CompSession:
@@ -121,7 +121,7 @@ class CompSession:
                 argv.bak_data[-1] = argv.bak_data[-1][: -len(prompt.removal_prefix)]
                 argv.next(move=True)
             input_ = [prompt.text]
-        if isinstance(self.trigger, ParamsUnmatched):
+        if isinstance(self.trigger, InvalidParam):
             argv.raw_data = argv.bak_data[: max(_i, 1)]
             argv.addon(input_)
             argv.raw_data.extend(_r[max(_i, 1) :])
@@ -140,7 +140,7 @@ class CompSession:
             res = self.source.process(argv)
             if not res.matched:
                 exc = res.error_info
-            if isinstance(exc, SpecialOptionTriggered):
+            if isinstance(exc, (ParamsUnmatched, SpecialOptionTriggered)):
                 self.exit()
                 return EnterResult(res)
         except Exception as e:
@@ -148,11 +148,11 @@ class CompSession:
         if exc:
             if isinstance(exc, PauseTriggered):
                 self.fresh(exc)
-                return EnterResult(exception=self.trigger if isinstance(self.trigger, ParamsUnmatched) else None)
+                return EnterResult(exception=self.trigger if isinstance(self.trigger, InvalidParam) else None)
             argv.bak_data, argv.raw_data, argv.current_index, argv.ndata = _b, _r, _i, _n
             return EnterResult(exception=exc)
         self.exit()
-        return EnterResult(res)  # noqa
+        return EnterResult(res)  # noqa # type: ignore
 
     def push(self, *suggests: Prompt):
         """添加补全选项。

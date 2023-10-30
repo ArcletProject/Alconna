@@ -2,14 +2,16 @@
 
 
 class ParamsUnmatched(Exception):
-    """一个 text 没有被任何参数匹配成功"""
+    """一个传入参数没有被选项或Args匹配"""
 
+class InvalidParam(Exception):
+    """传入参数验证失败"""
 
 class ArgumentMissing(Exception):
     """组件内的 Args 参数未能解析到任何内容"""
 
 
-class InvalidParam(Exception):
+class InvalidArgs(Exception):
     """构造 alconna 时某个传入的参数不正确"""
 
 

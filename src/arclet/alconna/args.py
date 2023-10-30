@@ -13,7 +13,7 @@ from typing_extensions import Self, TypeAlias
 from nepattern import AllParam, AnyOne, BasePattern, MatchMode, RawStr, UnionPattern, all_patterns, type_parser
 from tarina import Empty, get_signature, lang
 
-from .exceptions import InvalidParam
+from .exceptions import InvalidArgs
 from .typing import KeyWordVar, KWBool, MultiVar, UnpackVar
 
 
@@ -114,16 +114,16 @@ class Arg(Generic[_T]):
             flags (list[ArgFlag], optional): 参数单元的标识. Defaults to None.
         """
         if not isinstance(name, str) or name.startswith("$"):
-            raise InvalidParam(lang.require("args", "name_error"))
+            raise InvalidArgs(lang.require("args", "name_error"))
         if not name.strip():
-            raise InvalidParam(lang.require("args", "name_empty"))
+            raise InvalidArgs(lang.require("args", "name_empty"))
         self.name = name
         _value = type_parser(value or RawStr(name))
         default = field if isinstance(field, Field) else Field(field)
         if isinstance(_value, UnionPattern) and _value.optional:
             default.default = Empty if default.default is None else default.default
         if _value is Empty:
-            raise InvalidParam(lang.require("args", "value_error").format(target=name))
+            raise InvalidArgs(lang.require("args", "value_error").format(target=name))
         self.value = _value
         self.field = default
         self.notice = notice
@@ -341,34 +341,34 @@ class Args(metaclass=ArgsMeta):
             self._visit.add(arg.name)
             if isinstance(arg.value, UnpackVar):
                 if len(self._visit) > 1:
-                    raise InvalidParam("Unpack var can only put in the first position")
+                    raise InvalidArgs("Unpack var can only put in the first position")
                 if len(self.argument) > 1:
-                    raise InvalidParam("Args can only contain one arg if using Unpack var")
+                    raise InvalidArgs("Args can only contain one arg if using Unpack var")
                 _gen_unpack = getattr(arg.value, "unpack", gen_unpack)
                 self.argument.unpack = (arg, _gen_unpack(arg.value))
                 break
             if isinstance(arg.value, MultiVar):
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.argument.var_keyword:
-                        raise InvalidParam(lang.require("args", "duplicate_kwargs"))
+                        raise InvalidArgs(lang.require("args", "duplicate_kwargs"))
                     if self.argument.var_positional and arg.value.base.sep in self.argument.var_positional[1].separators:  # noqa: E501
-                        raise InvalidParam("varkey cannot use the same sep as varpos's Arg")
+                        raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
                     self.argument.var_keyword = (arg.value, arg)
                 elif self.argument.var_positional:
-                    raise InvalidParam(lang.require("args", "duplicate_varargs"))
+                    raise InvalidArgs(lang.require("args", "duplicate_varargs"))
                 elif self.argument.keyword_only:
-                    raise InvalidParam(lang.require("args", "exclude_mutable_args"))
+                    raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                 else:
                     self.argument.var_positional = (arg.value, arg)
             elif isinstance(arg.value, KeyWordVar):
                 if self.argument.var_keyword:
-                    raise InvalidParam(lang.require("args", "exclude_mutable_args"))
+                    raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                 self.argument.keyword_only[arg.name] = arg
             else:
                 self.argument.normal.append(arg)
                 if arg.optional:
                     if self.argument.var_keyword or self.argument.var_positional:
-                        raise InvalidParam(lang.require("args", "exclude_mutable_args"))
+                        raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                     self.optional_count += 1
         self.argument.clear()
         self.argument.extend(_tmp)

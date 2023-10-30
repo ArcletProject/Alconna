@@ -10,7 +10,7 @@ from tarina import lang
 
 from .action import Action, store
 from .args import Arg, Args
-from .exceptions import InvalidParam
+from .exceptions import InvalidArgs
 from .model import OptionResult, SubcommandResult
 
 
@@ -89,7 +89,7 @@ class CommandNode:
             requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令节点需求前缀
         """
         if not name:
-            raise InvalidParam(lang.require("common", "name_empty"))
+            raise InvalidArgs(lang.require("common", "name_empty"))
         _parts = name.split(" ")
         self.name = _parts[-1]
         self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []

@@ -150,6 +150,8 @@ class Argv(Generic[TDC]):
                 continue
             if res := self.to_text(d):
                 d = res
+            if isinstance(d, str) and not (d := d.strip()):
+                continue
             if isinstance(d, str) and i > 0 and isinstance(self.raw_data[-1], str):
                 self.raw_data[-1] += f"{self.separators[0]}{d}"
             else:

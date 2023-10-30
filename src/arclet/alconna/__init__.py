@@ -28,6 +28,7 @@ from .config import config as config
 from .config import namespace as namespace
 from .core import Alconna as Alconna
 from .duplication import Duplication as Duplication
+from .exceptions import InvalidArgs as InvalidArgs
 from .exceptions import InvalidParam as InvalidParam
 from .exceptions import NullMessage as NullMessage
 from .exceptions import ParamsUnmatched as ParamsUnmatched
@@ -49,7 +50,7 @@ from .typing import Nargs as Nargs
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
 
-__version__ = "1.7.32"
+__version__ = "1.7.33"
 
 # backward compatibility
 Arpamar = Arparma
