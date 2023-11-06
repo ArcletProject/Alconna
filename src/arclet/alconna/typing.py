@@ -98,6 +98,7 @@ class CommandMeta:
 TDC = TypeVar("TDC", bound=DataCollection[Any])
 T = TypeVar("T")
 
+
 class _AllParamPattern(BasePattern[Any, Any]):
     def __init__(self):
         super().__init__(mode=MatchMode.KEEP, origin=Any, alias="*")
