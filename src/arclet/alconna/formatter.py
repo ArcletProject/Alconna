@@ -14,6 +14,7 @@ from .typing import AllParam
 if TYPE_CHECKING:
     from .core import Alconna
 
+
 def resolve(parts: list[str], options: list[Option | Subcommand]):
     if not parts:
         return None
@@ -25,6 +26,7 @@ def resolve(parts: list[str], options: list[Option | Subcommand]):
             if not parts:
                 return opt
             return sub if (sub := resolve(parts, opt.options)) else opt
+
 
 @dataclass(eq=True)
 class Trace:

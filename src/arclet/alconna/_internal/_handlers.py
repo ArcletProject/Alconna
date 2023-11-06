@@ -13,7 +13,6 @@ from ..base import Option, Subcommand
 from ..completion import Prompt, comp_ctx
 from ..config import config
 from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
-from ..model import HeadResult, OptionResult, Sentence
 from ..model import HeadResult, OptionResult
 from ..output import output_manager
 from ..typing import KWBool

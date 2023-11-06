@@ -45,7 +45,7 @@ def test_alconna_multi_match():
             help_text="测试用例",
         ),
         Option("--num", Args["count", int, 123], help_text="输入数字"),
-        Option("-u", Args(id=int), help_text="输入需要At的用户"),
+        Option("-u", Args["id", int], help_text="输入需要At的用户"),
         Args["IP", IP],
         meta=CommandMeta(description="测试指令1"),
     )
@@ -156,7 +156,7 @@ def test_alconna_special_help():
         Subcommand(
             "-div",
             Option("--round|-r", Args["decimal", int], help_text="保留n位小数"),
-            Args(num_a=int, num_b=int),
+            Args["num_a", int]["num_b", int],
             help_text="除法计算",
         ),
         meta=CommandMeta(description="计算器", usage="Cal <expression>", example="Cal -sum 1 2"),
@@ -170,8 +170,8 @@ def test_alconna_special_help():
 def test_alconna_chain_option():
     alc5 = (
         Alconna("点歌")
-        .option("歌名", Args(song_name=str), separators="：")
-        .option("歌手", Args(singer_name=str), separators="：")
+        .option("歌名", Args["song_name", str], separators="：")
+        .option("歌手", Args["singer_name", str], separators="：")
     ).add(Subcommand("foo").add(Option("bar")))
 
     res = alc5.parse("点歌 歌名：Freejia")
@@ -717,17 +717,17 @@ def test_action():
         Option("--flag|-F", Args["flag", str], action=append, compact=True),
         Option("-v", action=count),
         Option("-x|--xyz", action=count),
-        Option("--q", action=count, requires=["foo", "bar"]),
+        Option("--q", action=count),
     )
     res = alc24_2.parse(
-        "core24_2 -A --a -vvv -x -x --xyzxyz " "-Fabc -Fdef --flag xyz --i 4 --i 5 " "foo bar --q foo bar --qq"
+        "core24_2 -A --a -vvv -x -x --xyzxyz " "-Fabc -Fdef --flag xyz --i 4 --i 5 " "--q --qq"
     )
     assert res.query[int]("i.foo") == 5
     assert res.query[List[int]]("a.value") == [1, 1]
     assert res.query[List[str]]("flag.flag") == ["abc", "def", "xyz"]
     assert res.query[int]("v.value") == 3
     assert res.query[int]("xyz.value") == 4
-    assert res.query[int]("foo_bar_q.value") == 3
+    assert res.query[int]("q.value") == 3
 
     alc24_3 = Alconna("core24_3", Option("-t", default=False, action=append_value(True)))
     assert alc24_3.parse("core24_3 -t -t -t").query("t.value") == [True, True, True]

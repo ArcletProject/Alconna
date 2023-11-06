@@ -33,7 +33,7 @@ class Segment:
 
 def gen_unit(type_: str):
     return BasePattern(
-        type_, MatchMode.TYPE_CONVERT, Any, lambda _, seg: seg if seg.type == type_ else None, type_, accepts=[Segment]
+        mode=MatchMode.TYPE_CONVERT, origin=Any, converter=lambda _, seg: seg if seg.type == type_ else None, alias=type_, accepts=Segment
     )
 
 

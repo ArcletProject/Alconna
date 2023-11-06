@@ -46,6 +46,7 @@ class CommandMeta:
 
 TDC = TypeVar("TDC", bound=DataCollection[Any])
 
+
 class _AllParamPattern(BasePattern[Any, Any]):
     def __init__(self):
         super().__init__(mode=MatchMode.KEEP, origin=Any, alias="*")
@@ -58,6 +59,7 @@ class _AllParamPattern(BasePattern[Any, Any]):
 
 
 AllParam = _AllParamPattern()
+
 
 class KeyWordVar(BasePattern):
     """对具名参数的包装"""
