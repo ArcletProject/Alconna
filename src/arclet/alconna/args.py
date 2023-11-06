@@ -5,7 +5,6 @@ import inspect
 import re
 import sys
 from enum import Enum
-from functools import partial
 from typing import Any, Callable, Generic, Iterable, List, Sequence, Type, TypeVar, Union
 from typing_extensions import Self, TypeAlias
 
@@ -152,7 +151,7 @@ class Arg(Generic[_T]):
 class ArgsMeta(type):
     """`Args` 类的元类"""
 
-    def __getitem__(self, item: Union[Arg, tuple[Arg, ...], str, tuple[Any, ...]]):
+    def __getitem__(self, item: Union[Arg, tuple[Arg, ...], str, tuple[str, Any], tuple[str, Any, ...]]):
         """构造参数集合
 
         Args:
@@ -162,9 +161,7 @@ class ArgsMeta(type):
             Args: 参数集合
         """
         data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
-        if isinstance(data[0], Arg):
-            return self(*data)
-        return self(Arg(*data))
+        return self(*data) if isinstance(data[0], Arg) else self(Arg(*data))
 
 
 class _argument(List[Arg[Any]]):
