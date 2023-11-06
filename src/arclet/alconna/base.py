@@ -1,16 +1,16 @@
 """Alconna 的基础内容相关"""
 from __future__ import annotations
 
-from functools import reduce
 from dataclasses import replace
+from functools import reduce
 from typing import Any, Iterable, Sequence, overload
+from typing_extensions import Self
 
 from tarina import lang, Empty
-from typing_extensions import Self
 
 from .action import Action, store
 from .args import Arg, Args
-from .exceptions import InvalidParam
+from .exceptions import InvalidArgs
 from .model import OptionResult, SubcommandResult
 
 
@@ -81,15 +81,13 @@ class CommandNode:
             help_text (str | None, optional): 命令帮助信息
         """
         if not name:
-            raise InvalidParam(lang.require("common", "name_empty"))
+            raise InvalidArgs(lang.require("common", "name_empty"))
         self.name = name.replace(" ", "_")
         self.args = Args() + args
         self.default = default
         self.action = action or store
         _handle_default(self)
-        self.separators = (' ',) if separators is None else (
-            (separators,) if isinstance(separators, str) else tuple(separators)
-        )
+        self.separators = (" ",) if separators is None else ((separators,) if isinstance(separators, str) else tuple(separators))  # noqa: E501
         self.nargs = len(self.args.argument)
         self.dest = (dest or self.name.lstrip('-')).lstrip('-')
         self.help_text = help_text or self.dest
@@ -229,6 +227,7 @@ class Option(CommandNode):
         """
         if isinstance(other, str):
             from .core import Alconna
+
             return Alconna(other, self)
         raise TypeError(f"unsupported operand type(s) for +: '{other.__class__.__name__}' and 'Option'")
 
@@ -311,6 +310,7 @@ class Subcommand(CommandNode):
         """
         if isinstance(other, str):
             from .core import Alconna
+
             return Alconna(other, self)
         raise TypeError(f"unsupported operand type(s) for +: '{other.__class__.__name__}' and 'Subcommand'")
 
@@ -328,4 +328,16 @@ class Subcommand(CommandNode):
         return self
 
 
-__all__ = ["CommandNode", "Option", "Subcommand"]
+class Help(Option):
+    def _calc_hash(self):
+        return hash("$ALCONNA_BUILTIN_OPTION_HELP")
+
+
+class Shortcut(Option):
+    def _calc_hash(self):
+        return hash("$ALCONNA_BUILTIN_OPTION_SHORTCUT")
+
+
+class Completion(Option):
+    def _calc_hash(self):
+        return hash("$ALCONNA_BUILTIN_OPTION_COMPLETION")

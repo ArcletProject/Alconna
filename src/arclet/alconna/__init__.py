@@ -26,6 +26,8 @@ from .config import Namespace as Namespace
 from .config import config as config
 from .config import namespace as namespace
 from .core import Alconna as Alconna
+from .duplication import Duplication as Duplication
+from .exceptions import InvalidArgs as InvalidArgs
 from .exceptions import InvalidParam as InvalidParam
 from .exceptions import NullMessage as NullMessage
 from .exceptions import ParamsUnmatched as ParamsUnmatched

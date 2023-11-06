@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 _repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__]) + ")"
 
 
@@ -6,6 +7,7 @@ _repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in 
 class OptionResult:
     __slots__ = ("value", "args")
     __repr__ = _repr_
+
     def __init__(self, value=Ellipsis, args=None):
         self.value = value
         self.args = args or {}
@@ -15,6 +17,7 @@ class OptionResult:
 class SubcommandResult:
     __slots__ = ("value", "args", "options", "subcommands")
     __repr__ = _repr_
+
     def __init__(self, value=Ellipsis, args=None, options=None, subcommands=None):
         self.value = value
         self.args = args or {}
@@ -26,12 +29,11 @@ class SubcommandResult:
 class HeadResult:
     __slots__ = ("origin", "result", "matched", "groups")
     __repr__ = _repr_
+
     def __init__(self, origin=None, result=None, matched=False, groups=None, fixes=None):
         self.origin = origin
         self.result = result
         self.matched = matched
         self.groups = groups or {}
         if fixes:
-            self.groups.update(
-                {k: v.exec(self.groups[k]).value for k, v in fixes.items() if k in self.groups}  # noqa
-            )
+            self.groups.update({k: v.exec(self.groups[k]).value for k, v in fixes.items() if k in self.groups})  # noqa

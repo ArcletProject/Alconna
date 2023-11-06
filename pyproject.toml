@@ -58,7 +58,7 @@ dev = [
 ]
 
 [tool.pdm.scripts]
-test = "python entry_test.py"
+test = "pytest -v --ignore entry_test.py"
 benchmark = "python benchmark.py"
 deps = "pydeps -o alconna.svg ./src/arclet/alconna --max-bacon=4 --cluster --keep-target-cluster --rmprefix alconna. "
 
@@ -118,3 +118,16 @@ exclude_lines = [
     "def __eq__",
     "except ImportError:",
 ]
+
+[tool.black]
+line-length = 120
+target-version = ["py38", "py39", "py310", "py311"]
+include = '\.pyi?$'
+extend-exclude = '''
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip_gitignore = true
+extra_standard_library = ["typing_extensions"]

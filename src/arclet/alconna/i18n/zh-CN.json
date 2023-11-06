@@ -4,10 +4,12 @@
     "name_empty": "名字不能为空"
   },
   "completion": {
-    "node": "以下是建议的输入："
+    "node": "以下是建议的输入：",
+    "prompt_empty": "没有可用的补全提示",
+    "prompt_unavailable": "选择的补全提示不可用于输入"
   },
   "fuzzy": {
-    "matched": "无法解析 {target}。您想要输入的是不是 \"{source}\" ?"
+    "matched": "无法解析 \"{target}\"。您想要输入的是不是 \"{source}\" ?"
   },
   "action": {
     "length_error": "该 action 接受的参数个数必须与 Args 里的一致",

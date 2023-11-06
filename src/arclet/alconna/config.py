@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, ContextManager, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ContextManager, Literal, TypedDict
 
 from tarina import lang
 
@@ -24,6 +24,7 @@ class OptionNames(TypedDict):
 @dataclass(init=True, repr=True)
 class Namespace:
     """命名空间配置, 用于规定同一命名空间下的选项的默认配置"""
+
     name: str
     """命名空间名称"""
     prefixes: TPrefixes = field(default_factory=list)
@@ -38,6 +39,7 @@ class Namespace:
     """默认是否抛出异常"""
     enable_message_cache: bool = field(default=True)
     """默认是否启用消息缓存"""
+    disable_builtin_options: set[Literal["help", "shortcut", "completion"]] = field(default_factory=set)
     builtin_option_name: OptionNames = field(
         default_factory=lambda: {
             "help": {"--help", "-h"},
@@ -100,6 +102,7 @@ class namespace(ContextManager[Namespace]):
 
 class _AlconnaConfig:
     """全局配置类"""
+
     command_max_count: int = 200
     """最大命令数量"""
     fuzzy_threshold: float = 0.6

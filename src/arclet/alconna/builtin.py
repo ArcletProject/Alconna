@@ -8,8 +8,10 @@ from .exceptions import BehaveCancelled
 
 __all__ = ["set_default"]
 
+class _MISSING_TYPE:
+    pass
 
-class _MISSING_TYPE: pass
+
 MISSING = _MISSING_TYPE()
 
 
@@ -36,17 +38,28 @@ class _SetDefault(ArparmaBehavior):
 
 
 @overload
-def set_default(*, value: Any, path: str,) -> _SetDefault:
+def set_default(
+    *,
+    value: Any,
+    path: str,
+) -> _SetDefault:
     ...
 
 
 @overload
-def set_default(*, factory: Callable[..., Any], path: str,) -> _SetDefault:
+def set_default(
+    *,
+    factory: Callable[..., Any],
+    path: str,
+) -> _SetDefault:
     ...
 
 
 def set_default(
-    *, value: Any = MISSING, factory: Callable[..., Any] = MISSING, path: str | None = None,
+    *,
+    value: Any = MISSING,
+    factory: Callable[..., Any] = MISSING,
+    path: str | None = None,
 ) -> _SetDefault:
     """
     设置一个选项的默认值, 在无该选项时会被设置

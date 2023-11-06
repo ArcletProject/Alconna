@@ -1,127 +1,218 @@
 # 更新日志
 
+## Alconna 1.7.33
+
+### 修复
+
+- 修复补全会话下参数过多引起补全错误触发的问题
+
+## Alconna 1.7.32
+
+### 改进
+
+- 可以选择配置禁用哪些内置选项
+- 自定义的与内置选项名称有冲突的选项 (例如 --help) 在禁用内置选项后能正常解析
+
+## Alconna 1.7.31
+
+### 改进
+
+- 改进 `CommandMeta`
+- 改进命令头的显示方式
+
+## Alconna 1.7.30
+
+### 修复
+
+- 修复模糊匹配中错误的判断逻辑
+
+## Alconna 1.7.29
+
+### 新增
+
+- 可通过 `Arg.field` 添加关于参数的自定义错误提示 by @CMHopeSunshine in #81
+
+### 修复
+
+- 修复 `UnpackVar` 的 `kw_only` 参数未生效的问题
+
+## Alconna 1.7.28
+
+### 修复
+
+- 修复补全会话下补全的命令存在空字符串的问题
+
+## Alconna 1.7.27
+
+### 改进
+
+- 补全会话现在会处理参数类型错误的情况
+
+## Alconna 1.7.26
+
+### 改进
+
+- `Arparma.call` 现在会考虑函数的默认值
+
+### 修复
+
+- 修复头部匹配为空时 shortcut 错误运行的问题
+
+## Alconna 1.7.25
+
+### 修复
+
+- 修复 `shortcut` 下 prefix 未转义的问题
+
 ## Alconna 1.7.24
 
-### 改进：
+### 改进
+
 - `UnpackVar` 现在支持 `kw_only` 参数
 - `UnpackVar` 现在支持给 kw 参数指定分隔符
 
-### 修复：
+### 修复
+
 - 修复 `UnpackVar` 的分隔符未跟随源参数的 bug
 - 修复 `UnpackVar` 处理 `kw_only` 未生效的 bug
 
 ## Alconna 1.7.23
 
-### 修复：
+### 修复
+
 - 处理 Args 时如果传入的参数是内置特殊选项的名字，则优先退出参数解析 (如 `--help`)
 - 修复 `Formatter` 未能正确处理 `Subcommand` 的 bug
 
 ## Alconna 1.7.22
 
-### 改进：
+### 改进
+
 - 处理 Args 时如果传入的参数同时是某个选项/子命令的名字，只有在参数设为 `optional=True` 才会退出参数解析
 
 ## Alconna 1.7.21
 
-### 改进：
+### 改进
+
 - 升级 `NEPattern` 至 0.5.14
 
 ## Alconna 1.7.20
 
-### 改进:
+### 改进
+
 - 当 shortcut 的 `command` 参数为 `$` 时，快捷指令将会使用源指令的命令名
 - ShortcutArgs 的 `fuzzy` 参数为 `False` 时，快捷指令将是严格匹配（即不允许前缀匹配）
 - ShortcutArgs 的 `fuzzy` 参数为 `True` 时，快捷指令将是模糊匹配（即允许前缀匹配），并且多余的字符会被作为参数写入
 - shortcut 的参数中 `command` 现在的默认值是 `$` 而非 `_`
 
-### 修复:
+### 修复
+
 - 修改了文字拼写错误
 
 ## Alconna 1.7.19
 
-### 新增:
+### 新增
+
 - 加入 `UnpackVar`，其接受 `dataclass` 并转为 Args，将解析结果构造为 dcls 实例
 - 增加 `Arparma.addition` 类方法，用来为 `Arparma.call` 增加额外参数的工厂函数
 
-### 改进:
+### 改进
+
 - `Arparma.query` 改用描述器实现，并支持如 `arp.query[int]("foo.bar")` 的语法，以替代原先的 `query_with` (query_with 方法仍然保留)
 - `Arparma[...]` 增加如 `arp[int, 2]` 的支持，即选择第 i 个匹配类型的参数
 
 ## Alconna 1.7.18
 
-### 新增:
+### 新增
+
 - `ShortcutArgs` 加入一个 `prefix: bool` 参数，控制快捷指令是否保留源指令的前缀
 
 ## Alconna 1.7.17
 
-### 新增:
+### 新增
+
 - 内置选项 `shortcut` 的第一个参数加入了 `list`, 用于展示该命令下的所有快捷指令
 
-### 改进:
+### 改进
+
 - `Argv` 在 checker 失败后现在会尝试使用 converter 转换为正确的类型
 - `ShortcutArgs` 中 command 的 slot 现在会保留尾随参数的类型，而不是全部转换为 str
 
-### 修复:
+### 修复
+
 - `ShortcutArgs` 中 slot 的 index 现在正确指向尾随参数的位置
 
 ## Alconna 1.7.16
 
-### 改进:
+### 改进
+
 - `Formatter` 现只接受某些名称相同的命令
 
-### 修复:
+### 修复
+
 - 修复因 `nepattern` 0.5.13 的改动导致的 bug
 
 ## Alconna 1.7.15
 
-### 改进:
+### 改进
+
 - 升级 `nepattern` 依赖至 0.5.13
 - `__init__.py` 内使用 re-export 格式
 
-### 修复:
+### 修复
+
 - 修复 `Arparma.fail` 的问题
 
 ## Alconna 1.7.14
 
-### 修复:
+### 修复
+
 - 修复帮助信息生成时节点遍历的错误
 
 ## Alconna 1.7.13
 
-### 新增:
+### 新增
+
 - 两个 Alconna 之间支持相加操作，其结果为左边的 Alconna, 但是其 options 合并了右边命令 的 options
 
-### 改进:
+### 改进
+
 - `Args.from_callable` 增加一个 `kw_sep` 参数来自定义 kw 参数的分隔符
 - 两个 Alconna 相加
 
-### 修复:
+### 修复
+
 - 修复 kwonly 参数的名字携带 `-` 时无法解析的 bug
 
 ## Alconna 1.7.12
 
-### 改进:
+### 改进
+
 - multi keyword 参数的键值分隔符现在不允许与 multi 参数的分隔符相同
 
-### 修复:
+### 修复
+
 - 修复 multi-var 会一并解析 multi-key-var 的bug
 
 ## Alconna 1.7.11
 
-### 修复:
+### 修复
+
 - 修复 `Arparma.call` 导致 `pos | kw` 参数解包错误的 bug
 - 修复 kwbool 参数无法解析 `-no-xx` 的 bug
 
 ## Alconna 1.7.10
 
-### 修复:
+### 修复
+
 - 修复类型导致的 py3.8 兼容性问题
 
 ## Alconna 1.7.9
 
-### 改进:
+### 改进
+
 - `Arparma.call` 现在适配 `positional_only` 参数, 并会将 `var_positional`, `var_keyword` 的参数解包
 - kwonly 的 arg 现在不再要求传入顺序与定义顺序一致：
+
     ```python
     from arclet.alconna import Kw, Args, Alconna
   
@@ -132,34 +223,34 @@
 
 ## Alconna 1.7.8
 
-### 改进:
+### 改进
 
 - `Arg` 现在可使用泛型参数
 
-### 修复:
+### 修复
 
 - 修复 `Args.from_callable` 无法正确解析 kwonly 参数的 bug
 
 ## Alconna 1.7.7
 
-### 改进:
+### 改进
 
 - 命令头部可以通过 `\\` 转义 `{}` 为原始字符，而不触发 `bracket header` 解析
 - 快捷指令的参数部分可以通过 `\\` 转义 `{}` 为原始字符
 
-### 修复:
+### 修复
 
 - 修复 `append_value` 时列表对象引用错误的 bug
 
 ## Alconna 1.7.6
 
-### 修复:
+### 修复
 
 - 修复所有指令都可以响应快捷命令的bug
 
 ## Alconna 1.7.5
 
-### 改进:
+### 改进
 
 - 命令头部在非 `bracket header` 时只有前缀为 `"re:"` 时才会被视为正则表达式
 - 当命令头部不存在正则表达式时, 匹配将直接使用 set 比对
@@ -167,25 +258,25 @@
 
 ## Alconna 1.7.4
 
-### 改进:
+### 改进
 
 - `shortcut` 现在将尝试去除非字符串的命令前缀
 
 ## Alconna 1.7.3
 
-### 修复:
+### 修复
 
 - 修复 `find_shortcut` 传入意外参数的 bug
 
 ## Alconna 1.7.2
 
-### 修复:
+### 修复
 
 - 修复 `sys.argv[0]` 处理错误的 bug
 
 ## Alconna 1.7.1
 
-### 修复:
+### 修复
 
 - 修复 `Arparma.error_info` 总为 str 的 bug
 
@@ -193,7 +284,7 @@
 
 **此版本为长期支持版本 (LTS), 也是 2.0 版本前的最后一个主要版本**
 
-### 破坏性改动:
+### 破坏性改动
 
 > 用户侧
 
@@ -204,13 +295,13 @@
 
 - 使用 `NEPattern` 0.5 以上版本
 - 使用 `tarina` 替代部分功能
-- `DataCollectionContainer`, `Analyser`, `handle_xxx` 和 `analyser_xxx` 
+- `DataCollectionContainer`, `Analyser`, `handle_xxx` 和 `analyser_xxx`
 等移动至 `arclet.alconna._internal`
 - `DataCollectionContainer` 重命名为 `Argv`
 - `Argv.config` 移出为独立函数 `argv_config`
 - `Argv.text_sign` 现在是 `Argv.to_text`, 其返回值为 `str | None`
 
-### 新增:
+### 新增
 
 - `Option` 新增参数 `compact`, 允许选项名后的第一个参数紧随其头部
 - `Option` 新增参数 `default`, 允许设置选项的默认值:
@@ -244,9 +335,9 @@
 - `CommandMeta.example` 现在会将 `$` 替换为可能的命令前缀
 - `Completion` 选项增加别名 `'?'`
 
-### 改进:
+### 改进
 
-- 由 `name` 与 `requires` 合成的 `dest` 也会去掉 `name` 的前缀 
+- 由 `name` 与 `requires` 合成的 `dest` 也会去掉 `name` 的前缀
 - `Argv` 不再是 `Analyser` 的属性, 而是其方法的传入参数
 - `compile` 函数现在作为 `Alconna` 的方法
 - shortcut 使用方法改变:
@@ -260,19 +351,18 @@
 - `Argv.preprocessor` 与 `Argv.filter_out` 现在接收 type 而不是 str
 - 移除 `Alconna.reset_behaviors`
 
-### 修复:
+### 修复
 
 - 修复 `anti args` 的 bug
 - 修复 `Formatter.remove` 的 bug
 
-
-## Alconna 1.6.6:
+## Alconna 1.6.6
 
 ### 修复
 
 - 修复 `MultiVar` 工作异常的错误
 
-## Alconna 1.6.5:
+## Alconna 1.6.5
 
 ### 改进
 
@@ -280,7 +370,7 @@
 - 格式化代码
 - 更改测试文件
 
-## Alconna 1.6.4:
+## Alconna 1.6.4
 
 ### 修复
 
@@ -290,7 +380,7 @@
 
 - 字符串处理时不再对后跟引号外的 "\\" 处理
 
-## Alconna 1.6.3:
+## Alconna 1.6.3
 
 ### 修复
 
@@ -305,7 +395,7 @@
 
 ## Alconna 1.6.1
 
-###
+### 修复
 
 - 修复 不同 Args 合并时丢失来自 from_callable 提供的参数
 
@@ -341,29 +431,30 @@
 - `Alconna.add` 现在只传入 `Option` 或 `Subcommand` 的实例
 
 ### 修复
+
 - 修复一系列 bugs
 
-## Alconna 1.5.2:
+## Alconna 1.5.2
 
 ### 改进
 
 - 调整解析器的可拓展性
 - 改进代码的类型提示
 
-## Alconna 1.5.1:
+## Alconna 1.5.1
 
 ### 修复
 
 - 修复子解析器的 bug
 
-## Alconna 1.5.0:
+## Alconna 1.5.0
 
 ### 破坏性改动
 
 > 开发侧
 
 - `Arparma.update` 移动到 `ArparmaBehavior.update`
-- 部分 api 改动: 
+- 部分 api 改动:
   - `Analyser.process` -> `Analyser.container.build`
   - `Analyser.analyser` -> `Analyser.process`
   - `analyse_subcommand` -> `analyse_param`
@@ -384,16 +475,18 @@
 - `output_manager.get` 方法从构建输出行为到只获取输出行为
 - `set_default` 可以细化至更新 `subcmd.opt.args.arg` 的值
 
-## Alconna 1.4.3:
+## Alconna 1.4.3
 
 ### 改进
+
 - `KeyWordVar` 现在可以指定 `sep`
 - `MultiVar` 现在默认格式是 `+`
 
 ### 修复
+
 - 修复 bugs
 
-## Alconna 1.4.2:
+## Alconna 1.4.2
 
 ### 修复
 
@@ -401,14 +494,14 @@
 - 修复 `Args.from_callable` 的bug
 - 修复 `Arparma.__repr__` 的bug
 
-## Alconna 1.4.1:
+## Alconna 1.4.1
 
 ### 修复
 
 - 修复 `help text` 的 bug
 - 修复 `Arg` 提取 notice 的 bug
 
-## Alconna 1.4.0:
+## Alconna 1.4.0
 
 ### 破坏性改动
 
@@ -436,7 +529,6 @@
 ### 修复
 
 - 修复可能存在的内存泄漏问题
-
 
 ## Alconna 1.3.3
 
@@ -468,6 +560,7 @@
 - 调整 completion 样式
 
 ### 修复
+
 - 修改 help text 的 bug
 
 ## Alconna 1.3.0
@@ -497,7 +590,7 @@
 
 - 修复 bugs
 
-## Alconna 1.2.0:
+## Alconna 1.2.0
 
 ### 破坏性改动
 
@@ -517,22 +610,23 @@
 
 - 修复 bugs
 
-## Alconna 1.1.2 - 1.1.2.3:
+## Alconna 1.1.2 - 1.1.2.3
 
 1. 修复 bugs
 2. BasePattern 加入 `to` 方法
 
-## Alconna 1.1.1:
+## Alconna 1.1.1
 
 1. `Arpamar` 泛型支持, 可通过`Arpamar[type]`指定原指令的类型
 2. `Alconna` 可通过 `|` 进行组合, 返回命令组
+
     ```python
     alc = Alconna("{place1}在哪里") | Alconna("哪里有{place1}")
     alc.parse("食物在哪里")
     alc.parse("哪里有食物")
     ```
 
-## Alconna 1.1.0:
+## Alconna 1.1.0
 
 1. `AlconnaDuplication` -> `Duplication`
 2. `Duplication` 现在支持写入参数名或头部名称, 如
@@ -547,19 +641,19 @@
 
 3. `Arpamar` 在执行行为器时可以通过抛出 `OutBoundsBehave` 使解析失败
 4. 修复bugs
- 
-## Alconna 1.0.2 - 1.0.4:
+
+## Alconna 1.0.2 - 1.0.4
 
 1. 修复 BUG
 2. 微调 Args
 
-## Alconna 1.0.1:
+## Alconna 1.0.1
 
 1. `Args.from_callable` 允许 keyword 参数
 2. 更改ArgAction参数
 3. 修复bugs
 
-## Alconna 1.0.0:
+## Alconna 1.0.0
 
 1. 将`lang`迁移到新增的`config`中，并为`config`加入了如全局分隔、开启缓存等选项
 2. 压缩代码量并规范化
@@ -580,7 +674,7 @@
 17. `Option` 添加参数`priority`, 仅在需要选项重载时安排优先级
 18. 修复bugs
 
-## Alconna 0.9.4:
+## Alconna 0.9.4
 
 1. 修改 `Args` 的构造方法, 取消使用 slice 传入参数. 请从 `Args[foo:int, bar:str:default]` 修改为 `Args[foo, int][bar, str, default]`.
 2. Option 与 Subcommand 现支持 requires 参数, 该参数允许解析该节点时判断 require 的字段是否存在.
@@ -597,7 +691,7 @@
 13. `ObjectPattern` 移动到 `arclet.alconna.builtin.pattern` 模块.
 14. 修复 bug.
 
-## Alconna 0.9.3 - 0.9.3.3:
+## Alconna 0.9.3 - 0.9.3.3
 
 1. 合并 `ArgPattern` 与 `TypePattern` 为 `BasePattern`, 并将诸多分散特性(如 `anti`, `any`) 移动到 `BasePattern` 中.
 2. 取消 `Analyser` 中有关 `arg_handler` 的部分
@@ -607,7 +701,7 @@
 6. 为 `all_command_help` 增加索引选项
 7. 修复 bug.
 
-## Alconna 0.9.2:
+## Alconna 0.9.2
 
 1. 增强 `Arpamar` 的功能, 使其更类似于一种接口. 其中的修改有:
    - 从 `get()` 变为 `query()`
@@ -621,13 +715,13 @@
 4. `split` 以及 `separator` 现在需要传入 `Set[str]` 类型.
 5. 修复 bug.
 
-## Alconna 0.9.1:
+## Alconna 0.9.1
 
-1. 增添 `dest`, 其作为选项在 Arpamar 中的实际名称. 
-2. 增加内建 `Argument` 方法, 类似于 `add_argument`, 以便捷创建 Option + Args 的组合. 
+1. 增添 `dest`, 其作为选项在 Arpamar 中的实际名称.
+2. 增加内建 `Argument` 方法, 类似于 `add_argument`, 以便捷创建 Option + Args 的组合.
 3. 修复 bug
 
-## Alconna 0.9.0 - 0.9.0.3:
+## Alconna 0.9.0 - 0.9.0.3
 
 1. 将 HelpAction 与 HelpTextFormatter 作为 help 模块
 2. 语言配置组件的增强. 现在以语言种类标识符作为父级, 以支持多语言.
@@ -640,7 +734,7 @@
    - `handle_message` -> `process_message`
 8. Args 新增 `add_argument` 方法, 以添加参数.
 
-## Alconna 0.8.3:
+## Alconna 0.8.3
 
 1. 命令头的正则支持格式修改, 由原来的`f"{表达式}"`改为`"{名称:类型或表达式}"`
 2. 加入语言文件配置, 可以通过`Alconna.load_config_file`加载自定义的语言文件, 格式为`json`
@@ -649,28 +743,28 @@
 5. 部分API修改, 暂时去除`from_dict`方法
 6. 修复了一些bug
 
-## Alconna 0.8.2:
+## Alconna 0.8.2
 
 1. 修改了一些docstring
 2. 修改参数前缀, 现需要以后缀形式传入, 以`';'`为开头, 并用`'|'`分割。
 3. 参数前缀现通过单个大写字母表示, 具体对应如下:
-   * `'S'` <= `'*'`
-   * `'W'` <= `'**'`
-   * `'O'` <= `'?'`
-   * `'K'` <= `'@'`
-   * `'H'` <= `'_'`
-   * `'F'` <= `'#'`
-   * `'A'` <= `'!'`
+    - `'S'` <= `'*'`
+    - `'W'` <= `'**'`
+    - `'O'` <= `'?'`
+    - `'K'` <= `'@'`
+    - `'H'` <= `'_'`
+    - `'F'` <= `'#'`
+    - `'A'` <= `'!'`
 4. 参数标识符现增加数字, 以表示指定长度的可变参数, 如`'foo;S'`表示能接收任意长度的可变参数, `'foo;3'`表示接收长度为3的可变参数。
 5. `Args`现在允许传入分隔符, 通过`Args.separate(xx)`或`Args / xx`设置
 6. 加入`pattern`装饰器函数, 用以便捷的创建`ArgPattern`对象
 7. 加入`delegate`装饰器函数, 用以便捷的创建`Alconna`对象
 
-## Alconna 0.8.1:
+## Alconna 0.8.1
 
 修复了一些严重的bug。
 
-## Alconna 0.8.0:
+## Alconna 0.8.0
 
 1. `Option`的`alias`现在需要传入List[str]，而不是str。
 2. `help_text`内置两个预选板块`Usage`和`Example`, 编写规则为`"xxx Usage:xxx; Example:xxx;"`。
@@ -706,14 +800,14 @@
 3. 加入`NodeVisitor`与`HelpFormatter`, 并将原先给CommandNode的help生成转移给Formatter
 4. 加入`AlconnaMessageProxy`, 用作对外适配接口
 
-## Alconna 0.7.4 - 0.7.4.3:
+## Alconna 0.7.4 - 0.7.4.3
 
 1. 加入`Alconna.local_args`, 可用来注入额外参数
 2. `actions`关键字改为`action`
 3. 加入`_`前缀，用来隐藏该参数的类型注解
 4. 修复bug
 
-## Alconna 0.7.3:
+## Alconna 0.7.3
 
 1. 优化结构
 2. 增加`AlconnaFire`的Config, 用来约束`AlconnaFire`的参数
@@ -727,7 +821,7 @@
 10. `Arpamar`可以通过`XXX.opt.arg1`、`XXX.sub.sub_opt.arg2`等方式获取参数值
 11. 修复bug
 
-## Alconna 0.7.2:
+## Alconna 0.7.2
 
 1. 改进`AlconnaFire`方法, 其可通过`AlconnaFire.instance`获取目标对象的可能实例
 2. 加入`SequenceArg`与`MappingArg`, 其对应解析列表、元组、集合与字典
@@ -736,9 +830,9 @@
 5. 增强Format
 6. 修改help—action相关
 
-## Alconna 0.7.1:
+## Alconna 0.7.1
 
-1. 增加`alconna.builtin.construct.AlconnaFire`，为`Alconna`的`Fire-like`方法. 
+1. 增加`alconna.builtin.construct.AlconnaFire`，为`Alconna`的`Fire-like`方法.
 其会尝试根据传入的对象生成`Alconna`
 2. 增加 `UnionArg`, 其传入的列表中可以包含`ArgPattern`、`Type`与实际值. 为`choice`的改进
 3. `Args`支持传入`Union[...]`格式的参数
@@ -746,7 +840,7 @@
 5. `action`现支持传入异步函数
 6. `AlconnaString`现在会读取`locals`的值
 
-## Alconna 0.7.0:
+## Alconna 0.7.0
 
 1. 内部结构大更改, 将`Command`与`Analyser`进行了一个解耦
 2. 多个api更改或去除, 请留意. 该特性为不兼容的特性.
@@ -780,100 +874,100 @@
    - `analysis.analyse_subcommand`: 可直接传入`Subcommand`以针对性解析
    - `analysis.analyse_headers`: 可直接传入`Headers`以针对性解析
 
-## Alconna 0.6.5:
+## Alconna 0.6.5
 
 1. 可以自定义all_command_help
 2. 加入anti-arg, 用以反向检查参数
 3. 修复一些bug
 
-## Alconna 0.6.4:
+## Alconna 0.6.4
 
 1. 加入快捷指令功能, 可以用一段特殊的字符串来表示命令
 2. 加入arg-choice, 可以指定参数的可选值
 3. 修改docstring, 使其变得更加可读
 4. 加入commandManager.broadcast功能, 可以广播命令
 
-## Alconna 0.6.3:
+## Alconna 0.6.3
 
 1. 修复命令行的Bug
 2. 加入变长参数的支持, 可以在参数名前面添加一个`*`来表示变长参数
 
-## Alconna 0.6.2:
+## Alconna 0.6.2
 
 1. 修复几个Bug
 2. 加入from_dict与to_dict，暂时无法支持保存action
 3. 命令行功能加入using
 
-## Alconna 0.6.1:
+## Alconna 0.6.1
 
 1. 性能优化加强, 现在纯字符串匹配可以跑到60000msg/s (与之相对, 匹配其他消息元素可以跑到10w msg/s, re出来挨打)
 2. commandline增加一个`analysis`功能，可以把命令转为命令格式
 3. 修复Bug
 
-## Alconna 0.6.0:
+## Alconna 0.6.0
 
 1. 加入click-like构造方法，具体内容在alconna/decorate里
 2. 加入命令行功能，目前功能为便捷式编写Alconna与便捷查看docstring
 3. 性能优化, 包含正则参数解析的速度提升大约10%
 4. Option支持重复输入，此时多个解析结果会以列表形式存放
 
-## Alconna 0.5.9: 
+## Alconna 0.5.9
 
 1. help选项可用传入一自定义函数已达到直接发送帮助说明的效果
 2. 规范format方法；from_string现在可以用#加入帮助说明
 3. 加入commandManager，帮助管理所有命令；支持解析原始消息链
 
-## Alconna 0.5.8: 
+## Alconna 0.5.8
 
 加入有序匹配模式与命令缓存, 能使性能大大提升
 
-## Alconna 0.5.7: 
+## Alconna 0.5.7
 
 修复非ArgPattern修饰的参数无法解析消息元素的Bug
 
-## Alconna 0.5.6: 
+## Alconna 0.5.6
 
 1. 修复Bug
 2. 增加了Email的参数匹配
 
-## Alconna 0.5.5: 
+## Alconna 0.5.5
 
 1. from_sting可以传入option了
 2. 修复bug
 
-## Alconna 0.5.4: 
+## Alconna 0.5.4
 
 1. 优化结构
 2. Arpamar 现可直接以XXX.name方式获取参数
 
-## Alconna 0.5.3: 
+## Alconna 0.5.3
 
 1. 增加自定义消息元素过滤
 2. headers支持传入消息元素
 
-## Alconna 0.5.2: 
+## Alconna 0.5.2
 
 紧急修复Action无法返回值的bug
 
-## Alconna 0.5.1: 
+## Alconna 0.5.1
 
 1. 优化整体结构
 2. 完善了action相关
 3. 修改参数默认值的bug
 
-## Alconna 0.4.3：
+## Alconna 0.4.3
 
 1. 加入Action (暂时只针对Option)
 2. Args解析出来的结果 (如bool值, int值) 会转为指定的类型
 
-## Alconna 0.4.2：
+## Alconna 0.4.2
 
 1. 加入AnyFloat预制正则
 2. Args构造支持传入元组;
 3. 增加两种简易构造Alconna的形式
 4. 修复Bug
 
-## Alconna 0.4.1：
+## Alconna 0.4.1
 
 1. 加入 AnyParam类型 (单次泛匹配)与AllParam类型 (全部泛匹配)
 2. 修改部分逻辑

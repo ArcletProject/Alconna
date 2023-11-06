@@ -221,6 +221,17 @@ $ python fuzzy.py /test_fuzzy foo bar
 无法解析 /test_fuzzy。您想要输入的是不是 "!test_fuzzy" ?
 ```
 
+## 示例
+
+| 名称   | 文件                                       |
+|------|------------------------------------------|
+| 计算   | [calculate.py](./example/calculate.py)   |
+| 执行代码 | [exec_code.py](./example/exec_code.py)   |
+| 请求路由 | [endpoint.py](./example/endpoint.py)     |
+| 图片搜索 | [img_search.py](./example/img_search.py) |
+| PIP  | [pip.py](./example/pip.py)               |
+
+
 ## 许可
 
 Alconna 采用 [MIT](LICENSE) 许可协议

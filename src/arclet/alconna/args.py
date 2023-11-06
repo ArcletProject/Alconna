@@ -6,19 +6,19 @@ import re
 import sys
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Generic, Iterable, Sequence, TypeVar, Union, Type, List
+from typing import Any, Callable, Generic, Iterable, List, Sequence, Type, TypeVar, Union
+from typing_extensions import Self, TypeAlias
 
 from nepattern import BasePattern, MatchMode, RawStr, UnionPattern, parser, NONE, ANY, AntiPattern
 from tarina import Empty, get_signature, lang
-from typing_extensions import Self, TypeAlias
 
-from .exceptions import InvalidParam
 from .typing import KeyWordVar, MultiVar, KWBool, UnpackVar, AllParam
+from .exceptions import InvalidArgs
 
 
 def safe_dcls_kw(**kwargs):
     if sys.version_info < (3, 10):  # pragma: no cover
-        kwargs.pop('slots')
+        kwargs.pop("slots")
     return kwargs
 
 
@@ -28,7 +28,8 @@ TAValue: TypeAlias = Union[BasePattern[_T, Any], Type[_T], str]
 
 class ArgFlag(str, Enum):
     """标识参数单元的特殊属性"""
-    OPTIONAL = '?'
+
+    OPTIONAL = "?"
     HIDDEN = "/"
     ANTI = "!"
 
@@ -41,13 +42,35 @@ class Field(Generic[_T]):
     """参数单元的默认值"""
     alias: str | None = dc.field(default=None)
     """参数单元默认值的别名"""
-    completion: Callable[[], str | list[str]] | None = dc.field(default=None)
+    completion: Callable[[], str | list[str] | None] | None = dc.field(default=None)
     """参数单元的补全"""
+    unmatch_tips: Callable[[Any], str] | None = dc.field(default=None)
+    """参数单元的错误提示"""
+    missing_tips: Callable[[], str] | None = dc.field(default=None)
+    """参数单元的缺失提示"""
 
     @property
     def display(self):
         """返回参数单元的显示值"""
         return self.alias or self.default
+
+    def get_completion(self):
+        """返回参数单元的补全"""
+        return self.completion() if self.completion else None
+
+    def get_unmatch_tips(self, value: Any, fallback: str):
+        """返回参数单元的错误提示"""
+        if not self.unmatch_tips:
+            return fallback
+        gen = self.unmatch_tips(value)
+        return gen or fallback
+
+    def get_missing_tips(self, fallback: str):
+        """返回参数单元的缺失提示"""
+        if not self.missing_tips:
+            return fallback
+        gen = self.missing_tips()
+        return gen or fallback
 
 
 @dc.dataclass(**safe_dcls_kw(init=False, eq=True, unsafe_hash=True, slots=True))
@@ -88,17 +111,17 @@ class Arg(Generic[_T]):
             notice (str, optional): 参数单元的注释. Defaults to None.
             flags (list[ArgFlag], optional): 参数单元的标识. Defaults to None.
         """
-        if not isinstance(name, str) or name.startswith('$'):
-            raise InvalidParam(lang.require("args", "name_error"))
+        if not isinstance(name, str) or name.startswith("$"):
+            raise InvalidArgs(lang.require("args", "name_error"))
         if not name.strip():
-            raise InvalidParam(lang.require("args", "name_empty"))
+            raise InvalidArgs(lang.require("args", "name_empty"))
         self.name = name
         _value = parser(value or RawStr(name))
         default = field if isinstance(field, Field) else Field(field)
         if isinstance(_value, UnionPattern) and _value.optional:
             default.default = None if default.default is Empty else default.default
         if _value == NONE:
-            raise InvalidParam(lang.require("args", "value_error").format(target=name))
+            raise InvalidArgs(lang.require("args", "value_error").format(target=name))
         self.value = _value
         self.field = default
         self.notice = notice
@@ -124,7 +147,6 @@ class Arg(Generic[_T]):
         if isinstance(other, Arg):
             return Args(self, other)
         raise TypeError(f"unsupported operand type(s) for +: 'Arg' and '{other.__class__.__name__}'")
-    
 
 
 class ArgsMeta(type):
@@ -157,6 +179,7 @@ class _argument(List[Arg[Any]]):
         self.keyword_only: dict[str, Arg[Any]] = {}
         self.unpack: tuple[Arg, Args] | None = None
 
+
 def gen_unpack(var: UnpackVar):
     unpack = Args()
     for field in var.fields:
@@ -167,11 +190,12 @@ def gen_unpack(var: UnpackVar):
         else:
             _de = Empty
         _type = field.type
-        if getattr(field, "kw_only", var.kw_only):
+        if getattr(field, "kw_only", None) or var.kw_only:
             _type = KeyWordVar(_type, sep=var.kw_sep)
         unpack.add(field.name, value=_type, default=_de)
     var.alias = f"{var.alias}{'()' if unpack.empty else f'{unpack}'[4:]}"
     return unpack
+
 
 class Args(metaclass=ArgsMeta):
     """参数集合
@@ -188,6 +212,7 @@ class Args(metaclass=ArgsMeta):
         >>> Args.name[str]
         Args('name': str)
     """
+
     argument: _argument
 
     @classmethod
@@ -214,7 +239,7 @@ class Args(metaclass=ArgsMeta):
                 anno = type(de) if de not in {Empty, None} else ANY
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
-                    anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith('no'))
+                    anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith('no'))  # noqa: E501
                 anno = KeyWordVar(anno, sep=kw_sep)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")
@@ -289,34 +314,34 @@ class Args(metaclass=ArgsMeta):
             self._visit.add(arg.name)
             if isinstance(arg.value, UnpackVar):
                 if len(self._visit) > 1:
-                    raise InvalidParam("Unpack var can only put in the first position")
+                    raise InvalidArgs("Unpack var can only put in the first position")
                 if len(self.argument) > 1:
-                    raise InvalidParam("Args can only contain one arg if using Unpack var")
+                    raise InvalidArgs("Args can only contain one arg if using Unpack var")
                 _gen_unpack = getattr(arg.value, "unpack", gen_unpack)
                 self.argument.unpack = (arg, _gen_unpack(arg.value))
                 break
             if isinstance(arg.value, MultiVar):
                 if isinstance(arg.value.base, KeyWordVar):
                     if self.argument.var_keyword:
-                        raise InvalidParam(lang.require("args", "duplicate_kwargs"))
-                    if self.argument.var_positional and arg.value.base.sep in self.argument.var_positional[1].separators:
-                        raise InvalidParam("varkey cannot use the same sep as varpos's Arg")
+                        raise InvalidArgs(lang.require("args", "duplicate_kwargs"))
+                    if self.argument.var_positional and arg.value.base.sep in self.argument.var_positional[1].separators:  # noqa: E501
+                        raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
                     self.argument.var_keyword = (arg.value, arg)
                 elif self.argument.var_positional:
-                    raise InvalidParam(lang.require("args", "duplicate_varargs"))
+                    raise InvalidArgs(lang.require("args", "duplicate_varargs"))
                 elif self.argument.keyword_only:
-                    raise InvalidParam(lang.require("args", "exclude_mutable_args"))
+                    raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                 else:
                     self.argument.var_positional = (arg.value, arg)
             elif isinstance(arg.value, KeyWordVar):
                 if self.argument.var_keyword:
-                    raise InvalidParam(lang.require("args", "exclude_mutable_args"))
+                    raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                 self.argument.keyword_only[arg.name] = arg
             else:
                 self.argument.normal.append(arg)
                 if arg.optional:
                     if self.argument.var_keyword or self.argument.var_positional:
-                        raise InvalidParam(lang.require("args", "exclude_mutable_args"))
+                        raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                     self.optional_count += 1
         self.argument.clear()
         self.argument.extend(_tmp)

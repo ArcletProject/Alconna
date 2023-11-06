@@ -32,10 +32,12 @@ class Trace:
 
     该结构用于存放命令节点的数据，包括命令节点的头部、参数、分隔符和主体。
     """
+
     head: dict[str, Any]
     args: Args
     separators: tuple[str, ...]
     body: list[Option | Subcommand]
+
 
 class TextFormatter:
     """帮助文档格式化器
@@ -49,18 +51,20 @@ class TextFormatter:
 
     def add(self, base: Alconna):
         """添加目标命令"""
-        self.ignore_names.update(base.namespace_config.builtin_option_name['help'])
-        self.ignore_names.update(base.namespace_config.builtin_option_name['shortcut'])
-        self.ignore_names.update(base.namespace_config.builtin_option_name['completion'])
-        pfs = base.prefixes.copy()
-        if base.name in pfs:
-            pfs.remove(base.name)  # type: ignore
+        self.ignore_names.update(base.namespace_config.builtin_option_name["help"])
+        self.ignore_names.update(base.namespace_config.builtin_option_name["shortcut"])
+        self.ignore_names.update(base.namespace_config.builtin_option_name["completion"])
         res = Trace(
             {
-                'name': base.name, 'prefix': pfs or [], 'description': base.meta.description,
-                'usage': base.meta.usage, 'example': base.meta.example
+                "name": base.header_display,
+                "prefix": [],
+                "description": base.meta.description,
+                "usage": base.meta.usage,
+                "example": base.meta.example,
             },
-            base.args, base.separators, base.options.copy()
+            base.args,
+            base.separators,
+            base.options.copy(),
         )
         self.data[base] = res
         return self
@@ -75,8 +79,9 @@ class TextFormatter:
         Args:
             parts (list | None, optional): 可能的节点路径.
         """
+
         def _handle(trace: Trace):
-            if not parts or parts == ['']:
+            if not parts or parts == [""]:
                 return self.format(trace)
             end = resolve(parts, trace.body)
             if isinstance(end, Option):
@@ -99,10 +104,17 @@ class TextFormatter:
         Args:
             trace (Trace): 命令节点数据
         """
-        prefix = self.header(trace.head, trace.separators)
+        title, desc, usage, example = self.header(trace.head, trace.separators)
         param = self.parameters(trace.args)
         body = self.body(trace.body)
-        return prefix % (param, body)
+        res = f"{title} {param}\n{desc}"
+        if usage:
+            res += f"\n{usage}"
+        if body:
+            res += f"\n\n{body}"
+        if example:
+            res += f"\n{example}"
+        return res
 
     def param(self, parameter: Arg) -> str:
         """对单个参数的描述
@@ -132,34 +144,34 @@ class TextFormatter:
         """
         res = ""
         for arg in args.argument:
-            if arg.name.startswith('_key_'):
+            if arg.name.startswith("_key_"):
                 continue
             if len(arg.separators) == 1:
-                sep = ' ' if arg.separators[0] == ' ' else f' {arg.separators[0]!r} '
+                sep = " " if arg.separators[0] == " " else f" {arg.separators[0]!r} "
             else:
                 sep = f"[{'|'.join(arg.separators)!r}]"
             res += self.param(arg) + sep
         notice = [(arg.name, arg.notice) for arg in args.argument if arg.notice]
         return (
-            f"{res}\n## {lang.require('format', 'notice')}\n  " +
-            "\n  ".join([f"{v[0]}: {v[1]}" for v in notice])
-        ) if notice else res
+            (f"{res}\n## {lang.require('format', 'notice')}\n  " + "\n  ".join([f"{v[0]}: {v[1]}" for v in notice]))
+            if notice
+            else res
+        )
 
-
-    def header(self, root: dict[str, Any], separators: tuple[str, ...]) -> str:
+    def header(self, root: dict[str, Any], separators: tuple[str, ...]) -> tuple[str, str, str, str]:
         """头部节点的描述
 
         Args:
             root (dict[str, Any]): 头部节点数据
             separators (tuple[str, ...]): 分隔符
         """
-        help_string = f"\n{desc}" if (desc := root.get('description')) else ""
-        usage = f"\n{lang.require('format', 'usage')}:\n{usage}" if (usage := root.get('usage')) else ""
-        example = f"\n{lang.require('format', 'example')}:\n{example}" if (example := root.get('example')) else ""
-        prefixs = f"[{''.join(map(str, prefixs))}]" if (prefixs := root.get('prefix', [])) != [] else ""
+        help_string = f"{desc}" if (desc := root.get("description")) else ""
+        usage = f"{lang.require('format', 'usage')}:\n{usage}" if (usage := root.get("usage")) else ""
+        example = f"{lang.require('format', 'example')}:\n{example}" if (example := root.get("example")) else ""
+        prefixs = f"[{''.join(map(str, prefixs))}]" if (prefixs := root.get("prefix", [])) != [] else ""
         cmd = f"{prefixs}{root.get('name', '')}"
-        command_string = cmd or (root['name'] + separators[0])
-        return f"{command_string} %s{help_string}{usage}\n\n%s{example}"
+        command_string = cmd or (root["name"] + separators[0])
+        return command_string, help_string, usage, example
 
     def opt(self, node: Option) -> str:
         """对单个选项的描述"""
@@ -172,10 +184,7 @@ class TextFormatter:
     def sub(self, node: Subcommand) -> str:
         """对单个子命令的描述"""
         opt_string = "".join(
-            [
-                self.opt(opt).replace("\n", "\n  ").replace("# ", "* ")
-                for opt in node.options if isinstance(opt, Option)
-            ]
+            [self.opt(opt).replace("\n", "\n  ").replace("# ", "* ") for opt in node.options if isinstance(opt, Option)]
         )
         sub_string = "".join(
             [
@@ -190,19 +199,14 @@ class TextFormatter:
             f"  {node.name}{tuple(node.separators)[0]}{self.parameters(node.args)}\n"
             f"{sub_help}{sub_string}"
             f"{opt_help}{opt_string}"
-        ).rstrip(' ')
+        ).rstrip(" ")
 
     def body(self, parts: list[Option | Subcommand]) -> str:
         """子节点列表的描述"""
         option_string = "".join(
-            [
-                self.opt(opt) for opt in parts
-                if isinstance(opt, Option) and opt.name not in self.ignore_names
-            ]
+            [self.opt(opt) for opt in parts if isinstance(opt, Option) and opt.name not in self.ignore_names]
         )
-        subcommand_string = "".join(
-            [self.sub(sub) for sub in parts if isinstance(sub, Subcommand)]
-        )
+        subcommand_string = "".join([self.sub(sub) for sub in parts if isinstance(sub, Subcommand)])
         option_help = f"{lang.require('format', 'options')}:\n" if option_string else ""
         subcommand_help = f"{lang.require('format', 'subcommands')}:\n" if subcommand_string else ""
         return f"{subcommand_help}{subcommand_string}{option_help}{option_string}"

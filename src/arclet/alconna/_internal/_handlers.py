@@ -12,14 +12,13 @@ from ..args import Arg, Args
 from ..base import Option, Subcommand
 from ..completion import Prompt, comp_ctx
 from ..config import config
-from ..exceptions import (
-    ArgumentMissing, FuzzyMatchSuccess, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
-)
+from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
+from ..model import HeadResult, OptionResult, Sentence
 from ..model import HeadResult, OptionResult
 from ..output import output_manager
 from ..typing import KWBool
 from ._header import Double, Header
-from ._util import levenshtein, escape, unescape
+from ._util import escape, levenshtein, unescape
 
 if TYPE_CHECKING:
     from ._analyser import Analyser, SubAnalyser
@@ -37,13 +36,14 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dic
         return
     default_val = target.field.default
     res = value.validate(arg, default_val)
-    if res.flag != 'valid':
+    if res.flag != "valid":
         argv.rollback(arg)
-    if res.flag == 'error':
+    if res.flag == "error":
         if target.optional:
             return
-        raise ParamsUnmatched(*res.error().args)
+        raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]))
     result[target.name] = res._value  # noqa
+
 
 def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
     value, arg = args.argument.var_positional
@@ -58,31 +58,30 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
     for _ in range(loop):
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
-            raise SpecialOptionTriggered(argv.special[may_arg])
+            if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
+                raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             break
-        if (
-            _str and kwonly_seps and
-            split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only
-        ):
+        if _str and kwonly_seps and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:  # noqa: E501
             argv.rollback(may_arg)
             break
         if _str and args.argument.var_keyword and args.argument.var_keyword[0].base.sep in may_arg:  # type: ignore
             argv.rollback(may_arg)
             break
-        if (res := value.base.exec(may_arg)).flag != 'valid':
+        if (res := value.base.exec(may_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result.append(res._value)  # noqa
     if not _result:
         if default_val is not None:
             _result = default_val if isinstance(default_val, Iterable) else ()
-        elif value.flag == '*':
+        elif value.flag == "*":
             _result = ()
         else:
-            raise ArgumentMissing(lang.require("args", "missing").format(key=key))
+            raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
     result[key] = tuple(_result)
+
 
 def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
     value, arg = args.argument.var_keyword
@@ -96,28 +95,30 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
     for _ in range(loop):
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
-            raise SpecialOptionTriggered(argv.special[may_arg])
+            if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
+                raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
             argv.rollback(may_arg)
             break
-        if not (_kwarg := re.match(fr'^(-*[^{value.base.sep}]+){value.base.sep}(.*?)$', may_arg)):
+        if not (_kwarg := re.match(rf"^(-*[^{value.base.sep}]+){value.base.sep}(.*?)$", may_arg)):
             argv.rollback(may_arg)
             break
         key = _kwarg[1]
         if not (_m_arg := _kwarg[2]):
             _m_arg, _ = argv.next(arg.separators)
-        if (res := value.base.base.exec(_m_arg)).flag != 'valid':
+        if (res := value.base.base.exec(_m_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result[key] = res._value  # noqa
     if not _result:
         if default_val is not None:
             _result = default_val if isinstance(default_val, dict) else {}
-        elif value.flag == '*':
+        elif value.flag == "*":
             _result = {}
         else:
-            raise ArgumentMissing(lang.require("args", "missing").format(key=name))
+            raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=name)))
     result[name] = _result
+
 
 def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
     kwonly_seps = set()
@@ -129,7 +130,8 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
     while count < target:
         may_arg, _str = argv.next(tuple(kwonly_seps))
         if _str and may_arg in argv.special:
-            raise SpecialOptionTriggered(argv.special[may_arg])
+            if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
+                raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or not _str:
             argv.rollback(may_arg)
             break
@@ -142,12 +144,12 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             if args.argument.var_keyword or (_str and may_arg in argv.param_ids):
                 break
             for arg in args.argument.keyword_only.values():
-                if arg.value.base.exec(may_arg).flag == 'valid':  # type: ignore
-                    raise ParamsUnmatched(lang.require("args", "key_missing").format(target=may_arg, key=arg.name))
+                if arg.value.base.exec(may_arg).flag == "valid":  # type: ignore
+                    raise InvalidParam(lang.require("args", "key_missing").format(target=may_arg, key=arg.name))
             for name in args.argument.keyword_only:
                 if levenshtein(_key, name) >= config.fuzzy_threshold:
                     raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=_key))
-            raise ParamsUnmatched(lang.require("args", "key_not_found").format(name=_key))
+            raise InvalidParam(lang.require("args", "key_not_found").format(name=_key))
         arg = args.argument.keyword_only[_key]
         value = arg.value.base  # type: ignore
         if not _m_arg:
@@ -165,7 +167,8 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             if arg.field.default is not None:
                 result[key] = None if arg.field.default is Empty else arg.field.default
             elif not arg.optional:
-                raise ArgumentMissing(lang.require("args", "missing").format(key=key))
+                raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
+
 
 def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
@@ -183,7 +186,8 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
         argv.context = arg
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
-            raise SpecialOptionTriggered(argv.special[may_arg])
+            if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
+                raise SpecialOptionTriggered(argv.special[may_arg])
         if _str and may_arg in argv.param_ids and arg.optional:
             if (de := arg.field.default) is not None:
                 result[arg.name] = None if de is Empty else de
@@ -194,7 +198,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             if (de := arg.field.default) is not None:
                 result[arg.name] = None if de is Empty else de
             elif not arg.optional:
-                raise ArgumentMissing(lang.require("args", "missing").format(key=arg.name))
+                raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=arg.name)))
             continue
         value = arg.value
         if value.alias == "*":
@@ -238,7 +242,7 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     if opt.compact:
         for al in opt.aliases:
             if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
-                argv.rollback(mat['rest'], replace=True)
+                argv.rollback(mat["rest"], replace=True)
                 error = False
                 break
     elif opt.action.type == 2:
@@ -252,7 +256,7 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     if error:
         if argv.fuzzy_match and levenshtein(name, opt.name) >= config.fuzzy_threshold:
             raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
-        raise ParamsUnmatched(lang.require("option", "name_error").format(source=opt.name, target=name))
+        raise InvalidParam(lang.require("option", "name_error").format(source=opt.name, target=name))
     name = opt.dest
     return (
         (name, OptionResult(None, analyse_args(argv, opt.args)))
@@ -320,7 +324,7 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
                     analyser.subcommands_result[param.command.dest] = param.result()
             _data.clear()
             return True
-        except ParamsUnmatched as e:
+        except InvalidParam as e:
             if argv.context.__class__ is Arg:
                 raise e
             argv.data_reset(_data, _index)
@@ -346,19 +350,17 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
     """
     _text, _str = argv.next(seps, move=False)
     if _str and _text in argv.special:
-        if _text in argv.completion_names:
-            if argv.current_index < argv.ndata:
-                argv.bak_data = argv.bak_data[:argv.current_index+1]
-            last = argv.bak_data[-1]
-            argv.bak_data[-1] = last[:last.rfind(_text)]
-        raise SpecialOptionTriggered(argv.special[_text])
+        if argv.special[_text] not in argv.namespace.disable_builtin_options:
+            if _text in argv.completion_names:
+                argv.bak_data[argv.current_index] = argv.bak_data[argv.current_index].replace(_text, "")
+            raise SpecialOptionTriggered(argv.special[_text])
     if not _str or not _text:
         _param = None
     elif _text in analyser.compile_params:
         _param = analyser.compile_params[_text]
     elif analyser.compact_params and (res := analyse_compact_params(analyser, argv)):
         if res.__class__ is str:
-            raise ParamsUnmatched(res)
+            raise InvalidParam(res)
         argv.context = None
         return True
     else:
@@ -414,7 +416,7 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
         elif content.__class__ is TPattern and (mat := content.fullmatch(head_text)):
             return HeadResult(head_text, head_text, True, mat.groupdict(), mapping)
         if header.compact and content.__class__ in (set, TPattern) and (mat := header.compact_pattern.match(head_text)):
-            argv.rollback(head_text[len(mat[0]):], replace=True)
+            argv.rollback(head_text[len(mat[0]) :], replace=True)
             return HeadResult(mat[0], mat[0], True, mat.groupdict(), mapping)
     if isinstance(content, BasePattern):
         if (val := content.validate(head_text)).success:
@@ -435,27 +437,30 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
         return HeadResult(*res, fixes=mapping)
     if _str:
         argv.rollback(may_cmd)
-        source = head_text
-    elif _m_str and may_cmd:
-        source = may_cmd
-    else:
-        argv.rollback(may_cmd)
-        raise ParamsUnmatched(lang.require("header", "error").format(target=head_text), None)
-    if argv.fuzzy_match:
-        _handle_fuzzy(header, source)
-    raise ParamsUnmatched(lang.require("header", "error").format(target=source), source)
+        if argv.fuzzy_match:
+            _handle_fuzzy(header, head_text)
+        raise InvalidParam(lang.require("header", "error").format(target=head_text), head_text)
+    if _m_str and may_cmd:
+        if argv.fuzzy_match:
+            _handle_fuzzy(header, f"{head_text} {may_cmd}")
+        raise InvalidParam(lang.require("header", "error").format(target=may_cmd), may_cmd)
+    argv.rollback(may_cmd)
+    raise InvalidParam(lang.require("header", "error").format(target=head_text), None)
 
 
-def _handle_fuzzy(header, source):
+def _handle_fuzzy(header: Header, source: str):
     command = header.origin[0]
-    _prefixes = [i for i in header.origin[1] if i.__class__ is str]
-    headers_text = []
-    if _prefixes and _prefixes != [""]:
-        headers_text.extend(f"{i}{command}" for i in _prefixes)
-    elif command:
-        headers_text.append(str(command))
-    if source == command:
-        raise ParamsUnmatched(lang.require("header", "error").format(target=source))
+    if not header.origin[1]:
+        headers_text = [str(command)]
+    else:
+        headers_text = []
+        for prefix in header.origin[1]:
+            if isinstance(prefix, tuple):
+                headers_text.append(f"{prefix[0]} {prefix[1]}{command}")
+            elif isinstance(prefix, str):
+                headers_text.append(f"{prefix}{command}")
+            else:
+                headers_text.append(f"{prefix} {command}")
     for ht in headers_text:
         if levenshtein(source, ht) >= config.fuzzy_threshold:
             raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(target=source, source=ht))
@@ -468,7 +473,7 @@ def handle_help(analyser: Analyser, argv: Argv):
         analyser.command.name,
         lambda: analyser.command.formatter.format_node(_help_param),
     )
-    return analyser.export(argv, True, SpecialOptionTriggered('help'))
+    return analyser.export(argv, True, SpecialOptionTriggered("help"))
 
 
 _args = Args["action?", "delete|list"]["name?", str]["command", str, "$"]
@@ -487,7 +492,7 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
             output_manager.send(analyser.command.name, lambda: "\n".join(data))
         else:
             if not opt_v.get("name"):
-                raise ParamsUnmatched(lang.require("shortcut", "name_require"))
+                raise ArgumentMissing(lang.require("shortcut", "name_require"))
             if opt_v.get("action") == "delete":
                 msg = analyser.command.shortcut(opt_v["name"], delete=True)
             elif opt_v["command"] == "_":
@@ -499,11 +504,12 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
             output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
         output_manager.send(analyser.command.name, lambda: str(e))
-    return analyser.export(argv, True, SpecialOptionTriggered('shortcut'))
+    return analyser.export(argv, True, SpecialOptionTriggered("shortcut"))
 
 
 INDEX_SLOT = re.compile(r"\{%(\d+)\}")
 WILDCARD_SLOT = re.compile(r"\{\*(.*)\}", re.DOTALL)
+
 
 def _gen_extend(data: list, sep: str):
     extend = []
@@ -513,6 +519,7 @@ def _gen_extend(data: list, sep: str):
         else:
             extend.append(slot)
     return extend
+
 
 def _handle_multi_slot(argv: Argv, unit: str, data: list, index: int, current: int, offset: int):
     slot = data[index]
@@ -525,8 +532,9 @@ def _handle_multi_slot(argv: Argv, unit: str, data: list, index: int, current: i
             argv.raw_data[current + 2] = right.strip()
             offset += 1
     else:
-        argv.raw_data[current + offset] =  unescape(unit.replace(f"{{%{index}}}", slot))
+        argv.raw_data[current + offset] = unescape(unit.replace(f"{{%{index}}}", slot))
     return offset
+
 
 def _handle_shortcut_data(argv: Argv, data: list):
     data_len = len(data)
@@ -551,7 +559,7 @@ def _handle_shortcut_data(argv: Argv, data: list):
                 offset = _handle_multi_slot(argv, unit, data, index, i, offset)
                 record.add(index)
         elif mat := WILDCARD_SLOT.search(unit):
-            extend = _gen_extend(data, mat[1] or ' ')
+            extend = _gen_extend(data, mat[1] or " ")
             if unit == f"{{*{mat[1]}}}":
                 argv.raw_data.extend(extend)
             else:
@@ -559,6 +567,7 @@ def _handle_shortcut_data(argv: Argv, data: list):
             data.clear()
             break
     return [unit for i, unit in enumerate(data) if i not in record]
+
 
 def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, str]):
     for j, unit in enumerate(argv.raw_data):
@@ -571,9 +580,9 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
             unit = unit.replace(f"{{{k}}}", v)
         argv.raw_data[j] = unescape(unit)
 
+
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
-    if trig.field.completion:
-        comp = trig.field.completion()
+    if comp := trig.field.get_completion():
         if isinstance(comp, str):
             return [Prompt(comp, False)]
         releases = argv.release(recover=True)
@@ -587,12 +596,12 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
     res: list[Prompt] = []
     if not analyser.args_result and analyser.self_args.argument:
         unit = analyser.self_args.argument[0]
-        if gen := unit.field.completion:
-            res.extend([Prompt(comp, False)] if isinstance(comp := gen(), str) else [Prompt(i, False) for i in comp])
+        if comp := unit.field.get_completion():
+            res.extend([Prompt(comp, False)] if isinstance(comp, str) else [Prompt(i, False) for i in comp])
         else:
             res.append(Prompt(analyser.command.formatter.param(unit), False))
     for opt in filter(
-        lambda x: x.name not in argv.completion_names,
+        lambda x: x.name not in (argv.special if len(analyser.command.options) > 3 else argv.completion_names),
         analyser.command.options,
     ):
         if opt.dest not in got:
@@ -626,9 +635,9 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
     """处理补全选项触发"""
     if res := prompt(analyser, argv, trigger):
         if comp_ctx.get(None):
-            raise PauseTriggered(res)
+            raise PauseTriggered(res, trigger)
         output_manager.send(
             analyser.command.name,
             lambda: f"{lang.require('completion', 'node')}\n* " + "\n* ".join([i.text for i in res]),
         )
-    return analyser.export(argv, True, SpecialOptionTriggered('completion'))  # type: ignore
+    return analyser.export(argv, True, SpecialOptionTriggered("completion"))  # type: ignore

@@ -8,8 +8,8 @@ from nepattern import BasePattern, UnionPattern, all_patterns, parser, MatchMode
 from nepattern.util import TPattern
 from tarina import lang
 
-from ._util import escape, unescape
 from ..typing import TPrefixes
+from ._util import escape, unescape
 
 
 def prefixed(pat: BasePattern):
@@ -56,6 +56,7 @@ def handle_bracket(name: str, mapping: dict):
 
 class Pair:
     """用于匹配前缀和命令的配对"""
+
     __slots__ = ("prefix", "pattern", "is_prefix_pat", "gd_supplier", "_match")
 
     def __init__(self, prefix: Any, pattern: TPattern | str):
@@ -69,7 +70,7 @@ class Pair:
                 if command == self.pattern:
                     return command, None
                 if comp and command.startswith(self.pattern):
-                    pbfn(command[len(self.pattern):], replace=True)
+                    pbfn(command[len(self.pattern) :], replace=True)
                     return self.pattern, None
                 return None, None
 
@@ -80,9 +81,10 @@ class Pair:
                 if mat := self.pattern.fullmatch(command):
                     return command, mat
                 if comp and (mat := self.pattern.match(command)):
-                    pbfn(command[len(mat[0]):], replace=True)
+                    pbfn(command[len(mat[0]) :], replace=True)
                     return mat[0], mat
                 return None, None
+
         self._match = _match
 
     def match(self, _pf: Any, command: str, pbfn: Callable[..., ...], comp: bool):
@@ -94,9 +96,15 @@ class Pair:
         if not isclass(_pf) and _pf == self.prefix or _pf.__class__ == self.prefix:
             return (_pf, command), (_pf, command), True, self.gd_supplier(mat)
 
+    def __repr__(self):
+        prefix = f"{self.prefix}" if self.is_prefix_pat else self.prefix.__name__ if isinstance(self.prefix, type) else self.prefix.__class__.__name__  # noqa: E501
+        pattern = self.pattern if isinstance(self.pattern, str) else self.pattern.pattern
+        return f"({prefix}{pattern!r})"
+
 
 class Double:
     """用于匹配前缀和命令的组合"""
+
     command: TPattern | BasePattern | str
 
     def __init__(
@@ -131,6 +139,22 @@ class Double:
             self.cmd_type = 2
             self.comp_pattern = re.compile(f"^(?:{prf}){command}")
 
+    def __repr__(self):
+        if self.cmd_type == 0:
+            if self.prefix:
+                return f"[{'│'.join(self.prefix)}]{self.command}"  # type: ignore
+            return str(self.command)
+        if self.cmd_type == 1:
+            return self.command.pattern
+        cmd = self.command.pattern
+        prefixes = [str(self.patterns).replace("|", "│")]
+        for pf in self.prefix.pattern[:-len(cmd)][3:-1].split("|"):
+            for c in '()[]{}?*+-|^$\\.&~# \t\n\r\v\f':
+                if f"\\{c}" in pf:
+                    pf = pf.replace(f"\\{c}", c)
+            prefixes.append(pf)
+        return f"[{'│'.join(prefixes)}]{cmd}"
+
     def match0(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
         if self.prefix and p_str and pf in self.prefix:
             if (val := self.command.validate(cmd)).success:
@@ -155,7 +179,7 @@ class Double:
         if (val := self.patterns.validate(pf)).success and (mat := self.command.fullmatch(cmd)):
             return (pf, cmd), (val._value, cmd), True, mat.groupdict()
         if comp and (mat := self.comp_pattern.match(cmd)):
-            pbfn(cmd[len(mat[0]):], replace=True)
+            pbfn(cmd[len(mat[0]) :], replace=True)
             return (pf, cmd), (pf, mat[0]), True, mat.groupdict()
 
     def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
@@ -171,14 +195,14 @@ class Double:
                 return pf, pf, True, mat.groupdict()
             if comp and (mat := self.comp_pattern.match(pf)):
                 pbfn(cmd)
-                pbfn(pf[len(mat[0]):], replace=True)
+                pbfn(pf[len(mat[0]) :], replace=True)
                 return mat[0], mat[0], True, mat.groupdict()
             if not c_str:
                 return
             if mat := self.prefix.fullmatch((name := pf + cmd)):
                 return name, name, True, mat.groupdict()
             if comp and (mat := self.comp_pattern.match(name)):
-                pbfn(name[len(mat[0]):], replace=True)
+                pbfn(name[len(mat[0]) :], replace=True)
                 return mat[0], mat[0], True, mat.groupdict()
             return
         if (val := self.patterns.validate(pf)).success:
@@ -207,6 +231,21 @@ class Header:
         self.compact = compact
         self.compact_pattern = compact_pattern
 
+    def __repr__(self):
+        if isinstance(self.content, set):
+            if not self.origin[1]:
+                return self.origin[0]
+            if self.origin[0]:
+                return f"[{'│'.join(self.origin[1])}]{self.origin[0]}" if len(self.content) > 1 else f"{self.content.copy().pop()}"  # noqa: E501
+            return '│'.join(self.origin[1])
+        if isinstance(self.content, TPattern):
+            if not self.origin[1]:
+                return self.origin[0]
+            return f"[{'│'.join(self.origin[1])}]{self.origin[0]}"
+        if isinstance(self.content, list):
+            return "│".join(map(str, self.content))
+        return str(self.content)
+
     @classmethod
     def generate(
         cls,
@@ -226,10 +265,10 @@ class Header:
                 return cls((command, prefixes), cmd, mapping, compact, re.compile(f"^{_cmd}"))
             if isinstance(prefixes[0], tuple):
                 return cls(
-                    (command, prefixes), [
-                        Pair(h[0], re.compile(re.escape(h[1]) + _cmd) if to_regex else h[1] + _cmd)
-                        for h in prefixes
-                    ], mapping, compact
+                    (command, prefixes),
+                    [Pair(h[0], re.compile(re.escape(h[1]) + _cmd) if to_regex else h[1] + _cmd) for h in prefixes],
+                    mapping,
+                    compact,
                 )
             if all(isinstance(h, str) for h in prefixes):
                 prf = "|".join(re.escape(h) for h in prefixes)

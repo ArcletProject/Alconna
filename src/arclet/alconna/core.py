@@ -6,14 +6,14 @@ from dataclasses import dataclass, field, is_dataclass
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
+from typing_extensions import Self
 
 from tarina import init_spec, lang
-from typing_extensions import Self
 
 from ._internal._analyser import Analyser, TCompile
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
-from .base import Option, Subcommand
+from .base import Completion, Help, Option, Shortcut, Subcommand
 from .config import Namespace, config
 from .exceptions import ExecuteFailed, NullMessage
 from .formatter import TextFormatter
@@ -35,22 +35,18 @@ def handle_argv():
 
 
 def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> None:
-    options.append(
-        Option("|".join(ns.builtin_option_name['help']), help_text=lang.require("builtin", "option_help")),
-    )
-    options.append(
-        Option(
-            "|".join(ns.builtin_option_name['shortcut']),
-            Args["action?", "delete|list"]["name?", str]["command", str, "$"],
-            help_text=lang.require("builtin", "option_shortcut")
+    if "help" not in ns.disable_builtin_options:
+        options.append(Help("|".join(ns.builtin_option_name["help"]), help_text=lang.require("builtin", "option_help")))  # noqa: E501
+    if "shortcut" not in ns.disable_builtin_options:
+        options.append(
+            Shortcut(
+                "|".join(ns.builtin_option_name["shortcut"]),
+                Args["action?", "delete|list"]["name?", str]["command", str, "$"],
+                help_text=lang.require("builtin", "option_shortcut"),
+            )
         )
-    )
-    options.append(
-        Option(
-            "|".join(ns.builtin_option_name['completion']),
-            help_text=lang.require("builtin", "option_completion")
-        )
-    )
+    if "completion" not in ns.disable_builtin_options:
+        options.append(Completion("|".join(ns.builtin_option_name["completion"]), help_text=lang.require("builtin", "option_completion")))  # noqa: E501
 
 
 @dataclass(init=True, unsafe_hash=True)
@@ -60,6 +56,7 @@ class ArparmaExecutor(Generic[T]):
     Attributes:
         target(Callable[..., T]): 目标函数
     """
+
     target: Callable[..., T]
     binding: Callable[..., list[Arparma]] = field(default=lambda: [], repr=False)
 
@@ -99,6 +96,7 @@ class Alconna(Subcommand, Generic[TDC]):
         ...  )
         >>> alc.parse("name opt opt_arg")
     """
+
     prefixes: TPrefixes
     """命令前缀"""
     command: str | Any
@@ -124,7 +122,7 @@ class Alconna(Subcommand, Generic[TDC]):
         namespace: str | Namespace | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
         behaviors: list[ArparmaBehavior] | None = None,
-        formatter_type: type[TextFormatter] | None = None
+        formatter_type: type[TextFormatter] | None = None,
     ):
         """
         以标准形式构造 `Alconna`
@@ -162,10 +160,7 @@ class Alconna(Subcommand, Generic[TDC]):
         name = f"{self.command or self.prefixes[0]}"  # type: ignore
         self.path = f"{self.namespace}::{name}"
         _args = sum((i for i in args if isinstance(i, (Args, Arg))), Args())
-        super().__init__(
-            "ALCONNA::",
-            _args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description
-        )
+        super().__init__("ALCONNA::", _args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description)  # noqa: E501
         self.name = name
         self.behaviors = []
         for behavior in behaviors or []:
@@ -233,8 +228,9 @@ class Alconna(Subcommand, Generic[TDC]):
                 if alc and alc == self:
                     return command_manager.add_shortcut(self, key, {"command": cmd})  # type: ignore
                 raise ValueError(
-                    lang.require("shortcut", "recent_command_error")
-                    .format(target=self.path, source=getattr(alc, "path", "Unknown"))
+                    lang.require("shortcut", "recent_command_error").format(
+                        target=self.path, source=getattr(alc, "path", "Unknown")
+                    )
                 )
             else:
                 raise ValueError(lang.require("shortcut", "no_recent_command"))
@@ -291,7 +287,7 @@ class Alconna(Subcommand, Generic[TDC]):
 
     def parse(self, message: TDC, *, _config: type[T] | None = None) -> Arparma[TDC] | T:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类
-        
+
         Args:
             message (TDC): 命令消息
             _config (type[T], optional): 可选的解析结果配置
@@ -323,17 +319,18 @@ class Alconna(Subcommand, Generic[TDC]):
         Args:
             active (bool, optional): 该执行器是否由 `Alconna` 主动调用, 默认为 `True`
         """
+
         def wrapper(target: Callable[..., T]) -> ArparmaExecutor[T]:
             ext = ArparmaExecutor(target, lambda: command_manager.get_result(self))
             if active:
                 self._executors[ext] = None
             return ext
+
         return wrapper
 
     @property
     def exec_result(self) -> dict[str, Any]:
         return {ext.target.__name__: res for ext, res in self._executors.items() if res is not None}
-
 
     def __truediv__(self, other) -> Self:
         return self.reset_namespace(other)
@@ -375,6 +372,11 @@ class Alconna(Subcommand, Generic[TDC]):
     @property
     def headers(self):
         return self.prefixes
+
+    @property
+    def header_display(self):
+        ana = command_manager.require(self)
+        return str(ana.command_header)
 
 
 __all__ = ["Alconna", "ArparmaExecutor"]
