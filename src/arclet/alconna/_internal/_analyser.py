@@ -84,7 +84,7 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
             default_compiler(sub, pids)
             if not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(sub)
-            if sub.command.default:
+            if sub.command.default is not Empty:
                 analyser.default_sub_result[opts.dest] = sub.command.default
         if opts.requires:
             pids.update(opts.requires)

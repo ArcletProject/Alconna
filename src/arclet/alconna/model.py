@@ -46,4 +46,4 @@ class HeadResult:
         self.matched = matched
         self.groups = groups or {}
         if fixes:
-            self.groups.update({k: v.exec(self.groups[k]).value for k, v in fixes.items() if k in self.groups})  # noqa
+            self.groups.update({k: v.validate(self.groups[k])._value for k, v in fixes.items() if k in self.groups})  # noqa

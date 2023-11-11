@@ -27,10 +27,10 @@ pat = re.compile("(?:-*no)?-*(?P<name>.+)")
 
 
 def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dict[str, Any], arg: Any, _str: bool):
-    if value == ANY or (value == STRING and _str):
+    if (value is STRING and _str) or value is ANY:
         result[target.name] = arg
         return
-    if value == AnyString:
+    if value is AnyString:
         result[target.name] = str(arg)
         return
     default_val = target.field.default
@@ -76,7 +76,7 @@ def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict
         if 0 < value.length <= count:
             break
     if not _result:
-        if default_val is not None:
+        if default_val is not Empty:
             _result = default_val if isinstance(default_val, Iterable) else ()
         elif value.flag == "*":
             _result = ()
@@ -116,7 +116,7 @@ def step_varkey(argv: Argv, slot: tuple[MultiKeyWordVar, Arg], result: dict[str,
         if 0 < value.length <= count:
             break
     if not _result:
-        if default_val is not None:
+        if default_val is not Empty:
             _result = default_val if isinstance(default_val, dict) else {}
         elif value.flag == "*":
             _result = {}
@@ -151,7 +151,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             if args.argument.vars_keyword or (_str and may_arg in argv.param_ids):
                 break
             for arg in args.argument.keyword_only.values():
-                if arg.value.base.exec(may_arg).flag == "valid":  # type: ignore
+                if arg.value.base.validate(may_arg).flag == "valid":  # type: ignore
                     raise InvalidParam(lang.require("args", "key_missing").format(target=may_arg, key=arg.name))
             for name in args.argument.keyword_only:
                 if levenshtein(_key, name) >= argv.fuzzy_threshold:
@@ -171,8 +171,8 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
         for key, arg in args.argument.keyword_only.items():
             if key in result:
                 continue
-            if arg.field.default is not None:
-                result[key] = None if arg.field.default is Empty else arg.field.default
+            if arg.field.default is not Empty:
+                result[key] = arg.field.default
             elif not arg.optional:
                 raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
 
@@ -188,7 +188,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     Returns:
         dict[str, Any]: 解析结果
     """
-    result: dict[str, Any] = {}
+    result = {}
     for arg in args.argument.normal:
         argv.context = arg
         may_arg, _str = argv.next(arg.separators)
@@ -196,14 +196,14 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
                 raise SpecialOptionTriggered(argv.special[may_arg])
         if _str and may_arg in argv.param_ids and arg.optional:
-            if (de := arg.field.default) is not None:
-                result[arg.name] = None if de is Empty else de
+            if (de := arg.field.default) is not Empty:
+                result[arg.name] = de
             argv.rollback(may_arg)
             continue
         if not may_arg:
             argv.rollback(may_arg)
-            if (de := arg.field.default) is not None:
-                result[arg.name] = None if de is Empty else de
+            if (de := arg.field.default) is not Empty:
+                result[arg.name] = de
             elif not arg.optional:
                 raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=arg.name)))
             continue
@@ -220,8 +220,8 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             unpack.separate(*arg.separators)
             result[arg.name] = arg.value.origin(**analyse_args(argv, unpack))
         except Exception as e:
-            if (de := arg.field.default) is not None:
-                result[arg.name] = None if de is Empty else de
+            if (de := arg.field.default) is not Empty:
+                result[arg.name] = de
             elif not arg.optional:
                 raise e
     for slot in args.argument.vars_positional:
