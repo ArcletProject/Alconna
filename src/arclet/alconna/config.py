@@ -37,8 +37,6 @@ class Namespace:
     """默认是否开启模糊匹配"""
     raise_exception: bool = field(default=False)
     """默认是否抛出异常"""
-    enable_message_cache: bool = field(default=True)
-    """默认是否启用消息缓存"""
     disable_builtin_options: set[Literal["help", "shortcut", "completion"]] = field(default_factory=set)
     builtin_option_name: OptionNames = field(
         default_factory=lambda: {
@@ -48,7 +46,7 @@ class Namespace:
         }
     )
     """默认的内置选项名称"""
-    to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
+    to_text: Callable[[Any], str | None] = field(default=lambda x: x if x.__class__ is str else None)
     """默认的选项转文本函数"""
     converter: Callable[[str | list], DataCollection[Any]] | None = field(default=lambda x: x)
     """默认的文本转选项函数"""

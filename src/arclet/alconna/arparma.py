@@ -280,14 +280,17 @@ class Arparma(Generic[TDC]):
 
     def __require__(self, parts: list[str]) -> tuple[dict[str, Any] | OptionResult | SubcommandResult | None, str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
+        all_args = self.all_matched_args
         if len(parts) == 1:
             part = parts[0]
-            for src in (self.main_args, self.other_args, self.options, self.subcommands):
+            for src in (self.main_args, all_args, self.options, self.subcommands):
                 if part in src:
                     return src, part
-            if part in {"options", "subcommands", "main_args", "other_args"}:
+            if part == "all_args":
+                return all_args, ""
+            if part in {"options", "subcommands", "main_args"}:
                 return getattr(self, part, {}), ""
-            return (self.all_matched_args, "") if part == "args" else (None, part)
+            return (all_args, "") if part == "args" else (None, part)
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
             raise RuntimeError(lang.require("arparma", "ambiguous_name").format(target=prefix))
@@ -295,8 +298,8 @@ class Arparma(Generic[TDC]):
             return _handle_opt(prefix, parts, self.options)
         if prefix == "subcommands" or prefix in self.subcommands:
             return _handle_sub(prefix, parts, self.subcommands)
-        prefix = prefix.replace("$main", "main_args").replace("$other", "other_args")
-        if prefix in {"main_args", "other_args"}:
+        prefix = prefix.replace("$main", "main_args").replace("$all", "all_matched_args")
+        if prefix in {"main_args", "all_matched_args"}:
             return getattr(self, prefix, {}), parts.pop(0)
         return None, prefix
 

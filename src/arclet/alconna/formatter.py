@@ -26,6 +26,7 @@ def resolve(parts: list[str], options: list[Option | Subcommand]):
             if not parts:
                 return opt
             return sub if (sub := resolve(parts, opt.options)) else opt
+    return resolve(parts, options)
 
 
 @dataclass(eq=True)
@@ -94,7 +95,7 @@ class TextFormatter:
             if isinstance(end, Subcommand):
                 return self.format(Trace(
                     {"name": end.name, "prefix": [], "description": end.help_text}, end.args,
-                    _cache.separators, _cache.options  # type: ignore
+                    end.separators, end.options  # type: ignore
                 ))
             return self.format(trace)
 

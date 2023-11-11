@@ -3,8 +3,12 @@ from typing import Any, Union
 
 from nepattern import BasePattern, MatchMode
 
-from arclet.alconna import Alconna, Args, Option
+from arclet.alconna import Alconna, Args, Option, Argv, set_default_argv_type
 from arclet.alconna.argv import argv_config
+
+
+class DummyArgv(Argv):
+    ...
 
 
 @dataclass
@@ -41,39 +45,22 @@ Face = gen_unit("face")
 At = gen_unit("at")
 
 
-def test_filter_out():
-    argv_config(filter_out=[int])
-    ana = Alconna("ana", Args["foo", str])
-    assert ana.parse(["ana", 123, "bar"]).matched is True
-    assert ana.parse("ana bar").matched is True
-    argv_config(filter_out=[])
-    ana_1 = Alconna("ana", Args["foo", str])
-    assert ana_1.parse(["ana", 123, "bar"]).matched is False
-
-
-def test_preprocessor():
-    argv_config(preprocessors={float: int})
-    ana1 = Alconna("ana1", Args["bar", int])
-    assert ana1.parse(["ana1", 123.06]).matched is True
-    assert ana1.parse(["ana1", 123.06]).bar == 123
-    argv_config(preprocessors={})
-    ana1_1 = Alconna("ana1", Args["bar", int])
-    assert ana1_1.parse(["ana1", 123.06]).matched is False
-
-
 def test_with_set_unit():
-    argv_config(preprocessors={Segment: lambda x: str(x) if x.type == "text" else None})
+    argv_config(DummyArgv, to_text=lambda x: x if x.__class__ is str else str(x) if x.type == "text" else None)
+    set_default_argv_type(DummyArgv)
 
     ana2 = Alconna("ana2", Args["foo", At]["bar", Face])
     res = ana2.parse([Segment.text("ana2"), Segment.at(123456), Segment.face(103)])
     assert res.matched is True
     assert res.foo.data["qq"] == "123456"
     assert not ana2.parse([Segment.text("ana2"), Segment.face(103), Segment.at(123456)]).matched
-    argv_config()
+
+    set_default_argv_type(Argv)
 
 
 def test_unhashable_unit():
-    argv_config(preprocessors={Segment: lambda x: str(x) if x.type == "text" else None})
+    argv_config(DummyArgv, to_text=lambda x: x if x.__class__ is str else str(x) if x.type == "text" else None)
+    set_default_argv_type(DummyArgv)
 
     ana3 = Alconna("ana3", Args["foo", At])
     print(ana3.parse(["ana3", Segment.at(123)]))
@@ -85,15 +72,7 @@ def test_unhashable_unit():
     print(ana3_1.parse(["ana3_1", "--foo", "--comp", Segment.at(123)]))
     print(ana3_1.parse(["ana3_1", "--comp", Segment.at(123)]))
 
-
-def test_checker():
-    argv_config(checker=lambda x: isinstance(x, list))
-    ana4 = Alconna("ana4", Args["foo", int])
-    print(ana4.parse(["ana4", "123"]))
-    try:
-        print(ana4.parse("ana4 123"))
-    except TypeError as e:
-        print(e)
+    set_default_argv_type(Argv)
 
 
 if __name__ == "__main__":

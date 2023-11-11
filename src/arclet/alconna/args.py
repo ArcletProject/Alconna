@@ -165,6 +165,8 @@ class ArgsMeta(type):
 
 
 class _argument(List[Arg[Any]]):
+    __slots__ = ("unpack", "var_positional", "var_keyword", "keyword_only", "normal")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.normal: list[Arg[Any]] = []

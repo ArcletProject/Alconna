@@ -40,26 +40,6 @@ if TYPE_CHECKING:
 _SPECIAL = {"help": handle_help, "shortcut": handle_shortcut, "completion": handle_completion}
 
 
-def _compile_opts(option: Option, data: dict[str, Option | list[Option] | SubAnalyser]):
-    """处理选项
-
-    Args:
-        option (Option): 选项
-        data (dict[str, Sentence | Option | list[Option] | SubAnalyser]): 编译的节点
-    """
-    for alias in option.aliases:
-        if li := data.get(alias):
-            if isinstance(li, SubAnalyser):
-                continue
-            if isinstance(li, list):
-                li.append(option)
-                li.sort(key=lambda x: x.priority, reverse=True)
-            else:
-                data[alias] = sorted([li, option], key=lambda x: x.priority, reverse=True)
-        else:
-            data[alias] = option
-
-
 def default_compiler(analyser: SubAnalyser, pids: set[str]):
     """默认的编译方法
 
@@ -71,7 +51,10 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
         if isinstance(opts, Option) and not isinstance(opts, (Help, Shortcut, Completion)):
             if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):  # noqa: E501
                 analyser.compact_params.append(opts)
-            _compile_opts(opts, analyser.compile_params)  # type: ignore
+            for alias in opts.aliases:
+                if alias in analyser.compile_params and isinstance(analyser.compile_params[alias], SubAnalyser):
+                    continue
+                analyser.compile_params[alias] = opts
             if opts.default is not Empty:
                 analyser.default_opt_result[opts.dest] = (opts.default, opts.action)
             pids.update(opts.aliases)
@@ -82,7 +65,7 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
             default_compiler(sub, pids)
             if not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(sub)
-            if sub.command.default:
+            if sub.command.default is not Empty:
                 analyser.default_sub_result[opts.dest] = sub.command.default
 
 
@@ -96,7 +79,7 @@ class SubAnalyser(Generic[TDC]):
     """命令是否只有主参数"""
     need_main_args: bool = field(default=False)
     """是否需要主参数"""
-    compile_params: dict[str, Option | list[Option] | SubAnalyser[TDC]] = field(default_factory=dict)
+    compile_params: dict[str, Option | SubAnalyser[TDC]] = field(default_factory=dict)
     """编译的节点"""
     compact_params: list[Option | SubAnalyser[TDC]] = field(default_factory=list)
     """可能紧凑的需要逐个解析的节点"""
@@ -157,12 +140,12 @@ class SubAnalyser(Generic[TDC]):
         self.value_result = None
         self.header_result = None
 
-    def process(self, argv: Argv[TDC]) -> Self:
+    def process(self, argv: Argv[TDC], trigger: str | None = None) -> Self:
         """处理传入的参数集合
 
         Args:
             argv (Argv[TDC]): 命令行参数
-
+            trigger (str | None, optional): 触发词. Defaults to None.
         Returns:
             Self: 自身
 
@@ -171,11 +154,12 @@ class SubAnalyser(Generic[TDC]):
             FuzzyMatchSuccess: 模糊匹配成功
         """
         sub = argv.context = self.command
-        name, _ = argv.next(sub.separators)
-        if name != sub.name:  # 先匹配节点名称
-            if argv.fuzzy_match and levenshtein(name, sub.name) >= config.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=sub.name))
-            raise ParamsUnmatched(lang.require("subcommand", "name_error").format(target=name, source=sub.name))
+        if not trigger:
+            name, _ = argv.next(sub.separators)
+            if name != sub.name:  # 先匹配节点名称
+                if argv.fuzzy_match and levenshtein(name, sub.name) >= config.fuzzy_threshold:
+                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=sub.name))
+                raise ParamsUnmatched(lang.require("subcommand", "name_error").format(target=name, source=sub.name))
 
         self.value_result = sub.action.value
         return self.analyse(argv)
@@ -221,8 +205,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
 
     command: Alconna
     """命令实例"""
-    used_tokens: set[int]
-    """已使用的token"""
     command_header: Header
     """命令头部"""
 
@@ -235,14 +217,9 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         """
         super().__init__(alconna)
         self.fuzzy_match = alconna.meta.fuzzy_match
-        self.used_tokens = set()
         self.command_header = Header.generate(alconna.command, alconna.prefixes, alconna.meta.compact)
         compiler = compiler or default_compiler
         compiler(self, command_manager.resolve(self.command).param_ids)
-
-    def _clr(self):
-        self.used_tokens.clear()
-        super()._clr()
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.path}>"
@@ -283,15 +260,14 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         if reg:
             _handle_shortcut_reg(argv, reg.groups(), reg.groupdict())
         argv.bak_data = argv.raw_data.copy()
-        if argv.message_cache:
-            argv.token = argv.generate_token(argv.raw_data)
         return self.process(argv)
 
-    def process(self, argv: Argv[TDC]) -> Arparma[TDC]:
+    def process(self, argv: Argv[TDC], trigger=None) -> Arparma[TDC]:
         """主体解析函数, 应针对各种情况进行解析
 
         Args:
             argv (Argv[TDC]): 命令行参数
+            trigger (str | None, optional): 触发词. Defaults to None.
 
         Returns:
             Arparma[TDC]: Arparma 解析结果
@@ -301,8 +277,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             InvalidParam: 参数不匹配
             ArgumentMissing: 参数缺失
         """
-        if argv.message_cache and argv.token in self.used_tokens and (res := command_manager.get_record(argv.token)):
-            return res
         try:
             self.header_result = analyse_header(self.command_header, argv)
         except InvalidParam as e:
@@ -336,7 +310,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         if fail := self.analyse(argv):
             return fail
 
-        if argv.done and (not self.need_main_args or self.args_result):
+        if argv.current_index == argv.ndata and (not self.need_main_args or self.args_result):
             return self.export(argv)
 
         rest = argv.release()
@@ -407,9 +381,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             result.main_args = self.args_result
             result.options = self.options_result
             result.subcommands = self.subcommands_result
-            if argv.message_cache:
-                command_manager.record(argv.token, result)
-                self.used_tokens.add(argv.token)
         self.reset()
         return result  # type: ignore
 

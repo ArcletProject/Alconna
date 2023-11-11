@@ -27,10 +27,10 @@ pat = re.compile("(?:-*no)?-*(?P<name>.+)")
 
 
 def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dict[str, Any], arg: Any, _str: bool):
-    if value == ANY or (value == STRING and _str):
+    if (value is STRING and _str) or value is ANY:
         result[target.name] = arg
         return
-    if value == AnyString:
+    if value is AnyString:
         result[target.name] = str(arg)
         return
     default_val = target.field.default
@@ -68,12 +68,12 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
         if _str and args.argument.var_keyword and args.argument.var_keyword[0].base.sep in may_arg:  # type: ignore
             argv.rollback(may_arg)
             break
-        if (res := value.base.exec(may_arg)).flag != "valid":
+        if (res := value.base.validate(may_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result.append(res._value)  # noqa
     if not _result:
-        if default_val is not None:
+        if default_val is not Empty:
             _result = default_val if isinstance(default_val, Iterable) else ()
         elif value.flag == "*":
             _result = ()
@@ -105,12 +105,12 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
         key = _kwarg[1]
         if not (_m_arg := _kwarg[2]):
             _m_arg, _ = argv.next(arg.separators)
-        if (res := value.base.base.exec(_m_arg)).flag != "valid":
+        if (res := value.base.base.validate(_m_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result[key] = res._value  # noqa
     if not _result:
-        if default_val is not None:
+        if default_val is not Empty:
             _result = default_val if isinstance(default_val, dict) else {}
         elif value.flag == "*":
             _result = {}
@@ -143,7 +143,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
             if args.argument.var_keyword or (_str and may_arg in argv.param_ids):
                 break
             for arg in args.argument.keyword_only.values():
-                if arg.value.base.exec(may_arg).flag == "valid":  # type: ignore
+                if arg.value.base.validate(may_arg).flag == "valid":  # type: ignore
                     raise InvalidParam(lang.require("args", "key_missing").format(target=may_arg, key=arg.name))
             for name in args.argument.keyword_only:
                 if levenshtein(_key, name) >= config.fuzzy_threshold:
@@ -163,8 +163,8 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
         for key, arg in args.argument.keyword_only.items():
             if key in result:
                 continue
-            if arg.field.default is not None:
-                result[key] = None if arg.field.default is Empty else arg.field.default
+            if arg.field.default is not Empty:
+                result[key] = arg.field.default
             elif not arg.optional:
                 raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
 
@@ -180,7 +180,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     Returns:
         dict[str, Any]: 解析结果
     """
-    result: dict[str, Any] = {}
+    result = {}
     for arg in args.argument.normal:
         argv.context = arg
         may_arg, _str = argv.next(arg.separators)
@@ -188,14 +188,14 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
                 raise SpecialOptionTriggered(argv.special[may_arg])
         if _str and may_arg in argv.param_ids and arg.optional:
-            if (de := arg.field.default) is not None:
-                result[arg.name] = None if de is Empty else de
+            if (de := arg.field.default) is not Empty:
+                result[arg.name] = de
             argv.rollback(may_arg)
             continue
         if not may_arg:
             argv.rollback(may_arg)
-            if (de := arg.field.default) is not None:
-                result[arg.name] = None if de is Empty else de
+            if (de := arg.field.default) is not Empty:
+                result[arg.name] = de
             elif not arg.optional:
                 raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=arg.name)))
             continue
@@ -212,8 +212,8 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             unpack.separate(*arg.separators)
             result[arg.name] = arg.value.origin(**analyse_args(argv, unpack))
         except Exception as e:
-            if (de := arg.field.default) is not None:
-                result[arg.name] = None if de is Empty else de
+            if (de := arg.field.default) is not Empty:
+                result[arg.name] = de
             elif not arg.optional:
                 raise e
     if args.argument.var_positional:
@@ -226,41 +226,42 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     return result
 
 
-def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
+def handle_option(argv: Argv, opt: Option, trigger: str | None = None) -> tuple[str, OptionResult]:
     """
     处理 `Option` 部分
 
     Args:
         argv (Argv): 命令行参数
         opt (Option): 目标 `Option`
+        trigger (str | None, optional): 触发的选项名.
     """
     argv.context = opt
     _cnt = 0
     error = True
-    name, _ = argv.next(opt.separators)
-    if opt.compact:
-        for al in opt.aliases:
-            if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
-                argv.rollback(mat["rest"], replace=True)
-                error = False
-                break
-    elif opt.action.type == 2:
-        for al in opt.aliases:
-            if name.startswith(al) and (cnt := (len(name.lstrip("-")) / len(al.lstrip("-")))).is_integer():
-                _cnt = int(cnt)
-                error = False
-                break
-    elif name in opt.aliases:
-        error = False
-    if error:
-        if argv.fuzzy_match and levenshtein(name, opt.name) >= config.fuzzy_threshold:
-            raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
-        raise InvalidParam(lang.require("option", "name_error").format(source=opt.name, target=name))
-    name = opt.dest
+    if not trigger:
+        name, _ = argv.next(opt.separators)
+        if opt.compact:
+            for al in opt.aliases:
+                if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
+                    argv.rollback(mat["rest"], replace=True)
+                    error = False
+                    break
+        elif opt.action.type == 2:
+            for al in opt.aliases:
+                if name.startswith(al) and (cnt := (len(name.lstrip("-")) / len(al.lstrip("-")))).is_integer():
+                    _cnt = int(cnt)
+                    error = False
+                    break
+        elif name in opt.aliases:
+            error = False
+        if error:
+            if argv.fuzzy_match and levenshtein(name, opt.name) >= config.fuzzy_threshold:
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=opt.name))
+            raise InvalidParam(lang.require("option", "name_error").format(source=opt.name, target=name))
     return (
-        (name, OptionResult(None, analyse_args(argv, opt.args)))
+        (opt.dest, OptionResult(None, analyse_args(argv, opt.args)))
         if opt.nargs
-        else (name, OptionResult(_cnt or opt.action.value))
+        else (opt.dest, OptionResult(_cnt or opt.action.value))
     )
 
 
@@ -285,7 +286,7 @@ def handle_action(param: Option, source: OptionResult, target: OptionResult):
     return source
 
 
-def analyse_option(analyser: SubAnalyser, argv: Argv, opt: Option):
+def analyse_option(analyser: SubAnalyser, argv: Argv, opt: Option, trigger: str | None = None):
     """
     分析 `Option` 部分
 
@@ -293,8 +294,9 @@ def analyse_option(analyser: SubAnalyser, argv: Argv, opt: Option):
         analyser (SubAnalyser): 当前解析器
         argv (Argv): 命令行参数
         opt (Option): 目标 `Option`
+        trigger (str | None, optional): 触发的选项名.
     """
-    opt_n, opt_v = handle_option(argv, opt)
+    opt_n, opt_v = handle_option(argv, opt, trigger)
     if opt_n not in analyser.options_result:
         analyser.options_result[opt_n] = opt_v
         if opt.action.type == 1 and opt_v.args:
@@ -347,53 +349,33 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         argv (Argv): 命令行参数
         seps (tuple[str, ...], optional): 指定的分隔符.
     """
-    _text, _str = argv.next(seps, move=False)
-    if _str and _text in argv.special:
-        if argv.special[_text] not in argv.namespace.disable_builtin_options:
-            if _text in argv.completion_names:
-                argv.bak_data[argv.current_index] = argv.bak_data[argv.current_index].replace(_text, "")
+    _text, _str = argv.next(seps, move=True)
+    if _str:
+        if _text in argv.special and argv.special[_text] not in argv.namespace.disable_builtin_options:
+            # if _text in argv.completion_names:
+            #     argv.bak_data[argv.current_index] = argv.bak_data[argv.current_index].replace(_text, "")
             raise SpecialOptionTriggered(argv.special[_text])
-    if not _str or not _text:
-        _param = None
-    elif _text in analyser.compile_params:
-        _param = analyser.compile_params[_text]
-    elif analyser.compact_params and (res := analyse_compact_params(analyser, argv)):
-        if res.__class__ is str:
-            raise InvalidParam(res)
+        if _text in analyser.compile_params:
+            _param = analyser.compile_params[_text]
+            if _param.__class__ is Option:
+                analyse_option(analyser, argv, _param, _text)
+            else:
+                try:
+                    _param.process(argv, _text)
+                finally:
+                    analyser.subcommands_result[_param.command.dest] = _param.result()
+            argv.context = None
+            return True
+    argv.rollback(_text)
+    if analyser.compact_params and analyse_compact_params(analyser, argv):
         argv.context = None
         return True
-    else:
-        _param = None
-    if not _param and analyser.command.nargs and not analyser.args_result:
+    if analyser.command.nargs and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
         if analyser.args_result:
             argv.context = None
             return True
-    if _param.__class__ is Option:
-        analyse_option(analyser, argv, _param)
-    elif _param.__class__ is list:
-        exc: Exception | None = None
-        for opt in _param:
-            _data, _index = argv.data_set()
-            try:
-                analyse_option(analyser, argv, opt)
-                _data.clear()
-                exc = None
-                break
-            except Exception as e:
-                exc = e
-                argv.data_reset(_data, _index)
-        if exc:
-            raise exc  # type: ignore  # noqa
-    elif _param is not None:
-        try:
-            _param.process(argv)
-        finally:
-            analyser.subcommands_result[_param.command.dest] = _param.result()
-    else:
-        return False
-    argv.context = None
-    return True
+    return False
 
 
 def analyse_header(header: Header, argv: Argv) -> HeadResult:
@@ -480,7 +462,6 @@ _args = Args["action?", "delete|list"]["name?", str]["command", str, "$"]
 
 def handle_shortcut(analyser: Analyser, argv: Argv):
     """处理快捷命令触发"""
-    argv.next()
     try:
         opt_v = analyse_args(argv, _args)
     except SpecialOptionTriggered:

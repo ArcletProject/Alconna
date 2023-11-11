@@ -325,30 +325,11 @@ def test_alconna_synthesise():
 
 
 def test_simple_override():
-    alc11 = Alconna("core11") + Option("foo", Args["bar", str]) + Option("foo")
+    alc11 = Alconna("core11") + Option("foo", Args["bar", str]) + Option("bar", dest="foo")
     res = alc11.parse("core11 foo abc")
-    res1 = alc11.parse("core11 foo")
-    assert res.matched is True
-    assert res1.matched is True
-
-
-def test_requires():
-    alc12 = Alconna(
-        "core12",
-        Args["target", int],
-        Option("user perm set", Args["foo", str], help_text="set user permission"),
-        Option("user perm del", Args["foo", str], help_text="del user permission"),
-        Option("group perm set", Args["foo", str], help_text="set group permission"),
-        Option("group perm del", Args["foo", str], help_text="del group permission"),
-        Option("test"),
-    )
-
-    assert alc12.parse("core12 123 user perm set 123").find("user_perm_set") is True
-    assert alc12.parse("core12 123 user perm del 123").find("user_perm_del") is True
-    assert alc12.parse("core12 123 group perm set 123").find("group_perm_set") is True
-    assert alc12.parse("core12 123 group perm del 123 test").find("group_perm_del") is True
-    print("\n------------------------")
-    print(alc12.get_help())
+    res1 = alc11.parse("core11 bar")
+    assert res.query("foo") is not None
+    assert res1.query("foo") is not None
 
 
 def test_wildcard():
@@ -504,10 +485,10 @@ def test_help():
         )
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 --help foo")
-        assert cap["output"] == "foo <bar: str> \nFoo bar"
+        assert cap["output"] == "[foo] <bar: str> \nFoo bar"
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 foo --help")
-        assert cap["output"] == "foo <bar: str> \nFoo bar"
+        assert cap["output"] == "[foo] <bar: str> \nFoo bar"
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 add --help")
         assert cap["output"] == "add <bar: str> \nAdd bar"
@@ -529,7 +510,7 @@ def test_help():
     )
     with output_manager.capture("core17_2") as cap:
         alc17_2.parse("core17_2 --help foo bar")
-        assert cap["output"] == "bar <baz: str> \nFoo bar"
+        assert cap["output"] == "[bar] <baz: str> \nFoo bar"
     with output_manager.capture("core17_2") as cap:
         alc17_2.parse("core17_2 --help foo")
         assert cap["output"] == "foo <abc: str> \nsub Foo\n\n可用的选项有:\n* Foo bar\n  bar <baz: str> \n"
@@ -635,18 +616,18 @@ def test_call():
     from dataclasses import dataclass
 
     alc22 = Alconna("core22", Args["foo", int], Args["bar", str])
-    alc22("core22 123 abc")
 
-    @alc22.bind(False)
+    @alc22.bind()
     def cb(foo: int, bar: str):
         print("")
         print("core22: ")
         print(foo, bar)
         return 2 * foo
 
-    assert cb.result == 246
+    alc22("core22 123 abc")
+    assert alc22.exec_result["cb"] == 246
     alc22.parse("core22 321 abc")
-    assert cb.result == 642
+    assert alc22.exec_result["cb"] == 642
 
     alc22_1 = Alconna("core22_1", Args["name", str])
 
@@ -848,7 +829,7 @@ def test_tips():
     assert core27.parse("core27 1 1").matched
     assert str(core27.parse("core27 3 1").error_info) == "参数arg必须是1或2哦，不能是3"
     assert str(core27.parse("core27 1").error_info) == "缺少了arg参数哦"
-    assert str(core27.parse("core27 1 3").error_info) == "参数 3 不正确"
+    assert str(core27.parse("core27 1 3").error_info) in ("参数 '3' 不正确, 其应该符合 '1|2'", "参数 '3' 不正确, 其应该符合 '2|1'")
     assert str(core27.parse("core27").error_info) == "参数 arg1 丢失"
 
 

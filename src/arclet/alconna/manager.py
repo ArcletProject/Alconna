@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Match, TypedDict, Union, overload
 from typing_extensions import NotRequired
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
-from tarina import LRU, lang
+from tarina import lang
 
 from .argv import Argv, __argv_type__
 from .arparma import Arparma
@@ -53,7 +53,6 @@ class CommandManager:
     __analysers: WeakKeyDictionary[Alconna, Analyser]
     __argv: WeakKeyDictionary[Alconna, Argv]
     __abandons: list[Alconna]
-    __record: LRU[int, Arparma]
     __shortcuts: dict[str, Union[Arparma, ShortcutArgs]]
 
     def __init__(self):
@@ -67,7 +66,6 @@ class CommandManager:
         self.__analysers = WeakKeyDictionary()
         self.__abandons = []
         self.__shortcuts = {}
-        self.__record = LRU(128)
 
         def _del():
             self.__commands.clear()
@@ -75,9 +73,6 @@ class CommandManager:
                 ana._clr()
             self.__analysers.clear()
             self.__abandons.clear()
-            for arp in self.__record.values():
-                arp._clr()
-            self.__record.clear()
             self.__shortcuts.clear()
 
         weakref.finalize(self, _del)
@@ -126,7 +121,6 @@ class CommandManager:
             to_text=command.namespace_config.to_text,  # type: ignore
             converter=command.namespace_config.converter,  # type: ignore
             separators=command.separators,  # type: ignore
-            message_cache=command.namespace_config.enable_message_cache,  # type: ignore
             filter_crlf=not command.meta.keep_crlf,  # type: ignore
         )
         self.__analysers.pop(command, None)
@@ -383,49 +377,6 @@ class CommandManager:
         if cmd := self.get_command(command):
             return cmd.get_help()
 
-    def record(self, token: int, result: Arparma):
-        """记录某个命令的 `token`"""
-        self.__record[token] = result
-
-    def get_record(self, token: int) -> Arparma | None:
-        """获取某个 `token` 对应的 `Arparma` 对象"""
-        if token in self.__record:
-            return self.__record[token]
-
-    def get_token(self, result: Arparma) -> int:
-        """获取某个命令的 `token`"""
-        return next((token for token, res in self.__record.items() if res == result), 0)
-
-    def get_result(self, command: Alconna) -> list[Arparma]:
-        """获取某个命令的所有 `Arparma` 对象"""
-        return [v for v in self.__record.values() if v.source == command.path]
-
-    @property
-    def recent_message(self) -> DataCollection[str | Any] | None:
-        """获取最近一次使用的命令"""
-        if rct := self.__record.peek_first_item():
-            return rct[1].origin  # type: ignore
-
-    @property
-    def last_using(self):
-        """获取最近一次使用的 `Alconna` 对象"""
-        if rct := self.__record.peek_first_item():
-            return rct[1].source  # type: ignore
-
-    @property
-    def records(self) -> LRU[int, Arparma]:
-        """获取当前记录"""
-        return self.__record
-
-    def reuse(self, index: int = -1):
-        """获取当前记录中的某个值"""
-        key = self.__record.keys()[index]
-        return self.__record[key]
-
-    def set_record_size(self, size: int):
-        """设置记录的最大长度"""
-        self.__record.set_size(size)
-
     def __repr__(self):
         return (
             f"Current: {hex(id(self))} in {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}\n"
@@ -433,8 +384,6 @@ class CommandManager:
             + f"[{', '.join([cmd.path for cmd in self.get_commands()])}]"
             + "\nShortcuts:\n"
             + "\n".join([f" {k} => {v}" for k, v in self.__shortcuts.items()])
-            + "\nRecords:\n"
-            + "\n".join([f" [{k}]: {v[1].origin}" for k, v in enumerate(self.__record.items()[:20])])
             + "\nDisabled Commands:\n"
             + f"[{', '.join(map(lambda x: x.path, self.__abandons))}]"
         )

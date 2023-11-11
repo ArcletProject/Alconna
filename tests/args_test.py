@@ -7,17 +7,17 @@ from devtool import analyse_args
 
 
 def test_magic_create():
-    arg1 = Args.round[float]["test", bool]["aaa", str]
+    arg1 = Args["round", float]["test", bool]["aaa", str]
     assert len(arg1) == 3
-    arg1 = arg1 << Args.perm[str, ...] + ["month", int]
+    arg1 <<= Args["perm", str, ...] + ["month", int]
     assert len(arg1) == 5
-    arg11: Args = Args.baz[int]
+    arg11: Args = Args["baz", int]
     arg11.add("foo", value=int, default=1)
     assert len(arg11) == 2
 
 
 def test_type_convert():
-    arg2 = Args.round[float]["test", bool]
+    arg2 = Args["round", float]["test", bool]
     assert analyse_args(arg2, ["1.2 False"]) != {"round": "1.2", "test": "False"}
     assert analyse_args(arg2, ["1.2 False"]) == {"round": 1.2, "test": False}
     assert analyse_args(arg2, ["a False"], raise_exception=False) != {
@@ -27,7 +27,7 @@ def test_type_convert():
 
 
 def test_regex():
-    arg3 = Args.foo["re:abc[0-9]{3}"]
+    arg3 = Args["foo", "re:abc[0-9]{3}"]
     assert analyse_args(arg3, ["abc123"]) == {"foo": "abc123"}
     assert analyse_args(arg3, ["abc"], raise_exception=False) != {"foo": "abc"}
 
@@ -38,18 +38,18 @@ def test_string():
 
 
 def test_default():
-    arg5 = Args.foo[int]["de", bool, True]
+    arg5 = Args["foo", int]["de", bool, True]
     assert analyse_args(arg5, ["123 False"]) == {"foo": 123, "de": False}
     assert analyse_args(arg5, ["123"]) == {"foo": 123, "de": True}
 
 
 def test_separate():
-    arg6 = Args.foo[str]["bar", int] / ";"
+    arg6 = Args["foo", str]["bar", int] / ";"
     assert analyse_args(arg6, ["abc;123"]) == {"foo": "abc", "bar": 123}
 
 
 def test_object():
-    arg7 = Args.foo[str]["bar", 123]
+    arg7 = Args["foo", str]["bar", 123]
     assert analyse_args(arg7, ["abc", 123]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg7, ["abc", 124], raise_exception=False) != {
         "foo": "abc",
@@ -87,39 +87,39 @@ def test_anti():
 
 
 def test_choice():
-    arg10 = Args.choice[("a", "b", "c")]
+    arg10 = Args["choice", ("a", "b", "c")]
     assert analyse_args(arg10, ["a"]) == {"choice": "a"}
     assert analyse_args(arg10, ["d"], raise_exception=False) != {"choice": "d"}
-    arg10_1 = Args.mapping[{"a": 1, "b": 2, "c": 3}]
+    arg10_1 = Args["mapping", {"a": 1, "b": 2, "c": 3}]
     assert analyse_args(arg10_1, ["a"]) == {"mapping": 1}
     assert analyse_args(arg10_1, ["d"], raise_exception=False) != {"mapping": "d"}
 
 
 def test_union():
-    arg11 = Args.bar[Union[int, float]]
+    arg11 = Args["bar", Union[int, float]]
     assert analyse_args(arg11, ["1.2"]) == {"bar": 1.2}
     assert analyse_args(arg11, ["1"]) == {"bar": 1}
     assert analyse_args(arg11, ["abc"], raise_exception=False) != {"bar": "abc"}
-    arg11_1 = Args.bar[[int, float, "abc"]]
+    arg11_1 = Args["bar", [int, float, "abc"]]
     assert analyse_args(arg11_1, ["1.2"]) == analyse_args(arg11, ["1.2"])
     assert analyse_args(arg11_1, ["abc"]) == {"bar": "abc"}
     assert analyse_args(arg11_1, ["cba"], raise_exception=False) != {"bar": "cba"}
 
 
 def test_optional():
-    arg13 = Args.foo[str].add("bar", value=int, flags="?")
+    arg13 = Args["foo", str].add("bar", value=int, flags=["?"])
     assert analyse_args(arg13, ["abc 123"]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg13, ["abc"]) == {"foo": "abc"}
-    arg13_1 = Args.foo[str]["bar?", int]
+    arg13_1 = Args["foo", str]["bar?", int]
     assert analyse_args(arg13_1, ["abc 123"]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg13_1, ["abc"]) == {"foo": "abc"}
-    arg13_2 = Args.foo[str]["bar;?", int]
+    arg13_2 = Args["foo", str]["bar;?", int]
     assert analyse_args(arg13_2, ["abc 123"]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg13_2, ["abc"]) == {"foo": "abc"}
 
 
 def test_kwonly():
-    arg14 = Args.foo[str].add("bar", value=Kw[int])
+    arg14 = Args["foo", str].add("bar", value=Kw[int])
     assert analyse_args(arg14, ["abc bar=123"]) == {
         "foo": "abc",
         "bar": 123,
@@ -137,7 +137,7 @@ def test_kwonly():
         "width": 960,
         "height": 480,
     }
-    arg14_2 = Args.foo[str]["bar", KeyWordVar(int, " ")]["baz", KeyWordVar(bool, ":")]
+    arg14_2 = Args["foo", str]["bar", KeyWordVar(int, " ")]["baz", KeyWordVar(bool, ":")]
     assert analyse_args(arg14_2, ["abc -bar 123 baz:false"]) == {
         "bar": 123,
         "baz": False,

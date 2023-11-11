@@ -132,8 +132,6 @@ class CompSession:
         argv.bak_data = argv.raw_data.copy()
         argv.ndata = len(argv.bak_data)
         argv.current_index = 0
-        if argv.message_cache:
-            argv.token = argv.generate_token(argv.raw_data)
         argv.origin = argv.converter(argv.raw_data)
         exc = None
         try:

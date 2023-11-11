@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, field, is_dataclass
+from dataclasses import is_dataclass
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Generic, Sequence, TypeVar, overload
@@ -15,12 +15,13 @@ from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Completion, Help, Option, Shortcut, Subcommand
 from .config import Namespace, config
-from .exceptions import ExecuteFailed, NullMessage
+from .exceptions import NullMessage
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
 from .typing import TDC, CommandMeta, DataCollection, TPrefixes
 
 T = TypeVar("T")
+TCallable = TypeVar("TCallable", bound=Callable[..., Any])
 TDC1 = TypeVar("TDC1", bound=DataCollection[Any])
 
 
@@ -47,33 +48,6 @@ def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> No
         )
     if "completion" not in ns.disable_builtin_options:
         options.append(Completion("|".join(ns.builtin_option_name["completion"]), help_text=lang.require("builtin", "option_completion")))  # noqa: E501
-
-
-@dataclass(init=True, unsafe_hash=True)
-class ArparmaExecutor(Generic[T]):
-    """Arparma 执行器
-
-    Attributes:
-        target(Callable[..., T]): 目标函数
-    """
-
-    target: Callable[..., T]
-    binding: Callable[..., list[Arparma]] = field(default=lambda: [], repr=False)
-
-    __call__ = lambda self, *args, **kwargs: self.target(*args, **kwargs)
-
-    @property
-    def result(self) -> T:
-        """执行结果"""
-        if not self.binding:
-            raise ExecuteFailed(None)
-        arps = self.binding()
-        if not arps or not arps[0].matched:
-            raise ExecuteFailed("Unmatched")
-        try:
-            return arps[0].call(self.target)
-        except Exception as e:
-            raise ExecuteFailed(e) from e
 
 
 class Alconna(Subcommand, Generic[TDC]):
@@ -166,7 +140,7 @@ class Alconna(Subcommand, Generic[TDC]):
         for behavior in behaviors or []:
             self.behaviors.extend(requirement_handler(behavior))
         command_manager.register(self)
-        self._executors: dict[ArparmaExecutor, Any] = {}
+        self._executors: dict[Callable[..., Any], Any] = {}
         self.union = set()
 
     @property
@@ -306,31 +280,25 @@ class Alconna(Subcommand, Generic[TDC]):
             arp = arp.execute(self.behaviors)
             if self._executors:
                 for ext in self._executors:
-                    self._executors[ext] = arp.call(ext.target)
+                    self._executors[ext] = arp.call(ext)
         if _config:
             if not is_dataclass(_config):
                 raise TypeError("The type of _config must be a dataclass")
             return arp.call(_config)
         return arp
 
-    def bind(self, active: bool = True):
-        """绑定命令执行器
+    def bind(self):
+        """绑定命令执行器"""
 
-        Args:
-            active (bool, optional): 该执行器是否由 `Alconna` 主动调用, 默认为 `True`
-        """
-
-        def wrapper(target: Callable[..., T]) -> ArparmaExecutor[T]:
-            ext = ArparmaExecutor(target, lambda: command_manager.get_result(self))
-            if active:
-                self._executors[ext] = None
-            return ext
+        def wrapper(target: TCallable) -> TCallable:
+            self._executors[target] = None
+            return target
 
         return wrapper
 
     @property
     def exec_result(self) -> dict[str, Any]:
-        return {ext.target.__name__: res for ext, res in self._executors.items() if res is not None}
+        return {ext.__name__: res for ext, res in self._executors.items() if res is not None}
 
     def __truediv__(self, other) -> Self:
         return self.reset_namespace(other)
@@ -379,4 +347,4 @@ class Alconna(Subcommand, Generic[TDC]):
         return str(ana.command_header)
 
 
-__all__ = ["Alconna", "ArparmaExecutor"]
+__all__ = ["Alconna"]

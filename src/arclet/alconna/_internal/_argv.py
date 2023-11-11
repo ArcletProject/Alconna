@@ -43,12 +43,9 @@ class Argv(Generic[TDC]):
     """备份的原始数据"""
     raw_data: list[str | Any] = field(init=False)
     """原始数据"""
-    token: int = field(init=False)
-    """命令的token"""
     origin: TDC = field(init=False)
     """原始命令"""
     _sep: tuple[str, ...] | None = field(init=False)
-
     _cache: ClassVar[dict[type, dict[str, Any]]] = {}
 
     def __post_init__(self):
@@ -70,15 +67,10 @@ class Argv(Generic[TDC]):
         self.ndata = 0
         self.bak_data = []
         self.raw_data = []
-        self.token = 0
         self.origin = "None"
         self._sep = None
+        self._next = None
         self.context = None
-
-    @staticmethod
-    def generate_token(data: list) -> int:
-        """命令的`token`的生成函数"""
-        return hash(repr(data))
 
     @property
     def done(self) -> bool:
@@ -112,8 +104,6 @@ class Argv(Generic[TDC]):
             raise NullMessage(lang.require("argv", "null_message").format(target=data))
         self.ndata = i
         self.bak_data = raw_data.copy()
-        if self.message_cache:
-            self.token = self.generate_token(raw_data)
         return self
 
     def addon(self, data: Iterable[str | Any]) -> Self:
@@ -138,8 +128,6 @@ class Argv(Generic[TDC]):
                 self.raw_data.append(d)
                 self.ndata += 1
         self.bak_data = self.raw_data.copy()
-        if self.message_cache:
-            self.token = self.generate_token(self.raw_data)
         return self
 
     def next(self, separate: tuple[str, ...] | None = None, move: bool = True) -> tuple[str | Any, bool]:
