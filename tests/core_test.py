@@ -412,6 +412,13 @@ def test_fuzzy():
         assert res5.matched is False
         assert cap["output"] == '无法解析 "2 core15_2"。您想要输入的是不是 "1 core15_2" ?'
 
+    alc15_3 = Alconna("core15_3", Option("rank", compact=True), meta=CommandMeta(fuzzy_match=True))
+    with output_manager.capture("core15_3") as cap:
+        output_manager.set_action(lambda x: x, "core15_3")
+        res6 = alc15_3.parse("core15_3 runk")
+        assert res6.matched is False
+        assert cap["output"] == '无法解析 "runk"。您想要输入的是不是 "rank" ?'
+
 
 def test_shortcut():
     # 原始命令

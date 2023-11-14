@@ -1,5 +1,11 @@
 # 更新日志
 
+## Alconna 1.7.34
+
+### 修复
+
+- 修复 `Option` 与 `Subcommand` 模糊匹配的文本错误
+
 ## Alconna 1.7.33
 
 ### 修复
