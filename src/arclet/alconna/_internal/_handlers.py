@@ -681,8 +681,10 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
         if comp_ctx.get(None):
             raise PauseTriggered(res, trigger)
         prompt_other = lang.require("completion", "prompt_other")
+        node = lang.require('completion', 'node')
+        node = f"{node}\n" if node else ""
         output_manager.send(
             analyser.command.name,
-            lambda: f"{lang.require('completion', 'node')}\n{prompt_other} " + f"\n{prompt_other} ".join([i.text for i in res]),
+            lambda: f"{node}{prompt_other}" + f"\n{prompt_other}".join([i.text for i in res]),
         )
     return analyser.export(argv, True, SpecialOptionTriggered("completion"))  # type: ignore

@@ -5,8 +5,8 @@
   },
   "completion": {
     "node": "以下是建议的输入：",
-    "prompt_select": ">>",
-    "prompt_other": "*",
+    "prompt_select": ">> ",
+    "prompt_other": "* ",
     "prompt_empty": "没有可用的补全提示",
     "prompt_unavailable": "选择的补全提示不可用于输入"
   },

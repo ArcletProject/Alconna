@@ -1,4 +1,9 @@
 from arclet.alconna import Alconna, Option, CommandMeta, Args, CompSession, Arg, OptionResult
+from tarina import lang
+
+lang.set("completion", "node", "")
+lang.set("completion", "prompt_select", "")
+
 
 api_list = ["saucenao", "ascii2d", "ehentai", "iqdb", "tracemoe"]
 alc = Alconna(
@@ -6,7 +11,7 @@ alc = Alconna(
     Args['content', str],
     Option("use", Args['api', api_list], help_text="选择搜图使用的 API"),
     Option("count", Args(Arg("num", int)), help_text="设置每次搜图展示的最多数量"),
-    Option("--similarity|-s", Args.val[float], help_text="设置相似度过滤的值", default=OptionResult(args={"val": 0.5})),
+    Option("--similarity|-s", Args["val", float], help_text="设置相似度过滤的值", default=OptionResult(args={"val": 0.5})),
     Option("--timeout|-t", Args["sec", int], help_text="设置超时时间", default=OptionResult(args={"sec": 60})),
     meta=CommandMeta(
         "依据输入的图片寻找可能的原始图片来源",

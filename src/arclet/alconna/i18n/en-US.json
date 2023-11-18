@@ -5,8 +5,8 @@
   },
   "completion": {
     "node": "suggest input follows:",
-    "prompt_select": ">>",
-    "prompt_other": "*",
+    "prompt_select": ">> ",
+    "prompt_other": "* ",
     "prompt_empty": "No prompt available.",
     "prompt_unavailable": "This prompt cannot be used."
   },
