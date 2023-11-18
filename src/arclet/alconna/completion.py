@@ -183,7 +183,9 @@ class CompSession:
 
     def lines(self):
         """获取补全选项的文本列表。"""
-        return [f"{'>>' if self.index == index else '*'} {sug.text}" for index, sug in enumerate(self.prompts)]
+        select = lang.require("completion", "prompt_select")
+        other = lang.require("completion", "prompt_other")
+        return [f"{select if self.index == index else other} {sug.text}" for index, sug in enumerate(self.prompts)]
 
     def __repr__(self):
         return f"{lang.require('completion', 'node')}\n" + "\n".join(self.lines())

@@ -394,14 +394,14 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         self,
         argv: Argv[TDC],
         fail: bool = False,
-        exception: BaseException | None = None,
+        exception: Exception | None = None,
     ) -> Arparma[TDC]:
         """创建 `Arparma` 解析结果, 其一定是一次解析的最后部分
 
         Args:
             argv (Argv[TDC]): 命令行参数
             fail (bool, optional): 是否解析失败. Defaults to False.
-            exception (BaseException | None, optional): 解析失败时的异常. Defaults to None.
+            exception (Exception | None, optional): 解析失败时的异常. Defaults to None.
         """
         result = Arparma(self.command.path, argv.origin, not fail, self.header_result)
         if fail:
