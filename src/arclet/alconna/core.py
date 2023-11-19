@@ -5,7 +5,7 @@ import sys
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Generic, Sequence, TypeVar, overload
+from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, cast, overload
 from typing_extensions import Self
 
 from tarina import init_spec, lang
@@ -19,7 +19,7 @@ from .duplication import Duplication
 from .exceptions import ExecuteFailed, NullMessage
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDC, CommandMeta, DataCollection, TPrefixes
+from .typing import TDC, CommandMeta, DataCollection, ShortcutRegWrapper, TPrefixes
 
 T_Duplication = TypeVar("T_Duplication", bound=Duplication)
 T = TypeVar("T")
@@ -205,13 +205,79 @@ class Alconna(Subcommand, Generic[TDC]):
         """返回该命令注册的快捷命令"""
         return command_manager.list_shortcut(self)
 
-    def shortcut(self, key: str, args: ShortcutArgs | None = None, delete: bool = False):
+    @overload
+    def shortcut(self, key: str, args: ShortcutArgs | None = None) -> str:
+        """操作快捷命令
+
+        Args:
+            key (str): 快捷命令名
+            args (ShortcutArgs[TDC]): 快捷命令参数, 不传入时则尝试使用最近一次使用的命令
+
+        Returns:
+            str: 操作结果
+
+        Raises:
+            ValueError: 快捷命令操作失败时抛出
+        """
+        ...
+
+    @overload
+    def shortcut(
+        self, 
+        key: str, 
+        *,
+        command: TDC | None = None,
+        arguments: list[Any] | None = None,
+        fuzzy: bool = True,
+        prefix: bool = False,
+        wrapper: ShortcutRegWrapper | None = None,
+    ) -> str:
+        """操作快捷命令
+
+        Args:
+            key (str): 快捷命令名
+            command (TDC): 快捷命令指向的命令
+            arguments (list[Any] | None, optional): 快捷命令参数, 默认为 `None`
+            fuzzy (bool, optional): 是否允许命令后随参数, 默认为 `True`
+            prefix (bool, optional): 是否调用时保留指令前缀, 默认为 `False`
+            wrapper (ShortcutRegWrapper, optional): 快捷指令的正则匹配结果的额外处理函数, 默认为 `None`
+
+        Returns:
+            str: 操作结果
+
+        Raises:
+            ValueError: 快捷命令操作失败时抛出
+        """
+        ...
+
+    @overload
+    def shortcut(self, key: str, *, delete: Literal[True]) -> str:
+        """操作快捷命令
+
+        Args:
+            key (str): 快捷命令名
+            delete (bool): 是否删除快捷命令
+
+        Returns:
+            str: 操作结果
+
+        Raises:
+            ValueError: 快捷命令操作失败时抛出
+        """
+        ...
+
+    def shortcut(self, key: str, args: ShortcutArgs | None = None, delete: bool = False, **kwargs):
         """操作快捷命令
 
         Args:
             key (str): 快捷命令名
             args (ShortcutArgs[TDC] | None, optional): 快捷命令参数, 不传入时则尝试使用最近一次使用的命令
             delete (bool, optional): 是否删除快捷命令, 默认为 `False`
+            command (TDC, optional): 快捷命令指向的命令
+            arguments (list[Any] | None, optional): 快捷命令参数, 默认为 `None`
+            fuzzy (bool, optional): 是否允许命令后随参数, 默认为 `True`
+            prefix (bool, optional): 是否调用时保留指令前缀, 默认为 `False`
+            wrapper (ShortcutRegWrapper, optional): 快捷指令的正则匹配结果的额外处理函数, 默认为 `None`
 
         Returns:
             str: 操作结果
@@ -223,6 +289,10 @@ class Alconna(Subcommand, Generic[TDC]):
             if delete:
                 command_manager.delete_shortcut(self, key)
                 return lang.require("shortcut", "delete_success").format(shortcut=key, target=self.path)
+            if kwargs and not args:
+                kwargs["args"] = kwargs.pop("arguments", None)
+                kwargs = {k: v for k, v in kwargs.items() if v is not None}
+                args = cast(ShortcutArgs, kwargs)
             if args is not None:
                 return command_manager.add_shortcut(self, key, args)
             elif cmd := command_manager.recent_message:

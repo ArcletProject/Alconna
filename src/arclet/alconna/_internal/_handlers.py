@@ -15,7 +15,7 @@ from ..config import config
 from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
-from ..typing import KWBool
+from ..typing import KWBool, ShortcutRegWrapper
 from ._header import Double, Header
 from ._util import escape, levenshtein, unescape
 
@@ -597,16 +597,58 @@ def _handle_shortcut_data(argv: Argv, data: list):
     return [unit for i, unit in enumerate(data) if i not in record]
 
 
-def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, str]):
-    for j, unit in enumerate(argv.raw_data):
+INDEX_REG_SLOT = re.compile(r"\{(\d+)\}")
+KEY_REG_SLOT = re.compile(r"\{(\w+)\}")
+
+
+def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, str], wrapper: ShortcutRegWrapper):
+    data = []
+    for unit in argv.raw_data:
         if not isinstance(unit, str):
+            data.append(unit)
             continue
         unit = escape(unit)
-        for i, c in enumerate(groups):
-            unit = unit.replace(f"{{{i}}}", c)
-        for k, v in gdict.items():
-            unit = unit.replace(f"{{{k}}}", v)
-        argv.raw_data[j] = unescape(unit)
+        if mat := INDEX_REG_SLOT.fullmatch(unit):
+            index = int(mat[1])
+            if index >= len(groups):
+                continue
+            slot = groups[index]
+            if slot is None:
+                continue
+            data.append(wrapper(index, slot) or slot)
+            continue
+        if mat := KEY_REG_SLOT.fullmatch(unit):
+            key = mat[1]
+            if key not in gdict:
+                continue
+            slot = gdict[key]
+            if slot is None:
+                continue
+            data.append(wrapper(key, slot) or slot)
+            continue
+        if mat := INDEX_REG_SLOT.findall(unit):
+            for index in map(int, mat):
+                if index >= len(groups):
+                    unit = unit.replace(f"{{{index}}}", "")
+                    continue
+                slot = groups[index]
+                if slot is None:
+                    unit = unit.replace(f"{{{index}}}", "")
+                    continue
+                unit = unit.replace(f"{{{index}}}", str(wrapper(index, slot) or slot))
+        if mat := KEY_REG_SLOT.findall(unit):
+            for key in mat:
+                if key not in gdict:
+                    unit = unit.replace(f"{{{key}}}", "")
+                    continue
+                slot = gdict[key]
+                if slot is None:
+                    unit = unit.replace(f"{{{key}}}", "")
+                    continue
+                unit = unit.replace(f"{{{key}}}", str(wrapper(key, slot) or slot))
+        if unit:
+            data.append(unescape(unit))
+    return data
 
 
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):

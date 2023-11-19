@@ -14,10 +14,10 @@ from ..base import Completion, Help, Option, Shortcut, Subcommand
 from ..completion import comp_ctx
 from ..config import config
 from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
-from ..manager import ShortcutArgs, command_manager
+from ..manager import command_manager
 from ..model import HeadResult, OptionResult, Sentence, SubcommandResult
 from ..output import output_manager
-from ..typing import TDC
+from ..typing import TDC, InnerShortcutArgs
 from ._handlers import (
     _handle_shortcut_data,
     _handle_shortcut_reg,
@@ -258,7 +258,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
     def shortcut(
-        self, argv: Argv[TDC], trigger: str, data: list[Any], short: Arparma | ShortcutArgs, reg: Match | None = None
+        self, argv: Argv[TDC], trigger: str, data: list[Any], short: Arparma | InnerShortcutArgs, reg: Match | None = None
     ) -> Arparma[TDC]:
         """处理被触发的快捷命令
 
@@ -266,7 +266,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             argv (Argv[TDC]): 命令行参数
             trigger (str): 触发词
             data (list[Any]): 剩余参数
-            short (Arparma | ShortcutArgs): 快捷命令
+            short (Arparma | InnerShortcutArgs): 快捷命令
             reg (Match | None): 可能的正则匹配结果
 
         Returns:
@@ -278,20 +278,20 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         if isinstance(short, Arparma):
             return short
 
-        argv.build(short.get("command", argv.converter(self.command.command or self.command.name)))
-        if not short.get("fuzzy") and data:
+        argv.build(short["command"])  # type: ignore
+        if not short["fuzzy"] and data:
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=data[0]))
             if self.command.meta.raise_exception:
                 raise exc
             return self.export(argv, True, exc)
-        if short.get("fuzzy") and reg and len(trigger) > reg.span()[1]:
+        if short["fuzzy"] and reg and len(trigger) > reg.span()[1]:
             argv.addon((trigger[reg.span()[1] :],))
-        argv.addon(short.get("args", []))
+        argv.addon(short["args"])
         data = _handle_shortcut_data(argv, data)
         argv.bak_data = argv.raw_data.copy()
         argv.addon(data)
         if reg:
-            _handle_shortcut_reg(argv, reg.groups(), reg.groupdict())
+            argv.raw_data = _handle_shortcut_reg(argv, reg.groups(), reg.groupdict(), short["wrapper"])
         argv.bak_data = argv.raw_data.copy()
         if argv.message_cache:
             argv.token = argv.generate_token(argv.raw_data)

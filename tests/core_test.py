@@ -421,6 +421,8 @@ def test_fuzzy():
 
 
 def test_shortcut():
+    from arclet.alconna import output_manager
+
     # 原始命令
     alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
     assert alc16.parse("core16 123 bar abcd").matched is True
@@ -449,8 +451,8 @@ def test_shortcut():
     assert alc16.parse("tTest123").matched
 
     alc16_1 = Alconna("exec", Args["content", str])
-    alc16_1.shortcut("echo", {"command": "exec print({%0})"})
-    alc16_1.shortcut("echo1", {"command": "exec print(\\'{*\n}\\')"})
+    alc16_1.shortcut("echo", command="exec print({%0})")
+    alc16_1.shortcut("echo1", command="exec print(\\'{*\n}\\')")
     res5 = alc16_1.parse("echo 123")
     assert res5.content == "print(123)"
     assert not alc16_1.parse("echo 123 456").matched
@@ -490,6 +492,23 @@ def test_shortcut():
     alc16_5.shortcut("test", {"prefix": True, "args": ["True"]})
     assert alc16_5.parse("*core16_5 False").matched
     assert alc16_5.parse("+test").foo is True
+
+    def wrapper(slot, content):
+        if content == "help":
+            return "--help"
+        return content
+    
+    alc16_6 = Alconna("core16_6", Args["bar", str])
+    alc16_6.shortcut("test(?P<bar>.+)?", wrapper=wrapper, arguments=["{bar}"])
+    assert alc16_6.parse("testabc").bar == "abc"
+
+    with output_manager.capture("core16_6") as cap:
+        output_manager.set_action(lambda x: x, "core16_6")
+        alc16_6.parse("testhelp")
+        assert (
+            cap["output"]
+            == "core16_6 <bar: str> \nUnknown"
+        )
 
 
 def test_help():

@@ -1,16 +1,23 @@
 # 更新日志
 
+## Alconna 1.7.37
+
+### 改进
+
+- `Alconna.shortcut` 可以用关键字参数传入 `command` 与 `args` 了
+- 允许提供参数来额外处理 `shortcut` 的正则匹配结果
+
 ## Alconna 1.7.36
 
 ### 改进
 
-修改换行处理
+- 修改换行处理
 
 ## Alconna 1.7.35
 
 ### 改进
 
-为 completion 下提示列出的选中符号和未选中符号添加 i18n 支持
+- 为 completion 下提示列出的选中符号和未选中符号添加 i18n 支持
 
 ## Alconna 1.7.34
 

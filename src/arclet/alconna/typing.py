@@ -2,12 +2,38 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields, is_dataclass
-from typing import Any, Dict, Iterator, List, Literal, Protocol, Tuple, TypeVar, Union, runtime_checkable
+from typing import Any, Dict, Iterator, List, Literal, Protocol, Tuple, TypeVar, TypedDict, Union, runtime_checkable
+from typing_extensions import NotRequired
 
 from nepattern import BasePattern, MatchMode, type_parser
 
 TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
+
+class ShortcutRegWrapper(Protocol):
+    def __call__(self, slot: int | str, content: str) -> Any: ...
+
+class ShortcutArgs(TypedDict):
+    """快捷指令参数"""
+
+    command: NotRequired[DataCollection[Any]]
+    """快捷指令的命令"""
+    args: NotRequired[list[Any]]
+    """快捷指令的附带参数"""
+    fuzzy: NotRequired[bool]
+    """是否允许命令后随参数"""
+    prefix: NotRequired[bool]
+    """是否调用时保留指令前缀"""
+    wrapper: NotRequired[ShortcutRegWrapper]
+    """快捷指令的正则匹配结果的额外处理函数"""
+    
+
+class InnerShortcutArgs(TypedDict):
+    command: DataCollection[Any]
+    args: list[Any]
+    fuzzy: bool
+    prefix: bool
+    wrapper: ShortcutRegWrapper
 
 
 @runtime_checkable
