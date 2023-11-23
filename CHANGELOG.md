@@ -1,5 +1,12 @@
 # 更新日志
 
+## Alconna 1.7.38
+
+### 修复
+
+- 修复 `command_manager.dump`
+- 修复 `CompSession` 在执行过程中受到其他命令解析干扰的问题
+
 ## Alconna 1.7.37
 
 ### 改进

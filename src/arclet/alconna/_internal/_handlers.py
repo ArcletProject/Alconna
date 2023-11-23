@@ -721,7 +721,7 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
     """处理补全选项触发"""
     if res := prompt(analyser, argv, trigger):
         if comp_ctx.get(None):
-            raise PauseTriggered(res, trigger)
+            raise PauseTriggered(res, trigger, argv)
         prompt_other = lang.require("completion", "prompt_other")
         node = lang.require('completion', 'node')
         node = f"{node}\n" if node else ""

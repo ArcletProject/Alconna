@@ -66,6 +66,10 @@ class CompSession:
         self.trigger = None
         self._token = None
 
+        self.raw_data = []
+        self.bak_data = []
+        self.current_index = 0
+
     @property
     def available(self):
         """表示当前补全会话是否可用。"""
@@ -108,7 +112,9 @@ class CompSession:
             ValueError: 当前没有可用的补全选项, 或者当前补全选项不可用。
         """
         argv = command_manager.resolve(self.source.command)
-        _b, _r, _i, _n = argv.bak_data.copy(), argv.raw_data.copy(), argv.current_index, argv.ndata
+        argv.raw_data = self.raw_data.copy()
+        argv.bak_data = self.bak_data.copy()
+        argv.current_index = self.current_index
         if content:
             input_ = content
         else:
@@ -122,9 +128,9 @@ class CompSession:
                 argv.next(move=True)
             input_ = [prompt.text]
         if isinstance(self.trigger, InvalidParam):
-            argv.raw_data = argv.bak_data[: max(_i, 1)]
+            argv.raw_data = argv.bak_data[: max(self.current_index, 1)]
             argv.addon(input_)
-            argv.raw_data.extend(_r[max(_i, 1) :])
+            argv.raw_data.extend(self.raw_data[max(self.current_index, 1) :])
         else:
             argv.raw_data = argv.bak_data.copy()
             argv.addon(input_)
@@ -149,7 +155,6 @@ class CompSession:
             if isinstance(exc, PauseTriggered):
                 self.fresh(exc)
                 return EnterResult(exception=self.trigger if isinstance(self.trigger, InvalidParam) else None)
-            argv.bak_data, argv.raw_data, argv.current_index, argv.ndata = _b, _r, _i, _n
             return EnterResult(exception=exc)
         self.exit()
         return EnterResult(res)  # noqa # type: ignore
@@ -171,6 +176,9 @@ class CompSession:
         self.index = 0
         self.prompts.clear()
         self.source.reset()
+        self.raw_data = []
+        self.bak_data = []
+        self.current_index = 0
         return self
 
     def exit(self):
@@ -214,6 +222,10 @@ class CompSession:
         self.clear()
         self.push(*exc.args[0])
         self.trigger = exc.args[1]
+        argv = exc.args[2]
+        self.raw_data = argv.raw_data
+        self.bak_data = argv.bak_data
+        self.current_index = argv.current_index
         return True
 
 

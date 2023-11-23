@@ -76,8 +76,15 @@ class CommandManager:
 
     def dump_cache(self) -> None:
         """保存缓存"""
+        data = {}
+        for key, short in self.__shortcuts.items():
+            if isinstance(short, dict):
+                data[key] = {k: v for k, v in short.items() if k != "wrapper"}
+            else:
+                data[key] = short
         with shelve.open(self.cache_path) as db:
-            db["shortcuts"] = self.__shortcuts
+            db["shortcuts"] = data
+        data.clear()
 
     @property
     def get_loaded_namespaces(self):

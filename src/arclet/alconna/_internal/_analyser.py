@@ -358,7 +358,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         else:
             exc = ArgumentMissing(lang.require("analyser", "param_missing"))
         if comp_ctx.get(None) and isinstance(exc, ArgumentMissing):
-            raise PauseTriggered(prompt(self, argv), exc)
+            raise PauseTriggered(prompt(self, argv), exc, argv)
         if self.command.meta.raise_exception:
             raise exc
         return self.export(argv, True, exc)
@@ -382,7 +382,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             if comp_ctx.get(None):
                 if isinstance(e1, InvalidParam):
                     argv.free(argv.context.separators if argv.context else None)
-                raise PauseTriggered(prompt(self, argv), e1) from e1
+                raise PauseTriggered(prompt(self, argv), e1, argv) from e1
             if self.command.meta.raise_exception:
                 raise
             return self.export(argv, True, e1)
