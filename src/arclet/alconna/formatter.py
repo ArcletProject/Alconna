@@ -47,14 +47,18 @@ def resolve_requires(options: list[Option | Subcommand]):
 
 
 def ensure_node(targets: list[str], options: list[Option | Subcommand]):
+    if not targets:
+        return None
+    pf = targets.pop(0)
     for opt in options:
-        if isinstance(opt, Option) and targets[0] in opt.aliases:
+        if isinstance(opt, Option) and pf in opt.aliases:
             return opt
-        if isinstance(opt, Subcommand):
-            if targets[0] == opt.name and not targets[1:]:
+        if isinstance(opt, Subcommand) and pf == opt.name:
+            if not targets:
                 return opt
-            if sub := ensure_node(targets[1:], opt.options):
-                return sub
+            return sub if (sub := ensure_node(targets, opt.options)) else opt
+    return ensure_node(targets, options)
+
 
 
 @dataclass(eq=True)

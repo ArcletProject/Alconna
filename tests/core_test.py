@@ -50,7 +50,9 @@ def test_alconna_multi_match():
         meta=CommandMeta(description="测试指令1"),
     )
     assert len(alc1.options) == 6
-    assert alc1.get_help() == """\
+    assert (
+        alc1.get_help()
+        == """\
 [/│!]core1 <IP: ip> 
 测试指令1
 
@@ -66,6 +68,7 @@ def test_alconna_multi_match():
 * 输入需要At的用户
   -u <id: int> 
 """
+    )
     res1 = alc1.parse(["/core1 -u", 123, "test Test -u AAA --num 222 127.0.0.1"])
     assert res1.matched is True
     assert res1.query("num.count") == 222
@@ -497,7 +500,7 @@ def test_shortcut():
         if content == "help":
             return "--help"
         return content
-    
+
     alc16_6 = Alconna("core16_6", Args["bar", str])
     alc16_6.shortcut("test(?P<bar>.+)?", wrapper=wrapper, arguments=["{bar}"])
     assert alc16_6.parse("testabc").bar == "abc"
@@ -505,10 +508,7 @@ def test_shortcut():
     with output_manager.capture("core16_6") as cap:
         output_manager.set_action(lambda x: x, "core16_6")
         alc16_6.parse("testhelp")
-        assert (
-            cap["output"]
-            == "core16_6 <bar: str> \nUnknown"
-        )
+        assert cap["output"] == "core16_6 <bar: str> \nUnknown"
 
 
 def test_help():
@@ -518,15 +518,28 @@ def test_help():
     alc17 = Alconna(
         "core17",
         Option("foo", Args["bar", str], help_text="Foo bar"),
+        Option("baz", Args["qux", str], help_text="Baz qux"),
         Subcommand("add", Args["bar", str], help_text="Add bar"),
+        Subcommand("del", Args["bar", str], help_text="Del bar"),
     )
     with output_manager.capture("core17") as cap:
         output_manager.set_action(lambda x: x, "core17")
         res = alc17.parse("core17 --help")
         assert isinstance(res.error_info, SpecialOptionTriggered)
-        assert (
-            cap["output"]
-            == "core17 \nUnknown\n\n可用的子命令有:\n* Add bar\n  add <bar: str> \n可用的选项有:\n* Foo bar\n  foo <bar: str> \n"
+        assert cap["output"] == (
+            "core17 \n"
+            "Unknown\n"
+            "\n"
+            "可用的子命令有:\n"
+            "* Add bar\n"
+            "  add <bar: str> \n"
+            "* Del bar\n"
+            "  del <bar: str> \n"
+            "可用的选项有:\n"
+            "* Foo bar\n"
+            "  foo <bar: str> \n"
+            "* Baz qux\n"
+            "  baz <qux: str> \n"
         )
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 --help foo")
@@ -535,8 +548,17 @@ def test_help():
         alc17.parse("core17 foo --help")
         assert cap["output"] == "foo <bar: str> \nFoo bar"
     with output_manager.capture("core17") as cap:
+        alc17.parse("core17 --help baz")
+        assert cap["output"] == "baz <qux: str> \nBaz qux"
+    with output_manager.capture("core17") as cap:
+        alc17.parse("core17 baz --help")
+        assert cap["output"] == "baz <qux: str> \nBaz qux"
+    with output_manager.capture("core17") as cap:
         alc17.parse("core17 add --help")
         assert cap["output"] == "add <bar: str> \nAdd bar"
+    with output_manager.capture("core17") as cap:
+        alc17.parse("core17 del --help")
+        assert cap["output"] == "del <bar: str> \nDel bar"
     alc17_1 = Alconna(
         "core17_1",
         Option("foo bar abc baz", Args["qux", int]),
