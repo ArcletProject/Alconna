@@ -287,8 +287,7 @@ class Alconna(Subcommand, Generic[TDC]):
         """
         try:
             if delete:
-                command_manager.delete_shortcut(self, key)
-                return lang.require("shortcut", "delete_success").format(shortcut=key, target=self.path)
+                return command_manager.delete_shortcut(self, key)
             if kwargs and not args:
                 kwargs["args"] = kwargs.pop("arguments", None)
                 kwargs = {k: v for k, v in kwargs.items() if v is not None}

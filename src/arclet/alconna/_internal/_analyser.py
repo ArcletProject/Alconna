@@ -125,6 +125,8 @@ class SubAnalyser(Generic[TDC]):
     """默认选项的解析结果"""
     default_sub_result: dict[str, SubcommandResult] = field(default_factory=dict)
     """默认子命令的解析结果"""
+    extra_allow: bool = field(default=False)
+    """是否允许额外的参数"""
 
     def _clr(self):
         """清除自身的解析结果"""
@@ -247,6 +249,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         self.fuzzy_match = alconna.meta.fuzzy_match
         self.used_tokens = set()
         self.command_header = Header.generate(alconna.command, alconna.prefixes, alconna.meta.compact)
+        self.extra_allow = not alconna.meta.strict or not alconna.namespace_config.strict
         compiler = compiler or default_compiler
         compiler(self, command_manager.resolve(self.command).param_ids)
 
@@ -278,20 +281,20 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         if isinstance(short, Arparma):
             return short
 
-        argv.build(short["command"])  # type: ignore
-        if not short["fuzzy"] and data:
+        argv.build(short.command)  # type: ignore
+        if not short.fuzzy and data:
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=data[0]))
             if self.command.meta.raise_exception:
                 raise exc
             return self.export(argv, True, exc)
-        if short["fuzzy"] and reg and len(trigger) > reg.span()[1]:
+        if short.fuzzy and reg and len(trigger) > reg.span()[1]:
             argv.addon((trigger[reg.span()[1] :],))
-        argv.addon(short["args"])
+        argv.addon(short.args)
         data = _handle_shortcut_data(argv, data)
         argv.bak_data = argv.raw_data.copy()
         argv.addon(data)
         if reg:
-            argv.raw_data = _handle_shortcut_reg(argv, reg.groups(), reg.groupdict(), short["wrapper"])
+            argv.raw_data = _handle_shortcut_reg(argv, reg.groups(), reg.groupdict(), short.wrapper)
         argv.bak_data = argv.raw_data.copy()
         if argv.message_cache:
             argv.token = argv.generate_token(argv.raw_data)

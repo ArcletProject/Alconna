@@ -61,7 +61,7 @@
     "undefined_command": "Command {target} is not defined",
     "incorrect_shortcut": "Shortcut {target} cannot be used",
     "undefined_shortcut": "Shortcut {target} is not defined",
-    "target_command_error": "The target command of {shortcut} is not {target}",
+    "shortcut_parse_error": "{query} is not part of the shortcut for {target}",
     "help_header": "# Following commands are available:",
     "help_pages": "Page {current} of {total}",
     "help_footer": "# Invoke '$command {help}' to see syntax"

@@ -60,7 +60,7 @@
     "undefined_command": "命令 {target} 不存在",
     "incorrect_shortcut": "快捷命令 {target} 无法使用",
     "undefined_shortcut": "快捷命令 {target} 不存在",
-    "target_command_error": "{shortcut} 的目标命令 {target} 错误",
+    "shortcut_parse_error": "{query} 不属于 {target} 的快捷命令",
     "help_header": "# 当前可用的命令有:",
     "help_pages": "第 {current}/{total} 页",
     "help_footer": "# 输入'命令名 {help}' 查看特定命令的语法"

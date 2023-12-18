@@ -923,5 +923,14 @@ def test_disable_builtin_option():
     assert res2.find("help")
 
 
+def test_extra_allow():
+    core29 = Alconna("core29", Option("--foo", Args["bar", str]), meta=CommandMeta(strict=False))
+    assert core29.parse("core29 --foo bar").matched
+    res = core29.parse("core29 --foo --bar --baz --qux")
+    assert res.matched
+    assert res.query[str]("foo.bar") == "--bar"
+    assert res.all_matched_args.get("$extra", []) == ["--baz", "--qux"]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-vs"])

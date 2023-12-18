@@ -418,6 +418,9 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             _param.process(argv)
         finally:
             analyser.subcommands_result[_param.command.dest] = _param.result()
+    elif analyser.extra_allow:
+        analyser.args_result.setdefault("$extra", []).append(_text)
+        argv.next(seps, move=True)
     else:
         return False
     analyser.sentences.clear()

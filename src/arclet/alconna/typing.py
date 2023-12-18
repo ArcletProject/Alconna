@@ -10,8 +10,10 @@ from nepattern import BasePattern, MatchMode, type_parser
 TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
 
+
 class ShortcutRegWrapper(Protocol):
     def __call__(self, slot: int | str, content: str) -> Any: ...
+
 
 class ShortcutArgs(TypedDict):
     """快捷指令参数"""
@@ -26,14 +28,33 @@ class ShortcutArgs(TypedDict):
     """是否调用时保留指令前缀"""
     wrapper: NotRequired[ShortcutRegWrapper]
     """快捷指令的正则匹配结果的额外处理函数"""
-    
 
-class InnerShortcutArgs(TypedDict):
+
+class InnerShortcutArgs:
     command: DataCollection[Any]
     args: list[Any]
     fuzzy: bool
     prefix: bool
     wrapper: ShortcutRegWrapper
+
+    __slots__ = ("command", "args", "fuzzy", "prefix", "wrapper")
+
+    def __init__(
+        self,
+        command: DataCollection[Any],
+        args: list[Any] | None = None,
+        fuzzy: bool = True,
+        prefix: bool = False,
+        wrapper: ShortcutRegWrapper | None = None
+    ):
+        self.command = command
+        self.args = args or []
+        self.fuzzy = fuzzy
+        self.prefix = prefix
+        self.wrapper = wrapper or (lambda slot, content: content)
+
+    def __repr__(self):
+        return f"ShortcutArgs({self.command!r}, args={self.args!r}, fuzzy={self.fuzzy}, prefix={self.prefix})"
 
 
 @runtime_checkable
@@ -66,6 +87,8 @@ class CommandMeta:
     "命令是否保留换行字符"
     compact: bool = field(default=False)
     "命令是否允许第一个参数紧随头部"
+    strict: bool = field(default=True)
+    "命令是否严格匹配，若为 False 则未知参数将作为名为 $extra 的参数"
     extra: Dict[str, Any] = field(default_factory=dict, hash=False)
     "命令的自定义额外信息"
 
