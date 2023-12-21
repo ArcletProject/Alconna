@@ -223,13 +223,14 @@ $ python fuzzy.py /test_fuzzy foo bar
 
 ## 示例
 
-| 名称   | 文件                                       |
-|------|------------------------------------------|
-| 计算   | [calculate.py](./example/calculate.py)   |
-| 执行代码 | [exec_code.py](./example/exec_code.py)   |
-| 请求路由 | [endpoint.py](./example/endpoint.py)     |
-| 图片搜索 | [img_search.py](./example/img_search.py) |
-| PIP  | [pip.py](./example/pip.py)               |
+| 名称    | 文件                                       |
+|-------|------------------------------------------|
+| 计算    | [calculate.py](./example/calculate.py)   |
+| 执行代码  | [exec_code.py](./example/exec_code.py)   |
+| 请求路由  | [endpoint.py](./example/endpoint.py)     |
+| 图片搜索  | [img_search.py](./example/img_search.py) |
+| PIP   | [pip.py](./example/pip.py)               |
+| 数据库查询 | [exec_sql.py](./example/exec_sql.py)     |
 
 
 ## 许可

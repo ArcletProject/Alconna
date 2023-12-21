@@ -228,13 +228,14 @@ $ python fuzzy.py /test_fuzzy foo bar
 
 ## Examples
 
-| Name          | File                                     |
-|---------------|------------------------------------------|
-| Calculate     | [calculate.py](./example/calculate.py)   |
-| Execute       | [exec_code.py](./example/exec_code.py)   |
-| Request Route | [endpoint.py](./example/endpoint.py)     |
-| Image Search  | [img_search.py](./example/img_search.py) |
-| PIP           | [pip.py](./example/pip.py)               |
+| Name           | File                                     |
+|----------------|------------------------------------------|
+| Calculate      | [calculate.py](./example/calculate.py)   |
+| Execute        | [exec_code.py](./example/exec_code.py)   |
+| Request Route  | [endpoint.py](./example/endpoint.py)     |
+| Image Search   | [img_search.py](./example/img_search.py) |
+| PIP            | [pip.py](./example/pip.py)               |
+| Database Query | [exec_sql.py](./example/exec_sql.py)     |
 
 ## License
 
