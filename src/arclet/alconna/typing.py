@@ -112,19 +112,20 @@ class _AllParamPattern(BasePattern[Any, Any]):
 
 AllParam = _AllParamPattern()
 
-class KeyWordVar(BasePattern[T]):
+
+class KeyWordVar(BasePattern[T, Any]):
     """对具名参数的包装"""
 
     base: BasePattern
 
-    def __init__(self, value: BasePattern[T] | type[T], sep: str = "="):
+    def __init__(self, value: BasePattern[T, Any] | type[T], sep: str = "="):
         """构建一个具名参数
 
         Args:
             value (type | BasePattern): 参数的值
             sep (str, optional): 参数的分隔符
         """
-        self.base = value if isinstance(value, BasePattern) else parser(value)
+        self.base = value if isinstance(value, BasePattern) else parser(value)  # type: ignore
         self.sep = sep
         assert isinstance(self.base, BasePattern)
         super().__init__(mode=MatchMode.KEEP, origin=self.base.origin, alias=f"@{sep}{self.base}")
@@ -136,27 +137,28 @@ class KeyWordVar(BasePattern[T]):
 class _Kw:
     __slots__ = ()
 
-    def __getitem__(self, item: BasePattern[T] | type[T]):
+    def __getitem__(self, item: BasePattern[T, Any] | type[T]):
         return KeyWordVar(item)
 
     __matmul__ = __getitem__
     __rmatmul__ = __getitem__
 
 
-class MultiVar(BasePattern[T]):
+class MultiVar(BasePattern[T, Any]):
     """对可变参数的包装"""
-    base: BasePattern
+
+    base: BasePattern[T, Any]
     flag: Literal["+", "*"]
     length: int
 
-    def __init__(self, value: BasePattern[T] | type[T], flag: int | Literal["+", "*"] = "+"):
+    def __init__(self, value: BasePattern[T, Any] | type[T], flag: int | Literal["+", "*"] = "+"):
         """构建一个可变参数
 
         Args:
             value (type | BasePattern): 参数的值
             flag (int | Literal["+", "*"]): 参数的标记
         """
-        self.base = value if isinstance(value, BasePattern) else parser(value)
+        self.base = value if isinstance(value, BasePattern) else parser(value)  # type: ignore
         assert isinstance(self.base, BasePattern)
         if not isinstance(flag, int):
             alias = f"({self.base}{flag})"
