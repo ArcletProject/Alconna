@@ -94,21 +94,22 @@ class CommandMeta:
 
 
 TDC = TypeVar("TDC", bound=DataCollection[Any])
+T = TypeVar("T")
 
 
-class KeyWordVar(BasePattern):
+class KeyWordVar(BasePattern[T]):
     """对具名参数的包装"""
 
     base: BasePattern
 
-    def __init__(self, value: BasePattern | Any, sep: str = "="):
+    def __init__(self, value: BasePattern[T] | type[T], sep: str = "="):
         """构建一个具名参数
 
         Args:
             value (type | BasePattern): 参数的值
             sep (str, optional): 参数的分隔符
         """
-        self.base = value if isinstance(value, BasePattern) else type_parser(value)
+        self.base = value if isinstance(value, BasePattern) else type_parser(value)  # type: ignore
         self.sep = sep
         assert isinstance(self.base, BasePattern)
         super().__init__(model=MatchMode.KEEP, origin=self.base.origin, alias=f"@{sep}{self.base}")
@@ -120,28 +121,28 @@ class KeyWordVar(BasePattern):
 class _Kw:
     __slots__ = ()
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: BasePattern[T] | type[T]):
         return KeyWordVar(item)
 
     __matmul__ = __getitem__
     __rmatmul__ = __getitem__
 
 
-class MultiVar(BasePattern):
+class MultiVar(BasePattern[T]):
     """对可变参数的包装"""
 
-    base: BasePattern
+    base: BasePattern[T]
     flag: Literal["+", "*"]
     length: int
 
-    def __init__(self, value: BasePattern | Any, flag: int | Literal["+", "*"] = "+"):
+    def __init__(self, value: BasePattern[T] | type[T], flag: int | Literal["+", "*"] = "+"):
         """构建一个可变参数
 
         Args:
             value (type | BasePattern): 参数的值
             flag (int | Literal["+", "*"]): 参数的标记
         """
-        self.base = value if isinstance(value, BasePattern) else type_parser(value)
+        self.base = value if isinstance(value, BasePattern) else type_parser(value)  # type: ignore
         assert isinstance(self.base, BasePattern)
         if not isinstance(flag, int):
             alias = f"({self.base}{flag})"
@@ -160,6 +161,10 @@ class MultiVar(BasePattern):
 
     def __repr__(self):
         return self.alias
+
+
+class MultiKeyWordVar(MultiVar):
+    base: KeyWordVar
 
 
 Nargs = MultiVar

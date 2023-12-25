@@ -1,5 +1,12 @@
 # 更新日志
 
+## Alconna 1.7.41
+
+### 改进
+
+- `Args` 现在可以设置多个 MultiVar 参数
+- 可以通过 `config.remainder` 配置字符来设置多个多参数之间的分隔符
+
 ## Alconna 1.7.40
 
 ### 改进

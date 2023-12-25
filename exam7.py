@@ -4,10 +4,12 @@ from typing import Literal, overload, Optional
 from typing_extensions import Self
 from dataclasses import dataclass, field
 
+
 @dataclass
 class Scope:
     refer: "Node"
     substance: dict[str, "Node"] = field(default_factory=dict)
+
 
 NodeMap: dict[str, Scope] = {}
 

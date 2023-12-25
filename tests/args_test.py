@@ -236,6 +236,17 @@ def test_unpack():
     assert analyse_args(arg19_1, ["name=alice&age=16"]) == {"people": People("alice", 16)}
 
 
+def test_multi_multi():
+    from arclet.alconna.typing import MultiVar
+
+    arg20 = Args["foo", MultiVar(str)]["bar", MultiVar(int)]
+    assert analyse_args(arg20, ["a b -- 1 2"]) == {"foo": ("a", "b"), "bar": (1, 2)}
+
+    arg20_1 = Args["foo", MultiVar(int)]["bar", MultiVar(str)]
+    assert analyse_args(arg20_1, ["1 2 -- a b"]) == {"foo": (1, 2), "bar": ("a", "b")}
+    assert analyse_args(arg20_1, ["1 2 a b"]) == {"foo": (1, 2), "bar": ("a", "b")}
+
+
 if __name__ == "__main__":
     import pytest
 

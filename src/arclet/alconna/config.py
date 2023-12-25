@@ -113,6 +113,8 @@ class _AlconnaConfig:
     """模糊匹配阈值"""
     _default_namespace = "Alconna"
     """默认命名空间名称"""
+    remainders: set[str] = {"--"}
+    """参数分隔标记"""
     namespaces: dict[str, Namespace] = {_default_namespace: Namespace(_default_namespace)}
 
     @property

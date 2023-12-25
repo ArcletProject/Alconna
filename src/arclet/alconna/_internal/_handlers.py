@@ -15,7 +15,7 @@ from ..config import config
 from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
-from ..typing import KWBool, ShortcutRegWrapper
+from ..typing import KWBool, ShortcutRegWrapper, MultiKeyWordVar, MultiVar
 from ._header import Double, Header
 from ._util import escape, levenshtein, unescape
 
@@ -44,17 +44,15 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dic
     result[target.name] = res._value  # noqa
 
 
-def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
-    value, arg = args.argument.var_positional
+def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict[str, Any]):
+    value, arg = slot
     argv.context = arg
     key = arg.name
     default_val = arg.field.default
     _result = []
     kwonly_seps = tuple(arg.value.sep for arg in args.argument.keyword_only.values())  # type: ignore
-    loop = len(argv.release(arg.separators))
-    if value.length > 0:
-        loop = min(loop, value.length)
-    for _ in range(loop):
+    count = 0
+    while argv.current_index != argv.ndata:
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
             if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
@@ -62,16 +60,21 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
         if not may_arg or (_str and may_arg in argv.param_ids):
             argv.rollback(may_arg)
             break
+        if _str and may_arg in config.remainders:
+            break
         if _str and kwonly_seps and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:  # noqa: E501
             argv.rollback(may_arg)
             break
-        if _str and args.argument.var_keyword and args.argument.var_keyword[0].base.sep in may_arg:  # type: ignore
+        if _str and args.argument.vars_keyword and args.argument.vars_keyword[0][0].base.sep in may_arg:
             argv.rollback(may_arg)
             break
         if (res := value.base.exec(may_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result.append(res._value)  # noqa
+        count += 1
+        if 0 < value.length <= count:
+            break
     if not _result:
         if default_val is not None:
             _result = default_val if isinstance(default_val, Iterable) else ()
@@ -82,22 +85,22 @@ def step_varpos(argv: Argv, args: Args, result: dict[str, Any]):
     result[key] = tuple(_result)
 
 
-def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
-    value, arg = args.argument.var_keyword
+def step_varkey(argv: Argv, slot: tuple[MultiKeyWordVar, Arg], result: dict[str, Any]):
+    value, arg = slot
     argv.context = arg
     name = arg.name
     default_val = arg.field.default
     _result = {}
-    loop = len(argv.release(arg.separators))
-    if value.length > 0:
-        loop = min(loop, value.length)
-    for _ in range(loop):
+    count = 0
+    while argv.current_index != argv.ndata:
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
             if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
                 raise SpecialOptionTriggered(argv.special[may_arg])
         if not may_arg or (_str and may_arg in argv.param_ids) or not _str:
             argv.rollback(may_arg)
+            break
+        if _str and may_arg in config.remainders:
             break
         if not (_kwarg := re.match(rf"^(-*[^{value.base.sep}]+){value.base.sep}(.*?)$", may_arg)):
             argv.rollback(may_arg)
@@ -109,6 +112,9 @@ def step_varkey(argv: Argv, args: Args, result: dict[str, Any]):
             argv.rollback(may_arg)
             break
         _result[key] = res._value  # noqa
+        count += 1
+        if 0 < value.length <= count:
+            break
     if not _result:
         if default_val is not None:
             _result = default_val if isinstance(default_val, dict) else {}
@@ -134,13 +140,15 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
         if not may_arg or not _str:
             argv.rollback(may_arg)
             break
+        if _str and may_arg in config.remainders:
+            break
         key, _m_arg = split_once(may_arg, kwonly_seps1, argv.filter_crlf)
         _key = pat.match(key)["name"]
         if _key not in args.argument.keyword_only:
             _key = key
         if _key not in args.argument.keyword_only:
             argv.rollback(may_arg)
-            if args.argument.var_keyword or (_str and may_arg in argv.param_ids):
+            if args.argument.vars_keyword or (_str and may_arg in argv.param_ids):
                 break
             for arg in args.argument.keyword_only.values():
                 if arg.value.base.exec(may_arg).flag == "valid":  # type: ignore
@@ -216,12 +224,12 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
                 result[arg.name] = None if de is Empty else de
             elif not arg.optional:
                 raise e
-    if args.argument.var_positional:
-        step_varpos(argv, args, result)
+    for slot in args.argument.vars_positional:
+        step_varpos(argv, args, slot, result)
     if args.argument.keyword_only:
         step_keyword(argv, args, result)
-    if args.argument.var_keyword:
-        step_varkey(argv, args, result)
+    for slot in args.argument.vars_keyword:
+        step_varkey(argv, slot, result)
     argv.context = None
     return result
 
