@@ -1,5 +1,13 @@
 # 更新日志
 
+## Alconna 1.7.42
+
+### 改进
+- 设置了 completion 的 Arg 在输出文本中会显示其名字
+
+### 修复
+- 修复 `Alconna.__call__` 接受 sys.argv[1:] 时没有处理引号包裹的参数的 bug
+
 ## Alconna 1.7.41
 
 ### 改进
