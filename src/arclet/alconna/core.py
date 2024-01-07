@@ -428,13 +428,14 @@ class Alconna(Subcommand, Generic[TDC]):
     def _calc_hash(self):
         return hash((self.path + str(self.prefixes), self.meta, *self.options, *self.args))
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args):
         if args:
             return self.parse(list(args))  # type: ignore
         head = handle_argv()
+        argv = [(f"\"{arg}\"" if any(arg.count(sep) for sep in self.separators) else arg) for arg in sys.argv[1:]]
         if head != self.command:
-            return self.parse(sys.argv[1:])  # type: ignore
-        return self.parse([head, *sys.argv[1:]])  # type: ignore
+            return self.parse(argv)  # type: ignore
+        return self.parse([head, *argv])  # type: ignore
 
     @property
     def headers(self):

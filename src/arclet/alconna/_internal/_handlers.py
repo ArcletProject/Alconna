@@ -663,14 +663,14 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
 
 
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
-    if comp := trig.field.get_completion():
-        if isinstance(comp, str):
-            return [Prompt(comp, False)]
-        releases = argv.release(recover=True)
-        target = str(releases[-1]) or str(releases[-2])
-        o = list(filter(lambda x: target in x, comp)) or comp
-        return [Prompt(i, False, target) for i in o]
-    return [Prompt(analyser.command.formatter.param(trig), False)]
+    if not (comp := trig.field.get_completion()):
+        return [Prompt(analyser.command.formatter.param(trig), False)]
+    if isinstance(comp, str):
+        return [Prompt(f"{trig.name}: {comp}", False)]
+    releases = argv.release(recover=True)
+    target = str(releases[-1]) or str(releases[-2])
+    o = list(filter(lambda x: target in x, comp)) or comp
+    return [Prompt(f"{trig.name}: {i}", False, target) for i in o]
 
 
 def _prompt_sentence(analyser: Analyser):
@@ -691,10 +691,12 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
     res: list[Prompt] = []
     if not analyser.args_result and analyser.self_args.argument:
         unit = analyser.self_args.argument[0]
-        if comp := unit.field.get_completion():
-            res.extend([Prompt(comp, False)] if isinstance(comp, str) else [Prompt(i, False) for i in comp])
-        else:
+        if not (comp := unit.field.get_completion()):
             res.append(Prompt(analyser.command.formatter.param(unit), False))
+        elif isinstance(comp, str):
+            res.append(Prompt(f"{unit.name}: {comp}", False))
+        else:
+            res.extend(Prompt(f"{unit.name}: {i}", False) for i in comp)
     for opt in filter(
         lambda x: x.name not in (argv.special if len(analyser.command.options) > 3 else argv.completion_names),
         analyser.command.options,
