@@ -296,7 +296,7 @@ class Alconna(Subcommand, Generic[TDC]):
                 return command_manager.add_shortcut(self, key, args)
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
-                if alc and alc == self:
+                if alc and alc == self.path:
                     return command_manager.add_shortcut(self, key, {"command": cmd})  # type: ignore
                 raise ValueError(
                     lang.require("shortcut", "recent_command_error").format(
