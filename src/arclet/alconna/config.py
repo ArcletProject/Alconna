@@ -109,8 +109,6 @@ class _AlconnaConfig:
 
     command_max_count: int = 200
     """最大命令数量"""
-    fuzzy_threshold: float = 0.6
-    """模糊匹配阈值"""
     _default_namespace = "Alconna"
     """默认命名空间名称"""
     remainders: set[str] = {"--"}

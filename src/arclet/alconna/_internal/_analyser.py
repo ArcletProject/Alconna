@@ -185,7 +185,7 @@ class SubAnalyser(Generic[TDC]):
         sub = argv.context = self.command
         name, _ = argv.next(sub.separators)
         if name != sub.name:  # 先匹配节点名称
-            if argv.fuzzy_match and levenshtein(name, sub.name) >= config.fuzzy_threshold:
+            if argv.fuzzy_match and levenshtein(name, sub.name) >= argv.fuzzy_threshold:
                 raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=sub.name, target=name))
             raise ParamsUnmatched(lang.require("subcommand", "name_error").format(target=name, source=sub.name))
 

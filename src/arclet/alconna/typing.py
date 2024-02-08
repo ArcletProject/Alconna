@@ -79,6 +79,8 @@ class CommandMeta:
     "命令的作者"
     fuzzy_match: bool = field(default=False)
     "命令是否开启模糊匹配"
+    fuzzy_threshold: float = field(default=0.6)
+    """模糊匹配阈值"""
     raise_exception: bool = field(default=False)
     "命令是否抛出异常"
     hide: bool = field(default=False)

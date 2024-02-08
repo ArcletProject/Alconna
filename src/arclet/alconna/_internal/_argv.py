@@ -20,6 +20,8 @@ class Argv(Generic[TDC]):
     namespace: Namespace = field(default=config.default_namespace)
     fuzzy_match: bool = field(default=False)
     """当前命令是否模糊匹配"""
+    fuzzy_threshold: float = field(default=0.6)
+    """模糊匹配阈值"""
     preprocessors: dict[type, Callable[..., Any]] = field(default_factory=dict)
     """命令元素的预处理器"""
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)

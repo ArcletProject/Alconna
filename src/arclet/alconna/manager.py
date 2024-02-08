@@ -116,6 +116,7 @@ class CommandManager:
         self.__argv[command] = __argv_type__.get()(
             command.namespace_config,  # type: ignore
             fuzzy_match=command.meta.fuzzy_match,  # type: ignore
+            fuzzy_threshold=command.meta.fuzzy_threshold,  # type: ignore
             to_text=command.namespace_config.to_text,  # type: ignore
             converter=command.namespace_config.converter,  # type: ignore
             separators=command.separators,  # type: ignore
