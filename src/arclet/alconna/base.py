@@ -210,7 +210,7 @@ class Option(CommandNode):
     def __add__(self, other: Args | Arg) -> Option:
         ...
 
-    def __add__(self, other: Option | Args | Arg) -> Self | Subcommand:
+    def __add__(self, other: Option | Args | Arg) -> Subcommand | Option:
         """连接命令选项与命令节点或命令选项, 生成子命令
 
         Args:

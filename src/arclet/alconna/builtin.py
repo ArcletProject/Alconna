@@ -84,7 +84,7 @@ def set_default(
 def set_default(
     *,
     value: Any = MISSING,
-    factory: Callable[..., Any] = MISSING,
+    factory: Callable[..., Any] | _MISSING_TYPE = MISSING,
     path: str | None = None,
 ) -> _SetDefault:
     """

@@ -278,9 +278,9 @@ class Arparma(Generic[TDC]):
         bind.apply_defaults()
         return target(*bind.args, **bind.kwargs)
 
-    def fail(self, exc: type[Exception] | Exception):
+    def fail(self, exc: type[Exception] | Exception) -> Self:
         """生成一个失败的 `Arparma`"""
-        return Arparma(self.source, self.origin, False, self.header_match, error_info=exc)
+        return Arparma(self.source, self.origin, False, self.header_match, error_info=exc)  # type: ignore
 
     def __require__(self, parts: list[str]) -> tuple[dict[str, Any] | OptionResult | SubcommandResult | None, str]:
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""

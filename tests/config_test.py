@@ -3,7 +3,7 @@ from arclet.alconna import Alconna, Namespace, Option, command_manager, config, 
 
 def test_config():
     with namespace("cfg1") as np:
-        np.separators = {";"}
+        np.separators = (";",)
         cfg = Alconna("cfg") + Option("foo")
         assert cfg.parse("cfg foo").matched is False
         assert cfg.parse("cfg;foo").matched is True
