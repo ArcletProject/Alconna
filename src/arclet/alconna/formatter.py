@@ -60,7 +60,6 @@ def ensure_node(targets: list[str], options: list[Option | Subcommand]):
     return ensure_node(targets, options)
 
 
-
 @dataclass(eq=True)
 class Trace:
     """存放命令节点数据的结构

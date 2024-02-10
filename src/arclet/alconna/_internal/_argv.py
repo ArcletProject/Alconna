@@ -240,7 +240,7 @@ class Argv(Generic[TDC]):
             list[str | Any]: 剩余的数据.
         """
         _result = []
-        data = self.bak_data if recover else self.raw_data[self.current_index :]
+        data = self.bak_data if recover else self.raw_data[self.current_index:]
         for _data in data:
             if _data.__class__ is str:
                 _result.extend(split(_data, separate or (" ",), self.filter_crlf))

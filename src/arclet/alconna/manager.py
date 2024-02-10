@@ -237,31 +237,40 @@ class CommandManager:
         return _shortcut
 
     def find_shortcut(
-            self, target: Alconna[TDC], query: str
-    ) -> tuple[Arparma[TDC] | InnerShortcutArgs, Match[str] | None]:
+            self, target: Alconna[TDC], data: list
+    ) -> tuple[list, Arparma[TDC] | InnerShortcutArgs, Match[str] | None]:
         """查找快捷命令
 
         Args:
-            target (Alconna): 目标命令
-            query (str): 快捷命令的名称.
+            target (Alconna): 目标命令对象
+            data (list): 传入的命令数据
 
         Returns:
-            tuple[Union[Arparma, InnerShortcutArgs], re.Match[str]]: 返回匹配的快捷命令
+            tuple[list, Union[Arparma, InnerShortcutArgs], re.Match[str]]: 返回匹配的快捷命令
         """
         namespace, name = self._command_part(target.path)
         if not (_shortcut := self.__shortcuts.get(f"{namespace}.{name}")):
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
-        try:
-            return _shortcut[query], None
-        except KeyError as e:
+        query: str = data.pop(0)
+        while True:
+            if query in _shortcut:
+                return data, _shortcut[query], None
             for key, args in _shortcut.items():
                 if isinstance(args, InnerShortcutArgs) and args.fuzzy and (mat := re.match(f"^{key}", query)):
-                    return args, mat
+                    if len(query) > mat.span()[1]:
+                        data.insert(0, query[mat.span()[1]:])
+                    return data, args, mat
                 elif mat := re.fullmatch(key, query):
-                    return _shortcut[key], mat
-            raise ValueError(
-                lang.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=query)
-            ) from e
+                    return data, _shortcut[key], mat
+            if not data:
+                break
+            next_data = data.pop(0)
+            if not isinstance(next_data, str):
+                break
+            query += f"{target.separators[0]}{next_data}"
+        raise ValueError(
+            lang.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=query)
+        )
 
     def delete_shortcut(self, target: Alconna, key: str | None = None):
         """删除快捷命令"""
@@ -351,10 +360,10 @@ class CommandManager:
             command_string = (
                 "\n".join(
                     f" {str(index).rjust(len(str(page * max_length)), '0')} {slot[0]} : {slot[1]}"
-                    for index, slot in enumerate(slots[(page - 1) * max_length : page * max_length], start=(page - 1) * max_length)  # noqa: E501
+                    for index, slot in enumerate(slots[(page - 1) * max_length: page * max_length], start=(page - 1) * max_length)  # noqa: E501
                 )
                 if show_index
-                else "\n".join(f" - {n} : {d}" for n, d in slots[(page - 1) * max_length : page * max_length])
+                else "\n".join(f" - {n} : {d}" for n, d in slots[(page - 1) * max_length: page * max_length])
             )
         help_names = set()
         for i in cmds:

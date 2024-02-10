@@ -59,7 +59,7 @@ class Pair:
                 if command == self.pattern:
                     return command, None
                 if comp and command.startswith(self.pattern):
-                    pbfn(command[len(self.pattern) :], replace=True)
+                    pbfn(command[len(self.pattern):], replace=True)
                     return self.pattern, None
                 return None, None
 
@@ -70,7 +70,7 @@ class Pair:
                 if mat := self.pattern.fullmatch(command):
                     return command, mat
                 if comp and (mat := self.pattern.match(command)):
-                    pbfn(command[len(mat[0]) :], replace=True)
+                    pbfn(command[len(mat[0]):], replace=True)
                     return mat[0], mat
                 return None, None
 
@@ -150,7 +150,7 @@ class Double:
                 return (pf, cmd), (pf, val.value), True, None
             if comp and (val := self.comp_pattern.exec(cmd, Empty)).success:
                 if c_str:
-                    pbfn(cmd[len(str(val.value)) :], replace=True)
+                    pbfn(cmd[len(str(val.value)):], replace=True)
                 return (pf, cmd), (pf, cmd[: len(str(val.value))]), True, None
             return
         if (val := self.patterns.exec(pf, Empty)).success:
@@ -158,7 +158,7 @@ class Double:
                 return (pf, cmd), (val.value, val2.value), True, None
             if comp and (val2 := self.comp_pattern.exec(cmd, Empty)).success:
                 if c_str:
-                    pbfn(cmd[len(str(val2.value)) :], replace=True)
+                    pbfn(cmd[len(str(val2.value)):], replace=True)
                 return (pf, cmd), (val.value, cmd[: len(str(val2.value))]), True, None
             return
 
@@ -168,7 +168,7 @@ class Double:
         if (val := self.patterns.exec(pf, Empty)).success and (mat := self.command.fullmatch(cmd)):
             return (pf, cmd), (val.value, cmd), True, mat.groupdict()
         if comp and (mat := self.comp_pattern.match(cmd)):
-            pbfn(cmd[len(mat[0]) :], replace=True)
+            pbfn(cmd[len(mat[0]):], replace=True)
             return (pf, cmd), (pf, mat[0]), True, mat.groupdict()
 
     def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
@@ -184,21 +184,21 @@ class Double:
                 return pf, pf, True, mat.groupdict()
             if comp and (mat := self.comp_pattern.match(pf)):
                 pbfn(cmd)
-                pbfn(pf[len(mat[0]) :], replace=True)
+                pbfn(pf[len(mat[0]):], replace=True)
                 return mat[0], mat[0], True, mat.groupdict()
             if not c_str:
                 return
             if mat := self.prefix.fullmatch((name := pf + cmd)):
                 return name, name, True, mat.groupdict()
             if comp and (mat := self.comp_pattern.match(name)):
-                pbfn(name[len(mat[0]) :], replace=True)
+                pbfn(name[len(mat[0]):], replace=True)
                 return mat[0], mat[0], True, mat.groupdict()
             return
         if (val := self.patterns.exec(pf, Empty)).success:
             if mat := self.command.fullmatch(cmd):
                 return (pf, cmd), (val.value, cmd), True, mat.groupdict()
             if comp and (mat := self.command.match(cmd)):
-                pbfn(cmd[len(mat[0]) :], replace=True)
+                pbfn(cmd[len(mat[0]):], replace=True)
                 return (pf, cmd), (val.value, mat[0]), True, mat.groupdict()
 
 

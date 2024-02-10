@@ -4,8 +4,10 @@
 class ParamsUnmatched(Exception):
     """一个传入参数没有被选项或Args匹配"""
 
+
 class InvalidParam(Exception):
     """传入参数验证失败"""
+
 
 class ArgumentMissing(Exception):
     """组件内的 Args 参数未能解析到任何内容"""

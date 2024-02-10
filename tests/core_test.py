@@ -429,20 +429,20 @@ def test_shortcut():
     # 原始命令
     alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
     assert alc16.parse("core16 123 bar abcd").matched is True
-    # 指令缩写传入， TEST1 -> core16 321
-    alc16.parse("core16 --shortcut TEST1 'core16 321'")
-    res1 = alc16.parse("TEST1")
-    assert res1.foo == 321
-    # 指令缩写传入的不允许后随参数
-    alc16.parse("core16 --shortcut TEST2 core16")
-    res2 = alc16.parse("TEST2 442")
-    assert not res2.matched
     # 构造体缩写传入；{i} 将被可能的正则匹配替换
     alc16.shortcut(r"TEST(\d+)(.+)", {"args": ["{0}", "bar {1}"]})
     res = alc16.parse("TEST123aa")
     assert res.matched is True
     assert res.foo == 123
     assert res.baz == "aa"
+    # 指令缩写传入， TEST1 -> core16 321
+    alc16.parse("core16 --shortcut TEST1 'core16 321'")
+    res1 = alc16.parse("TEST1")
+    assert res1.foo == 321
+    # 指令缩写传入的允许后随参数
+    alc16.parse("core16 --shortcut TEST2 core16")
+    res2 = alc16.parse("TEST2 442")
+    assert res2.foo == 442
     # 指令缩写也支持正则
     alc16.parse(r"core16 --shortcut TESTa4(\d+) 'core16 {0}'")
     res3 = alc16.parse("TESTa4257")
@@ -462,6 +462,7 @@ def test_shortcut():
     assert not res7.matched
     res8 = alc16_1.parse("echo \\\\'123\\\\'")
     assert res8.content == "print('123')"
+    assert not alc16_1.parse("echo").matched
 
     alc16_2 = Alconna([1, 2, "3"], "core16_2", Args["foo", bool])
     alc16_2.shortcut("test", {"command": [1, "core16_2 True"]})  # type: ignore
@@ -507,6 +508,9 @@ def test_shortcut():
         alc16_6.parse("testhelp")
         assert cap["output"] == "core16_6 <bar: str> \nUnknown"
 
+    alc16_7 = Alconna("core16_7", Args["bar", str])
+    alc16_7.shortcut("test 123", {"args": ["abc"]})
+    assert alc16_7.parse("test 123").bar == "abc"
 
 def test_help():
     from arclet.alconna import output_manager

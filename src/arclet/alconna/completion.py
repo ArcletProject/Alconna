@@ -130,7 +130,7 @@ class CompSession:
         if isinstance(self.trigger, InvalidParam):
             argv.raw_data = argv.bak_data[: max(self.current_index, 1)]
             argv.addon(input_)
-            argv.raw_data.extend(self.raw_data[max(self.current_index, 1) :])
+            argv.raw_data.extend(self.raw_data[max(self.current_index, 1):])
         else:
             argv.raw_data = argv.bak_data.copy()
             argv.addon(input_)
