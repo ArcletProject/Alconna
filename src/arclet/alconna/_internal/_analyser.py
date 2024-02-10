@@ -261,13 +261,12 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
     def shortcut(
-        self, argv: Argv[TDC], trigger: str, data: list[Any], short: Arparma | InnerShortcutArgs, reg: Match | None = None
+        self, argv: Argv[TDC], data: list[Any], short: Arparma | InnerShortcutArgs, reg: Match | None = None
     ) -> Arparma[TDC]:
         """处理被触发的快捷命令
 
         Args:
             argv (Argv[TDC]): 命令行参数
-            trigger (str): 触发词
             data (list[Any]): 剩余参数
             short (Arparma | InnerShortcutArgs): 快捷命令
             reg (Match | None): 可能的正则匹配结果
@@ -287,8 +286,8 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             if self.command.meta.raise_exception:
                 raise exc
             return self.export(argv, True, exc)
-        if short.fuzzy and reg and len(trigger) > reg.span()[1]:
-            argv.addon((trigger[reg.span()[1] :],))
+        # if short.fuzzy and reg and len(trigger) > reg.span()[1]:
+        #     argv.addon((trigger[reg.span()[1] :],))
         argv.addon(short.args)
         data = _handle_shortcut_data(argv, data)
         argv.bak_data = argv.raw_data.copy()
@@ -324,17 +323,22 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 if self.command.meta.raise_exception:
                     raise e
                 return self.export(argv, True, e)
+            text = argv.separators[0].join([_next] + argv.release())
             try:
-                _res = command_manager.find_shortcut(self.command, _next)
+                short, mat = command_manager.find_shortcut(self.command, text)
             except ValueError as exc:
                 if self.command.meta.raise_exception:
                     raise e from exc
                 return self.export(argv, True, e)
             else:
-                data = argv.release()
+                if mat and len(text) > mat.span()[1]:
+                    data = text[mat.span()[1]:].lstrip(argv.separators[0]).split(argv.separators[0])
+                else:
+                    data = []
+                # data = argv.release()
                 self.reset()
                 argv.reset()
-                return self.shortcut(argv, _next, data, *_res)
+                return self.shortcut(argv, data, short, mat)
 
         except FuzzyMatchSuccess as Fuzzy:
             output_manager.send(self.command.name, lambda: str(Fuzzy))

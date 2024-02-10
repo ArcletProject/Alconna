@@ -537,9 +537,9 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
             elif opt_v["command"] == "_":
                 msg = analyser.command.shortcut(opt_v["name"], None)
             elif opt_v["command"] == "$":
-                msg = analyser.command.shortcut(opt_v["name"], {})
+                msg = analyser.command.shortcut(opt_v["name"], fuzzy=False)
             else:
-                msg = analyser.command.shortcut(opt_v["name"], {"command": argv.converter(opt_v["command"])})
+                msg = analyser.command.shortcut(opt_v["name"], fuzzy=False, command=opt_v["command"])
             output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
         output_manager.send(analyser.command.name, lambda: str(e))

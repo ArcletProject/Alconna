@@ -19,7 +19,7 @@ from .duplication import Duplication
 from .exceptions import ExecuteFailed, NullMessage
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDC, CommandMeta, DataCollection, ShortcutRegWrapper, TPrefixes
+from .typing import TDC, CommandMeta, DataCollection, ShortcutRegWrapper, TPrefixes, InnerShortcutArgs
 
 T_Duplication = TypeVar("T_Duplication", bound=Duplication)
 T = TypeVar("T")
@@ -203,7 +203,14 @@ class Alconna(Subcommand, Generic[TDC]):
 
     def get_shortcuts(self) -> list[str]:
         """返回该命令注册的快捷命令"""
-        return command_manager.list_shortcut(self)
+        result = []
+        shortcuts = command_manager.get_shortcut(self)
+        for key, short in shortcuts.items():
+            if isinstance(short, InnerShortcutArgs):
+                result.append(key + (" ...args" if short.fuzzy else ""))
+            else:
+                result.append(key)
+        return result
 
     @overload
     def shortcut(self, key: str, args: ShortcutArgs | None = None) -> str:
@@ -211,7 +218,7 @@ class Alconna(Subcommand, Generic[TDC]):
 
         Args:
             key (str): 快捷命令名
-            args (ShortcutArgs[TDC]): 快捷命令参数, 不传入时则尝试使用最近一次使用的命令
+            args (ShortcutArgs): 快捷命令参数, 不传入时则尝试使用最近一次使用的命令
 
         Returns:
             str: 操作结果
@@ -226,7 +233,7 @@ class Alconna(Subcommand, Generic[TDC]):
         self, 
         key: str, 
         *,
-        command: TDC | None = None,
+        command: str | None = None,
         arguments: list[Any] | None = None,
         fuzzy: bool = True,
         prefix: bool = False,
@@ -236,7 +243,7 @@ class Alconna(Subcommand, Generic[TDC]):
 
         Args:
             key (str): 快捷命令名
-            command (TDC): 快捷命令指向的命令
+            command (str): 快捷命令指向的命令
             arguments (list[Any] | None, optional): 快捷命令参数, 默认为 `None`
             fuzzy (bool, optional): 是否允许命令后随参数, 默认为 `True`
             prefix (bool, optional): 是否调用时保留指令前缀, 默认为 `False`
@@ -271,9 +278,9 @@ class Alconna(Subcommand, Generic[TDC]):
 
         Args:
             key (str): 快捷命令名
-            args (ShortcutArgs[TDC] | None, optional): 快捷命令参数, 不传入时则尝试使用最近一次使用的命令
+            args (ShortcutArgs | None, optional): 快捷命令参数, 不传入时则尝试使用最近一次使用的命令
             delete (bool, optional): 是否删除快捷命令, 默认为 `False`
-            command (TDC, optional): 快捷命令指向的命令
+            command (str, optional): 快捷命令指向的命令
             arguments (list[Any] | None, optional): 快捷命令参数, 默认为 `None`
             fuzzy (bool, optional): 是否允许命令后随参数, 默认为 `True`
             prefix (bool, optional): 是否调用时保留指令前缀, 默认为 `False`

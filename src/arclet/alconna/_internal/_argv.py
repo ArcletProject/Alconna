@@ -110,7 +110,7 @@ class Argv(Generic[TDC]):
             if not self.converter:
                 raise TypeError(data)
             try:
-                data = self.converter(data)
+                data = self.converter(data)  # type: ignore
             except Exception as e:
                 raise TypeError(data) from e
         self.origin = data

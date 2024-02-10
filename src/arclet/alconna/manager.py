@@ -8,7 +8,7 @@ import shelve
 import weakref
 from copy import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Match, Union, overload
+from typing import TYPE_CHECKING, Any, Match, Union
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from tarina import LRU, lang
@@ -220,62 +220,48 @@ class CommandManager:
         else:
             raise ValueError(lang.require("manager", "incorrect_shortcut").format(target=f"{key}"))
 
-    def list_shortcut(self, target: Alconna) -> list[str]:
+    def get_shortcut(self, target: Alconna[TDC]) -> dict[str, Union[Arparma[TDC], InnerShortcutArgs]]:
         """列出快捷命令
 
         Args:
             target (Alconna): 目标命令
 
         Returns:
-            list[str]: 快捷命令的名称
+            dict[str, Arparma | InnerShortcutArgs]: 快捷命令的参数
         """
         namespace, name = self._command_part(target.path)
-        result = []
+        if f"{namespace}.{name}" not in self.__analysers:
+            raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
         if not (_shortcut := self.__shortcuts.get(f"{namespace}.{name}")):
-            return result
-        for i in _shortcut:
-            short = self.__shortcuts[i]
-            if isinstance(short, InnerShortcutArgs):
-                result.append(i + (" ...args" if short.fuzzy else ""))
-            else:
-                result.append(i)
-        return result
+            return {}
+        return _shortcut
 
-    @overload
-    def find_shortcut(self, target: Alconna[TDC]) -> list[Union[Arparma[TDC], InnerShortcutArgs]]:
-        ...
-
-    @overload
-    def find_shortcut(self, target: Alconna[TDC], query: str) -> tuple[Arparma[TDC] | InnerShortcutArgs, Match[str] | None]:
-        ...
-
-    def find_shortcut(self, target: Alconna[TDC], query: str | None = None):
+    def find_shortcut(
+            self, target: Alconna[TDC], query: str
+    ) -> tuple[Arparma[TDC] | InnerShortcutArgs, Match[str] | None]:
         """查找快捷命令
 
         Args:
             target (Alconna): 目标命令
-            query (str, optional): 快捷命令的名称. Defaults to None.
+            query (str): 快捷命令的名称.
 
         Returns:
-            list[Union[Arparma, InnerShortcutArgs]] | tuple[Union[Arparma, InnerShortcutArgs], Match[str]]: \
-            快捷命令的参数, 若没有 `query` 则返回目标命令的所有快捷命令, 否则返回匹配的快捷命令
+            tuple[Union[Arparma, InnerShortcutArgs], re.Match[str]]: 返回匹配的快捷命令
         """
         namespace, name = self._command_part(target.path)
         if not (_shortcut := self.__shortcuts.get(f"{namespace}.{name}")):
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
-        if query:
-            try:
-                return _shortcut[query], None
-            except KeyError as e:
-                for key, args in _shortcut.items():
-                    if isinstance(args, InnerShortcutArgs) and args.fuzzy and (mat := re.match(f"^{key}", query)):
-                        return args, mat
-                    elif mat := re.fullmatch(key, query):
-                        return _shortcut[key], mat
-                raise ValueError(
-                    lang.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=query)
-                ) from e
-        return list(_shortcut.values())
+        try:
+            return _shortcut[query], None
+        except KeyError as e:
+            for key, args in _shortcut.items():
+                if isinstance(args, InnerShortcutArgs) and args.fuzzy and (mat := re.match(f"^{key}", query)):
+                    return args, mat
+                elif mat := re.fullmatch(key, query):
+                    return _shortcut[key], mat
+            raise ValueError(
+                lang.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=query)
+            ) from e
 
     def delete_shortcut(self, target: Alconna, key: str | None = None):
         """删除快捷命令"""
