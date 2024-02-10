@@ -512,6 +512,14 @@ def test_shortcut():
     alc16_7.shortcut("test 123", {"args": ["abc"]})
     assert alc16_7.parse("test 123").bar == "abc"
 
+    alc16_8 = Alconna("core16_8", Args["bar", str])
+    res11 = alc16_8.parse("core16_8 1234")
+    assert res11.bar == "1234"
+    alc16_8.parse("core16_8 --shortcut test _")
+    res12 = alc16_8.parse("test")
+    assert res12.bar == "1234"
+
+
 def test_help():
     from arclet.alconna import output_manager
     from arclet.alconna.exceptions import SpecialOptionTriggered
