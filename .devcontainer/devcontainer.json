@@ -4,7 +4,7 @@
   "features": {
     "ghcr.io/devcontainers-contrib/features/pdm:2": {}
   },
-  "postCreateCommand": "pdm config venv.in_project true && pdm sync -G:all",
+  "postCreateCommand": "pdm config venv.in_project true && pdm venv create && pdm sync -G:all",
   "customizations": {
     "vscode": {
       "settings": {
@@ -23,7 +23,9 @@
         "ms-python.vscode-pylance",
         "ms-python.isort",
         "ms-python.black-formatter",
-        "usernamehw.errorlens"
+        "usernamehw.errorlens",
+        "tamasfe.even-better-toml",
+        "wakatime.vscode-wakatime"
       ]
     }
   }
