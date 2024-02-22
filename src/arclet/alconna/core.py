@@ -7,7 +7,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, cast, overload
 from typing_extensions import Self
-
+from weakref import WeakSet
 from tarina import init_spec, lang
 
 from ._internal._analyser import Analyser, TCompile
@@ -169,7 +169,8 @@ class Alconna(Subcommand, Generic[TDC]):
             self.behaviors.extend(requirement_handler(behavior))
         command_manager.register(self)
         self._executors: dict[ArparmaExecutor, Any] = {}
-        self.union = set()
+        self.union: "WeakSet[Alconna]" = WeakSet()
+        self._union = False
 
     @property
     def namespace_config(self) -> Namespace:
@@ -346,8 +347,8 @@ class Alconna(Subcommand, Generic[TDC]):
         return self.add(sub)
 
     def _parse(self, message: TDC) -> Arparma[TDC]:
-        if self.union:
-            for ana, argv in command_manager.requires(*self.union):
+        if self._union:
+            for ana, argv in command_manager.unpack(self.union):
                 if (res := ana.process(argv.build(message))).matched:
                     return res
         analyser = command_manager.require(self)
@@ -429,7 +430,8 @@ class Alconna(Subcommand, Generic[TDC]):
         return self
 
     def __or__(self, other: Alconna) -> Self:
-        self.union.add(other.path)
+        self.union.add(other)
+        self._union = True
         return self
 
     def _calc_hash(self):

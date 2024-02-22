@@ -152,11 +152,11 @@ class CommandManager:
             namespace, name = self._command_part(command.path)
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
-    def requires(self, *paths: str) -> zip[tuple[Analyser, Argv]]:  # type: ignore
+    def unpack(self, commands: set[Alconna]) -> zip[tuple[Analyser, Argv]]:  # type: ignore
         """获取多个命令解析器"""
         return zip(
-            [v for k, v in self.__analysers.items() if k.path in paths],
-            [v for k, v in self.__argv.items() if k.path in paths],
+            [v for k, v in self.__analysers.items() if k in commands],
+            [v for k, v in self.__argv.items() if k in commands],
         )
 
     def delete(self, command: Alconna | str) -> None:
@@ -230,7 +230,7 @@ class CommandManager:
             dict[str, Arparma | InnerShortcutArgs]: 快捷命令的参数
         """
         namespace, name = self._command_part(target.path)
-        if f"{namespace}.{name}" not in self.__analysers:
+        if f"{namespace}.{name}" not in self.__shortcuts:
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
         if not (_shortcut := self.__shortcuts.get(f"{namespace}.{name}")):
             return {}

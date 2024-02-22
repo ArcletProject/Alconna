@@ -1,5 +1,11 @@
 # 更新日志
 
+## Alconna 1.7.44
+
+### 修复
+
+- 修复 `shortcut list` 的错误
+
 ## Alconna 1.7.43
 
 ### 改进
