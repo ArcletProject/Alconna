@@ -6,10 +6,11 @@ from inspect import isclass
 from typing import Any, Generic, TypeVar
 from typing_extensions import Self
 
-from nepattern import AllParam, AnyOne, BasePattern
+from nepattern import ANY, BasePattern
 
 from .args import Args
 from .base import Option, Subcommand
+from .typing import AllParam
 from .model import OptionResult, SubcommandResult
 
 T = TypeVar("T")
@@ -50,7 +51,7 @@ class ArgsStub(BaseStub[Args]):
     def __post_init__(self):
         for arg in self._origin.argument:
             key = arg.name
-            if arg.value in (AllParam, AnyOne):
+            if arg.value in (AllParam, ANY):
                 self.__annotations__[key] = Any
             elif isinstance(arg.value, BasePattern):
                 self.__annotations__[key] = arg.value.origin
