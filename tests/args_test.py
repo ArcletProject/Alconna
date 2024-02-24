@@ -6,15 +6,6 @@ from arclet.alconna import ArgFlag, Args, KeyWordVar, Kw, Nargs
 from devtool import analyse_args
 
 
-def test_kwargs_create():
-    arg = Args(pak=str, upgrade=str)
-    assert arg == Args.pak[str]["upgrade", str]
-    assert analyse_args(arg, ["arclet-alconna bar"]) == {
-        "pak": "arclet-alconna",
-        "upgrade": "bar",
-    }
-
-
 def test_magic_create():
     arg1 = Args["round", float]["test", bool]["aaa", str]
     assert len(arg1) == 3

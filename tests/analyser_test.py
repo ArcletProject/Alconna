@@ -52,13 +52,13 @@ def test_filter_out():
 
 
 def test_preprocessor():
-    argv_config(preprocessors={float: int})
+    argv_config(preprocessors={list: len})
     ana1 = Alconna("ana1", Args["bar", int])
-    assert ana1.parse(["ana1", 123.06]).matched is True
-    assert ana1.parse(["ana1", 123.06]).bar == 123
+    assert ana1.parse(["ana1", [1, 2, 3]]).matched is True
+    assert ana1.parse(["ana1", [1, 2, 3]]).bar == 3
     argv_config(preprocessors={})
     ana1_1 = Alconna("ana1", Args["bar", int])
-    assert ana1_1.parse(["ana1", 123.06]).matched is False
+    assert ana1_1.parse(["ana1", [1, 2, 3]]).matched is False
 
 
 def test_with_set_unit():
