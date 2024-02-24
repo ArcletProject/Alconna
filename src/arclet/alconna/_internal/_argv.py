@@ -82,7 +82,7 @@ class Argv(Generic[TDC]):
         self.bak_data = []
         self.raw_data = []
         self.token = 0
-        self.origin = "None"
+        self.origin = "None"  # type: ignore
         self._sep = None
         self.context = None
 

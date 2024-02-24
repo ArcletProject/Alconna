@@ -119,7 +119,7 @@ class Arg(Generic[_T]):
         _value = parser(value or RawStr(name))
         default = field if isinstance(field, Field) else Field(field)
         if isinstance(_value, UnionPattern) and _value.optional:
-            default.default = None if default.default is Empty else default.default
+            default.default = None if default.default is Empty else default.default  # type: ignore
         if _value == NONE:
             raise InvalidArgs(lang.require("args", "value_error").format(target=name))
         self.value = _value

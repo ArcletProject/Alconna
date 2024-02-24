@@ -172,8 +172,7 @@ class MultiVar(BasePattern[T, Any]):
             alias = str(self.base)
             self.flag = "+"
             self.length = 1
-        origin = Dict[str, self.base.origin] if isinstance(self.base, KeyWordVar) else Tuple[self.base.origin, ...]
-        super().__init__(mode=MatchMode.KEEP, origin=origin, alias=alias)
+        super().__init__(mode=MatchMode.KEEP, origin=self.base.origin, alias=alias)
 
     def __repr__(self):
         return self.alias

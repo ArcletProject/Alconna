@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 pat = re.compile("(?:-*no)?-*(?P<name>.+)")
 
 
-def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any], result: dict[str, Any], arg: Any, _str: bool):
+def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any, Any], result: dict[str, Any], arg: Any, _str: bool):
     if (value is STRING and _str) or value is ANY:
         result[target.name] = arg
         return

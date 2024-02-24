@@ -146,7 +146,7 @@ class Option(CommandNode):
     相比命令节点, 命令选项可以设置别名, 优先级, 允许名称与后随参数之间无分隔符
     """
 
-    default: OptionResult | type[Empty]
+    default: OptionResult
     """命令选项默认值"""
     aliases: frozenset[str]
     """命令选项别名"""
@@ -257,7 +257,7 @@ class Subcommand(CommandNode):
     与命令节点不同, 子命令可以包含多个命令选项与相对于自己的子命令
     """
 
-    default: SubcommandResult | type[Empty]
+    default: SubcommandResult
     """子命令默认值"""
     options: list[Option | Subcommand]
     """子命令包含的选项与子命令"""
