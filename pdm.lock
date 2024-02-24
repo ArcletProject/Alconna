@@ -5,7 +5,7 @@
 groups = ["default", "dev", "full"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:74ee11de9a5218a089f5bdc17fa9a83282f4164dda1294dab1c739d8cd7678cc"
+content_hash = "sha256:40b626ad554c44fda4acce67239246ece523840b839e9f832cb150fa20627d2c"
 
 [[package]]
 name = "arclet-alconna-tools"
@@ -136,17 +136,17 @@ files = [
 
 [[package]]
 name = "nepattern"
-version = "0.5.15"
+version = "0.6.4"
 requires_python = ">=3.8"
 summary = "a complex pattern, support typing"
 groups = ["default", "full"]
 dependencies = [
-    "tarina>=0.3.3",
+    "tarina>=0.4.1",
     "typing-extensions>=4.5.0",
 ]
 files = [
-    {file = "nepattern-0.5.15-py3-none-any.whl", hash = "sha256:c68fc7c0c9b7835c956a89e0f91fd380b8e07880e183414871e83ef4a9fa0dbd"},
-    {file = "nepattern-0.5.15.tar.gz", hash = "sha256:3b04b91b5856b9826b61737933911f570a75ba8116b9e2ff8fa83b4aa0211203"},
+    {file = "nepattern-0.6.4-py3-none-any.whl", hash = "sha256:624e85de9a9a17b99e25d08338f0c99d78235a86a783ddfc66a8a43b0d4dab48"},
+    {file = "nepattern-0.6.4.tar.gz", hash = "sha256:30662564090b56f481818c622393f07939434ef713f96772125b9c46ef49d7f3"},
 ]
 
 [[package]]
