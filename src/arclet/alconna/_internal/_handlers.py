@@ -46,7 +46,7 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any, Any], result
 
 def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict[str, Any]):
     value, arg = slot
-    argv.context = arg
+    argv.current_node = arg
     key = arg.name
     default_val = arg.field.default
     _result = []
@@ -87,7 +87,7 @@ def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict
 
 def step_varkey(argv: Argv, slot: tuple[MultiKeyWordVar, Arg], result: dict[str, Any]):
     value, arg = slot
-    argv.context = arg
+    argv.current_node = arg
     name = arg.name
     default_val = arg.field.default
     _result = {}
@@ -190,7 +190,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
     result = {}
     for arg in args.argument.normal:
-        argv.context = arg
+        argv.current_node = arg
         may_arg, _str = argv.next(arg.separators)
         if _str and may_arg in argv.special:
             if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
@@ -230,7 +230,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
         step_keyword(argv, args, result)
     for slot in args.argument.vars_keyword:
         step_varkey(argv, slot, result)
-    argv.context = None
+    argv.current_node = None
     return result
 
 
@@ -242,7 +242,7 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
         argv (Argv): 命令行参数
         opt (Option): 目标 `Option`
     """
-    argv.context = opt
+    argv.current_node = opt
     _cnt = 0
     error = True
     name, _ = argv.next(opt.separators)
@@ -340,7 +340,7 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
             _data.clear()
             return True
         except InvalidParam as e:
-            if argv.context.__class__ is Arg:
+            if argv.current_node.__class__ is Arg:
                 raise e
             argv.data_reset(_data, _index)
 
@@ -376,14 +376,14 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
     elif analyser.compact_params and (res := analyse_compact_params(analyser, argv)):
         if res.__class__ is str:
             raise InvalidParam(res)
-        argv.context = None
+        argv.current_node = None
         return True
     else:
         _param = None
     if not _param and analyser.command.nargs and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
         if analyser.args_result:
-            argv.context = None
+            argv.current_node = None
             return True
     if _param.__class__ is Sentence:
         analyser.sentences.append(argv.next()[0])
@@ -432,7 +432,7 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
     else:
         return False
     analyser.sentences.clear()
-    argv.context = None
+    argv.current_node = None
     return True
 
 
@@ -710,7 +710,7 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
 
 def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
     """获取补全列表"""
-    _trigger = trigger or argv.context
+    _trigger = trigger or argv.current_node
     got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
     if isinstance(_trigger, Arg):
         return _prompt_unit(analyser, argv, _trigger)

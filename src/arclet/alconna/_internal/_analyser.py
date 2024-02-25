@@ -17,6 +17,7 @@ from ..manager import command_manager
 from ..model import HeadResult, OptionResult, Sentence, SubcommandResult
 from ..output import output_manager
 from ..typing import TDC, InnerShortcutArgs
+from ..constraint import SHORTCUT_TRIGGER, SHORTCUT_ARGS, SHORTCUT_REST, SHORTCUT_REGEX_MATCH
 from ._handlers import (
     _handle_shortcut_data,
     _handle_shortcut_reg,
@@ -181,7 +182,7 @@ class SubAnalyser(Generic[TDC]):
             ParamsUnmatched: 名称不匹配
             FuzzyMatchSuccess: 模糊匹配成功
         """
-        sub = argv.context = self.command
+        sub = argv.current_node = self.command
         name, _ = argv.next(sub.separators)
         if name != sub.name:  # 先匹配节点名称
             if argv.fuzzy_match and levenshtein(name, sub.name) >= argv.fuzzy_threshold:
@@ -332,6 +333,10 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                     raise e from exc
                 return self.export(argv, True, e)
             else:
+                argv.context[SHORTCUT_TRIGGER] = _next
+                argv.context[SHORTCUT_ARGS] = short
+                argv.context[SHORTCUT_REST] = rest
+                argv.context[SHORTCUT_REGEX_MATCH] = mat
                 self.reset()
                 argv.reset()
                 return self.shortcut(argv, rest, short, mat)
@@ -384,7 +389,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                     return _SPECIAL[handler](self, argv)
             if comp_ctx.get(None):
                 if isinstance(e1, InvalidParam):
-                    argv.free(argv.context.separators if argv.context else None)
+                    argv.free(argv.current_node.separators if argv.current_node else None)
                 raise PauseTriggered(prompt(self, argv), e1, argv) from e1
             if self.command.meta.raise_exception:
                 raise
@@ -406,7 +411,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             fail (bool, optional): 是否解析失败. Defaults to False.
             exception (Exception | None, optional): 解析失败时的异常. Defaults to None.
         """
-        result = Arparma(self.command.path, argv.origin, not fail, self.header_result)
+        result = Arparma(self.command.path, argv.origin, not fail, self.header_result, ctx=argv.exit())
         if fail:
             result.error_info = exception
             result.error_data = argv.release()

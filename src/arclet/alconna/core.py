@@ -346,29 +346,30 @@ class Alconna(Subcommand, Generic[TDC]):
         """添加子命令"""
         return self.add(sub)
 
-    def _parse(self, message: TDC) -> Arparma[TDC]:
+    def _parse(self, message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
         if self._union:
             for ana, argv in command_manager.unpack(self.union):
-                if (res := ana.process(argv.build(message))).matched:
+                if (res := ana.process(argv.enter(ctx).build(message))).matched:
                     return res
         analyser = command_manager.require(self)
         argv = command_manager.resolve(self)
-        argv.build(message)
+        argv.enter(ctx).build(message)
         return analyser.process(argv)
 
     @overload
-    def parse(self, message: TDC) -> Arparma[TDC]:
+    def parse(self, message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
         ...
 
     @overload
-    def parse(self, message, *, duplication: type[T_Duplication]) -> T_Duplication:
+    def parse(self, message, ctx: dict[str, Any] | None = None, *, duplication: type[T_Duplication]) -> T_Duplication:
         ...
 
-    def parse(self, message: TDC, *, duplication: type[T_Duplication] | None = None) -> Arparma[TDC] | T_Duplication:
+    def parse(self, message: TDC, ctx: dict[str, Any] | None = None, *, duplication: type[T_Duplication] | None = None) -> Arparma[TDC] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类
 
         Args:
             message (TDC): 命令消息
+            ctx (dict[str, Any], optional): 上下文信息
             duplication (type[T_Duplication], optional): 指定的`副本`类型
         Returns:
             Arparma[TDC] | T_Duplication: 若`duplication`参数为`None`则返回`Arparma`对象, 否则返回`duplication`类型的对象
@@ -376,11 +377,11 @@ class Alconna(Subcommand, Generic[TDC]):
             NullMessage: 传入的消息为空时抛出
         """
         try:
-            arp = self._parse(message)
+            arp = self._parse(message, ctx)
         except NullMessage as e:
             if self.meta.raise_exception:
                 raise e
-            return Arparma(self.path, message, False, error_info=e)
+            return Arparma(self.path, message, False, error_info=e, ctx=ctx)
         if arp.matched:
             arp = arp.execute(self.behaviors)
             if self._executors:

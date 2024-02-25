@@ -49,6 +49,8 @@ class CommandNode:
 
     name: str
     """命令节点名称"""
+    aliases: frozenset[str]
+    """命令节点别名"""
     dest: str
     """命令节点目标名称"""
     default: Any
@@ -68,6 +70,7 @@ class CommandNode:
         self,
         name: str,
         args: Arg | Args | None = None,
+        alias: Iterable[str] | None = None,
         dest: str | None = None,
         default: Any = Empty,
         action: Action | None = None,
@@ -88,12 +91,21 @@ class CommandNode:
             help_text (str | None, optional): 命令帮助信息
             requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令节点需求前缀
         """
-        if not name:
-            raise InvalidArgs(lang.require("common", "name_empty"))
-        _parts = name.split(" ")
-        self.name = _parts[-1]
+        aliases = list(alias or [])
+        parts = name.split(" ")
+        _name = parts[-1]
+        if "|" in _name:
+            _aliases = _name.split("|")
+            _aliases.sort(key=len, reverse=True)
+            _name = _aliases[0]
+            aliases.extend(_aliases[1:])
+        if not _name:
+            raise InvalidArgs(lang.require("common", "name_empty"))        
+        aliases.insert(0, _name)
+        self.name = _name
+        self.aliases = frozenset(aliases)
         self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []
-        self.requires.extend(_parts[:-1])
+        self.requires.extend(parts[:-1])
         self.args = Args() + args
         self.default = default
         self.action = action or store
@@ -184,21 +196,12 @@ class Option(CommandNode):
             compact (bool, optional): 是否允许名称与后随参数之间无分隔符
             priority (int, optional): 命令选项优先级
         """
-        aliases = list(alias or [])
-        _name = name.split(" ")[-1]
-        if "|" in _name:
-            _aliases = _name.split("|")
-            _aliases.sort(key=len, reverse=True)
-            name = name.replace(_name, _aliases[0])
-            _name = _aliases[0]
-            aliases.extend(_aliases[1:])
-        aliases.insert(0, _name)
-        self.aliases = frozenset(aliases)
+        
         self.priority = priority
         self.compact = compact
         if default is not Empty:
             default = default if isinstance(default, OptionResult) else OptionResult(default)
-        super().__init__(name, args, dest, default, action, separators, help_text, requires)
+        super().__init__(name, args, alias, dest, default, action, separators, help_text, requires)
         if self.separators == ("",):
             self.compact = True
             self.separators = (" ",)
@@ -266,6 +269,7 @@ class Subcommand(CommandNode):
         self,
         name: str,
         *args: Args | Arg | Option | Subcommand | list[Option | Subcommand],
+        alias: Iterable[str] | None = None,
         dest: str | None = None,
         default: Any = Empty,
         separators: str | Sequence[str] | set[str] | None = None,
@@ -293,7 +297,7 @@ class Subcommand(CommandNode):
         super().__init__(
             name,
             reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            dest, default, None, separators, help_text, requires,
+            alias, dest, default, None, separators, help_text, requires,
         )
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:

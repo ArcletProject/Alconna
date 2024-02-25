@@ -30,6 +30,9 @@ class ShortcutArgs(TypedDict):
     """快捷指令的正则匹配结果的额外处理函数"""
 
 
+DEFAULT_WRAPPER = lambda slot, content: content
+
+
 class InnerShortcutArgs:
     command: DataCollection[Any]
     args: list[Any]
@@ -51,7 +54,7 @@ class InnerShortcutArgs:
         self.args = args or []
         self.fuzzy = fuzzy
         self.prefix = prefix
-        self.wrapper = wrapper or (lambda slot, content: content)
+        self.wrapper = wrapper or DEFAULT_WRAPPER
 
     def __repr__(self):
         return f"ShortcutArgs({self.command!r}, args={self.args!r}, fuzzy={self.fuzzy}, prefix={self.prefix})"

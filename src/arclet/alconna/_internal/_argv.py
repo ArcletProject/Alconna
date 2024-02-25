@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any, Callable, ClassVar, Generic, Iterable
 from typing_extensions import Self
 
@@ -11,6 +11,7 @@ from ..base import Option, Subcommand
 from ..config import Namespace, config
 from ..exceptions import NullMessage
 from ..typing import TDC
+from ..constraint import ARGV_OVERRIDES
 
 
 @dataclass(repr=True)
@@ -41,7 +42,7 @@ class Argv(Generic[TDC]):
     param_ids: set[str] = field(default_factory=set)
     """节点名集合"""
 
-    context: Arg | Subcommand | Option | None = field(init=False)
+    current_node: Arg | Subcommand | Option | None = field(init=False)
     """当前节点"""
     current_index: int = field(init=False)
     """当前数据的索引"""
@@ -55,6 +56,7 @@ class Argv(Generic[TDC]):
     """命令的token"""
     origin: TDC = field(init=False)
     """原始命令"""
+    context: dict[str, Any] = field(init=False)
     _sep: tuple[str, ...] | None = field(init=False)
 
     _cache: ClassVar[dict[type, dict[str, Any]]] = {}
@@ -84,7 +86,7 @@ class Argv(Generic[TDC]):
         self.token = 0
         self.origin = "None"  # type: ignore
         self._sep = None
-        self.context = None
+        self.current_node = None
 
     @staticmethod
     def generate_token(data: list) -> int:
@@ -254,3 +256,20 @@ class Argv(Generic[TDC]):
     def data_reset(self, data: list[str | Any], index: int):
         self.raw_data = data
         self.current_index = index
+
+    def enter(self, ctx: dict[str, Any] | None = None) -> Self:
+        """进入上下文"""
+        if ctx and ARGV_OVERRIDES in ctx:
+            field_names = [f.name for f in fields(self)]
+            for k, v in ctx[ARGV_OVERRIDES].items():
+                if k in field_names:
+                    setattr(self, k, v)
+        self.context = {} if ctx is None else ctx
+        return self
+
+    def exit(self) -> dict[str, Any]:
+        """退出上下文"""
+        try:
+            return self.context
+        finally:
+            self.context = {}

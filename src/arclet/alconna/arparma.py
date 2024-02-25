@@ -123,6 +123,7 @@ class Arparma(Generic[TDC]):
         main_args: dict[str, Any] | None = None,
         options: dict[str, OptionResult] | None = None,
         subcommands: dict[str, SubcommandResult] | None = None,
+        ctx: dict[str, Any] | None = None,
     ):
         """初始化 `Arparma`
         Args:
@@ -135,6 +136,7 @@ class Arparma(Generic[TDC]):
             main_args (dict[str, Any] | None, optional): 主参数匹配结果
             options (dict[str, OptionResult] | None, optional): 选项匹配结果
             subcommands (dict[str, SubcommandResult] | None, optional): 子命令匹配结果
+            ctx (dict[str, Any] | None, optional): 上下文
         """
         self.source = source
         self.origin = origin
@@ -146,11 +148,18 @@ class Arparma(Generic[TDC]):
         self.other_args = {}
         self.options = options or {}
         self.subcommands = subcommands or {}
+        self.context = ctx or {}
 
     _additional: ClassVar[dict[str, Callable[[], Any]]] = {}
     query = _Query[Any]()
 
     def _clr(self):
+        self.context.clear()
+        self.error_data.clear()
+        self.main_args.clear()
+        self.other_args.clear()
+        self.options.clear()
+        self.subcommands.clear()
         ks = list(self.__dict__.keys())
         for k in ks:
             delattr(self, k)
