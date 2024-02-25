@@ -238,6 +238,22 @@ def test_multi_multi():
     assert analyse_args(arg20_1, ["1 2 a b"]) == {"foo": (1, 2), "bar": ("a", "b")}
 
 
+def test_contextval():
+    from arclet.alconna import ContextVal
+
+    arg21 = Args["foo", ContextVal]
+    assert analyse_args(arg21, ["$(bar)"], bar="baz") == {"foo": "baz"}
+    assert analyse_args(arg21, ["{bar}"], raise_exception=False, bar="baz") != {"foo": "baz"}
+
+    arg21_1 = Args["foo", ContextVal(style="bracket")]
+    assert analyse_args(arg21_1, ["{bar}"], bar="baz") == {"foo": "baz"}
+    assert analyse_args(arg21_1, ["$(bar)"], raise_exception=False, bar="baz") != {"foo": "baz"}
+
+    arg21_2 = Args["foo", ContextVal("bar")]
+    assert analyse_args(arg21_2, ["$(bar)"], bar="baz") == {"foo": "baz"}
+    assert analyse_args(arg21_2, ["$(baz)"], raise_exception=False, baz="baz") != {"foo": "baz"}
+
+
 if __name__ == "__main__":
     import pytest
 

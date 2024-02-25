@@ -49,6 +49,7 @@ from .typing import MultiVar as MultiVar
 from .typing import Nargs as Nargs
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
+from .typing import ContextVal as ContextVal
 
 __version__ = "1.7.44"
 

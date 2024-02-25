@@ -35,9 +35,10 @@ class _DummyAnalyser(Analyser):
         return super().__new__(cls)
 
 
-def analyse_args(args: Args, command: list[str | Any], raise_exception: bool = True):
+def analyse_args(args: Args, command: list[str | Any], raise_exception: bool = True, **kwargs):
     argv = Argv(config.default_namespace, message_cache=False, filter_crlf=True)
     try:
+        argv.enter(kwargs)
         argv.build(["test"] + command)
         argv.next()
         return ala(argv, args)
@@ -54,10 +55,12 @@ def analyse_header(
     sep: str = " ",
     compact: bool = False,
     raise_exception: bool = True,
+    **kwargs
 ):
     argv = Argv(config.default_namespace, message_cache=False, filter_crlf=True, separators=(sep,))
     command_header = Header.generate(command_name, headers, compact=compact)
     try:
+        argv.enter(kwargs)
         argv.build(command)
         return alh(command_header, argv)
     except Exception as e:
@@ -66,7 +69,7 @@ def analyse_header(
         return
 
 
-def analyse_option(option: Option, command: DataCollection[str | Any], raise_exception: bool = True):
+def analyse_option(option: Option, command: DataCollection[str | Any], raise_exception: bool = True, **kwargs):
     argv = Argv(config.default_namespace, message_cache=False, filter_crlf=True)
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
@@ -76,6 +79,7 @@ def analyse_option(option: Option, command: DataCollection[str | Any], raise_exc
     default_compiler(_analyser, argv.param_ids)
     _analyser.command.options.clear()
     try:
+        argv.enter(kwargs)
         argv.build(command)
         alo(_analyser, argv, option)
         return _analyser.options_result[option.dest]
@@ -85,7 +89,7 @@ def analyse_option(option: Option, command: DataCollection[str | Any], raise_exc
         return
 
 
-def analyse_subcommand(subcommand: Subcommand, command: DataCollection[str | Any], raise_exception: bool = True):
+def analyse_subcommand(subcommand: Subcommand, command: DataCollection[str | Any], raise_exception: bool = True, **kwargs):
     argv = Argv(config.default_namespace, message_cache=False, filter_crlf=True)
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
@@ -95,6 +99,7 @@ def analyse_subcommand(subcommand: Subcommand, command: DataCollection[str | Any
     default_compiler(_analyser, argv.param_ids)
     _analyser.command.options.clear()
     try:
+        argv.enter(kwargs)
         argv.build(command)
         return _analyser.compile_params[subcommand.name].process(argv).result()  # type: ignore
     except Exception as e:

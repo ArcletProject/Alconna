@@ -15,7 +15,7 @@ from ..config import config
 from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
-from ..typing import KWBool, ShortcutRegWrapper, MultiKeyWordVar, MultiVar
+from ..typing import KWBool, ShortcutRegWrapper, MultiKeyWordVar, MultiVar, ContextVal
 from ._header import Double, Header
 from ._util import escape, levenshtein, unescape
 
@@ -34,7 +34,10 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any, Any], result
         result[target.name] = str(arg)
         return
     default_val = target.field.default
-    res = value.validate(arg, default_val)
+    _arg = arg
+    if value == ContextVal:
+        _arg = (arg, argv.context)
+    res = value.validate(_arg, default_val)
     if res.flag != "valid":
         argv.rollback(arg)
     if res.flag == "error":

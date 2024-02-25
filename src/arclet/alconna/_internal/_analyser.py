@@ -326,6 +326,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 if self.command.meta.raise_exception:
                     raise e
                 return self.export(argv, True, e)
+            argv.context[SHORTCUT_TRIGGER] = _next
             try:
                 rest, short, mat = command_manager.find_shortcut(self.command, [_next] + argv.release())
             except ValueError as exc:
@@ -333,7 +334,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                     raise e from exc
                 return self.export(argv, True, e)
             else:
-                argv.context[SHORTCUT_TRIGGER] = _next
                 argv.context[SHORTCUT_ARGS] = short
                 argv.context[SHORTCUT_REST] = rest
                 argv.context[SHORTCUT_REGEX_MATCH] = mat
