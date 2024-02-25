@@ -724,9 +724,10 @@ def test_nest_subcommand():
         "core23",
         Args["foo", int],
         Subcommand(
-            "bar",
-            Subcommand("baz", Option("--qux"), help_text="test nest subcommand; deep 2"),
+            "bar|baar",
+            Subcommand("baz|baaz", Option("--qux"), dest="Baz", help_text="test nest subcommand; deep 2"),
             Args["abc", A],
+            dest="Bar",
             help_text="test nest subcommand; deep 1",
         ),
         meta=CommandMeta("test nest subcommand"),
@@ -735,7 +736,7 @@ def test_nest_subcommand():
     assert alc23.parse(["core23 bar baz", A(), "123"]).matched
     assert alc23.parse(["core23 bar baz --qux", A(), "123"]).matched
     assert not alc23.parse(["core23 bar baz", A(), "--qux 123"]).matched
-    assert alc23.parse(["core23 bar baz --qux", A(), "123"]).query("bar.baz.qux.value") is Ellipsis
+    assert alc23.parse(["core23 bar baz --qux", A(), "123"]).query("Bar.Baz.qux.value") is Ellipsis
     print("")
     # alc23.parse("core23 --help")
     alc23.parse("core23 bar baz --help")

@@ -264,9 +264,12 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     elif name in opt.aliases:
         error = False
     if error:
-        if argv.fuzzy_match and levenshtein(name, opt.name) >= argv.fuzzy_threshold:
-            raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=opt.name, target=name))
-        raise InvalidParam(lang.require("option", "name_error").format(source=opt.name, target=name))
+        if not argv.fuzzy_match:
+            raise InvalidParam(lang.require("option", "name_error").format(source=opt.dest, target=name))
+        for al in opt.aliases:
+            if levenshtein(name, al) >= argv.fuzzy_threshold:
+                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name))
+        raise InvalidParam(lang.require("option", "name_error").format(source=opt.dest, target=name))
     name = opt.dest
     return (
         (name, OptionResult(None, analyse_args(argv, opt.args)))

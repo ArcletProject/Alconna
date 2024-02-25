@@ -146,7 +146,7 @@ class TextFormatter:
                 )
             if isinstance(_cache, Subcommand):
                 return self.format(
-                    Trace({"name": _cache.name, "prefix": [], "description": _cache.help_text}, _cache.args, _cache.separators, _cache.options)  # noqa: E501
+                    Trace({"name": "│".join(_cache.aliases), "prefix": [], "description": _cache.help_text}, _cache.args, _cache.separators, _cache.options)  # noqa: E501
                 )
             return self.format(trace)
 
@@ -234,7 +234,7 @@ class TextFormatter:
 
     def sub(self, node: Subcommand) -> str:
         """对单个子命令的描述"""
-        name = " ".join(node.requires) + (" " if node.requires else "") + node.name
+        alias_text = " ".join(node.requires) + (" " if node.requires else "") + "│".join(node.aliases)
         opt_string = "".join(
             [self.opt(opt).replace("\n", "\n  ").replace("# ", "* ") for opt in node.options if isinstance(opt, Option)]
         )
@@ -248,7 +248,7 @@ class TextFormatter:
         sub_help = f"  {lang.require('format', 'subcommands.subs')}:\n  " if sub_string else ""
         return (
             f"* {node.help_text}\n"
-            f"  {name}{tuple(node.separators)[0]}{self.parameters(node.args)}\n"
+            f"  {alias_text}{node.separators[0]}{self.parameters(node.args)}\n"
             f"{sub_help}{sub_string}"
             f"{opt_help}{opt_string}"
         ).rstrip(" ")

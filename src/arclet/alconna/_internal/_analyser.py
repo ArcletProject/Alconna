@@ -80,8 +80,9 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
             pids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
             sub = SubAnalyser(opts)
-            analyser.compile_params[opts.name] = sub
-            pids.add(opts.name)
+            for alias in opts.aliases:
+                analyser.compile_params[alias] = sub
+            pids.update(opts.aliases)
             default_compiler(sub, pids)
             if not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(sub)
@@ -184,10 +185,13 @@ class SubAnalyser(Generic[TDC]):
         """
         sub = argv.current_node = self.command
         name, _ = argv.next(sub.separators)
-        if name != sub.name:  # 先匹配节点名称
-            if argv.fuzzy_match and levenshtein(name, sub.name) >= argv.fuzzy_threshold:
-                raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=sub.name, target=name))
-            raise ParamsUnmatched(lang.require("subcommand", "name_error").format(target=name, source=sub.name))
+        if name not in sub.aliases:
+            if not argv.fuzzy_match:
+                raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
+            for al in sub.aliases:
+                if levenshtein(name, al) >= argv.fuzzy_threshold:
+                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name))
+            raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
 
         self.value_result = sub.action.value
         return self.analyse(argv)
