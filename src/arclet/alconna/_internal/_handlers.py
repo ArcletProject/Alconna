@@ -472,6 +472,17 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
             return HeadResult(val.value, val._value, True, fixes=mapping)
 
     may_cmd, _m_str = argv.next()
+    if _m_str:
+        cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
+        if content.__class__ is set and cmd in content:
+            return HeadResult(cmd, cmd, True, fixes=mapping)
+        elif content.__class__ is TPattern and (mat := content.fullmatch(cmd)):
+            return HeadResult(cmd, cmd, True, mat.groupdict(), mapping)
+        if header.compact and content.__class__ in (set, TPattern) and (
+            mat := header.compact_pattern.match(cmd)
+        ):
+            argv.rollback(cmd[len(mat[0]):], replace=True)
+            return HeadResult(mat[0], mat[0], True, mat.groupdict(), mapping)
     if content.__class__ is list and _m_str:
         for pair in content:
             if res := pair.match(head_text, may_cmd, argv.rollback, header.compact):
@@ -487,7 +498,7 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
         raise InvalidParam(lang.require("header", "error").format(target=head_text), head_text)
     if _m_str and may_cmd:
         if argv.fuzzy_match:
-            _handle_fuzzy(header, f"{head_text} {may_cmd}", argv.fuzzy_threshold)
+            _handle_fuzzy(header, f"{head_text}{argv.separators[0]}{may_cmd}", argv.fuzzy_threshold)
         raise InvalidParam(lang.require("header", "error").format(target=may_cmd), may_cmd)
     argv.rollback(may_cmd)
     raise InvalidParam(lang.require("header", "error").format(target=head_text), None)

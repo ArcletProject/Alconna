@@ -194,6 +194,11 @@ def test_alconna_multi_header():
     assert alc6.parse("#core6").head_matched is False
     assert alc6.parse("! core6").head_matched is False
     assert alc6.parse([a]).head_matched is False
+    # 纯文字头可以塞分隔符
+    alc6_1 = Alconna("core6_1", ["/", "!", "aaa "])  # 'aaa ' 的空格是分隔符
+    assert alc6_1.parse("!core6_1").head_matched is True
+    assert alc6_1.parse("aaa core6_1").head_matched is True
+    assert alc6_1.parse("aaacore6_1").head_matched is False
     # 对头
     alc6_2 = Alconna("core6_2", [(a, "/"), (A, "!"), ("c", "."), (NUMBER, "d")])
     assert alc6_2.parse([a, "/core6_2"]).head_matched is True
