@@ -1,7 +1,8 @@
-import time
-from arclet.alconna import Alconna, Args, ANY, command_manager, namespace
 import cProfile
 import pstats
+import time
+
+from arclet.alconna import ANY, Alconna, Args, command_manager, namespace
 
 
 class Plain:

@@ -9,9 +9,9 @@ from tarina import lang, split, split_once
 from ..args import Arg
 from ..base import Option, Subcommand
 from ..config import Namespace, config
+from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
 from ..typing import TDC
-from ..constraint import ARGV_OVERRIDES
 
 
 @dataclass(repr=True)

@@ -3,12 +3,24 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field, fields, is_dataclass
-from typing import Any, Dict, Iterator, List, Literal, Protocol, Tuple, TypeVar, TypedDict, Union, runtime_checkable, final
-
-from tarina import lang, safe_eval
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Protocol,
+    Tuple,
+    TypedDict,
+    TypeVar,
+    Union,
+    final,
+    runtime_checkable,
+)
 from typing_extensions import NotRequired
 
-from nepattern import BasePattern, MatchMode, parser, MatchFailed
+from nepattern import BasePattern, MatchFailed, MatchMode, parser
+from tarina import lang, safe_eval
 
 TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)

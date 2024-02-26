@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, Iterable
 
-from nepattern import ANY, AnyString, BasePattern, STRING
+from nepattern import ANY, STRING, AnyString, BasePattern
 from nepattern.util import TPattern
 from tarina import Empty, lang, split_once
 
@@ -15,7 +15,7 @@ from ..config import config
 from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
-from ..typing import KWBool, ShortcutRegWrapper, MultiKeyWordVar, MultiVar, ContextVal
+from ..typing import ContextVal, KWBool, MultiKeyWordVar, MultiVar, ShortcutRegWrapper
 from ._header import Double, Header
 from ._util import escape, levenshtein, unescape
 
@@ -594,8 +594,6 @@ def _handle_multi_slot(argv: Argv, unit: str, data: list, index: int, current: i
 
 def _handle_shortcut_data(argv: Argv, data: list):
     data_len = len(data)
-    if not data_len:
-        return []
     record = set()
     offset = 0
     for i, unit in enumerate(argv.raw_data.copy()):

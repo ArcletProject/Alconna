@@ -1,8 +1,9 @@
 import sys
 from io import StringIO
 
-from arclet.alconna import Alconna, Args, Field, Option, CommandMeta, MultiVar, Arparma
 from nepattern import AnyString
+
+from arclet.alconna import Alconna, Args, Arparma, CommandMeta, Field, MultiVar, Option
 
 alc = Alconna(
     "exec",

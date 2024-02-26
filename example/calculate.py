@@ -1,6 +1,8 @@
-from arclet.alconna import Alconna, Arg
-from nepattern import SwitchPattern, NUMBER
 import operator
+
+from nepattern import NUMBER, SwitchPattern
+
+from arclet.alconna import Alconna, Arg
 
 alc = Alconna(
     "calc",

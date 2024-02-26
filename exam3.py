@@ -1,5 +1,5 @@
+from typing import Any, Callable, TypeVar
 from typing_extensions import ParamSpec, Self
-from typing import Callable, TypeVar, Any
 
 T = TypeVar("T")
 R = TypeVar("R")

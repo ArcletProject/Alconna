@@ -1,5 +1,7 @@
-from arclet.alconna import Alconna, Args, Option, UnpackVar, KeyWordVar
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+
+from arclet.alconna import Alconna, Args, KeyWordVar, Option, UnpackVar
+
 
 @dataclass
 class User:

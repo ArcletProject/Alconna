@@ -4,7 +4,7 @@ import re
 from inspect import isclass
 from typing import Any, Callable
 
-from nepattern import BasePattern, UnionPattern, all_patterns, parser, MatchMode
+from nepattern import BasePattern, MatchMode, UnionPattern, all_patterns, parser
 from nepattern.util import TPattern
 from tarina import lang
 
@@ -105,7 +105,8 @@ class Pair:
 class Double:
     """用于匹配前缀和命令的组合"""
 
-    command: TPattern | BasePattern | str
+    command: TPattern | BasePattern
+    comp_pattern: TPattern | BasePattern
 
     def __init__(
         self,
@@ -127,17 +128,20 @@ class Double:
             self.prefix = set(texts) if texts else None
             self.comp_pattern = prefixed(command)
             self.cmd_type = 0
+            self.match = self.match0
         elif not texts:
             self.prefix = None
             self.command = re.compile(command)
             self.comp_pattern = re.compile(f"^{command}")
             self.cmd_type = 1
+            self.match = self.match1
         else:
             prf = "|".join(re.escape(h) for h in texts)
             self.prefix = re.compile(f"(?:{prf}){command}")
             self.command = re.compile(command)
             self.cmd_type = 2
             self.comp_pattern = re.compile(f"^(?:{prf}){command}")
+            self.match = self.match2
 
     def __repr__(self):
         if self.cmd_type == 0:
@@ -182,11 +186,7 @@ class Double:
             pbfn(cmd[len(mat[0]):], replace=True)
             return (pf, cmd), (pf, mat[0]), True, mat.groupdict()
 
-    def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
-        if not self.cmd_type:
-            return self.match0(pf, cmd, p_str, c_str, pbfn, comp)
-        if self.cmd_type == 1:
-            return self.match1(pf, cmd, p_str, c_str, pbfn, comp)
+    def match2(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
         if not p_str and not c_str:
             return
         if p_str:
@@ -211,6 +211,9 @@ class Double:
             if comp and (mat := self.command.match(cmd)):
                 pbfn(cmd[len(mat[0]):], replace=True)
                 return (pf, cmd), (val._value, mat[0]), True, mat.groupdict()
+
+    def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., ...], comp: bool):
+        ...
 
 
 class Header:

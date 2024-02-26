@@ -1,5 +1,7 @@
-from arclet.alconna import Alconna, Args, namespace
 from typing import Optional
+
+from arclet.alconna import Alconna, Args, namespace
+
 
 class Text:
     type = "text"

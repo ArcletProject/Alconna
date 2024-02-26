@@ -468,6 +468,7 @@ def test_shortcut():
     res8 = alc16_1.parse("echo \\\\'123\\\\'")
     assert res8.content == "print('123')"
     assert not alc16_1.parse("echo").matched
+    assert alc16_1.parse("echo1").content == "print('')"
 
     alc16_2 = Alconna([1, 2, "3"], "core16_2", Args["foo", bool])
     alc16_2.shortcut("test", {"command": [1, "core16_2 True"]})  # type: ignore
@@ -523,6 +524,11 @@ def test_shortcut():
     alc16_8.parse("core16_8 --shortcut test _")
     res12 = alc16_8.parse("test")
     assert res12.bar == "1234"
+
+    alc16_9 = Alconna("core16_9", Args["bar", str])
+    alc16_9.shortcut("test(.+)?", command="core16_9 {0}")
+    assert alc16_9.parse("test123").bar == "123"
+    assert not alc16_9.parse("test").matched
 
 
 def test_help():

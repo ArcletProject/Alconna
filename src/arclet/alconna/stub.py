@@ -10,8 +10,8 @@ from nepattern import ANY, BasePattern
 
 from .args import Args
 from .base import Option, Subcommand
-from .typing import AllParam
 from .model import OptionResult, SubcommandResult
+from .typing import AllParam
 
 T = TypeVar("T")
 T_Origin = TypeVar("T_Origin")

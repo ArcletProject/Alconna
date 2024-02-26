@@ -17,7 +17,7 @@ from .argv import Argv, __argv_type__
 from .arparma import Arparma
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
-from .typing import TDC, CommandMeta, DataCollection, ShortcutArgs, InnerShortcutArgs
+from .typing import TDC, CommandMeta, DataCollection, InnerShortcutArgs, ShortcutArgs
 
 if TYPE_CHECKING:
     from ._internal._analyser import Analyser

@@ -1,23 +1,31 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from re import Match
 from typing import TYPE_CHECKING, Any, Callable, Generic, Set
 from typing_extensions import Self, TypeAlias
 
-from tarina import lang, Empty
+from tarina import Empty, lang
 
 from ..action import Action
 from ..args import Args
 from ..arparma import Arparma
 from ..base import Completion, Help, Option, Shortcut, Subcommand
 from ..completion import comp_ctx
-from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
+from ..constraint import SHORTCUT_ARGS, SHORTCUT_REGEX_MATCH, SHORTCUT_REST, SHORTCUT_TRIGGER
+from ..exceptions import (
+    ArgumentMissing,
+    FuzzyMatchSuccess,
+    InvalidParam,
+    ParamsUnmatched,
+    PauseTriggered,
+    SpecialOptionTriggered,
+)
 from ..manager import command_manager
 from ..model import HeadResult, OptionResult, Sentence, SubcommandResult
 from ..output import output_manager
 from ..typing import TDC, InnerShortcutArgs
-from ..constraint import SHORTCUT_TRIGGER, SHORTCUT_ARGS, SHORTCUT_REST, SHORTCUT_REGEX_MATCH
 from ._handlers import (
     _handle_shortcut_data,
     _handle_shortcut_reg,
@@ -292,7 +300,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             return self.export(argv, True, exc)
         argv.addon(short.args)
         data = _handle_shortcut_data(argv, data)
-        if not data and argv.raw_data and any(isinstance(i, str) and "{%0}" in i for i in argv.raw_data):
+        if not data and argv.raw_data and any(isinstance(i, str) and bool(re.search(r"\{%(\d+)|\*(.*?)\}", i)) for i in argv.raw_data):
             exc = ArgumentMissing(lang.require("analyser", "param_missing"))
             if self.command.meta.raise_exception:
                 raise exc

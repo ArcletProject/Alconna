@@ -1,8 +1,9 @@
-from arclet.alconna import Args
-from arclet.alconna.action import Action, store_true, store
-from typing import Literal, overload, Optional
-from typing_extensions import Self
 from dataclasses import dataclass, field
+from typing import Literal, Optional, overload
+from typing_extensions import Self
+
+from arclet.alconna import Args
+from arclet.alconna.action import Action, store, store_true
 
 
 @dataclass

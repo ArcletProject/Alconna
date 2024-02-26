@@ -4,9 +4,9 @@ from __future__ import annotations
 from dataclasses import replace
 from functools import reduce
 from typing import Any, Iterable, Sequence, overload
-
-from tarina import lang, Empty
 from typing_extensions import Self
+
+from tarina import Empty, lang
 
 from .action import Action, store
 from .args import Arg, Args

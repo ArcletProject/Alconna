@@ -253,6 +253,18 @@ def test_contextval():
     assert analyse_args(arg21_2, ["$(bar)"], bar="baz") == {"foo": "baz"}
     assert analyse_args(arg21_2, ["$(baz)"], raise_exception=False, baz="baz") != {"foo": "baz"}
 
+    arg21_3 = Args["foo", ContextVal]
+
+    class A:
+        class B:
+            c = "baz"
+            d = {"e": "baz"}
+
+        b = B()
+
+    assert analyse_args(arg21_3, ["$(a.b.c)"], a=A()) == {"foo": "baz"}
+    assert analyse_args(arg21_3, ["$(a.b.d.get(e))"], a=A()) == {"foo": "baz"}
+
 
 if __name__ == "__main__":
     import pytest
