@@ -230,8 +230,8 @@ class Alconna(Subcommand, Generic[TDC]):
 
     @overload
     def shortcut(
-        self, 
-        key: str, 
+        self,
+        key: str,
         *,
         command: str | None = None,
         arguments: list[Any] | None = None,

@@ -100,7 +100,7 @@ class CommandNode:
             _name = _aliases[0]
             aliases.extend(_aliases[1:])
         if not _name:
-            raise InvalidArgs(lang.require("common", "name_empty"))        
+            raise InvalidArgs(lang.require("common", "name_empty"))
         aliases.insert(0, _name)
         self.name = _name
         self.aliases = frozenset(aliases)
@@ -196,7 +196,7 @@ class Option(CommandNode):
             compact (bool, optional): 是否允许名称与后随参数之间无分隔符
             priority (int, optional): 命令选项优先级
         """
-        
+
         self.priority = priority
         self.compact = compact
         if default is not Empty:

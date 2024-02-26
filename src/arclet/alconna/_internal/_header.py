@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from inspect import isclass
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from nepattern import BasePattern, MatchMode, UnionPattern, all_patterns, parser
 from nepattern.util import TPattern
@@ -212,8 +212,9 @@ class Double:
                 pbfn(cmd[len(mat[0]):], replace=True)
                 return (pf, cmd), (val._value, mat[0]), True, mat.groupdict()
 
-    def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., Any], comp: bool) -> Any:
-        ...
+    if TYPE_CHECKING:
+        def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., Any], comp: bool) -> Any:
+            ...
 
 
 class Header:

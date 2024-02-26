@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Tuple
 
-from nepattern import URL, create_local_patterns
+from nepattern import URL
 
 from arclet.alconna import Alconna, Args, MultiVar, Option, Subcommand, count, store_true
 

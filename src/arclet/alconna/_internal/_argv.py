@@ -56,7 +56,7 @@ class Argv(Generic[TDC]):
     """命令的token"""
     origin: TDC = field(init=False)
     """原始命令"""
-    context: dict[str, Any] = field(init=False)
+    context: dict[str, Any] = field(init=False, default_factory=dict)
     _sep: tuple[str, ...] | None = field(init=False)
 
     _cache: ClassVar[dict[type, dict[str, Any]]] = {}
@@ -269,7 +269,6 @@ class Argv(Generic[TDC]):
 
     def exit(self) -> dict[str, Any]:
         """退出上下文"""
-        try:
-            return self.context
-        finally:
-            self.context = {}
+        _ = self.context
+        self.context = {}
+        return _

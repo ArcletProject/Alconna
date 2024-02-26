@@ -29,7 +29,7 @@ class OutputManager:
     """缓存的输出行为"""
     outputs: dict[str, Sender] = field(default_factory=dict)
     """输出行为"""
-    send_action: Callable[[str], Any] = field(default=lambda x: print(x))
+    send_action: Callable[[str], Any] = field(default=print)  # type: ignore
     """默认的发送行为"""
     _out_cache: dict[str, dict[str, Any]] = field(default_factory=dict, hash=False, init=False)
 

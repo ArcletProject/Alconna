@@ -51,8 +51,7 @@ from .typing import Nargs as Nargs
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
 
-__version__ = "1.7.44"
+__version__ = "1.8.0"
 
 # backward compatibility
-Arpamar = Arparma
-DataCollectionContainer = Argv
+AnyOne = ANY

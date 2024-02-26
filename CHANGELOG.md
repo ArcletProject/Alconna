@@ -1,5 +1,64 @@
 # 更新日志
 
+## Alconna 1.8.0
+
+**此版本为长期支持版本 (LTS)，同时为 v1.x 与 v2.0 之间的过渡版本**
+
+### 破坏性改动
+
+> 用户侧
+
+- `Args.__init__` 不再接受 `**kwargs` 参数
+- `Alconna.parse` 不再接受 `duplication` 参数；请直接使用 `Duplication(Arparma)`
+- `fuzzy_threshold` 参数移至 `Namespace` 
+
+> 开发侧
+
+- `NEPattern` 依赖升级至 0.6.x
+- 移除兼容名称 `Arpamar` 与 `DataCollectionContainer`
+
+### 新增
+
+- `Alconna.parse` 新增 `ctx: dict[str, Any]` 参数，用于传入上下文.
+    1. 用户可以通过 `$argv.overrides` 参数来覆盖 Argv 的属性
+- `Arparma` 新增 `context` 参数，与 `Alconna.parse` 的 `ctx` 参数对应
+    1. 当触发快捷指令后，用户可以通过 `$shortcut.trigger`, `$shortcut.args`, `$shortcut.rest` 来获取快捷指令的信息
+- 新增 `ContextVal` 表达式，可以依据用户传入的指定键从 `ctx` 中获取值
+    1. `ContextVal` 默认格式为 `$(KEY)`, 其中 `KEY` 为 `ctx` 中的键
+    2. 使用 `ContextVal(style="bracket")` 可以将 `ContextVal` 的格式改为 `{KEY}`
+    3. 指定键支持 eval 表达式，如 `$(session.user.id)`, `$(session.user.name[1:])`
+    4. `ContextVal` 支持只允许指定的键，如 `ContextVal("session", "event")`
+
+    ```python
+    from dataclasses import dataclass
+    from arclet.alconna import Alconna, Args, ContextVal
+    
+    alc = Alconna("test", Args["foo", ContextVal(style="bracket")])
+    
+    @dataclass
+    class User:
+      id: str
+    
+    @dataclass
+    class Session:
+      user: User
+    
+    arp = alc.parse(
+      "test {session.user.id}",
+      {"session": Session(user=User(id="123"))}
+    )
+    assert arp.query[str]("foo") == "123"
+    ```
+
+### 改进
+
+- `Subcommand` 可以设置别名了
+- `Alconna` 的前缀可以在最尾端塞分隔符
+
+### 修复
+
+- 修复类型提示错误
+
 ## Alconna 1.7.44
 
 ### 修复
@@ -359,7 +418,7 @@
 
 ## Alconna 1.7.0
 
-**此版本为长期支持版本 (LTS), 也是 2.0 版本前的最后一个主要版本**
+**此版本为长期支持版本 (LTS)**
 
 ### 破坏性改动
 
