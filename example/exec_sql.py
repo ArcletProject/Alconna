@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from sqlite3 import connect
 from typing import Optional
 

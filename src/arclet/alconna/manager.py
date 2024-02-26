@@ -8,7 +8,7 @@ import shelve
 import weakref
 from copy import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Match, Union
+from typing import TYPE_CHECKING, Any, Match, Union, MutableSet
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from tarina import LRU, lang
@@ -152,7 +152,7 @@ class CommandManager:
             namespace, name = self._command_part(command.path)
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
-    def unpack(self, commands: set[Alconna]) -> zip[tuple[Analyser, Argv]]:  # type: ignore
+    def unpack(self, commands: MutableSet[Alconna]) -> "zip[tuple[Analyser, Argv]]":
         """获取多个命令解析器"""
         return zip(
             [v for k, v in self.__analysers.items() if k in commands],

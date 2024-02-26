@@ -136,18 +136,18 @@ AllParam = _AllParamPattern()
 class _ContextPattern(BasePattern[Any, Tuple[str, Dict[str, Any]]]):
     def __init__(self, *names: str, style: Literal["bracket", "parentheses"] = "parentheses"):
         if not names:
-            pat = "$(VAR)" if style == "parentheses" else "${VAR}"
+            pat = "$(VAR)" if style == "parentheses" else "{VAR}"
             super().__init__(mode=MatchMode.TYPE_CONVERT, origin=Any, alias=pat)
             self.pattern = pat
             self.regex_pattern = re.compile(r"\$\((.+)\)", re.DOTALL) if style == "parentheses" else re.compile(r"\{(.+)\}", re.DOTALL)
         else:
-            pat = f"$({'|'.join(names)})" if style == "parentheses" else f"${{{'|'.join(names)}}}"
+            pat = f"$({'|'.join(names)})" if style == "parentheses" else f"{{{'|'.join(names)}}}"
             super().__init__(mode=MatchMode.TYPE_CONVERT, origin=Any, alias=pat)
             self.pattern = pat
             if style == "parentheses":
-                self.regex_pattern = re.compile(rf"\$\(({'|'.join(map(re.escape, names))})\)")
+                self.regex_pattern = re.compile(rf"\$\(({'|'.join(re.escape(name) + '.*' for name in names)})\)")
             else:
-                self.regex_pattern = re.compile(rf"\{{({'|'.join(map(re.escape, names))})\}}")
+                self.regex_pattern = re.compile(rf"\{{({'|'.join(re.escape(name) + '.*' for name in names)})\}}")
 
     def match(self, input_: Tuple[str, Dict[str, Any]]) -> Any:
         pat, ctx = input_

@@ -133,3 +133,9 @@ profile = "black"
 line_length = 120
 skip_gitignore = true
 extra_standard_library = ["typing_extensions"]
+
+[tool.pyright]
+pythonVersion = "3.8"
+pythonPlatform = "All"
+typeCheckingMode = "basic"
+disableBytesTypePromotions = true

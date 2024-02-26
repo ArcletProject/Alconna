@@ -8,7 +8,7 @@ from types import MappingProxyType
 from typing import Any, Callable, ClassVar, Generic, TypeVar, cast, overload
 from typing_extensions import Self
 
-from tarina import Empty, generic_isinstance, lang
+from tarina import Empty, generic_isinstance, lang, safe_eval
 
 from .exceptions import BehaveCancelled, OutBoundsBehave
 from .model import HeadResult, OptionResult, SubcommandResult
@@ -88,9 +88,9 @@ class _Query(Generic[T]):
         source, endpoint = self.source.__require__(path.split("."))
         if source is None:
             return default
-        if isinstance(source, (OptionResult, SubcommandResult)):
-            return getattr(source, endpoint, default) if endpoint else source  # type: ignore
-        return source.get(endpoint, default) if endpoint else MappingProxyType(source)  # type: ignore
+        if isinstance(source, dict):
+            return source.get(endpoint, default) if endpoint else MappingProxyType(source)  # type: ignore
+        return getattr(source, endpoint, default) if endpoint else source  # type: ignore
 
 
 class Arparma(Generic[TDC]):
@@ -266,6 +266,7 @@ class Arparma(Generic[TDC]):
         data = {
             **{k: v() for k, v in self._additional.items()},
             **self.all_matched_args,
+            "context": self.context,
             "all_args": self.all_matched_args,
             "options": self.options,
             "subcommands": self.subcommands,
@@ -285,7 +286,10 @@ class Arparma(Generic[TDC]):
                 kw_args[p.name] = data[p.name]
         bind = sig.bind(*pos_args, **kw_args)
         bind.apply_defaults()
-        return target(*bind.args, **bind.kwargs)
+        try:
+            return target(*bind.args, **bind.kwargs)
+        finally:
+            data.clear()
 
     def fail(self, exc: type[Exception] | Exception) -> Self:
         """生成一个失败的 `Arparma`"""
@@ -295,11 +299,11 @@ class Arparma(Generic[TDC]):
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
         if len(parts) == 1:
             part = parts[0]
-            for src in (self.main_args, self.other_args, self.options, self.subcommands):
+            if part in {"options", "subcommands", "main_args", "other_args", "context"}:
+                return getattr(self, part, {}), ""
+            for src in (self.main_args, self.other_args, self.options, self.subcommands, self.context):
                 if part in src:
                     return src, part
-            if part in {"options", "subcommands", "main_args", "other_args"}:
-                return getattr(self, part, {}), ""
             return (self.all_matched_args, "") if part == "args" else (None, part)
         prefix = parts.pop(0)  # parts[0]
         if prefix in {"options", "subcommands"} and prefix in self.components:
@@ -311,7 +315,13 @@ class Arparma(Generic[TDC]):
         prefix = prefix.replace("$main", "main_args").replace("$other", "other_args")
         if prefix in {"main_args", "other_args"}:
             return getattr(self, prefix, {}), parts.pop(0)
-        return None, prefix
+        path = ".".join([prefix] + parts)
+        if path in self.context:
+            return self.context, path
+        try:
+            return safe_eval(path, self.context), ""  # type: ignore
+        except Exception:
+            return None, prefix
 
     def query_with(self, arg_type: type[T], *args):
         return self.query[arg_type](*args)
