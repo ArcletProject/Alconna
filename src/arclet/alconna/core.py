@@ -16,13 +16,11 @@ from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Completion, Help, Option, Shortcut, Subcommand
 from .config import Namespace, config
-from .duplication import Duplication
 from .exceptions import ExecuteFailed, NullMessage
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
 from .typing import TDC, CommandMeta, DataCollection, InnerShortcutArgs, ShortcutRegWrapper, TPrefixes
 
-T_Duplication = TypeVar("T_Duplication", bound=Duplication)
 T = TypeVar("T")
 TDC1 = TypeVar("TDC1", bound=DataCollection[Any])
 
@@ -63,7 +61,8 @@ class ArparmaExecutor(Generic[T]):
     target: Callable[..., T]
     binding: Callable[..., list[Arparma]] = field(default=lambda: [], repr=False)
 
-    __call__ = lambda self, *args, **kwargs: self.target(*args, **kwargs)
+    def __call__(self, *args, **kwargs):
+        return self.target(*args, **kwargs)
 
     @property
     def result(self) -> T:
@@ -171,7 +170,6 @@ class Alconna(Subcommand, Generic[TDC]):
         command_manager.register(self)
         self._executors: dict[ArparmaExecutor, Any] = {}
         self.union: "WeakSet[Alconna]" = WeakSet()
-        self._union = False
 
     @property
     def namespace_config(self) -> Namespace:
@@ -276,24 +274,6 @@ class Alconna(Subcommand, Generic[TDC]):
         ...
 
     def shortcut(self, key: str, args: ShortcutArgs | None = None, delete: bool = False, **kwargs):
-        """操作快捷命令
-
-        Args:
-            key (str): 快捷命令名
-            args (ShortcutArgs | None, optional): 快捷命令参数, 不传入时则尝试使用最近一次使用的命令
-            delete (bool, optional): 是否删除快捷命令, 默认为 `False`
-            command (str, optional): 快捷命令指向的命令
-            arguments (list[Any] | None, optional): 快捷命令参数, 默认为 `None`
-            fuzzy (bool, optional): 是否允许命令后随参数, 默认为 `True`
-            prefix (bool, optional): 是否调用时保留指令前缀, 默认为 `False`
-            wrapper (ShortcutRegWrapper, optional): 快捷指令的正则匹配结果的额外处理函数, 默认为 `None`
-
-        Returns:
-            str: 操作结果
-
-        Raises:
-            ValueError: 快捷命令操作失败时抛出
-        """
         try:
             if delete:
                 return command_manager.delete_shortcut(self, key)
@@ -337,41 +317,28 @@ class Alconna(Subcommand, Generic[TDC]):
         command_manager.register(self)
         return self
 
-    @init_spec(Option, True)
+    @init_spec(Option, is_method=True)
     def option(self, opt: Option) -> Self:
         """添加选项"""
         return self.add(opt)
 
-    @init_spec(Subcommand, True)
+    @init_spec(Subcommand, is_method=True)
     def subcommand(self, sub: Subcommand) -> Self:
         """添加子命令"""
         return self.add(sub)
 
     def _parse(self, message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
-        if self._union:
-            for ana, argv in command_manager.unpack(self.union):
-                if (res := ana.process(argv.enter(ctx).build(message))).matched:
-                    return res
         analyser = command_manager.require(self)
         argv = command_manager.resolve(self)
         argv.enter(ctx).build(message)
         return analyser.process(argv)
 
-    @overload
     def parse(self, message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
-        ...
-
-    @overload
-    def parse(self, message, ctx: dict[str, Any] | None = None, *, duplication: type[T_Duplication]) -> T_Duplication:
-        ...
-
-    def parse(self, message: TDC, ctx: dict[str, Any] | None = None, *, duplication: type[T_Duplication] | None = None) -> Arparma[TDC] | T_Duplication:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类
 
         Args:
             message (TDC): 命令消息
             ctx (dict[str, Any], optional): 上下文信息
-            duplication (type[T_Duplication], optional): 指定的`副本`类型
         Returns:
             Arparma[TDC] | T_Duplication: 若`duplication`参数为`None`则返回`Arparma`对象, 否则返回`duplication`类型的对象
         Raises:
@@ -388,7 +355,7 @@ class Alconna(Subcommand, Generic[TDC]):
             if self._executors:
                 for ext in self._executors:
                     self._executors[ext] = arp.call(ext.target)
-        return duplication(arp) if duplication else arp
+        return arp
 
     def bind(self, active: bool = True):
         """绑定命令执行器
@@ -433,7 +400,14 @@ class Alconna(Subcommand, Generic[TDC]):
 
     def __or__(self, other: Alconna) -> Self:
         self.union.add(other)
-        self._union = True
+
+        def _parse(message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
+            for ana, argv in command_manager.unpack(self.union):
+                if (res := ana.process(argv.enter(ctx).build(message))).matched:
+                    return res
+            return command_manager.require(self).process(command_manager.resolve(self).enter(ctx).build(message))
+
+        self._parse = _parse
         return self
 
     def _calc_hash(self):
@@ -447,10 +421,6 @@ class Alconna(Subcommand, Generic[TDC]):
         if head != self.command:
             return self.parse(argv)  # type: ignore
         return self.parse([head, *argv])  # type: ignore
-
-    @property
-    def headers(self):
-        return self.prefixes
 
     @property
     def header_display(self):

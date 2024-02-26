@@ -42,7 +42,7 @@ def test_duplication():
     )
     res = com4.parse("comp4 123 --bar abc sub --sub1 xyz")
     assert res.matched is True
-    duplication = com4.parse("comp4 123 --bar abc sub --sub1 xyz", duplication=Demo)
+    duplication = Demo(com4.parse("comp4 123 --bar abc sub --sub1 xyz"))
     assert isinstance(duplication, Demo)
     assert duplication.testArgs.available is True
     assert duplication.testArgs.foo == 123
@@ -50,7 +50,7 @@ def test_duplication():
     assert duplication.bar.args.bar == "abc"
     assert duplication.sub.available is True
     assert duplication.sub.option("sub1").args.first == "xyz"
-    duplication1 = com4.parse("comp4 123 --bar abc sub --sub1 xyz", duplication=Demo1)
+    duplication1 = Demo1(com4.parse("comp4 123 --bar abc sub --sub1 xyz"))
     assert isinstance(duplication1, Demo1)
     assert isinstance(duplication1.foo, int)
     assert isinstance(duplication1.bar, str)

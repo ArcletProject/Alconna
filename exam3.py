@@ -1,15 +1,31 @@
-from typing import Any, Callable, TypeVar
-from typing_extensions import ParamSpec, Self
+from __future__ import annotations
+from typing import Any, Callable, TypeVar, overload, Literal
+from typing_extensions import ParamSpec, Concatenate, Self
+
 
 T = TypeVar("T")
 R = TypeVar("R")
 P = ParamSpec("P")
 
 
-def deco(fn: Callable[P, T]) -> Callable[[Callable[[Any, T], R]], Callable[P, R]]:
-    def wrapper(func: Callable[[Any, T], R]) -> Callable[P, R]:
+@overload
+def deco(fn: Callable[P, T]) -> Callable[[Callable[[T], R]], Callable[P, R]]: ...
+
+
+@overload
+def deco(
+    fn: Callable[P, T], is_method: Literal[True]
+) -> Callable[[Callable[[Any, T], R]], Callable[Concatenate[Any, P], R]]: ...
+
+
+def deco(  # type: ignore
+    fn: Callable[P, T], is_method: bool = False
+) -> Callable[[Callable[[T], R] | Callable[[Any, T], R]], Callable[P, R] | Callable[Concatenate[Any, P], R]]:
+    def wrapper(func: Callable[[T], R] | Callable[[Any, T], R]) -> Callable[P, R] | Callable[Concatenate[Any, P], R]:
         def inner(*args: P.args, **kwargs: P.kwargs):
-            return func(args[0], fn(*args[1:], **kwargs))  # type: ignore
+            if is_method:
+                return func(args[0], fn(*args[1:], **kwargs))  # type: ignore
+            return func(fn(*args, **kwargs))  # type: ignore
 
         return inner
 
@@ -25,7 +41,7 @@ class B:
     def foo(self, num: int):
         ...
 
-    @deco(A)
+    @deco(A, is_method=True)
     def add(self, args: A) -> Self:
         print(args.num)
         return self
