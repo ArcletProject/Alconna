@@ -289,23 +289,6 @@ class Args(metaclass=ArgsMeta):
         self.__check_vars__()
         return self
 
-    def default(self, **kwargs) -> Self:
-        """设置参数的默认值
-
-        Args:
-            **kwargs: 参数名称与默认值的映射
-
-        Returns:
-            Self: 参数集合自身
-        """
-        for arg in self.argument:
-            if v := (kwargs.get(arg.name)):
-                if isinstance(v, Field):
-                    arg.field = v
-                else:
-                    arg.field.default = v
-        return self
-
     def separate(self, *separator: str) -> Self:
         """设置参数的分隔符
 
@@ -363,6 +346,8 @@ class Args(metaclass=ArgsMeta):
                 if arg.optional:
                     if self.argument.vars_keyword or self.argument.vars_positional:
                         raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
+                    self.optional_count += 1
+                elif arg.field.default is not Empty:
                     self.optional_count += 1
         self.argument.clear()
         self.argument.extend(_tmp)

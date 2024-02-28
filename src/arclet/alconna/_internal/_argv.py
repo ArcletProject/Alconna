@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields
-from typing import Any, Callable, ClassVar, Generic, Iterable
+from typing import Any, Callable, ClassVar, Generic, Iterable, Literal
 from typing_extensions import Self
 
 from tarina import lang, split, split_once
@@ -29,6 +29,8 @@ class Argv(Generic[TDC]):
     """将命令元素转换为文本, 或者返回None以跳过该元素"""
     separators: tuple[str, ...] = field(default=(" ",))
     """命令分隔符"""
+    context_style: Literal["bracket", "parentheses"] | None = field(default=None)
+    "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
     filter_out: list[type] = field(default_factory=list)
     """需要过滤掉的命令元素"""
     checker: Callable[[Any], bool] | None = field(default=None)

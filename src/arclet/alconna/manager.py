@@ -8,7 +8,7 @@ import shelve
 import weakref
 from copy import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Match, Union, MutableSet
+from typing import TYPE_CHECKING, Any, Match, MutableSet, Union
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from tarina import LRU, lang
@@ -122,6 +122,7 @@ class CommandManager:
             separators=command.separators,  # type: ignore
             message_cache=command.namespace_config.enable_message_cache,  # type: ignore
             filter_crlf=not command.meta.keep_crlf,  # type: ignore
+            context_style=command.meta.context_style,  # type: ignore
         )
         self.__analysers.pop(command, None)
         self.__analysers[command] = command.compile(None)

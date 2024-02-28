@@ -157,6 +157,7 @@ class Alconna(Subcommand, Generic[TDC]):
         self.meta.fuzzy_match = self.meta.fuzzy_match or ns_config.fuzzy_match
         self.meta.raise_exception = self.meta.raise_exception or ns_config.raise_exception
         self.meta.compact = self.meta.compact or ns_config.compact
+        self.meta.context_style = self.meta.context_style or ns_config.context_style
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
         add_builtin_options(options, ns_config)
         name = f"{self.command or self.prefixes[0]}"  # type: ignore

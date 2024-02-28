@@ -43,7 +43,6 @@ from .stub import OptionStub as OptionStub
 from .stub import SubcommandStub as SubcommandStub
 from .typing import AllParam as AllParam
 from .typing import CommandMeta as CommandMeta
-from .typing import ContextVal as ContextVal
 from .typing import KeyWordVar as KeyWordVar
 from .typing import Kw as Kw
 from .typing import MultiVar as MultiVar
@@ -51,7 +50,7 @@ from .typing import Nargs as Nargs
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
 
-__version__ = "1.8.0"
+__version__ = "1.8.1"
 
 # backward compatibility
 AnyOne = ANY

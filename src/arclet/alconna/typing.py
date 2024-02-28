@@ -1,7 +1,6 @@
 """Alconna 参数相关"""
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field, fields, is_dataclass
 from typing import (
     Any,
@@ -19,8 +18,7 @@ from typing import (
 )
 from typing_extensions import NotRequired
 
-from nepattern import BasePattern, MatchFailed, MatchMode, parser
-from tarina import lang, safe_eval
+from nepattern import BasePattern, MatchMode, parser
 
 TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
@@ -109,6 +107,8 @@ class CommandMeta:
     "命令是否允许第一个参数紧随头部"
     strict: bool = field(default=True)
     "命令是否严格匹配，若为 False 则未知参数将作为名为 $extra 的参数"
+    context_style: Literal["bracket", "parentheses"] | None = field(default=None)
+    "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
     extra: Dict[str, Any] = field(default_factory=dict, hash=False)
     "命令的自定义额外信息"
 
@@ -130,47 +130,6 @@ class _AllParamPattern(BasePattern[Any, Any]):
 
 
 AllParam = _AllParamPattern()
-
-
-@final
-class _ContextPattern(BasePattern[Any, Tuple[str, Dict[str, Any]]]):
-    def __init__(self, *names: str, style: Literal["bracket", "parentheses"] = "parentheses"):
-        if not names:
-            pat = "$(VAR)" if style == "parentheses" else "{VAR}"
-            super().__init__(mode=MatchMode.TYPE_CONVERT, origin=Any, alias=pat)
-            self.pattern = pat
-            self.regex_pattern = re.compile(r"\$\((.+)\)", re.DOTALL) if style == "parentheses" else re.compile(r"\{(.+)\}", re.DOTALL)
-        else:
-            pat = f"$({'|'.join(names)})" if style == "parentheses" else f"{{{'|'.join(names)}}}"
-            super().__init__(mode=MatchMode.TYPE_CONVERT, origin=Any, alias=pat)
-            self.pattern = pat
-            if style == "parentheses":
-                self.regex_pattern = re.compile(rf"\$\(({'|'.join(re.escape(name) + '.*' for name in names)})\)")
-            else:
-                self.regex_pattern = re.compile(rf"\{{({'|'.join(re.escape(name) + '.*' for name in names)})\}}")
-
-    def match(self, input_: Tuple[str, Dict[str, Any]]) -> Any:
-        pat, ctx = input_
-        if not (mat := self.regex_pattern.fullmatch(pat)):
-            raise MatchFailed(lang.require("nepattern", "content_error").format(target=input_, expected=self.alias))
-        name = mat.group(1)
-        if name == "_":
-            return ctx
-        if name not in ctx:
-            try:
-                return safe_eval(name, ctx)
-            except Exception:
-                raise MatchFailed(lang.require("nepattern", "context_error").format(target=input_, expected=self.alias))
-        return ctx[name]
-
-    def __calc_eq__(self, other):
-        return other.__class__ is _ContextPattern
-
-    def __call__(self, *names: str, style: Literal["bracket", "parentheses"] = "parentheses"):
-        return _ContextPattern(*names, style=style)
-
-
-ContextVal = _ContextPattern()
 
 
 class KeyWordVar(BasePattern[T, Any]):

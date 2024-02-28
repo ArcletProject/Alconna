@@ -56,6 +56,8 @@ class Namespace:
     """默认是否开启紧凑模式"""
     strict: bool = field(default=True)
     "命令是否严格匹配，若为 False 则未知参数将作为名为 $extra 的参数"
+    context_style: Literal["bracket", "parentheses"] | None = field(default=None)
+    "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
 
     def __eq__(self, other):
         return isinstance(other, Namespace) and other.name == self.name

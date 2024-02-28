@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Iterable
 
 from nepattern import ANY, STRING, AnyString, BasePattern
 from nepattern.util import TPattern
-from tarina import Empty, lang, split_once
+from tarina import Empty, lang, safe_eval, split_once
 
 from ..action import Action
 from ..args import Arg, Args
@@ -15,7 +15,7 @@ from ..config import config
 from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
-from ..typing import ContextVal, KWBool, MultiKeyWordVar, MultiVar, ShortcutRegWrapper
+from ..typing import KWBool, MultiKeyWordVar, MultiVar, ShortcutRegWrapper
 from ._header import Double, Header
 from ._util import escape, levenshtein, unescape
 
@@ -24,19 +24,41 @@ if TYPE_CHECKING:
     from ._argv import Argv
 
 pat = re.compile("(?:-*no)?-*(?P<name>.+)")
+_bracket = re.compile(r"{(.+)}")
+_parentheses = re.compile(r"\$?\((.+)\)")
+
+
+def _context(argv: Argv, target: Arg[Any], _arg: str):
+    _pat = _bracket if argv.context_style == "bracket" else _parentheses
+    if not (mat := _pat.fullmatch(_arg)):
+        return _arg
+    ctx = argv.context
+    name = mat.group(1)
+    if name == "_":
+        return ctx
+    if name in ctx:
+        return ctx[name]
+    try:
+        return safe_eval(name, ctx)
+    except NameError:
+        raise ArgumentMissing(target.field.get_missing_tips(lang.require("args", "missing").format(key=target.name)))
+    except Exception as e:
+        raise InvalidParam(
+            target.field.get_unmatch_tips(_arg, lang.require("nepattern", "context_error").format(target=target.name, expected=name))
+        )
 
 
 def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any, Any], result: dict[str, Any], arg: Any, _str: bool):
+    _arg = arg
+    if _str and argv.context_style:
+        _arg = _context(argv, target, _arg)
     if (value is STRING and _str) or value is ANY:
-        result[target.name] = arg
+        result[target.name] = _arg
         return
     if value is AnyString:
-        result[target.name] = str(arg)
+        result[target.name] = str(_arg)
         return
     default_val = target.field.default
-    _arg = arg
-    if value == ContextVal:
-        _arg = (arg, argv.context)
     res = value.validate(_arg, default_val)
     if res.flag != "valid":
         argv.rollback(arg)

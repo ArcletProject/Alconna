@@ -1,7 +1,7 @@
 from __future__ import annotations
-from typing import Any, Callable, TypeVar, overload, Literal
-from typing_extensions import ParamSpec, Concatenate, Self
 
+from typing import Any, Callable, Literal, TypeVar, overload
+from typing_extensions import Concatenate, ParamSpec, Self
 
 T = TypeVar("T")
 R = TypeVar("R")

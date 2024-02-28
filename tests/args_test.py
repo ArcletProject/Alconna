@@ -239,21 +239,12 @@ def test_multi_multi():
 
 
 def test_contextval():
-    from arclet.alconna import ContextVal
+    arg21 = Args["foo", str]
+    assert analyse_args(arg21, ["$(bar)"], context_style="parentheses", bar="baz") == {"foo": "baz"}
+    assert analyse_args(arg21, ["{bar}"], context_style="parentheses", raise_exception=False, bar="baz") != {"foo": "baz"}
 
-    arg21 = Args["foo", ContextVal]
-    assert analyse_args(arg21, ["$(bar)"], bar="baz") == {"foo": "baz"}
-    assert analyse_args(arg21, ["{bar}"], raise_exception=False, bar="baz") != {"foo": "baz"}
-
-    arg21_1 = Args["foo", ContextVal(style="bracket")]
-    assert analyse_args(arg21_1, ["{bar}"], bar="baz") == {"foo": "baz"}
-    assert analyse_args(arg21_1, ["$(bar)"], raise_exception=False, bar="baz") != {"foo": "baz"}
-
-    arg21_2 = Args["foo", ContextVal("bar")]
-    assert analyse_args(arg21_2, ["$(bar)"], bar="baz") == {"foo": "baz"}
-    assert analyse_args(arg21_2, ["$(baz)"], raise_exception=False, baz="baz") != {"foo": "baz"}
-
-    arg21_3 = Args["foo", ContextVal]
+    assert analyse_args(arg21, ["{bar}"], context_style="bracket", bar="baz") == {"foo": "baz"}
+    assert analyse_args(arg21, ["$(bar)"], context_style="bracket", raise_exception=False, bar="baz") != {"foo": "baz"}
 
     class A:
         class B:
@@ -262,8 +253,13 @@ def test_contextval():
 
         b = B()
 
-    assert analyse_args(arg21_3, ["$(a.b.c)"], a=A()) == {"foo": "baz"}
-    assert analyse_args(arg21_3, ["$(a.b.d.get(e))"], a=A()) == {"foo": "baz"}
+    assert analyse_args(arg21, ["$(a.b.c)"], context_style="parentheses", a=A()) == {"foo": "baz"}
+    assert analyse_args(arg21, ["$(a.b.d.get(e))"], context_style="parentheses", a=A()) == {"foo": "baz"}
+
+    arg21_1 = Args["foo", int]
+    assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", bar=123) == {"foo": 123}
+    assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", bar="123") == {"foo": 123}
+    assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", raise_exception=False, bar="baz") != {"foo": 123}
 
 
 if __name__ == "__main__":

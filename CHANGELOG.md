@@ -1,5 +1,39 @@
 # 更新日志
 
+## Alconna 1.8.1
+
+### 破坏性改动
+
+- 删除 `ContextVal` 表达式
+
+### 新增
+
+- `Namespace` 与 `CommandMeta` 新增 `context_style` 属性，用于指定命令插值的格式，不填入则默认不启用插值：
+    ```python
+    from dataclasses import dataclass
+    from arclet.alconna import Alconna, Args, CommandMeta
+    
+    alc = Alconna("test", Args["foo", str], meta=CommandMeta(context_style="bracket"))
+    
+    @dataclass
+    class User:
+      id: str
+    
+    @dataclass
+    class Session:
+      user: User
+    
+    arp = alc.parse(
+      "test {session.user.id}",
+      {"session": Session(user=User(id="123"))}
+    )
+    assert arp.query[str]("foo") == "123"
+    ```
+
+### 改进
+
+- 命令插值的结果现在受类型约束
+
 ## Alconna 1.8.0
 
 **此版本为长期支持版本 (LTS)，同时为 v1.x 与 v2.0 之间的过渡版本**
