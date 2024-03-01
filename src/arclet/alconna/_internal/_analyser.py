@@ -298,7 +298,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             if self.command.meta.raise_exception:
                 raise exc
             return self.export(argv, True, exc)
-        argv.addon(short.args)
+        argv.addon(short.args, merge_str=False)
         data = _handle_shortcut_data(argv, data)
         if not data and argv.raw_data and any(isinstance(i, str) and bool(re.search(r"\{%(\d+)|\*(.*?)\}", i)) for i in argv.raw_data):
             exc = ArgumentMissing(lang.require("analyser", "param_missing"))
@@ -306,9 +306,13 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 raise exc
             return self.export(argv, True, exc)
         argv.bak_data = argv.raw_data.copy()
-        argv.addon(data)
+        argv.addon(data, merge_str=False)
         if reg:
-            argv.raw_data = _handle_shortcut_reg(argv, reg.groups(), reg.groupdict(), short.wrapper)
+            data = _handle_shortcut_reg(argv, reg.groups(), reg.groupdict(), short.wrapper)
+            argv.raw_data.clear()
+            argv.ndata = 0
+            argv.current_index = 0
+            argv.addon(data)
         argv.bak_data = argv.raw_data.copy()
         if argv.message_cache:
             argv.token = argv.generate_token(argv.raw_data)
@@ -350,7 +354,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 argv.context[SHORTCUT_REST] = rest
                 argv.context[SHORTCUT_REGEX_MATCH] = mat
                 self.reset()
-                argv.reset()
                 return self.shortcut(argv, rest, short, mat)
 
         except FuzzyMatchSuccess as Fuzzy:

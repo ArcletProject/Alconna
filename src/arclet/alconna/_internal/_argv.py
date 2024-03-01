@@ -142,11 +142,12 @@ class Argv(Generic[TDC]):
             self.token = self.generate_token(raw_data)
         return self
 
-    def addon(self, data: Iterable[str | Any]) -> Self:
+    def addon(self, data: Iterable[str | Any], merge_str: bool = True) -> Self:
         """添加命令元素
 
         Args:
             data (Iterable[str | Any]): 命令元素
+            merge_str (bool, optional): 是否合并前后字符串
 
         Returns:
             Self: 自身
@@ -158,7 +159,7 @@ class Argv(Generic[TDC]):
                 d = res
             if isinstance(d, str) and not (d := d.strip()):
                 continue
-            if isinstance(d, str) and i > 0 and isinstance(self.raw_data[-1], str):
+            if merge_str and isinstance(d, str) and i > 0 and isinstance(self.raw_data[-1], str):
                 self.raw_data[-1] += f"{self.separators[0]}{d}"
             else:
                 self.raw_data.append(d)

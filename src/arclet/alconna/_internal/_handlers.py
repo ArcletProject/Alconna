@@ -661,18 +661,14 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
             if index >= len(groups):
                 continue
             slot = groups[index]
-            if slot is None:
-                continue
-            data.append(wrapper(index, slot) or slot)
+            data.append(wrapper(index, slot))
             continue
         if mat := KEY_REG_SLOT.fullmatch(unit):
             key = mat[1]
             if key not in gdict:
                 continue
             slot = gdict[key]
-            if slot is None:
-                continue
-            data.append(wrapper(key, slot) or slot)
+            data.append(wrapper(key, slot))
             continue
         if mat := INDEX_REG_SLOT.findall(unit):
             for index in map(int, mat):
@@ -680,20 +676,14 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
                     unit = unit.replace(f"{{{index}}}", "")
                     continue
                 slot = groups[index]
-                if slot is None:
-                    unit = unit.replace(f"{{{index}}}", "")
-                    continue
-                unit = unit.replace(f"{{{index}}}", str(wrapper(index, slot) or slot))
+                unit = unit.replace(f"{{{index}}}", str(wrapper(index, slot) or ""))
         if mat := KEY_REG_SLOT.findall(unit):
             for key in mat:
                 if key not in gdict:
                     unit = unit.replace(f"{{{key}}}", "")
                     continue
                 slot = gdict[key]
-                if slot is None:
-                    unit = unit.replace(f"{{{key}}}", "")
-                    continue
-                unit = unit.replace(f"{{{key}}}", str(wrapper(key, slot) or slot))
+                unit = unit.replace(f"{{{key}}}", str(wrapper(key, slot) or ""))
         if unit:
             data.append(unescape(unit))
     return data

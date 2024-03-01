@@ -1,5 +1,11 @@
 # 更新日志
 
+## Alconna 1.8.3
+
+### 修复
+
+- 修复 `shortcut.wrapper` 的处理逻辑
+
 ## Alconna 1.8.2
 
 ### 修复

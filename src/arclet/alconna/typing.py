@@ -25,7 +25,7 @@ DataUnit = TypeVar("DataUnit", covariant=True)
 
 
 class ShortcutRegWrapper(Protocol):
-    def __call__(self, slot: int | str, content: str) -> Any: ...
+    def __call__(self, slot: int | str, content: str | None) -> Any: ...
 
 
 class ShortcutArgs(TypedDict):
