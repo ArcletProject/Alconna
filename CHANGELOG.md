@@ -1,5 +1,11 @@
 # 更新日志
 
+## Alconna 1.8.2
+
+### 修复
+
+- 修复 `manager.get_shortcuts` 的错误
+
 ## Alconna 1.8.1
 
 ### 破坏性改动

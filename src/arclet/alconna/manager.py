@@ -231,11 +231,9 @@ class CommandManager:
             dict[str, Arparma | InnerShortcutArgs]: 快捷命令的参数
         """
         namespace, name = self._command_part(target.path)
-        if f"{namespace}.{name}" not in self.__shortcuts:
+        if target not in self.__analysers:
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
-        if not (_shortcut := self.__shortcuts.get(f"{namespace}.{name}")):
-            return {}
-        return _shortcut
+        return self.__shortcuts.get(f"{namespace}.{name}", {})
 
     def find_shortcut(
             self, target: Alconna[TDC], data: list
