@@ -208,8 +208,6 @@ Kw = _Kw()
 class KWBool(BasePattern):
     """对布尔参数的包装"""
 
-    ...
-
 
 class UnpackVar(BasePattern):
     """特殊参数，利用dataclass 的 field 生成 arg 信息，并返回dcls"""

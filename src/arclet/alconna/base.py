@@ -162,8 +162,6 @@ class Option(CommandNode):
     """命令选项默认值"""
     aliases: frozenset[str]
     """命令选项别名"""
-    priority: int
-    """命令选项优先级"""
     compact: bool
     "是否允许名称与后随参数之间无分隔符"
 
@@ -179,7 +177,7 @@ class Option(CommandNode):
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
         compact: bool = False,
-            priority: int = 0,
+        priority: int = 0,
     ):
         """初始化命令选项
 

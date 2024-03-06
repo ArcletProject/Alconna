@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, InitVar
 from typing import Any, Callable, ClassVar, Generic, Iterable, Literal
 from typing_extensions import Self
 
@@ -11,38 +11,42 @@ from ..base import Option, Subcommand
 from ..config import Namespace, config
 from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
-from ..typing import TDC
+from ..typing import TDC, CommandMeta
 
 
 @dataclass(repr=True)
 class Argv(Generic[TDC]):
     """命令行参数"""
 
+    meta: InitVar[CommandMeta]
     namespace: Namespace = field(default=config.default_namespace)
-    fuzzy_match: bool = field(default=False)
-    """当前命令是否模糊匹配"""
-    fuzzy_threshold: float = field(default=0.6)
-    """模糊匹配阈值"""
-    preprocessors: dict[type, Callable[..., Any]] = field(default_factory=dict)
-    """命令元素的预处理器"""
-    to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
-    """将命令元素转换为文本, 或者返回None以跳过该元素"""
+    """命名空间"""
     separators: tuple[str, ...] = field(default=(" ",))
     """命令分隔符"""
-    context_style: Literal["bracket", "parentheses"] | None = field(default=None)
-    "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
+
+    preprocessors: dict[type, Callable[..., Any]] = field(default_factory=dict)
+    """命令元素的预处理器"""
     filter_out: list[type] = field(default_factory=list)
     """需要过滤掉的命令元素"""
     checker: Callable[[Any], bool] | None = field(default=None)
     """检查传入命令"""
-    converter: Callable[[str | list], TDC] = field(default=lambda x: x)
-    """将字符串或列表转为目标命令类型"""
-    filter_crlf: bool = field(default=True)
-    """是否过滤掉换行符"""
-    message_cache: bool = field(default=True)
-    """是否缓存消息"""
     param_ids: set[str] = field(default_factory=set)
     """节点名集合"""
+
+    fuzzy_match: bool = field(init=False)
+    """当前命令是否模糊匹配"""
+    fuzzy_threshold: float = field(init=False)
+    """模糊匹配阈值"""
+    to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
+    """将命令元素转换为文本, 或者返回None以跳过该元素"""
+    converter: Callable[[str | list], TDC] = field(default=lambda x: x)
+    """将字符串或列表转为目标命令类型"""
+    filter_crlf: bool = field(init=False)
+    """是否过滤掉换行符"""
+    message_cache: bool = field(init=False)
+    """是否缓存消息"""
+    context_style: Literal["bracket", "parentheses"] | None = field(init=False)
+    "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
 
     current_node: Arg | Subcommand | Option | None = field(init=False)
     """当前节点"""
@@ -59,25 +63,37 @@ class Argv(Generic[TDC]):
     origin: TDC = field(init=False)
     """原始命令"""
     context: dict[str, Any] = field(init=False, default_factory=dict)
+    special: dict[str, str] = field(init=False, default_factory=dict)
+    completion_names: set[str] = field(init=False, default_factory=set)
     _sep: tuple[str, ...] | None = field(init=False)
 
     _cache: ClassVar[dict[type, dict[str, Any]]] = {}
 
-    def __post_init__(self):
+    def __post_init__(self, meta: CommandMeta):
         self.reset()
-        self.special: dict[str, str] = {}
-        self.special.update(
-            [(i, "help") for i in self.namespace.builtin_option_name["help"]]
-            + [(i, "completion") for i in self.namespace.builtin_option_name["completion"]]
-            + [(i, "shortcut") for i in self.namespace.builtin_option_name["shortcut"]]
-        )
-        self.completion_names = self.namespace.builtin_option_name["completion"]
+        self.compile(meta)
         if __cache := self.__class__._cache.get(self.__class__, {}):
             self.preprocessors.update(__cache.get("preprocessors") or {})
             self.filter_out.extend(__cache.get("filter_out") or [])
             self.to_text = __cache.get("to_text") or self.to_text
             self.checker = __cache.get("checker") or self.checker
             self.converter = __cache.get("converter") or self.converter
+
+    def compile(self, meta: CommandMeta):
+        self.fuzzy_match = meta.fuzzy_match
+        self.fuzzy_threshold = meta.fuzzy_threshold
+        self.to_text = self.namespace.to_text
+        self.converter = self.namespace.converter
+        self.message_cache = self.namespace.enable_message_cache
+        self.filter_crlf = not meta.keep_crlf
+        self.context_style = meta.context_style
+        self.special = {}
+        self.special.update(
+            [(i, "help") for i in self.namespace.builtin_option_name["help"]]
+            + [(i, "completion") for i in self.namespace.builtin_option_name["completion"]]
+            + [(i, "shortcut") for i in self.namespace.builtin_option_name["shortcut"]]
+        )
+        self.completion_names = self.namespace.builtin_option_name["completion"]
 
     def reset(self):
         """重置命令行参数"""

@@ -146,6 +146,9 @@ class SubAnalyser(Generic[TDC]):
 
     def __post_init__(self):
         self.reset()
+        self.__calc_args__()
+
+    def __calc_args__(self):
         self.self_args = self.command.args
         if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
@@ -258,12 +261,14 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             compiler (TCompile | None, optional): 编译器方法
         """
         super().__init__(alconna)
-        self.fuzzy_match = alconna.meta.fuzzy_match
+        self._compiler = compiler or default_compiler
         self.used_tokens = set()
-        self.command_header = Header.generate(alconna.command, alconna.prefixes, alconna.meta.compact)
-        self.extra_allow = not alconna.meta.strict or not alconna.namespace_config.strict
-        compiler = compiler or default_compiler
-        compiler(self, command_manager.resolve(self.command).param_ids)
+
+    def compile(self, param_ids: set[str]):
+        self.extra_allow = not self.command.meta.strict or not self.command.namespace_config.strict
+        self.command_header = Header.generate(self.command.command, self.command.prefixes, self.command.meta.compact)
+        self._compiler(self, param_ids)
+        return self
 
     def _clr(self):
         self.used_tokens.clear()

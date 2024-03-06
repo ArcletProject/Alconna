@@ -112,10 +112,9 @@ class Alconna(Subcommand, Generic[TDC]):
     behaviors: list[ArparmaBehavior]
     """命令行为器"""
 
-    @property
-    def compile(self) -> Callable[[TCompile | None], Analyser[TDC]]:
+    def compile(self, compiler: TCompile | None = None, param_ids: set[str] | None = None) -> Analyser[TDC]:
         """编译 `Alconna` 为对应的解析器"""
-        return partial(Analyser, self)
+        return Analyser(self, compiler).compile(param_ids)
 
     def __init__(
         self,
@@ -183,19 +182,17 @@ class Alconna(Subcommand, Generic[TDC]):
             namespace (Namespace | str): 命名空间
             header (bool, optional): 是否保留命令头, 默认为 `True`
         """
-        command_manager.delete(self)
-        if isinstance(namespace, str):
-            namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
-        self.namespace = namespace.name
-        self.path = f"{self.namespace}::{self.name}"
-        if header:
-            self.prefixes = namespace.prefixes.copy()
-        self.options = self.options[:-3]
-        add_builtin_options(self.options, namespace)
-        self.meta.fuzzy_match = namespace.fuzzy_match or self.meta.fuzzy_match
-        self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
-        self._hash = self._calc_hash()
-        command_manager.register(self)
+        with command_manager.update(self):
+            if isinstance(namespace, str):
+                namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
+            self.namespace = namespace.name
+            self.path = f"{self.namespace}::{self.name}"
+            if header:
+                self.prefixes = namespace.prefixes.copy()
+            self.options = self.options[:-3]
+            add_builtin_options(self.options, namespace)
+            self.meta.fuzzy_match = namespace.fuzzy_match or self.meta.fuzzy_match
+            self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
         return self
 
     def get_help(self) -> str:
@@ -312,10 +309,8 @@ class Alconna(Subcommand, Generic[TDC]):
         Returns:
             Self: 命令本身
         """
-        command_manager.delete(self)
-        self.options.insert(-3, opt)
-        self._hash = self._calc_hash()
-        command_manager.register(self)
+        with command_manager.update(self):
+            self.options.insert(-3, opt)
         return self
 
     @init_spec(Option, is_method=True)
@@ -383,20 +378,18 @@ class Alconna(Subcommand, Generic[TDC]):
     __rtruediv__ = __truediv__
 
     def __add__(self, other) -> Self:
-        command_manager.delete(self)
-        if isinstance(other, Alconna):
-            self.options.extend(other.options)
-        elif isinstance(other, CommandMeta):
-            self.meta = other
-        elif isinstance(other, Option):
-            self.options.append(other)
-        elif isinstance(other, Args):
-            self.args += other
-            self.nargs = len(self.args)
-        elif isinstance(other, str):
-            self.options.append(Option(other))
-        self._hash = self._calc_hash()
-        command_manager.register(self)
+        with command_manager.update(self):
+            if isinstance(other, Alconna):
+                self.options.extend(other.options)
+            elif isinstance(other, CommandMeta):
+                self.meta = other
+            elif isinstance(other, Option):
+                self.options.append(other)
+            elif isinstance(other, Args):
+                self.args += other
+                self.nargs = len(self.args)
+            elif isinstance(other, str):
+                self.options.append(Option(other))
         return self
 
     def __or__(self, other: Alconna) -> Self:

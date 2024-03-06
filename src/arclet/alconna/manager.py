@@ -8,7 +8,7 @@ import shelve
 import weakref
 from copy import copy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Match, MutableSet, Union
+from typing import TYPE_CHECKING, Any, Match, MutableSet, Union, Callable
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from tarina import LRU, lang
@@ -113,19 +113,9 @@ class CommandManager:
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         self.__argv.pop(command, None)
-        self.__argv[command] = __argv_type__.get()(
-            command.namespace_config,  # type: ignore
-            fuzzy_match=command.meta.fuzzy_match,  # type: ignore
-            fuzzy_threshold=command.meta.fuzzy_threshold,  # type: ignore
-            to_text=command.namespace_config.to_text,  # type: ignore
-            converter=command.namespace_config.converter,  # type: ignore
-            separators=command.separators,  # type: ignore
-            message_cache=command.namespace_config.enable_message_cache,  # type: ignore
-            filter_crlf=not command.meta.keep_crlf,  # type: ignore
-            context_style=command.meta.context_style,  # type: ignore
-        )
+        argv = self.__argv[command] = __argv_type__.get()(command.meta, command.namespace_config, command.separators)  # type: ignore
         self.__analysers.pop(command, None)
-        self.__analysers[command] = command.compile(None)
+        self.__analysers[command] = command.compile(param_ids=argv.param_ids)
         namespace = self.__commands.setdefault(command.namespace, WeakValueDictionary())
         if _cmd := namespace.get(command.name):
             if _cmd == command:
@@ -173,6 +163,25 @@ class CommandManager:
         except KeyError:
             if self.__commands.get(namespace) == {}:
                 del self.__commands[namespace]
+
+    @contextlib.contextmanager
+    def update(self, command: Alconna):
+        """同步命令更改"""
+        if command not in self.__argv:
+            raise ValueError(lang.require("manager", "undefined_command").format(target=command.path))
+        command.formatter.remove(command)
+        argv = self.__argv.pop(command)
+        analyser = self.__analysers.pop(command)
+        yield
+        command._hash = command._calc_hash()
+        argv.namespace = command.namespace_config
+        argv.separators = command.separators
+        argv.compile(command.meta)
+        argv.param_ids.clear()
+        analyser.compile(argv.param_ids)
+        self.__argv[command] = argv
+        self.__analysers[command] = analyser
+        command.formatter.add(command)
 
     def is_disable(self, command: Alconna) -> bool:
         """判断命令是否被禁用"""

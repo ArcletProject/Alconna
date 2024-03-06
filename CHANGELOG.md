@@ -1,5 +1,22 @@
 # 更新日志
 
+## Alconna 1.8.4
+
+### 新增
+
+- `command_manager.update` 上下文方法，用于修改 Alconna 对象后更新与其绑定的其他组件
+
+    ```python
+    from arclet.alconna import Args, Alconna, Option, command_manager
+    
+    alc = Alconna("test")
+    
+    with command_manager.update(alc):
+        alc.prefixes = ["!"]
+        alc.add(Option("foo", Args["bar", int]))
+    ```
+
+
 ## Alconna 1.8.3
 
 ### 修复
