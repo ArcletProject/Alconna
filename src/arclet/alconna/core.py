@@ -114,7 +114,7 @@ class Alconna(Subcommand, Generic[TDC]):
 
     def compile(self, compiler: TCompile | None = None, param_ids: set[str] | None = None) -> Analyser[TDC]:
         """编译 `Alconna` 为对应的解析器"""
-        return Analyser(self, compiler).compile(param_ids)
+        return Analyser(self, compiler).compile(set() if param_ids is None else param_ids)
 
     def __init__(
         self,
@@ -164,6 +164,7 @@ class Alconna(Subcommand, Generic[TDC]):
         _args = sum((i for i in args if isinstance(i, (Args, Arg))), Args())
         super().__init__("ALCONNA::", _args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description)  # noqa: E501
         self.name = name
+        self.aliases = frozenset((name,))
         self.behaviors = []
         for behavior in behaviors or []:
             self.behaviors.extend(requirement_handler(behavior))
@@ -189,7 +190,11 @@ class Alconna(Subcommand, Generic[TDC]):
             self.path = f"{self.namespace}::{self.name}"
             if header:
                 self.prefixes = namespace.prefixes.copy()
-            self.options = self.options[:-3]
+                name = f"{self.command or self.prefixes[0]}"  # type: ignore
+                self.dest = name
+                self.path = f"{self.namespace}::{name}"
+                self.aliases = frozenset((name,))
+            self.options = [opt for opt in self.options if not isinstance(opt, (Help, Completion, Shortcut))]
             add_builtin_options(self.options, namespace)
             self.meta.fuzzy_match = namespace.fuzzy_match or self.meta.fuzzy_match
             self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
@@ -310,7 +315,7 @@ class Alconna(Subcommand, Generic[TDC]):
             Self: 命令本身
         """
         with command_manager.update(self):
-            self.options.insert(-3, opt)
+            self.options.append(opt)
         return self
 
     @init_spec(Option, is_method=True)

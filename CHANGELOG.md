@@ -1,5 +1,11 @@
 # 更新日志
 
+## Alconna 1.8.5
+
+### 修复
+
+- 修复 `Alconna` 的 aliases (继承自subcommand的) 错误
+
 ## Alconna 1.8.4
 
 ### 新增
