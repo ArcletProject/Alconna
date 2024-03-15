@@ -41,6 +41,8 @@ class ShortcutArgs(TypedDict):
     """是否调用时保留指令前缀"""
     wrapper: NotRequired[ShortcutRegWrapper]
     """快捷指令的正则匹配结果的额外处理函数"""
+    humanized: NotRequired[str]
+    """快捷指令的人类可读描述"""
 
 
 DEFAULT_WRAPPER = lambda slot, content: content
@@ -51,9 +53,10 @@ class InnerShortcutArgs:
     args: list[Any]
     fuzzy: bool
     prefix: bool
+    prefixes: list[str]
     wrapper: ShortcutRegWrapper
 
-    __slots__ = ("command", "args", "fuzzy", "prefix", "wrapper")
+    __slots__ = ("command", "args", "fuzzy", "prefix", "prefixes", "wrapper")
 
     def __init__(
         self,
@@ -61,12 +64,14 @@ class InnerShortcutArgs:
         args: list[Any] | None = None,
         fuzzy: bool = True,
         prefix: bool = False,
+        prefixes: list[str] | None = None,
         wrapper: ShortcutRegWrapper | None = None
     ):
         self.command = command
         self.args = args or []
         self.fuzzy = fuzzy
         self.prefix = prefix
+        self.prefixes = prefixes or []
         self.wrapper = wrapper or DEFAULT_WRAPPER
 
     def __repr__(self):
@@ -101,6 +106,8 @@ class CommandMeta:
     "命令是否抛出异常"
     hide: bool = field(default=False)
     "命令是否对manager隐藏"
+    hide_shortcut: bool = field(default=False)
+    "命令的快捷指令是否在help信息中隐藏"
     keep_crlf: bool = field(default=False)
     "命令是否保留换行字符"
     compact: bool = field(default=False)

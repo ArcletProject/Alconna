@@ -1,5 +1,24 @@
 # 更新日志
 
+## Alconna 1.8.6
+
+### 改进
+
+- 帮助信息现在会显示命令的快捷指令
+
+### 新增
+
+- `Alconna.shortcut` 新增参数 `humanized`，用于指定快捷指令的可读性文本以供显示
+
+    ```python
+    from arclet.alconna import Alconna, Args
+  
+    alc = Alconna("test", Args["foo", int])
+    alc.shortcut("t(\d+)", command="test {0}", humanized="t[数字]")
+    ```
+
+- `CommandMeta` 新增属性 `hide_shortcut`, 用于在帮助信息里隐藏命令的快捷指令
+
 ## Alconna 1.8.5
 
 ### 修复

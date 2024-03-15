@@ -88,6 +88,7 @@
     "notice": "Notice",
     "usage": "Usage",
     "example": "Example",
+    "shortcuts": "Shortcut Commands",
     "subcommands": "Commands",
     "subcommands.subs": "Commands in above command",
     "subcommands.opts": "Options in above command",

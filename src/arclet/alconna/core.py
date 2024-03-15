@@ -210,10 +210,15 @@ class Alconna(Subcommand, Generic[TDC]):
         shortcuts = command_manager.get_shortcut(self)
         for key, short in shortcuts.items():
             if isinstance(short, InnerShortcutArgs):
-                result.append(key + (" ...args" if short.fuzzy else ""))
+                prefixes = f"[{'│'.join(short.prefixes)}]" if short.prefixes else ""
+                result.append(prefixes + key + (" ...args" if short.fuzzy else ""))
             else:
                 result.append(key)
         return result
+
+    def _get_shortcuts(self):
+        """返回该命令注册的快捷命令"""
+        return command_manager.get_shortcut(self)
 
     @overload
     def shortcut(self, key: str, args: ShortcutArgs | None = None) -> str:
@@ -241,6 +246,7 @@ class Alconna(Subcommand, Generic[TDC]):
         fuzzy: bool = True,
         prefix: bool = False,
         wrapper: ShortcutRegWrapper | None = None,
+        humanized: str | None = None,
     ) -> str:
         """操作快捷命令
 
@@ -251,6 +257,7 @@ class Alconna(Subcommand, Generic[TDC]):
             fuzzy (bool, optional): 是否允许命令后随参数, 默认为 `True`
             prefix (bool, optional): 是否调用时保留指令前缀, 默认为 `False`
             wrapper (ShortcutRegWrapper, optional): 快捷指令的正则匹配结果的额外处理函数, 默认为 `None`
+            humanized (str, optional): 快捷指令的人类可读描述, 默认为 `None`
 
         Returns:
             str: 操作结果

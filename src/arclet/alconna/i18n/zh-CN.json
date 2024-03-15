@@ -87,6 +87,7 @@
     "notice": "注释",
     "usage": "用法",
     "example": "使用示例",
+    "shortcuts": "快捷命令",
     "subcommands": "可用的子命令有",
     "subcommands.subs": "该子命令内可用的子命令有",
     "subcommands.opts": "该子命令内可用的选项有",

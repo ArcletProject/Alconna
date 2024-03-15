@@ -506,13 +506,18 @@ def test_shortcut():
         return content
 
     alc16_6 = Alconna("core16_6", Args["bar", str])
-    alc16_6.shortcut("test(?P<bar>.+)?", wrapper=wrapper, arguments=["{bar}"])
+    alc16_6.shortcut("test(?P<bar>.+)?", fuzzy=False, wrapper=wrapper, arguments=["{bar}"])
     assert alc16_6.parse("testabc").bar == "abc"
 
     with output_manager.capture("core16_6") as cap:
         output_manager.set_action(lambda x: x, "core16_6")
         alc16_6.parse("testhelp")
-        assert cap["output"] == "core16_6 <bar: str> \nUnknown"
+        assert cap["output"] == """\
+core16_6 <bar: str> 
+Unknown
+快捷命令:
+'test(?P<bar>.+)?' => core16_6 {bar}\
+"""
 
     alc16_7 = Alconna("core16_7", Args["bar", str])
     alc16_7.shortcut("test 123", {"args": ["abc"]})
