@@ -9,7 +9,6 @@ from nepattern.util import TPattern
 from tarina import lang
 
 from ..typing import TPrefixes
-from ..model import HeadResult
 from ._util import escape, unescape
 
 
@@ -237,7 +236,7 @@ TCompact = TypeVar("TCompact", TPattern, BasePattern, None)
 class Header(Generic[TContent, TCompact]):
     """命令头部的匹配表达式"""
 
-    __slots__ = ("origin", "content", "mapping", "compact", "compact_pattern", "flag", "handle0")
+    __slots__ = ("origin", "content", "mapping", "compact", "compact_pattern", "flag")
 
     def __init__(
         self,
@@ -254,21 +253,18 @@ class Header(Generic[TContent, TCompact]):
         self.compact_pattern: TCompact = compact_pattern  # type: ignore
 
         if isinstance(self.content, set):
-            self.handle0 = self._handle0_0  # type: ignore
             self.flag = 0
         elif isinstance(self.content, TPattern):  # type: ignore
-            self.handle0 = self._handle0_1  # type: ignore
-            self.flag = 0
-        elif isinstance(self.content, BasePattern):
             self.flag = 1
-        elif isinstance(self.content, list):
+        elif isinstance(self.content, BasePattern):
             self.flag = 2
-        else:
+        elif isinstance(self.content, list):
             self.flag = 3
+        else:
+            self.flag = 4
 
     def __repr__(self):
         if isinstance(self.content, set):
-            # origin: Tuple[str, List[str]]
             self.origin: tuple[str, list[str]]
             if not self.origin[1]:
                 return self.origin[0]
@@ -276,7 +272,6 @@ class Header(Generic[TContent, TCompact]):
                 return f"[{'│'.join(self.origin[1])}]{self.origin[0]}" if len(self.content) > 1 else f"{self.content.copy().pop()}"  # noqa: E501
             return '│'.join(self.origin[1])
         if isinstance(self.content, TPattern):  # type: ignore
-            # origin: Tuple[str, List[str]]
             self.origin: tuple[str, list[str]]
             if not self.origin[1]:
                 return self.origin[0]
@@ -325,29 +320,3 @@ class Header(Generic[TContent, TCompact]):
             if isinstance(prefixes[0], tuple):
                 raise TypeError(lang.require("header", "prefix_error"))
             return cls((_cmd, prefixes), Double(prefixes, _cmd), {}, compact)
-
-    if TYPE_CHECKING:
-        def handle0(self, head_text: str, rbfn: Callable[..., Any]) -> HeadResult | None:
-            ...
-
-    def _handle0_0(self: "Header[set[str], TPattern]", head_text: str, rbfn: Callable[..., Any]):
-        if head_text in self.content:
-            return HeadResult(head_text, head_text, True, fixes=self.mapping)
-        if self.compact and (mat := self.compact_pattern.match(head_text)):
-            rbfn(head_text[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True, mat.groupdict(), self.mapping)
-
-    def _handle0_1(self: "Header[TPattern, TPattern]", head_text: str, rbfn: Callable[..., Any]):
-        if mat := self.content.fullmatch(head_text):
-            return HeadResult(head_text, head_text, True, mat.groupdict(), self.mapping)
-        if self.compact and (mat := self.compact_pattern.match(head_text)):
-            rbfn(head_text[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True, mat.groupdict(), self.mapping)
-
-    def handle1(self: "Header[BasePattern, BasePattern]", head_text: Any, _str: bool, rbfn: Callable[..., Any]) -> HeadResult | None:
-        if (val := self.content.validate(head_text)).success:
-            return HeadResult(head_text, val._value, True, fixes=self.mapping)
-        if self.compact and (val := self.compact_pattern.validate(head_text)).success:
-            if _str:
-                rbfn(head_text[len(str(val._value)):], replace=True)
-            return HeadResult(val.value, val._value, True, fixes=self.mapping)

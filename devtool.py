@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from arclet.alconna._internal._analyser import Analyser, default_compiler
 from arclet.alconna._internal._handlers import analyse_args as ala
-from arclet.alconna._internal._handlers import analyse_header as alh
+from arclet.alconna._internal._handlers import HEAD_HANDLES
 from arclet.alconna._internal._handlers import analyse_option as alo
 from arclet.alconna._internal._header import Header
 from arclet.alconna.args import Args
@@ -74,7 +74,7 @@ def analyse_header(
     try:
         argv.enter(kwargs)
         argv.build(command)
-        return alh(command_header, argv)
+        return HEAD_HANDLES[command_header.flag](command_header, argv)
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

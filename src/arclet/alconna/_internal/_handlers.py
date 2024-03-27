@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, Callable
 
-from nepattern import ANY, STRING, AnyString, BasePattern
+from nepattern import ANY, STRING, AnyString, BasePattern, TPattern
 from tarina import Empty, lang, safe_eval, split_once
+from typing_extensions import NoReturn
 
 from ..action import Action
 from ..args import Arg, Args
@@ -15,7 +16,7 @@ from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, Pause
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
 from ..typing import KWBool, MultiKeyWordVar, MultiVar, ShortcutRegWrapper
-from ._header import Double, Header
+from ._header import Double, Header, Pair
 from ._util import escape, levenshtein, unescape
 
 if TYPE_CHECKING:
@@ -468,36 +469,87 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
     return True
 
 
-def analyse_header(header: Header, argv: Argv) -> HeadResult:
-    """分析头部
-
-    Args:
-        header (Header): 头部
-        argv (Argv): 命令行参数
-
-    Returns:
-        HeadResult: 分析结果
-    """
+def _header_handle0(header: "Header[set[str], TPattern]", argv: Argv):
     content = header.content
-    mapping = header.mapping
     head_text, _str = argv.next()
-    if _str and header.flag == 0 and (res := header.handle0(head_text, argv.rollback)):
-        return res
-    if header.flag == 1 and (res := header.handle1(head_text, _str, argv.rollback)):
-        return res
-
+    if _str:
+        if head_text in content:
+            return HeadResult(head_text, head_text, True, fixes=header.mapping)
+        if header.compact and (mat := header.compact_pattern.match(head_text)):
+            argv.rollback(head_text[len(mat[0]):], replace=True)
+            return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
     may_cmd, _m_str = argv.next()
-    if _m_str and header.flag == 0 and (res := header.handle0(f"{head_text}{argv.separators[0]}{may_cmd}", argv.rollback)):
-        return res
+    if _m_str:
+        cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
+        if cmd in content:
+            return HeadResult(cmd, cmd, True, fixes=header.mapping)
+        if header.compact and (mat := header.compact_pattern.match(cmd)):
+            argv.rollback(cmd[len(mat[0]):], replace=True)
+            return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
+    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
 
-    if content.__class__ is list and _m_str:
-        for pair in content:
+
+def _header_handle1(header: "Header[TPattern, TPattern]", argv: Argv):
+    content = header.content
+    head_text, _str = argv.next()
+    if _str:
+        if mat := content.fullmatch(head_text):
+            return HeadResult(head_text, head_text, True, mat.groupdict(), header.mapping)
+        if header.compact and (mat := header.compact_pattern.match(head_text)):
+            argv.rollback(head_text[len(mat[0]):], replace=True)
+            return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
+    may_cmd, _m_str = argv.next()
+    if _m_str:
+        cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
+        if mat := content.fullmatch(cmd):
+            return HeadResult(cmd, cmd, True, mat.groupdict(), header.mapping)
+        if header.compact and (mat := header.compact_pattern.match(cmd)):
+            argv.rollback(cmd[len(mat[0]):], replace=True)
+            return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
+    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
+
+
+def _header_handle2(header: "Header[BasePattern, BasePattern]", argv: Argv):
+    head_text, _str = argv.next()
+    if (val := header.content.validate(head_text)).success:
+        return HeadResult(head_text, val._value, True, fixes=header.mapping)
+    if header.compact and (val := header.compact_pattern.validate(head_text)).success:
+        if _str:
+            argv.rollback(head_text[len(str(val._value)):], replace=True)
+        return HeadResult(val.value, val._value, True, fixes=header.mapping)
+    may_cmd, _m_str = argv.next()
+    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
+
+
+def _header_handle3(header: "Header[list[Pair], Any]", argv: Argv):
+    head_text, _str = argv.next()
+    may_cmd, _m_str = argv.next()
+    if _m_str:
+        for pair in header.content:
             if res := pair.match(head_text, may_cmd, argv.rollback, header.compact):
-                return HeadResult(*res, fixes=mapping)
-    if content.__class__ is Double and (
-        res := content.match(head_text, may_cmd, _str, _m_str, argv.rollback, header.compact)
-    ):
-        return HeadResult(*res, fixes=mapping)
+                return HeadResult(*res, fixes=header.mapping)
+    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
+
+
+def _header_handle4(header: "Header[Double, Any]", argv: Argv):
+    head_text, _str = argv.next()
+    may_cmd, _m_str = argv.next()
+
+    if res := header.content.match(head_text, may_cmd, _str, _m_str, argv.rollback, header.compact):
+        return HeadResult(*res, fixes=header.mapping)
+    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
+
+
+HEAD_HANDLES: dict[int, Callable[[Header, Argv], HeadResult]] = {
+    0: _header_handle0,
+    1: _header_handle1,
+    2: _header_handle2,
+    3: _header_handle3,
+    4: _header_handle4,
+}
+
+
+def _after_analyse_header(header: Header, argv: Argv, head_text: Any, may_cmd: Any, _str: bool, _m_str: bool) -> NoReturn:
     if _str:
         argv.rollback(may_cmd)
         if argv.fuzzy_match:

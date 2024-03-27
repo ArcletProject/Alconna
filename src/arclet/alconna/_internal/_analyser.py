@@ -27,10 +27,10 @@ from ..model import HeadResult, OptionResult, Sentence, SubcommandResult
 from ..output import output_manager
 from ..typing import TDC, InnerShortcutArgs
 from ._handlers import (
+    HEAD_HANDLES,
     _handle_shortcut_data,
     _handle_shortcut_reg,
     analyse_args,
-    analyse_header,
     analyse_param,
     handle_completion,
     handle_help,
@@ -252,6 +252,8 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
     """已使用的token"""
     command_header: Header
     """命令头部"""
+    header_handler: Callable[[Header, Argv], HeadResult]
+    """头部处理器"""
 
     def __init__(self, alconna: Alconna[TDC], compiler: TCompile | None = None):
         """初始化解析器
@@ -267,6 +269,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
     def compile(self, param_ids: set[str]):
         self.extra_allow = not self.command.meta.strict or not self.command.namespace_config.strict
         self.command_header = Header.generate(self.command.command, self.command.prefixes, self.command.meta.compact)
+        self.header_handler = HEAD_HANDLES[self.command_header.flag]
         self._compiler(self, param_ids)
         return self
 
@@ -340,7 +343,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
         if argv.message_cache and argv.token in self.used_tokens and (res := command_manager.get_record(argv.token)):
             return res
         try:
-            self.header_result = analyse_header(self.command_header, argv)
+            self.header_result = self.header_handler(self.command_header, argv)
         except InvalidParam as e:
             _next = e.args[1]
             if _next.__class__ is not str or not _next:
