@@ -4,7 +4,6 @@ import re
 from typing import TYPE_CHECKING, Any, Iterable
 
 from nepattern import ANY, STRING, AnyString, BasePattern
-from nepattern.util import TPattern
 from tarina import Empty, lang, safe_eval, split_once
 
 from ..action import Action
@@ -87,7 +86,7 @@ def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict
             break
         if _str and may_arg in config.remainders:
             break
-        if _str and kwonly_seps and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:  # noqa: E501
+        if _str and kwonly_seps and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:  # noqa: E501  # type: ignore
             argv.rollback(may_arg)
             break
         if _str and args.argument.vars_keyword and args.argument.vars_keyword[0][0].base.sep in may_arg:
@@ -168,7 +167,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
         if _str and may_arg in config.remainders:
             break
         key, _m_arg = split_once(may_arg, kwonly_seps1, argv.filter_crlf)
-        _key = pat.match(key)["name"]
+        _key = pat.match(key)["name"]  # type: ignore
         if _key not in args.argument.keyword_only:
             _key = key
         if _key not in args.argument.keyword_only:
@@ -351,20 +350,22 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
         _data, _index = argv.data_set()
         try:
             if param.__class__ is Option:
-                if param.requires and analyser.sentences != param.requires:
+                oparam: Option = param  # type: ignore
+                if oparam.requires and analyser.sentences != oparam.requires:
                     return lang.require("option", "require_error").format(
-                        source=param.name, target=" ".join(analyser.sentences)
+                        source=oparam.name, target=" ".join(analyser.sentences)
                     )
-                analyse_option(analyser, argv, param)
+                analyse_option(analyser, argv, oparam)
             else:
-                if param.command.requires and analyser.sentences != param.command.requires:
+                sparam: SubAnalyser = param  # type: ignore
+                if sparam.command.requires and analyser.sentences != sparam.command.requires:
                     return lang.require("subcommand", "require_error").format(
-                        source=param.command.name, target=" ".join(analyser.sentences)
+                        source=sparam.command.name, target=" ".join(analyser.sentences)
                     )
                 try:
-                    param.process(argv)
+                    sparam.process(argv)
                 finally:
-                    analyser.subcommands_result[param.command.dest] = param.result()
+                    analyser.subcommands_result[sparam.command.dest] = sparam.result()
             _data.clear()
             return True
         except InvalidParam as e:
@@ -417,14 +418,16 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         analyser.sentences.append(argv.next()[0])
         return True
     if _param.__class__ is Option:
-        if _param.requires and analyser.sentences != _param.requires:
+        oparam: Option = _param  # type: ignore
+        if oparam.requires and analyser.sentences != oparam.requires:
             raise InvalidParam(
-                lang.require("option", "require_error").format(source=_param.name, target=" ".join(analyser.sentences))
+                lang.require("option", "require_error").format(source=oparam.name, target=" ".join(analyser.sentences))
             )
-        analyse_option(analyser, argv, _param)
+        analyse_option(analyser, argv, oparam)
     elif _param.__class__ is list:
         exc: Exception | None = None
-        for opt in _param:
+        lparam: list[Option] = _param  # type: ignore
+        for opt in lparam:
             _data, _index = argv.data_set()
             try:
                 if opt.requires and analyser.sentences != opt.requires:
@@ -444,16 +447,17 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         if exc:
             raise exc  # type: ignore  # noqa
     elif _param is not None:
-        if _param.command.requires and analyser.sentences != _param.command.requires:
+        sparam: SubAnalyser = _param  # type: ignore
+        if sparam.command.requires and analyser.sentences != sparam.command.requires:
             raise InvalidParam(
                 lang.require("subcommand", "require_error").format(
-                    source=_param.command.name, target=" ".join(analyser.sentences)
+                    source=sparam.command.name, target=" ".join(analyser.sentences)
                 )
             )
         try:
-            _param.process(argv)
+            sparam.process(argv)
         finally:
-            analyser.subcommands_result[_param.command.dest] = _param.result()
+            analyser.subcommands_result[sparam.command.dest] = sparam.result()
     elif analyser.extra_allow:
         analyser.args_result.setdefault("$extra", []).append(_text)
         argv.next(seps, move=True)
@@ -477,34 +481,15 @@ def analyse_header(header: Header, argv: Argv) -> HeadResult:
     content = header.content
     mapping = header.mapping
     head_text, _str = argv.next()
-    if _str:
-        if content.__class__ is set and head_text in content:
-            return HeadResult(head_text, head_text, True, fixes=mapping)
-        elif content.__class__ is TPattern and (mat := content.fullmatch(head_text)):
-            return HeadResult(head_text, head_text, True, mat.groupdict(), mapping)
-        if header.compact and content.__class__ in (set, TPattern) and (mat := header.compact_pattern.match(head_text)):
-            argv.rollback(head_text[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True, mat.groupdict(), mapping)
-    if isinstance(content, BasePattern):
-        if (val := content.validate(head_text)).success:
-            return HeadResult(head_text, val._value, True, fixes=mapping)
-        if header.compact and (val := header.compact_pattern.validate(head_text)).success:
-            if _str:
-                argv.rollback(head_text[len(str(val._value)):], replace=True)
-            return HeadResult(val.value, val._value, True, fixes=mapping)
+    if _str and header.flag == 0 and (res := header.handle0(head_text, argv.rollback)):
+        return res
+    if header.flag == 1 and (res := header.handle1(head_text, _str, argv.rollback)):
+        return res
 
     may_cmd, _m_str = argv.next()
-    if _m_str:
-        cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
-        if content.__class__ is set and cmd in content:
-            return HeadResult(cmd, cmd, True, fixes=mapping)
-        elif content.__class__ is TPattern and (mat := content.fullmatch(cmd)):
-            return HeadResult(cmd, cmd, True, mat.groupdict(), mapping)
-        if header.compact and content.__class__ in (set, TPattern) and (
-            mat := header.compact_pattern.match(cmd)
-        ):
-            argv.rollback(cmd[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True, mat.groupdict(), mapping)
+    if _m_str and header.flag == 0 and (res := header.handle0(f"{head_text}{argv.separators[0]}{may_cmd}", argv.rollback)):
+        return res
+
     if content.__class__ is list and _m_str:
         for pair in content:
             if res := pair.match(head_text, may_cmd, argv.rollback, header.compact):
@@ -742,7 +727,7 @@ def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
     if isinstance(_trigger, Arg):
         return _prompt_unit(analyser, argv, _trigger)
     elif isinstance(_trigger, Subcommand):
-        return [Prompt(i) for i in analyser.get_sub_analyser(_trigger).compile_params]
+        return [Prompt(i) for i in analyser.get_sub_analyser(_trigger).compile_params]  # type: ignore
     elif isinstance(_trigger, str):
         res = list(filter(lambda x: _trigger in x, analyser.compile_params))
         if not res:

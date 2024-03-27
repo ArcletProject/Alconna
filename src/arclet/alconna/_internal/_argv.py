@@ -83,7 +83,7 @@ class Argv(Generic[TDC]):
         self.fuzzy_match = meta.fuzzy_match
         self.fuzzy_threshold = meta.fuzzy_threshold
         self.to_text = self.namespace.to_text
-        self.converter = self.namespace.converter
+        self.converter = self.namespace.converter or self.converter  # type: ignore
         self.message_cache = self.namespace.enable_message_cache
         self.filter_crlf = not meta.keep_crlf
         self.context_style = meta.context_style

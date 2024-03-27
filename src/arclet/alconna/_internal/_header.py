@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import re
 from inspect import isclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, Generic
 
 from nepattern import BasePattern, MatchMode, UnionPattern, all_patterns, parser
 from nepattern.util import TPattern
 from tarina import lang
 
 from ..typing import TPrefixes
+from ..model import HeadResult
 from ._util import escape, unescape
 
 
@@ -54,41 +55,43 @@ def handle_bracket(name: str, mapping: dict):
     return unescape("".join(parts)), True
 
 
-class Pair:
+TP = TypeVar("TP", TPattern, str)
+
+
+class Pair(Generic[TP]):
     """用于匹配前缀和命令的配对"""
 
     __slots__ = ("prefix", "pattern", "is_prefix_pat", "gd_supplier", "_match")
 
-    def _match1(self, command: str, pbfn: Callable[..., Any], comp: bool):
+    def _match1(self: "Pair[str]", command: str, rbfn: Callable[..., Any], comp: bool):
         if command == self.pattern:
             return command, None
         if comp and command.startswith(self.pattern):
-            pbfn(command[len(self.pattern):], replace=True)
+            rbfn(command[len(self.pattern):], replace=True)
             return self.pattern, None
         return None, None
-    
-    def _match2(self, command: str, pbfn: Callable[..., Any], comp: bool):
+
+    def _match2(self: "Pair[TPattern]", command: str, rbfn: Callable[..., Any], comp: bool):
         if mat := self.pattern.fullmatch(command):
             return command, mat
         if comp and (mat := self.pattern.match(command)):
-            pbfn(command[len(mat[0]):], replace=True)
+            rbfn(command[len(mat[0]):], replace=True)
             return mat[0], mat
         return None, None
 
-    def __init__(self, prefix: Any, pattern: TPattern | str):
+    def __init__(self, prefix: Any, pattern: TP):
         self.prefix = prefix
-        self.pattern = pattern
+        self.pattern: TP = pattern
         self.is_prefix_pat = isinstance(self.prefix, BasePattern)
         if isinstance(self.pattern, str):
             self.gd_supplier = lambda mat: None
-            self._match = self._match1
+            self._match = self._match1  # type: ignore
         else:
             self.gd_supplier = lambda mat: mat.groupdict()
-            self._match = self._match2
+            self._match = self._match2  # type: ignore
 
-
-    def match(self, _pf: Any, command: str, pbfn: Callable[..., Any], comp: bool):
-        cmd, mat = self._match(command, pbfn, comp)
+    def match(self, _pf: Any, command: str, rbfn: Callable[..., Any], comp: bool):
+        cmd, mat = self._match(command, rbfn, comp)
         if cmd is None:
             return
         if self.is_prefix_pat and (val := self.prefix.validate(_pf)).success:
@@ -102,11 +105,17 @@ class Pair:
         return f"({prefix}{pattern!r})"
 
 
-class Double:
+TC = TypeVar("TC", TPattern, BasePattern)
+TP1 = TypeVar("TP1", TPattern, "set[str] | None")
+
+
+class Double(Generic[TC, TP1]):
     """用于匹配前缀和命令的组合"""
 
-    command: TPattern | BasePattern
-    comp_pattern: TPattern | BasePattern
+    command: TC
+    comp_pattern: TC
+    prefix: TP1
+    flag: int
 
     def __init__(
         self,
@@ -122,50 +131,54 @@ class Double:
                 patterns.append(h)
             else:
                 patterns.append(parser(h))
-        self.patterns = UnionPattern(patterns)
+        self.patterns: UnionPattern = UnionPattern(patterns)
         if isinstance(command, BasePattern):
-            self.command = command
-            self.prefix = set(texts) if texts else None
-            self.comp_pattern = prefixed(command)
-            self.cmd_type = 0
-            self.match = self.match0
+            _self0: Double[BasePattern, set[str] | None] = self  # type: ignore
+            _self0.command = command
+            _self0.prefix = set(texts) if texts else None
+            _self0.comp_pattern = prefixed(command)
+            _self0.flag = 0
+            _self0.match = _self0.match0
         elif not texts:
-            self.prefix = None
-            self.command = re.compile(command)
-            self.comp_pattern = re.compile(f"^{command}")
-            self.cmd_type = 1
-            self.match = self.match1
+            _self1: Double[TPattern, None] = self  # type: ignore
+            _self1.prefix = None
+            _self1.command = re.compile(command)
+            _self1.comp_pattern = re.compile(f"^{command}")
+            _self1.flag = 1
+            _self1.match = _self1.match1
         else:
+            _self2: Double[TPattern, TPattern] = self  # type: ignore
             prf = "|".join(re.escape(h) for h in texts)
-            self.prefix = re.compile(f"(?:{prf}){command}")
-            self.command = re.compile(command)
-            self.cmd_type = 2
-            self.comp_pattern = re.compile(f"^(?:{prf}){command}")
-            self.match = self.match2
+            _self2.prefix = re.compile(f"(?:{prf}){command}")
+            _self2.command = re.compile(command)
+            _self2.flag = 2
+            _self2.comp_pattern = re.compile(f"^(?:{prf}){command}")
+            _self2.match = _self2.match2
 
     def __repr__(self):
-        if self.cmd_type == 0:
+        if self.flag == 0:
             if self.prefix:
                 return f"[{'│'.join(self.prefix)}]{self.command}"  # type: ignore
             return str(self.command)
-        if self.cmd_type == 1:
+        if self.flag == 1:
             return self.command.pattern
+        _self: Double[TPattern, TPattern] = self  # type: ignore
         cmd = self.command.pattern
-        prefixes = [str(self.patterns).replace("|", "│")]
-        for pf in self.prefix.pattern[:-len(cmd)][3:-1].split("|"):
+        prefixes = [str(_self.patterns).replace("|", "│")]
+        for pf in _self.prefix.pattern[:-len(cmd)][3:-1].split("|"):
             for c in '()[]{}?*+-|^$\\.&~# \t\n\r\v\f':
                 if f"\\{c}" in pf:
                     pf = pf.replace(f"\\{c}", c)
             prefixes.append(pf)
         return f"[{'│'.join(prefixes)}]{cmd}"
 
-    def match0(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., Any], comp: bool):
+    def match0(self: "Double[BasePattern, set[str] | None]", pf: Any, cmd: Any, p_str: bool, c_str: bool, rbfn: Callable[..., Any], comp: bool):
         if self.prefix and p_str and pf in self.prefix:
             if (val := self.command.validate(cmd)).success:
                 return (pf, cmd), (pf, val._value), True, None
             if comp and (val := self.comp_pattern.validate(cmd)).success:
                 if c_str:
-                    pbfn(cmd[len(str(val._value)):], replace=True)
+                    rbfn(cmd[len(str(val._value)):], replace=True)
                 return (pf, cmd), (pf, cmd[:len(str(val._value))]), True, None
             return
         if (val := self.patterns.validate(pf)).success:
@@ -173,77 +186,98 @@ class Double:
                 return (pf, cmd), (val._value, val2._value), True, None
             if comp and (val2 := self.comp_pattern.validate(cmd)).success:
                 if c_str:
-                    pbfn(cmd[len(str(val2._value)):], replace=True)
+                    rbfn(cmd[len(str(val2._value)):], replace=True)
                 return (pf, cmd), (val._value, cmd[:len(str(val2._value))]), True, None
             return
 
-    def match1(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., Any], comp: bool):
+    def match1(self: "Double[TPattern, None]", pf: Any, cmd: Any, p_str: bool, c_str: bool, rbfn: Callable[..., Any], comp: bool):
         if p_str or not c_str:
             return
         if (val := self.patterns.validate(pf)).success and (mat := self.command.fullmatch(cmd)):
             return (pf, cmd), (val._value, cmd), True, mat.groupdict()
         if comp and (mat := self.comp_pattern.match(cmd)):
-            pbfn(cmd[len(mat[0]):], replace=True)
+            rbfn(cmd[len(mat[0]):], replace=True)
             return (pf, cmd), (pf, mat[0]), True, mat.groupdict()
 
-    def match2(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., Any], comp: bool):
+    def match2(self: "Double[TPattern, TPattern]", pf: Any, cmd: Any, p_str: bool, c_str: bool, rbfn: Callable[..., Any], comp: bool):
         if not p_str and not c_str:
             return
         if p_str:
             if mat := self.prefix.fullmatch(pf):
-                pbfn(cmd)
+                rbfn(cmd)
                 return pf, pf, True, mat.groupdict()
             if comp and (mat := self.comp_pattern.match(pf)):
-                pbfn(cmd)
-                pbfn(pf[len(mat[0]):], replace=True)
+                rbfn(cmd)
+                rbfn(pf[len(mat[0]):], replace=True)
                 return mat[0], mat[0], True, mat.groupdict()
             if not c_str:
                 return
             if mat := self.prefix.fullmatch((name := pf + cmd)):
                 return name, name, True, mat.groupdict()
             if comp and (mat := self.comp_pattern.match(name)):
-                pbfn(name[len(mat[0]):], replace=True)
+                rbfn(name[len(mat[0]):], replace=True)
                 return mat[0], mat[0], True, mat.groupdict()
             return
         if (val := self.patterns.validate(pf)).success:
             if mat := self.command.fullmatch(cmd):
                 return (pf, cmd), (val._value, cmd), True, mat.groupdict()
             if comp and (mat := self.command.match(cmd)):
-                pbfn(cmd[len(mat[0]):], replace=True)
+                rbfn(cmd[len(mat[0]):], replace=True)
                 return (pf, cmd), (val._value, mat[0]), True, mat.groupdict()
 
     if TYPE_CHECKING:
-        def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, pbfn: Callable[..., Any], comp: bool) -> Any:
+        def match(self, pf: Any, cmd: Any, p_str: bool, c_str: bool, rbfn: Callable[..., Any], comp: bool) -> Any:
             ...
 
 
-class Header:
+TContent = TypeVar("TContent", TPattern, "set[str]", "list[Pair]", Double, BasePattern)
+TCompact = TypeVar("TCompact", TPattern, BasePattern, None)
+
+
+class Header(Generic[TContent, TCompact]):
     """命令头部的匹配表达式"""
 
-    __slots__ = ("origin", "content", "mapping", "compact", "compact_pattern")
+    __slots__ = ("origin", "content", "mapping", "compact", "compact_pattern", "flag", "handle0")
 
     def __init__(
         self,
-        origin: tuple[str | type | BasePattern, TPrefixes],
+        origin: tuple[str | BasePattern, TPrefixes],
         content: set[str] | TPattern | BasePattern | list[Pair] | Double,
         mapping: dict[str, BasePattern] | None = None,
         compact: bool = False,
         compact_pattern: TPattern | BasePattern | None = None,
     ):
-        self.origin = origin
-        self.content = content
+        self.origin = origin  # type: ignore
+        self.content: TContent = content  # type: ignore
         self.mapping = mapping or {}
         self.compact = compact
-        self.compact_pattern = compact_pattern
+        self.compact_pattern: TCompact = compact_pattern  # type: ignore
+
+        if isinstance(self.content, set):
+            self.handle0 = self._handle0_0  # type: ignore
+            self.flag = 0
+        elif isinstance(self.content, TPattern):  # type: ignore
+            self.handle0 = self._handle0_1  # type: ignore
+            self.flag = 0
+        elif isinstance(self.content, BasePattern):
+            self.flag = 1
+        elif isinstance(self.content, list):
+            self.flag = 2
+        else:
+            self.flag = 3
 
     def __repr__(self):
         if isinstance(self.content, set):
+            # origin: Tuple[str, List[str]]
+            self.origin: tuple[str, list[str]]
             if not self.origin[1]:
                 return self.origin[0]
             if self.origin[0]:
                 return f"[{'│'.join(self.origin[1])}]{self.origin[0]}" if len(self.content) > 1 else f"{self.content.copy().pop()}"  # noqa: E501
             return '│'.join(self.origin[1])
-        if isinstance(self.content, TPattern):
+        if isinstance(self.content, TPattern):  # type: ignore
+            # origin: Tuple[str, List[str]]
+            self.origin: tuple[str, list[str]]
             if not self.origin[1]:
                 return self.origin[0]
             return f"[{'│'.join(self.origin[1])}]{self.origin[0]}"
@@ -268,15 +302,17 @@ class Header:
             if not prefixes:
                 cmd = re.compile(_cmd) if to_regex else {_cmd}
                 return cls((command, prefixes), cmd, mapping, compact, re.compile(f"^{_cmd}"))
-            if isinstance(prefixes[0], tuple):
+            if isinstance(prefixes[0], tuple):  # prefixes: List[Tuple[Any, str]]
+                _prefixes: list[tuple[Any, str]] = prefixes  # type: ignore
                 return cls(
                     (command, prefixes),
-                    [Pair(h[0], re.compile(re.escape(h[1]) + _cmd) if to_regex else h[1] + _cmd) for h in prefixes],
+                    [Pair(h[0], re.compile(re.escape(h[1]) + _cmd) if to_regex else h[1] + _cmd) for h in _prefixes],
                     mapping,
                     compact,
                 )
             if all(isinstance(h, str) for h in prefixes):
-                prf = "|".join(re.escape(h) for h in prefixes)
+                _prefixes: list[str] = prefixes  # type: ignore
+                prf = "|".join(re.escape(h) for h in _prefixes)
                 compp = re.compile(f"^(?:{prf}){_cmd}")
                 if to_regex:
                     return cls((command, prefixes), re.compile(f"(?:{prf}){_cmd}"), mapping, compact, compp)
@@ -285,7 +321,33 @@ class Header:
         else:
             _cmd = parser(command)
             if not prefixes:
-                return cls((command, prefixes), _cmd, {}, compact, prefixed(_cmd))
+                return cls((_cmd, prefixes), _cmd, {}, compact, prefixed(_cmd))
             if isinstance(prefixes[0], tuple):
                 raise TypeError(lang.require("header", "prefix_error"))
-            return cls((command, prefixes), Double(prefixes, _cmd), {}, compact)
+            return cls((_cmd, prefixes), Double(prefixes, _cmd), {}, compact)
+
+    if TYPE_CHECKING:
+        def handle0(self, head_text: str, rbfn: Callable[..., Any]) -> HeadResult | None:
+            ...
+
+    def _handle0_0(self: "Header[set[str], TPattern]", head_text: str, rbfn: Callable[..., Any]):
+        if head_text in self.content:
+            return HeadResult(head_text, head_text, True, fixes=self.mapping)
+        if self.compact and (mat := self.compact_pattern.match(head_text)):
+            rbfn(head_text[len(mat[0]):], replace=True)
+            return HeadResult(mat[0], mat[0], True, mat.groupdict(), self.mapping)
+
+    def _handle0_1(self: "Header[TPattern, TPattern]", head_text: str, rbfn: Callable[..., Any]):
+        if mat := self.content.fullmatch(head_text):
+            return HeadResult(head_text, head_text, True, mat.groupdict(), self.mapping)
+        if self.compact and (mat := self.compact_pattern.match(head_text)):
+            rbfn(head_text[len(mat[0]):], replace=True)
+            return HeadResult(mat[0], mat[0], True, mat.groupdict(), self.mapping)
+
+    def handle1(self: "Header[BasePattern, BasePattern]", head_text: Any, _str: bool, rbfn: Callable[..., Any]) -> HeadResult | None:
+        if (val := self.content.validate(head_text)).success:
+            return HeadResult(head_text, val._value, True, fixes=self.mapping)
+        if self.compact and (val := self.compact_pattern.validate(head_text)).success:
+            if _str:
+                rbfn(head_text[len(str(val._value)):], replace=True)
+            return HeadResult(val.value, val._value, True, fixes=self.mapping)
