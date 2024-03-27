@@ -908,16 +908,8 @@ def test_tips():
 
     core27 = Alconna(
         "core27",
-        Arg(
-            "arg1",
-            Literal["1", "2"],
-            Field(unmatch_tips=lambda x: f"参数arg必须是1或2哦，不能是{x}"),
-        )
-        + Arg(
-            "arg2",
-            Literal["1", "2"],
-            Field(missing_tips=lambda: "缺少了arg参数哦"),
-        ),
+        Args["arg1", Literal["1", "2"], Field(unmatch_tips=lambda x: f"参数arg必须是1或2哦，不能是{x}")],
+        Args["arg2", Literal["1", "2"], Field(missing_tips=lambda: "缺少了arg参数哦")],
     )
     assert core27.parse("core27 1 1").matched
     assert str(core27.parse("core27 3 1").error_info) == "参数arg必须是1或2哦，不能是3"

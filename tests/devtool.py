@@ -55,7 +55,7 @@ def analyse_args(
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
-        return
+        return {}
 
 
 def analyse_header(

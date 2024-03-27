@@ -20,7 +20,7 @@ alc.shortcut(
 )
 
 alc.shortcut(
-    "sin(\d+)",
+    r"sin(\d+)",
     {"command": "exec --pure-text\nimport math\nprint(math.sin({0}*math.pi/180))"},
 )
 
