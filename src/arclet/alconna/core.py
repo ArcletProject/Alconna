@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
-from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, cast, overload
 from typing_extensions import Self

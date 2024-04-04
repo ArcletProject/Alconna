@@ -176,7 +176,7 @@ class CommandManager:
         command._hash = command._calc_hash()
         argv.namespace = command.namespace_config
         argv.separators = command.separators
-        argv.compile(command.meta)
+        argv.__post_init__(command.meta)
         argv.param_ids.clear()
         analyser.compile(argv.param_ids)
         self.__argv[command] = argv
