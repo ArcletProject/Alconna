@@ -197,6 +197,7 @@ class SubAnalyser(Generic[TDC]):
         sub = argv.current_node = self.command
         name, _ = argv.next(sub.separators)
         if name not in sub.aliases:
+            argv.rollback(name)
             if not argv.fuzzy_match:
                 raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
             for al in sub.aliases:

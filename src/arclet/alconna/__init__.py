@@ -27,6 +27,7 @@ from .config import config as config
 from .config import namespace as namespace
 from .core import Alconna as Alconna
 from .duplication import Duplication as Duplication
+from .exceptions import AlconnaException as AlconnaException
 from .exceptions import InvalidArgs as InvalidArgs
 from .exceptions import InvalidParam as InvalidParam
 from .exceptions import NullMessage as NullMessage
@@ -50,7 +51,7 @@ from .typing import Nargs as Nargs
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
 
-__version__ = "1.8.7"
+__version__ = "1.8.8"
 
 # backward compatibility
 AnyOne = ANY

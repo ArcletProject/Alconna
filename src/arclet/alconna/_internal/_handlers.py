@@ -12,7 +12,7 @@ from ..args import Arg, Args
 from ..base import Option, Subcommand
 from ..completion import Prompt, comp_ctx
 from ..config import config
-from ..exceptions import ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
+from ..exceptions import AlconnaException, ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
 from ..typing import KWBool, MultiKeyWordVar, MultiVar, ShortcutRegWrapper
@@ -286,6 +286,7 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     elif name in opt.aliases:
         error = False
     if error:
+        argv.rollback(name)
         if not argv.fuzzy_match:
             raise InvalidParam(lang.require("option", "name_error").format(source=opt.dest, target=name))
         for al in opt.aliases:
@@ -365,7 +366,19 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
                     )
                 try:
                     sparam.process(argv)
-                finally:
+                except (FuzzyMatchSuccess, PauseTriggered, SpecialOptionTriggered):
+                    sparam.result()
+                    raise
+                except InvalidParam:
+                    if argv.current_node is sparam.command:
+                        sparam.result()
+                    else:
+                        analyser.subcommands_result[sparam.command.dest] = sparam.result()
+                    raise
+                except AlconnaException:
+                    analyser.subcommands_result[sparam.command.dest] = sparam.result()
+                    raise
+                else:
                     analyser.subcommands_result[sparam.command.dest] = sparam.result()
             _data.clear()
             return True
@@ -373,6 +386,8 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
             if argv.current_node.__class__ is Arg:
                 raise e
             argv.data_reset(_data, _index)
+    else:
+        return False
 
 
 def handle_opt_default(defaults: dict[str, tuple[OptionResult, Action]], data: dict[str, OptionResult]):
@@ -457,7 +472,19 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
             )
         try:
             sparam.process(argv)
-        finally:
+        except (FuzzyMatchSuccess, PauseTriggered, SpecialOptionTriggered):
+            sparam.result()
+            raise
+        except InvalidParam:
+            if argv.current_node is sparam.command:
+                sparam.result()
+            else:
+                analyser.subcommands_result[sparam.command.dest] = sparam.result()
+            raise
+        except AlconnaException:
+            analyser.subcommands_result[sparam.command.dest] = sparam.result()
+            raise
+        else:
             analyser.subcommands_result[sparam.command.dest] = sparam.result()
     elif analyser.extra_allow:
         analyser.args_result.setdefault("$extra", []).append(_text)
