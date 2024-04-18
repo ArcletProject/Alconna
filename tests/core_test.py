@@ -475,8 +475,7 @@ def test_shortcut():
     assert alc16_2.parse([1, "core16_2 True"]).matched
     res9 = alc16_2.parse("test")
     assert res9.foo is True
-    res10 = alc16_2.parse([2, "test"])
-    assert res10.foo is True
+    assert not alc16_2.parse([2, "test"]).matched
     assert not alc16_2.parse("3test").matched
 
     alc16.parse("core16 --shortcut list")

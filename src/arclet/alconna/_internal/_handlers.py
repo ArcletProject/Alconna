@@ -583,9 +583,10 @@ def _after_analyse_header(header: Header, argv: Argv, head_text: Any, may_cmd: A
             _handle_fuzzy(header, head_text, argv.fuzzy_threshold)
         raise InvalidParam(lang.require("header", "error").format(target=head_text), head_text)
     if _m_str and may_cmd:
+        cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
         if argv.fuzzy_match:
-            _handle_fuzzy(header, f"{head_text}{argv.separators[0]}{may_cmd}", argv.fuzzy_threshold)
-        raise InvalidParam(lang.require("header", "error").format(target=may_cmd), may_cmd)
+            _handle_fuzzy(header, cmd, argv.fuzzy_threshold)
+        raise InvalidParam(lang.require("header", "error").format(target=cmd), cmd)
     argv.rollback(may_cmd)
     raise InvalidParam(lang.require("header", "error").format(target=head_text), None)
 
