@@ -48,7 +48,7 @@ def _context(argv: Argv, target: Arg[Any], _arg: str):
         )
 
 
-def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any, Any], result: dict[str, Any], arg: Any, _str: bool):
+def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any, Any, Any], result: dict[str, Any], arg: Any, _str: bool):
     _arg = arg
     if _str and argv.context_style:
         _arg = _context(argv, target, _arg)

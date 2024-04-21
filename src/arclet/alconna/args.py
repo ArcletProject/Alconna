@@ -23,7 +23,7 @@ def safe_dcls_kw(**kwargs):
 
 
 _T = TypeVar("_T")
-TAValue: TypeAlias = Union[BasePattern[_T, Any], Type[_T], str]
+TAValue: TypeAlias = Union[BasePattern[_T, Any, Any], Type[_T], str]
 
 
 class ArgFlag(str, Enum):
@@ -79,7 +79,7 @@ class Arg(Generic[_T]):
 
     name: str = dc.field(compare=True, hash=True)
     """参数单元的名称"""
-    value: BasePattern[_T, Any] = dc.field(compare=False, hash=True)
+    value: BasePattern[_T, Any, Any] = dc.field(compare=False, hash=True)
     """参数单元的值"""
     field: Field[_T] = dc.field(compare=False, hash=False)
     """参数单元的字段"""

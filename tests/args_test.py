@@ -1,6 +1,6 @@
 from typing import Union
 
-from nepattern import BasePattern, Bind, MatchMode
+from nepattern import BasePattern, MatchMode, INTEGER, combine
 
 from arclet.alconna import ArgFlag, Args, KeyWordVar, Kw, Nargs
 from devtool import analyse_args
@@ -205,7 +205,7 @@ def test_func_anno():
 def test_annotated():
     from typing_extensions import Annotated
 
-    arg18 = Args["foo", Annotated[int, lambda x: x > 0]]["bar", Bind[int, lambda x: x < 0]]
+    arg18 = Args["foo", Annotated[int, lambda x: x > 0]]["bar", combine(INTEGER, validators=[lambda x: x < 0])]
     assert analyse_args(arg18, ["123 -123"]) == {"foo": 123, "bar": -123}
     assert analyse_args(arg18, ["0 0"], raise_exception=False) != {"foo": 0, "bar": 0}
 

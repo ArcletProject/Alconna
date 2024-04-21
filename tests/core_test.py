@@ -58,7 +58,7 @@ def test_alconna_multi_match():
 
 可用的子命令有:
 * 测试用例
-  test <test: Test> 
+  test <test: 'Test'> 
   该子命令内可用的选项有:
   * 输入用户名
     -u <username: str> 
@@ -913,7 +913,7 @@ def test_tips():
     assert core27.parse("core27 1 1").matched
     assert str(core27.parse("core27 3 1").error_info) == "参数arg必须是1或2哦，不能是3"
     assert str(core27.parse("core27 1").error_info) == "缺少了arg参数哦"
-    assert str(core27.parse("core27 1 3").error_info) in ("参数 '3' 不正确, 其应该符合 '1|2'", "参数 '3' 不正确, 其应该符合 '2|1'")
+    assert str(core27.parse("core27 1 3").error_info) in ("参数 '3' 不正确, 其应该符合 \"'1'|'2'\"", "参数 '3' 不正确, 其应该符合 \"'2'|'1'\"")
     assert str(core27.parse("core27").error_info) == "参数 arg1 丢失"
 
 
