@@ -534,6 +534,11 @@ Unknown
     assert alc16_9.parse("test123").bar == "123"
     assert not alc16_9.parse("test").matched
 
+    alc16_10 = Alconna("core16_10", Args["bar", str]["baz", int])
+    alc16_10.shortcut("/qux", {"command": "core16_10"})
+
+    assert alc16_10.parse('/qux "abc def.zip" 123').bar == "abc def.zip"
+
 
 def test_help():
     from arclet.alconna import output_manager

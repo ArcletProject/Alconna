@@ -20,6 +20,19 @@ def prefixed(pat: BasePattern):
     return new_pat
 
 
+regex_patterns = {
+    "str": r".+",
+    "int": r"\-?\d+",
+    "float": r"\-?\d+\.?\d*",
+    "number": r"\-?\d+(?:\.\d*)?",
+    "bool": "(?i:True|False)",
+    "list": r"\[.+?\]",
+    "tuple": r"\(.+?\)",
+    "set": r"\{.+?\}",
+    "dict": r"\{.+?\}",
+}
+
+
 def handle_bracket(name: str, mapping: dict):
     """处理字符串中的括号对并转为正则表达式"""
     pattern_map = all_patterns()
@@ -37,10 +50,11 @@ def handle_bracket(name: str, mapping: dict):
                 parts[i] = f"(?P<{res[0]}>.+)"
             elif not res[0]:
                 pat = pattern_map.get(res[1], res[1])
-                parts[i] = str(pat.pattern if isinstance(pat, BasePattern) else pat)
+                parts[i] = regex_patterns.get(res[1], str(pat.pattern if isinstance(pat, BasePattern) else pat))
             elif res[1] in pattern_map:
                 mapping[res[0]] = pattern_map[res[1]]
-                parts[i] = f"(?P<{res[0]}>{pattern_map[res[1]].pattern})"
+                pat = regex_patterns.get(res[1], str(pattern_map[res[1]].pattern))
+                parts[i] = f"(?P<{res[0]}>{pat})"
             else:
                 parts[i] = f"(?P<{res[0]}>{res[1]})"
     return unescape("".join(parts)), True

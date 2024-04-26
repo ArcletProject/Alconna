@@ -225,6 +225,8 @@ class Argv(Generic[TDC]):
             return
         if self._sep:
             _current_data = self.raw_data[self.current_index]
+            if self._sep[0] in data and data[0] not in ("'", '"'):
+                data = f"\'{data}\'"
             self.raw_data[self.current_index] = f"{data}{self._sep[0]}{_current_data}"
             return
         if self.current_index >= 1:
