@@ -1,4 +1,5 @@
 {
+  "$schema": "./.lang.schema.json",
   "common": {
     "custom_type_error": "The custom parameter type {target} can't be a type.",
     "name_empty": "You cannot give a empty name"
@@ -54,8 +55,7 @@
     "name_require": "Name of shortcut cannot be empty",
     "delete_success": "Delete shortcut: \"{shortcut}\" for {target} successfully",
     "add_success": "Add shortcut: \"{shortcut}\" for {target} successfully",
-    "recent_command_error": "command {target} is not same as recent message's command {source}",
-    "no_recent_command": "get recent message failed"
+    "recent_command_error": "command {target} is not same as recent message's command {source}"
   },
   "manager": {
     "undefined_command": "Command {target} is not defined",

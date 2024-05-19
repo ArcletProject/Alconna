@@ -1,0 +1,443 @@
+{
+  "title": "Lang Schema",
+  "description": "Schema for lang file",
+  "type": "object",
+  "minProperties": 19,
+  "maxProperties": 19,
+  "properties": {
+    "common": {
+      "title": "Common",
+      "description": "Scope 'common' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "custom_type_error": {
+          "title": "custom_type_error",
+          "description": "value of lang item type 'custom_type_error'",
+          "type": "string"
+        },
+        "name_empty": {
+          "title": "name_empty",
+          "description": "value of lang item type 'name_empty'",
+          "type": "string"
+        }
+      }
+    },
+    "completion": {
+      "title": "Completion",
+      "description": "Scope 'completion' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "node": {
+          "title": "node",
+          "description": "value of lang item type 'node'",
+          "type": "string"
+        },
+        "prompt_select": {
+          "title": "prompt_select",
+          "description": "value of lang item type 'prompt_select'",
+          "type": "string"
+        },
+        "prompt_other": {
+          "title": "prompt_other",
+          "description": "value of lang item type 'prompt_other'",
+          "type": "string"
+        },
+        "prompt_empty": {
+          "title": "prompt_empty",
+          "description": "value of lang item type 'prompt_empty'",
+          "type": "string"
+        },
+        "prompt_unavailable": {
+          "title": "prompt_unavailable",
+          "description": "value of lang item type 'prompt_unavailable'",
+          "type": "string"
+        }
+      }
+    },
+    "fuzzy": {
+      "title": "Fuzzy",
+      "description": "Scope 'fuzzy' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "matched": {
+          "title": "matched",
+          "description": "value of lang item type 'matched'",
+          "type": "string"
+        }
+      }
+    },
+    "action": {
+      "title": "Action",
+      "description": "Scope 'action' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "length_error": {
+          "title": "length_error",
+          "description": "value of lang item type 'length_error'",
+          "type": "string"
+        },
+        "args_error": {
+          "title": "args_error",
+          "description": "value of lang item type 'args_error'",
+          "type": "string"
+        },
+        "args_not_same": {
+          "title": "args_not_same",
+          "description": "value of lang item type 'args_not_same'",
+          "type": "string"
+        },
+        "args_empty": {
+          "title": "args_empty",
+          "description": "value of lang item type 'args_empty'",
+          "type": "string"
+        }
+      }
+    },
+    "argv": {
+      "title": "Argv",
+      "description": "Scope 'argv' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "null_message": {
+          "title": "null_message",
+          "description": "value of lang item type 'null_message'",
+          "type": "string"
+        }
+      }
+    },
+    "analyser": {
+      "title": "Analyser",
+      "description": "Scope 'analyser' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "param_unmatched": {
+          "title": "param_unmatched",
+          "description": "value of lang item type 'param_unmatched'",
+          "type": "string"
+        },
+        "param_missing": {
+          "title": "param_missing",
+          "description": "value of lang item type 'param_missing'",
+          "type": "string"
+        }
+      }
+    },
+    "header": {
+      "title": "Header",
+      "description": "Scope 'header' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "title": "error",
+          "description": "value of lang item type 'error'",
+          "type": "string"
+        },
+        "prefix_error": {
+          "title": "prefix_error",
+          "description": "value of lang item type 'prefix_error'",
+          "type": "string"
+        }
+      }
+    },
+    "option": {
+      "title": "Option",
+      "description": "Scope 'option' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name_error": {
+          "title": "name_error",
+          "description": "value of lang item type 'name_error'",
+          "type": "string"
+        },
+        "require_error": {
+          "title": "require_error",
+          "description": "value of lang item type 'require_error'",
+          "type": "string"
+        }
+      }
+    },
+    "subcommand": {
+      "title": "Subcommand",
+      "description": "Scope 'subcommand' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name_error": {
+          "title": "name_error",
+          "description": "value of lang item type 'name_error'",
+          "type": "string"
+        },
+        "require_error": {
+          "title": "require_error",
+          "description": "value of lang item type 'require_error'",
+          "type": "string"
+        },
+        "args_missing": {
+          "title": "args_missing",
+          "description": "value of lang item type 'args_missing'",
+          "type": "string"
+        }
+      }
+    },
+    "args": {
+      "title": "Args",
+      "description": "Scope 'args' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name_error": {
+          "title": "name_error",
+          "description": "value of lang item type 'name_error'",
+          "type": "string"
+        },
+        "name_empty": {
+          "title": "name_empty",
+          "description": "value of lang item type 'name_empty'",
+          "type": "string"
+        },
+        "value_error": {
+          "title": "value_error",
+          "description": "value of lang item type 'value_error'",
+          "type": "string"
+        },
+        "duplicate_kwargs": {
+          "title": "duplicate_kwargs",
+          "description": "value of lang item type 'duplicate_kwargs'",
+          "type": "string"
+        },
+        "duplicate_varargs": {
+          "title": "duplicate_varargs",
+          "description": "value of lang item type 'duplicate_varargs'",
+          "type": "string"
+        },
+        "exclude_mutable_args": {
+          "title": "exclude_mutable_args",
+          "description": "value of lang item type 'exclude_mutable_args'",
+          "type": "string"
+        },
+        "key_not_found": {
+          "title": "key_not_found",
+          "description": "value of lang item type 'key_not_found'",
+          "type": "string"
+        },
+        "missing": {
+          "title": "missing",
+          "description": "value of lang item type 'missing'",
+          "type": "string"
+        },
+        "key_missing": {
+          "title": "key_missing",
+          "description": "value of lang item type 'key_missing'",
+          "type": "string"
+        }
+      }
+    },
+    "shortcut": {
+      "title": "Shortcut",
+      "description": "Scope 'shortcut' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name_require": {
+          "title": "name_require",
+          "description": "value of lang item type 'name_require'",
+          "type": "string"
+        },
+        "delete_success": {
+          "title": "delete_success",
+          "description": "value of lang item type 'delete_success'",
+          "type": "string"
+        },
+        "add_success": {
+          "title": "add_success",
+          "description": "value of lang item type 'add_success'",
+          "type": "string"
+        },
+        "recent_command_error": {
+          "title": "recent_command_error",
+          "description": "value of lang item type 'recent_command_error'",
+          "type": "string"
+        }
+      }
+    },
+    "manager": {
+      "title": "Manager",
+      "description": "Scope 'manager' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "undefined_command": {
+          "title": "undefined_command",
+          "description": "value of lang item type 'undefined_command'",
+          "type": "string"
+        },
+        "incorrect_shortcut": {
+          "title": "incorrect_shortcut",
+          "description": "value of lang item type 'incorrect_shortcut'",
+          "type": "string"
+        },
+        "undefined_shortcut": {
+          "title": "undefined_shortcut",
+          "description": "value of lang item type 'undefined_shortcut'",
+          "type": "string"
+        },
+        "shortcut_parse_error": {
+          "title": "shortcut_parse_error",
+          "description": "value of lang item type 'shortcut_parse_error'",
+          "type": "string"
+        },
+        "help_header": {
+          "title": "help_header",
+          "description": "value of lang item type 'help_header'",
+          "type": "string"
+        },
+        "help_pages": {
+          "title": "help_pages",
+          "description": "value of lang item type 'help_pages'",
+          "type": "string"
+        },
+        "help_footer": {
+          "title": "help_footer",
+          "description": "value of lang item type 'help_footer'",
+          "type": "string"
+        }
+      }
+    },
+    "arparma": {
+      "title": "Arparma",
+      "description": "Scope 'arparma' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ambiguous_name": {
+          "title": "ambiguous_name",
+          "description": "value of lang item type 'ambiguous_name'",
+          "type": "string"
+        }
+      }
+    },
+    "stub": {
+      "title": "Stub",
+      "description": "Scope 'stub' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key_error": {
+          "title": "key_error",
+          "description": "value of lang item type 'key_error'",
+          "type": "string"
+        }
+      }
+    },
+    "duplication": {
+      "title": "Duplication",
+      "description": "Scope 'duplication' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stub_type_error": {
+          "title": "stub_type_error",
+          "description": "value of lang item type 'stub_type_error'",
+          "type": "string"
+        }
+      }
+    },
+    "behavior": {
+      "title": "Behavior",
+      "description": "Scope 'behavior' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exclude_matched": {
+          "title": "exclude_matched",
+          "description": "value of lang item type 'exclude_matched'",
+          "type": "string"
+        },
+        "cooldown_matched": {
+          "title": "cooldown_matched",
+          "description": "value of lang item type 'cooldown_matched'",
+          "type": "string"
+        }
+      }
+    },
+    "builtin": {
+      "title": "Builtin",
+      "description": "Scope 'builtin' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "option_help": {
+          "title": "option_help",
+          "description": "value of lang item type 'option_help'",
+          "type": "string"
+        },
+        "option_shortcut": {
+          "title": "option_shortcut",
+          "description": "value of lang item type 'option_shortcut'",
+          "type": "string"
+        },
+        "option_completion": {
+          "title": "option_completion",
+          "description": "value of lang item type 'option_completion'",
+          "type": "string"
+        }
+      }
+    },
+    "format": {
+      "title": "Format",
+      "description": "Scope 'format' of lang item",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "notice": {
+          "title": "notice",
+          "description": "value of lang item type 'notice'",
+          "type": "string"
+        },
+        "usage": {
+          "title": "usage",
+          "description": "value of lang item type 'usage'",
+          "type": "string"
+        },
+        "example": {
+          "title": "example",
+          "description": "value of lang item type 'example'",
+          "type": "string"
+        },
+        "shortcuts": {
+          "title": "shortcuts",
+          "description": "value of lang item type 'shortcuts'",
+          "type": "string"
+        },
+        "subcommands": {
+          "title": "subcommands",
+          "description": "value of lang item type 'subcommands'",
+          "type": "string"
+        },
+        "subcommands.subs": {
+          "title": "subcommands.subs",
+          "description": "value of lang item type 'subcommands.subs'",
+          "type": "string"
+        },
+        "subcommands.opts": {
+          "title": "subcommands.opts",
+          "description": "value of lang item type 'subcommands.opts'",
+          "type": "string"
+        },
+        "options": {
+          "title": "options",
+          "description": "value of lang item type 'options'",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

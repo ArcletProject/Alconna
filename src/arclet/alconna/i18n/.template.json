@@ -1,0 +1,154 @@
+
+{
+  "$schema": "./.template.schema.json",
+  "scopes": [
+    {
+      "scope": "common",
+      "types": [
+        "custom_type_error",
+        "name_empty"
+      ]
+    },
+    {
+      "scope": "completion",
+      "types": [
+        "node",
+        "prompt_select",
+        "prompt_other",
+        "prompt_empty",
+        "prompt_unavailable"
+      ]
+    },
+    {
+      "scope": "fuzzy",
+      "types": [
+        "matched"
+      ]
+    },
+    {
+      "scope": "action",
+      "types": [
+        "length_error",
+        "args_error",
+        "args_not_same",
+        "args_empty"
+      ]
+    },
+    {
+      "scope": "argv",
+      "types": [
+        "null_message"
+      ]
+    },
+    {
+      "scope": "analyser",
+      "types": [
+        "param_unmatched",
+        "param_missing"
+      ]
+    },
+    {
+      "scope": "header",
+      "types": [
+        "error",
+        "prefix_error"
+      ]
+    },
+    {
+      "scope": "option",
+      "types": [
+        "name_error",
+        "require_error"
+      ]
+    },
+    {
+      "scope": "subcommand",
+      "types": [
+        "name_error",
+        "require_error",
+        "args_missing"
+      ]
+    },
+    {
+      "scope": "args",
+      "types": [
+        "name_error",
+        "name_empty",
+        "value_error",
+        "duplicate_kwargs",
+        "duplicate_varargs",
+        "exclude_mutable_args",
+        "key_not_found",
+        "missing",
+        "key_missing"
+      ]
+    },
+    {
+      "scope": "shortcut",
+      "types": [
+        "name_require",
+        "delete_success",
+        "add_success",
+        "recent_command_error"
+      ]
+    },
+    {
+      "scope": "manager",
+      "types": [
+        "undefined_command",
+        "incorrect_shortcut",
+        "undefined_shortcut",
+        "shortcut_parse_error",
+        "help_header",
+        "help_pages",
+        "help_footer"
+      ]
+    },
+    {
+      "scope": "arparma",
+      "types": [
+        "ambiguous_name"
+      ]
+    },
+    {
+      "scope": "stub",
+      "types": [
+        "key_error"
+      ]
+    },
+    {
+      "scope": "duplication",
+      "types": [
+        "stub_type_error"
+      ]
+    },
+    {
+      "scope": "behavior",
+      "types": [
+        "exclude_matched",
+        "cooldown_matched"
+      ]
+    },
+    {
+      "scope": "builtin",
+      "types": [
+        "option_help",
+        "option_shortcut",
+        "option_completion"
+      ]
+    },
+    {
+      "scope": "format",
+      "types": [
+        "notice",
+        "usage",
+        "example",
+        "shortcuts",
+        "subcommands",
+        "subcommands.subs",
+        "subcommands.opts",
+        "options"
+      ]
+    }
+  ]
+}

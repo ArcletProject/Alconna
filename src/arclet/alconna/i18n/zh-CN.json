@@ -1,4 +1,5 @@
 {
+  "$schema": "./.lang.schema.json",
   "common": {
     "custom_type_error": "自定义参数类型传入的不是类型而是 {target}, 这是有意而为之的吗?",
     "name_empty": "名字不能为空"

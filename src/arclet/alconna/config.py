@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, ContextManager, Literal, TypedDict
 
-from tarina import lang
 
+from .i18n import lang as lang
 from .typing import DataCollection, TPrefixes
 
 if TYPE_CHECKING:
@@ -133,6 +132,5 @@ class _AlconnaConfig:
 
 
 config = _AlconnaConfig()
-lang.load(Path(__file__).parent / "i18n")
 
 __all__ = ["config", "Namespace", "namespace", "lang"]
