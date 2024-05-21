@@ -362,12 +362,23 @@ def test_requires():
 def test_wildcard():
     alc13 = Alconna("core13", Args["foo", AllParam])
     assert alc13.parse(["core13 abc def gh", 123, 5.0, "dsdf"]).foo == [
-        "abc",
-        "def",
-        "gh",
+        "abc def gh",
         123,
         5.0,
         "dsdf",
+    ]
+    assert alc13.parse(
+        """core13
+import foo
+
+def test():
+    print("Hello, World!")"""
+    ).foo == [
+        """\
+import foo
+
+def test():
+    print("Hello, World!")"""
     ]
 
 
@@ -781,12 +792,12 @@ def test_action():
     alc24 = Alconna("core24", Option("--yes|-y", action=store_true), Args["module", AllParam])
     res = alc24.parse("core24 -y abc def")
     assert res.query[bool]("yes.value") is True
-    assert res.module == ["abc", "def"]
+    assert res.module == ["abc def"]
 
     alc24_1 = Alconna("core24", Args["yes", {"--yes": True, "-y": True}, False]["module", AllParam])
     assert alc24_1.parse("core24 -y abc def").yes
     assert not alc24_1.parse("core24 abc def").yes
-    assert alc24_1.parse("core24 abc def").module == ["abc", "def"]
+    assert alc24_1.parse("core24 abc def").module == ["abc def"]
 
     alc24_2 = Alconna(
         "core24_2",

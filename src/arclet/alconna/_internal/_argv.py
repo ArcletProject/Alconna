@@ -252,12 +252,13 @@ class Argv(Generic[TDC]):
             self.bak_data.pop(self.current_index)
             self.raw_data.pop(self.current_index)
 
-    def release(self, separate: tuple[str, ...] | None = None, recover: bool = False) -> list[str | Any]:
+    def release(self, separate: tuple[str, ...] | None = None, recover: bool = False, no_split: bool = False) -> list[str | Any]:
         """获取剩余的数据
 
         Args:
             separate (tuple[str, ...] | None, optional): 分隔符.
             recover (bool, optional): 是否从头开始获取.
+            no_split (bool, optional): 是否不分割.
 
         Returns:
             list[str | Any]: 剩余的数据.
@@ -265,7 +266,9 @@ class Argv(Generic[TDC]):
         _result = []
         data = self.bak_data if recover else self.raw_data[self.current_index:]
         for _data in data:
-            if _data.__class__ is str:
+            if _data.__class__ is str and not _data:
+                continue
+            if _data.__class__ is str and not no_split:
                 _result.extend(split(_data, separate or (" ",), self.filter_crlf))
             else:
                 _result.append(_data)

@@ -235,7 +235,7 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
         value = arg.value
         if value.alias == "*":
             argv.rollback(may_arg)
-            result[arg.name] = argv.converter(argv.release(arg.separators))
+            result[arg.name] = argv.converter(argv.release(no_split=True))
             argv.current_index = argv.ndata
             return result
         _validate(argv, arg, value, result, may_arg, _str)
