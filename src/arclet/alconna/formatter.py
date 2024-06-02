@@ -285,10 +285,10 @@ class TextFormatter:
             if isinstance(short, InnerShortcutArgs):
                 _key = key + (" ...args" if short.fuzzy else "")
                 prefixes = f"[{'│'.join(short.prefixes)}]" if short.prefixes else ""
-                result.append(f"'{prefixes}{_key}' => {prefixes}{short.command} {' '.join(short.args)}")
+                result.append(f"'{prefixes}{_key}' => {prefixes}{short.command} {' '.join(map(str, short.args))}")
             else:
                 result.append(f"'{key}' => {short.origin!r}")
         return f"{lang.require('format', 'shortcuts')}:\n" + "\n".join(result)
 
 
-__all__ = ["TextFormatter", "Trace"]
+__all__ = ["TextFormatter", "Trace", "TraceHead"]

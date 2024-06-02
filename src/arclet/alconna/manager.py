@@ -33,7 +33,10 @@ class CommandManager:
 
     sign: str
     current_count: int
-    max_count: int
+
+    @property
+    def max_count(self) -> int:
+        return config.command_max_count
 
     __commands: dict[str, WeakValueDictionary[str, Alconna]]
     __analysers: WeakKeyDictionary[Alconna, Analyser]
@@ -45,7 +48,6 @@ class CommandManager:
     def __init__(self):
         self.cache_path = f"{__file__.replace('manager.py', '')}manager_cache.db"
         self.sign = "ALCONNA::"
-        self.max_count = config.command_max_count
         self.current_count = 0
 
         self.__commands = {}

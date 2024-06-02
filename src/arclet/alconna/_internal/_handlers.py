@@ -708,8 +708,8 @@ def _handle_shortcut_data(argv: Argv, data: list):
             data.clear()
             break
 
-    def recover_quote(_unit: str):
-        if any(_unit.count(sep) for sep in argv.separators) and not (_unit[0] in ('"', "'") and _unit[0] == _unit[-1]):
+    def recover_quote(_unit):
+        if isinstance(_unit, str) and any(_unit.count(sep) for sep in argv.separators) and not (_unit[0] in ('"', "'") and _unit[0] == _unit[-1]):
             return f'"{_unit}"'
         return _unit
 
