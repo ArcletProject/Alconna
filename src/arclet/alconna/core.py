@@ -5,6 +5,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, cast, overload
+
+from nepattern import TPattern
 from typing_extensions import Self
 from weakref import WeakSet
 
@@ -220,11 +222,11 @@ class Alconna(Subcommand, Generic[TDC]):
         return command_manager.get_shortcut(self)
 
     @overload
-    def shortcut(self, key: str, args: ShortcutArgs | None = None) -> str:
+    def shortcut(self, key: str | TPattern, args: ShortcutArgs | None = None) -> str:
         """操作快捷命令
 
         Args:
-            key (str): 快捷命令名
+            key (str | re.Pattern[str]): 快捷命令名, 可传入正则表达式
             args (ShortcutArgs): 快捷命令参数, 不传入时则尝试使用最近一次使用的命令
 
         Returns:
@@ -238,7 +240,7 @@ class Alconna(Subcommand, Generic[TDC]):
     @overload
     def shortcut(
         self,
-        key: str,
+        key: str | TPattern,
         *,
         command: str | None = None,
         arguments: list[Any] | None = None,
@@ -250,7 +252,7 @@ class Alconna(Subcommand, Generic[TDC]):
         """操作快捷命令
 
         Args:
-            key (str): 快捷命令名
+            key (str | re.Pattern[str]): 快捷命令名, 可传入正则表达式
             command (str): 快捷命令指向的命令
             arguments (list[Any] | None, optional): 快捷命令参数, 默认为 `None`
             fuzzy (bool, optional): 是否允许命令后随参数, 默认为 `True`
@@ -267,11 +269,11 @@ class Alconna(Subcommand, Generic[TDC]):
         ...
 
     @overload
-    def shortcut(self, key: str, *, delete: Literal[True]) -> str:
+    def shortcut(self, key: str | TPattern, *, delete: Literal[True]) -> str:
         """操作快捷命令
 
         Args:
-            key (str): 快捷命令名
+            key (str | re.Pattern[str]): 快捷命令名, 可传入正则表达式
             delete (bool): 是否删除快捷命令
 
         Returns:
@@ -282,7 +284,7 @@ class Alconna(Subcommand, Generic[TDC]):
         """
         ...
 
-    def shortcut(self, key: str, args: ShortcutArgs | None = None, delete: bool = False, **kwargs):
+    def shortcut(self, key: str | TPattern, args: ShortcutArgs | None = None, delete: bool = False, **kwargs):
         try:
             if delete:
                 return command_manager.delete_shortcut(self, key)

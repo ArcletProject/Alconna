@@ -1,6 +1,7 @@
 """Alconna 参数相关"""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, fields, is_dataclass
 from typing import (
     Any,
@@ -55,8 +56,9 @@ class InnerShortcutArgs:
     prefix: bool
     prefixes: list[str]
     wrapper: ShortcutRegWrapper
+    flags: int | re.RegexFlag
 
-    __slots__ = ("command", "args", "fuzzy", "prefix", "prefixes", "wrapper")
+    __slots__ = ("command", "args", "fuzzy", "prefix", "prefixes", "wrapper", "flags")
 
     def __init__(
         self,
@@ -65,7 +67,8 @@ class InnerShortcutArgs:
         fuzzy: bool = True,
         prefix: bool = False,
         prefixes: list[str] | None = None,
-        wrapper: ShortcutRegWrapper | None = None
+        wrapper: ShortcutRegWrapper | None = None,
+        flags: int | re.RegexFlag = 0,
     ):
         self.command = command
         self.args = args or []
@@ -73,6 +76,7 @@ class InnerShortcutArgs:
         self.prefix = prefix
         self.prefixes = prefixes or []
         self.wrapper = wrapper or DEFAULT_WRAPPER
+        self.flags = flags
 
     def __repr__(self):
         return f"ShortcutArgs({self.command!r}, args={self.args!r}, fuzzy={self.fuzzy}, prefix={self.prefix})"

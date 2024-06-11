@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from nepattern import IP, URL
 
@@ -549,6 +551,11 @@ Unknown
     alc16_10.shortcut("/qux", {"command": "core16_10"})
 
     assert alc16_10.parse(['/qux "abc def.zip"', 123]).bar == "abc def.zip"
+
+    alc16_11 = Alconna("core16_11", Args["bar", str])
+    pat = re.compile("test", re.I)
+    alc16_11.shortcut(pat, {"command": "core16_11"})
+    assert alc16_11.parse("TeSt 123").bar == "123"
 
 
 def test_help():

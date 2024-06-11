@@ -1,5 +1,11 @@
 # 更新日志
 
+## Alconna 1.8.15
+
+### 改进
+
+- `shortcut` 的 key 支持正则表达式对象 (`re.Pattern[str]`)
+
 ## Alconna 1.8.14
 
 ### 修复
