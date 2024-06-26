@@ -1,5 +1,11 @@
 # 更新日志
 
+## Alconna 1.8.16
+
+### 修复
+
+- 更改 `Alconna` 在 manager 中的索引形式以避免 `weakref.ref` 的错误行为
+
 ## Alconna 1.8.15
 
 ### 改进

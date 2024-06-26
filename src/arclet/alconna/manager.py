@@ -9,7 +9,7 @@ import weakref
 from copy import copy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Match, MutableSet, Union
-from weakref import WeakKeyDictionary, WeakValueDictionary
+from weakref import WeakValueDictionary
 
 from nepattern import TPattern
 from tarina import LRU, lang
@@ -40,8 +40,8 @@ class CommandManager:
         return config.command_max_count
 
     __commands: dict[str, WeakValueDictionary[str, Alconna]]
-    __analysers: WeakKeyDictionary[Alconna, Analyser]
-    __argv: WeakKeyDictionary[Alconna, Argv]
+    __analysers: dict[int, Analyser]
+    __argv: dict[int, Argv]
     __abandons: list[Alconna]
     __record: LRU[int, Arparma]
     __shortcuts: dict[str, tuple[dict[str, Union[Arparma, InnerShortcutArgs]], dict[str, Union[Arparma, InnerShortcutArgs]]]]
@@ -52,8 +52,8 @@ class CommandManager:
         self.current_count = 0
 
         self.__commands = {}
-        self.__argv = WeakKeyDictionary()
-        self.__analysers = WeakKeyDictionary()
+        self.__argv = {}
+        self.__analysers = {}
         self.__abandons = []
         self.__shortcuts = {}
         self.__record = LRU(128)
@@ -115,10 +115,11 @@ class CommandManager:
         """注册命令解析器, 会同时记录解析器对应的命令"""
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
-        self.__argv.pop(command, None)
-        argv = self.__argv[command] = __argv_type__.get()(command.meta, command.namespace_config, command.separators)  # type: ignore
-        self.__analysers.pop(command, None)
-        self.__analysers[command] = command.compile(param_ids=argv.param_ids)
+        cmd_hash = command._hash
+        self.__argv.pop(cmd_hash, None)
+        argv = self.__argv[cmd_hash] = __argv_type__.get()(command.meta, command.namespace_config, command.separators)  # type: ignore
+        self.__analysers.pop(cmd_hash, None)
+        self.__analysers[cmd_hash] = command.compile(param_ids=argv.param_ids)
         namespace = self.__commands.setdefault(command.namespace, WeakValueDictionary())
         if _cmd := namespace.get(command.name):
             if _cmd == command:
@@ -132,35 +133,38 @@ class CommandManager:
 
     def resolve(self, command: Alconna[TDC]) -> Argv[TDC]:
         """获取命令解析器的参数解析器"""
+        cmd_hash = command._hash
         try:
-            return self.__argv[command]
+            return self.__argv[cmd_hash]
         except KeyError as e:
             namespace, name = self._command_part(command.path)
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
     def require(self, command: Alconna[TDC]) -> Analyser[TDC]:
         """获取命令解析器"""
+        cmd_hash = command._hash
         try:
-            return self.__analysers[command]  # type: ignore
+            return self.__analysers[cmd_hash]  # type: ignore
         except KeyError as e:
             namespace, name = self._command_part(command.path)
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
     def unpack(self, commands: MutableSet[Alconna]) -> "zip[tuple[Analyser, Argv]]":
         """获取多个命令解析器"""
+        hashs = {cmd._hash for cmd in commands}
         return zip(
-            [v for k, v in self.__analysers.items() if k in commands],
-            [v for k, v in self.__argv.items() if k in commands],
+            [v for k, v in self.__analysers.items() if k in hashs],
+            [v for k, v in self.__argv.items() if k in hashs],
         )
 
-    def delete(self, command: Alconna | str) -> None:
+    def delete(self, command: Alconna) -> None:
         """删除命令"""
-        namespace, name = self._command_part(command if isinstance(command, str) else command.path)
+        namespace, name = self._command_part(command.path)
+        cmd_hash = command._hash
         try:
-            base = self.__commands[namespace][name]
-            base.formatter.remove(base)
-            del self.__argv[base]
-            del self.__analysers[base]
+            command.formatter.remove(command)
+            del self.__argv[cmd_hash]
+            del self.__analysers[cmd_hash]
             del self.__commands[namespace][name]
             self.current_count -= 1
         except KeyError:
@@ -170,20 +174,21 @@ class CommandManager:
     @contextlib.contextmanager
     def update(self, command: Alconna):
         """同步命令更改"""
-        if command not in self.__argv:
+        cmd_hash = command._hash
+        if cmd_hash not in self.__argv:
             raise ValueError(lang.require("manager", "undefined_command").format(target=command.path))
         command.formatter.remove(command)
-        argv = self.__argv.pop(command)
-        analyser = self.__analysers.pop(command)
+        argv = self.__argv.pop(cmd_hash)
+        analyser = self.__analysers.pop(cmd_hash)
         yield
-        command._hash = command._calc_hash()
+        cmd_hash = command._hash = command._calc_hash()
         argv.namespace = command.namespace_config
         argv.separators = command.separators
         argv.__post_init__(command.meta)
         argv.param_ids.clear()
         analyser.compile(argv.param_ids)
-        self.__argv[command] = argv
-        self.__analysers[command] = analyser
+        self.__argv[cmd_hash] = argv
+        self.__analysers[cmd_hash] = analyser
         command.formatter.add(command)
 
     def is_disable(self, command: Alconna) -> bool:
@@ -261,7 +266,8 @@ class CommandManager:
             dict[str, Arparma | InnerShortcutArgs]: 快捷命令的参数
         """
         namespace, name = self._command_part(target.path)
-        if target not in self.__analysers:
+        cmd_hash = target._hash
+        if cmd_hash not in self.__analysers:
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
         shortcuts = self.__shortcuts.get(f"{namespace}.{name}", {})
         if not shortcuts:
@@ -269,7 +275,7 @@ class CommandManager:
         return shortcuts[0]
 
     def find_shortcut(
-            self, target: Alconna[TDC], data: list
+        self, target: Alconna[TDC], data: list
     ) -> tuple[list, Arparma[TDC] | InnerShortcutArgs, Match[str] | None]:
         """查找快捷命令
 
@@ -333,7 +339,7 @@ class CommandManager:
     def get_commands(self, namespace: str | Namespace = "") -> list[Alconna]:
         """获取命令列表"""
         if not namespace:
-            return list(self.__analysers.keys())
+            return [ana.command for ana in self.__analysers.values()]
         if isinstance(namespace, Namespace):
             namespace = Namespace.name
         if namespace not in self.__commands:

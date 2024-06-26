@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict
-from weakref import WeakKeyDictionary
 
 from nepattern import ANY, AnyString
 from tarina import Empty, lang
@@ -89,7 +88,7 @@ class TextFormatter:
     """
 
     def __init__(self):
-        self.data: "WeakKeyDictionary[Alconna, Trace]" = WeakKeyDictionary()
+        self.data: "dict[int, Trace]" = {}
         self.ignore_names = set()
 
     def add(self, base: Alconna):
@@ -109,18 +108,18 @@ class TextFormatter:
             base.options.copy(),
             {} if base.meta.hide_shortcut else base._get_shortcuts(),
         )
-        self.data[base] = res
+        self.data[base._hash] = res
         return self
 
     def update_shortcut(self, base: Alconna):
         """更新目标命令的快捷指令"""
         if not base.meta.hide_shortcut:
-            self.data[base].shortcuts = base._get_shortcuts()
+            self.data[base._hash].shortcuts = base._get_shortcuts()
         return self
 
     def remove(self, base: Alconna):
         """移除目标命令"""
-        self.data.pop(base)
+        self.data.pop(base._hash)
 
     def format_node(self, parts: list | None = None):
         """格式化命令节点
