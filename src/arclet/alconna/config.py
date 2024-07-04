@@ -86,8 +86,18 @@ class namespace(ContextManager[Namespace]):
 
     def __init__(self, name: Namespace | str):
         """传入新建的命名空间的名称, 或者是一个存在的命名空间配置"""
-        self.np = Namespace(name) if isinstance(name, str) else name
-        self.name = self.np.name if isinstance(name, Namespace) else name
+        if isinstance(name, Namespace):
+            self.np = name
+            self.name = name.name
+            if name.name not in config.namespaces:
+                config.namespaces[name.name] = name
+        elif name in config.namespaces:
+            self.np = config.namespaces[name]
+            self.name = name
+        else:
+            self.np = Namespace(name)
+            self.name = name
+            config.namespaces[name] = self.np
         self.old = config.default_namespace
         config.default_namespace = self.np
 
@@ -95,12 +105,12 @@ class namespace(ContextManager[Namespace]):
         return self.np
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type or exc_val or exc_tb:
-            return False
         config.default_namespace = self.old
         config.namespaces[self.name] = self.np
         del self.old
         del self.np
+        if exc_type or exc_val or exc_tb:
+            return False
 
 
 class _AlconnaConfig:
