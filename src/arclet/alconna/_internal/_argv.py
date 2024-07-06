@@ -169,7 +169,7 @@ class Argv(Generic[TDC]):
             Self: 自身
         """
         for i, d in enumerate(data):
-            if not d:
+            if d is None:
                 continue
             if res := self.to_text(d):
                 d = res

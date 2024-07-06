@@ -512,7 +512,7 @@ def test_shortcut():
     assert alc16_5.parse("*core16_5 False").matched
     assert alc16_5.parse("+test").foo is True
 
-    def wrapper(slot, content):
+    def wrapper(slot, content, context):
         if content == "help":
             return "--help"
         return content
@@ -556,6 +556,21 @@ Unknown
     pat = re.compile("test", re.I)
     alc16_11.shortcut(pat, {"command": "core16_11"})
     assert alc16_11.parse("TeSt 123").bar == "123"
+
+    def wrapper1(slot, content, context):
+        if slot == 0:
+            data = {"A": 100}.get(content, 0)
+            if context.get("user"):
+                return int(f"{data}{context['user']}")
+            return data
+        return content
+
+    alc16_12 = Alconna("core16_12", Args["bar", int])
+    alc16_12.shortcut("(.+)test", fuzzy=False, wrapper=wrapper1, arguments=["{0}"])
+    assert alc16_12.parse("Atest").bar == 100
+    assert alc16_12.parse("Atest", {"user": "456"}).bar == 100456
+    assert alc16_12.parse("Btest").bar == 0
+    assert alc16_12.parse("Btest", {"user": "456"}).bar == 456
 
 
 def test_help():

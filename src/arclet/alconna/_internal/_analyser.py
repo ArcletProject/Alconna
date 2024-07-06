@@ -314,7 +314,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             if self.command.meta.raise_exception:
                 raise exc
             return self.export(argv, True, exc)
-        argv.bak_data = argv.raw_data.copy()
         argv.addon(data, merge_str=False)
         if reg:
             data = _handle_shortcut_reg(argv, reg.groups(), reg.groupdict(), short.wrapper)
@@ -322,9 +321,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             argv.ndata = 0
             argv.current_index = 0
             argv.addon(data)
-        argv.bak_data = argv.raw_data.copy()
-        if argv.message_cache:
-            argv.token = argv.generate_token(argv.raw_data)
         return self.process(argv)
 
     def process(self, argv: Argv[TDC]) -> Arparma[TDC]:

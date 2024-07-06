@@ -225,8 +225,8 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
                 result[arg.name] = de
             argv.rollback(may_arg)
             continue
-        if not may_arg:
-            argv.rollback(may_arg)
+        if may_arg is None or (_str and not may_arg):
+            # argv.rollback(may_arg)
             if (de := arg.field.default) is not Empty:
                 result[arg.name] = de
             elif not arg.optional:
@@ -732,14 +732,14 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
             if index >= len(groups):
                 continue
             slot = groups[index]
-            data.append(wrapper(index, slot))
+            data.append(wrapper(index, slot, argv.context))
             continue
         if mat := KEY_REG_SLOT.fullmatch(unit):
             key = mat[1]
             if key not in gdict:
                 continue
             slot = gdict[key]
-            data.append(wrapper(key, slot))
+            data.append(wrapper(key, slot, argv.context))
             continue
         if mat := INDEX_REG_SLOT.findall(unit):
             for index in map(int, mat):
@@ -747,14 +747,14 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
                     unit = unit.replace(f"{{{index}}}", "")
                     continue
                 slot = groups[index]
-                unit = unit.replace(f"{{{index}}}", str(wrapper(index, slot) or ""))
+                unit = unit.replace(f"{{{index}}}", str(wrapper(index, slot, argv.context) or ""))
         if mat := KEY_REG_SLOT.findall(unit):
             for key in mat:
                 if key not in gdict:
                     unit = unit.replace(f"{{{key}}}", "")
                     continue
                 slot = gdict[key]
-                unit = unit.replace(f"{{{key}}}", str(wrapper(key, slot) or ""))
+                unit = unit.replace(f"{{{key}}}", str(wrapper(key, slot, argv.context) or ""))
         if unit:
             data.append(unescape(unit))
     return data

@@ -11,9 +11,11 @@ def test_magic_create():
     assert len(arg1) == 3
     arg1 <<= Args["perm", str, ...] + ["month", int]
     assert len(arg1) == 5
-    arg11: Args = Args["baz", int]
-    arg11.add("foo", value=int, default=1)
-    assert len(arg11) == 2
+    arg1_1: Args = Args["baz", int]
+    arg1_1.add("foo", value=int, default=1)
+    assert len(arg1_1) == 2
+    assert analyse_args(arg1_1, ["0"]) == {"baz": 0, "foo": 1}
+    assert analyse_args(arg1_1, [0]) == {"baz": 0, "foo": 1}
 
 
 def test_type_convert():

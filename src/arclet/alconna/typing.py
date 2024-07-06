@@ -26,7 +26,7 @@ DataUnit = TypeVar("DataUnit", covariant=True)
 
 
 class ShortcutRegWrapper(Protocol):
-    def __call__(self, slot: int | str, content: str | None) -> Any: ...
+    def __call__(self, slot: int | str, content: str | None, context: dict[str, Any]) -> Any: ...
 
 
 class ShortcutArgs(TypedDict):
@@ -46,7 +46,7 @@ class ShortcutArgs(TypedDict):
     """快捷指令的人类可读描述"""
 
 
-DEFAULT_WRAPPER = lambda slot, content: content
+DEFAULT_WRAPPER = lambda slot, content, context: content
 
 
 class InnerShortcutArgs:
