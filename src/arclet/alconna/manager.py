@@ -177,16 +177,22 @@ class CommandManager:
         cmd_hash = command._hash
         if cmd_hash not in self.__argv:
             raise ValueError(lang.require("manager", "undefined_command").format(target=command.path))
+        namespace, name = self._command_part(command.path)
+        self.clear_result(command)
         command.formatter.remove(command)
         argv = self.__argv.pop(cmd_hash)
         analyser = self.__analysers.pop(cmd_hash)
+        del self.__commands[namespace][name]
         yield
+        name = f"{command.command or command.prefixes[0]}"  # type: ignore
+        command.path = f"{command.namespace}::{name}"
         cmd_hash = command._hash = command._calc_hash()
         argv.namespace = command.namespace_config
         argv.separators = command.separators
         argv.__post_init__(command.meta)
         argv.param_ids.clear()
         analyser.compile(argv.param_ids)
+        self.__commands.setdefault(command.namespace, WeakValueDictionary())[name] = command
         self.__argv[cmd_hash] = argv
         self.__analysers[cmd_hash] = analyser
         command.formatter.add(command)
@@ -437,6 +443,14 @@ class CommandManager:
     def get_result(self, command: Alconna) -> list[Arparma]:
         """获取某个命令的所有 `Arparma` 对象"""
         return [v for v in self.__record.values() if v.source == command.path]
+
+    def clear_result(self, command: Alconna):
+        """清除某个命令下的所有解析缓存"""
+        for token, result in self.__record.items():
+            if result.source == command.path:
+                del self.__record[token]
+        ana = self.require(command)
+        ana.used_tokens.clear()
 
     @property
     def recent_message(self) -> DataCollection[str | Any] | None:
