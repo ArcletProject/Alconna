@@ -1,5 +1,16 @@
 # 更新日志
 
+## Alconna 1.8.18
+
+### 改进
+
+- `shortcut` 的 wrapper 现在需要 `context` 参数
+- `command_manager.update` 现在会清除先前的命令缓存
+
+### 修复
+
+- 修复传入参数为其他`逻辑值为 False`时参数无法识别的问题
+
 ## Alconna 1.8.17
 
 ### 修复
