@@ -51,7 +51,7 @@ from .typing import Nargs as Nargs
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
 
-__version__ = "1.8.18"
+__version__ = "1.8.19"
 
 # backward compatibility
 AnyOne = ANY

@@ -1,5 +1,12 @@
 # 更新日志
 
+## Alconna 1.8.19
+
+### 修复
+
+- `shortcut` 的 wrapper 现在兼容 1.8.18 前的写法（无 context 参数）
+- `shortcut` 在 `fuzzy` 为 False 时的表现
+
 ## Alconna 1.8.18
 
 ### 改进

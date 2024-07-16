@@ -512,7 +512,7 @@ def test_shortcut():
     assert alc16_5.parse("*core16_5 False").matched
     assert alc16_5.parse("+test").foo is True
 
-    def wrapper(slot, content, context):
+    def wrapper(slot, content):
         if content == "help":
             return "--help"
         return content
@@ -571,6 +571,24 @@ Unknown
     assert alc16_12.parse("Atest", {"user": "456"}).bar == 100456
     assert alc16_12.parse("Btest").bar == 0
     assert alc16_12.parse("Btest", {"user": "456"}).bar == 456
+
+    alc16_13 = Alconna("core16_13", Option("rank", Args["rank", str]))
+
+    def wrapper2(slot, content):
+        if slot == "rank" and not content:
+            return "--all"
+        return content
+
+    alc16_13.shortcut(
+        r"(?i:io)(?i:rank)\s*(?P<rank>[a-zA-Z+-]*)",
+        command="core16_13 rank {rank}",
+        fuzzy=False,
+        wrapper=wrapper2
+    )
+
+    assert alc16_13.parse("iorank x").matched
+    assert alc16_13.parse("iorankx").rank == "x"
+    assert alc16_13.parse("iorank").rank == "--all"
 
 
 def test_help():
