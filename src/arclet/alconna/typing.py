@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import re
+import inspect
 from dataclasses import dataclass, field, fields, is_dataclass
 from typing import (
     Any,
+    cast,
     Dict,
     Iterator,
     List,
@@ -17,7 +19,7 @@ from typing import (
     final,
     runtime_checkable,
 )
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, TypeAlias
 
 from nepattern import BasePattern, MatchMode, parser
 
@@ -25,8 +27,15 @@ TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
 
 
-class ShortcutRegWrapper(Protocol):
+class _ShortcutRegWrapper(Protocol):
     def __call__(self, slot: int | str, content: str | None, context: dict[str, Any]) -> Any: ...
+
+
+class _OldShortcutRegWrapper(Protocol):
+    def __call__(self, slot: int | str, content: str | None) -> Any: ...
+
+
+ShortcutRegWrapper: TypeAlias = "_ShortcutRegWrapper | _OldShortcutRegWrapper"
 
 
 class ShortcutArgs(TypedDict):
@@ -55,7 +64,7 @@ class InnerShortcutArgs:
     fuzzy: bool
     prefix: bool
     prefixes: list[str]
-    wrapper: ShortcutRegWrapper
+    wrapper: _ShortcutRegWrapper
     flags: int | re.RegexFlag
 
     __slots__ = ("command", "args", "fuzzy", "prefix", "prefixes", "wrapper", "flags")
@@ -75,7 +84,17 @@ class InnerShortcutArgs:
         self.fuzzy = fuzzy
         self.prefix = prefix
         self.prefixes = prefixes or []
-        self.wrapper = wrapper or DEFAULT_WRAPPER
+        if not wrapper:
+            self.wrapper = DEFAULT_WRAPPER
+        else:
+            params = inspect.signature(wrapper).parameters
+            if len(params) > 3:
+                self.wrapper = cast(_ShortcutRegWrapper, wrapper)
+            elif len(params) < 3 or "self" in params:
+                wrapper = cast(_OldShortcutRegWrapper, wrapper)
+                self.wrapper = cast(_ShortcutRegWrapper, lambda slot, content, context: wrapper(slot, content))
+            else:
+                self.wrapper = cast(_ShortcutRegWrapper, wrapper)
         self.flags = flags
 
     def __repr__(self):
