@@ -305,7 +305,8 @@ class CommandManager:
                         data.insert(0, query[mat.span()[1]:])
                     return data, args, mat
                 elif mat := re.fullmatch(key, query, getattr(args, "flags", 0)):
-                    return data, _shortcut[1][key], mat
+                    if not (isinstance(args, InnerShortcutArgs) and not args.fuzzy and data):
+                        return data, _shortcut[1][key], mat
             if not data:
                 break
             next_data = data.pop(0)
