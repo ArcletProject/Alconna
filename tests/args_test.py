@@ -2,7 +2,7 @@ from typing import Union
 
 from nepattern import BasePattern, MatchMode, INTEGER, combine
 
-from arclet.alconna import ArgFlag, Args, KeyWordVar, Kw, Nargs
+from arclet.alconna import ArgFlag, Args, KeyWordVar, Kw, Nargs, StrMulti
 from devtool import analyse_args
 
 
@@ -238,6 +238,10 @@ def test_multi_multi():
     arg20_1 = Args["foo", MultiVar(int)]["bar", MultiVar(str)]
     assert analyse_args(arg20_1, ["1 2 -- a b"]) == {"foo": (1, 2), "bar": ("a", "b")}
     assert analyse_args(arg20_1, ["1 2 a b"]) == {"foo": (1, 2), "bar": ("a", "b")}
+
+    arg20_2 = Args["foo", str]["bar", StrMulti]
+    assert analyse_args(arg20_2, ["a b"]) == {"foo": "a", "bar": "b"}
+    assert analyse_args(arg20_2, ["a b c"]) == {"foo": "a", "bar": "b c"}
 
 
 def test_contextval():

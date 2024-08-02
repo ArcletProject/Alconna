@@ -264,3 +264,14 @@ class _Up:
 
 
 Up = _Up()
+
+
+class _StrMulti(MultiVar[str]):
+    pass
+
+
+StrMulti = _StrMulti(str)
+"""特殊参数, 用于匹配多个字符串, 并将结果通过 `str.join` 合并"""
+
+StrMulti.alias = "str+"
+StrMulti.refresh()

@@ -1,5 +1,22 @@
 # 更新日志
 
+## Alconna 1.8.20
+
+### 新增
+
+- 增加一个特殊类型 `StrMulti`, 用于匹配多个字符串, 并将结果通过 `str.join` 合并:
+```python
+from arclet.alconna import Alconna, Args, Option, StrMulti
+
+alc = Alconna(
+    "music", Args["song_name", StrMulti],
+    Option("--artist", Args["artist_name", StrMulti])
+)
+
+res = alc.parse("music hello world --artist adele")
+# {'song_name': 'hello world', 'artist_name': 'adele'}
+```
+
 ## Alconna 1.8.19
 
 ### 修复

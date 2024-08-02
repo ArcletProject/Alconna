@@ -15,7 +15,7 @@ from ..config import config
 from ..exceptions import AlconnaException, ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
-from ..typing import KWBool, MultiKeyWordVar, MultiVar, ShortcutRegWrapper
+from ..typing import KWBool, MultiKeyWordVar, MultiVar, _ShortcutRegWrapper, _StrMulti
 from ._header import Double, Header, Pair
 from ._util import escape, levenshtein, unescape
 
@@ -107,7 +107,10 @@ def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict
             _result = ()
         else:
             raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
-    result[key] = tuple(_result)
+    if isinstance(value, _StrMulti):
+        result[key] = arg.separators[0].join(_result)
+    else:
+        result[key] = tuple(_result)
 
 
 def step_varkey(argv: Argv, slot: tuple[MultiKeyWordVar, Arg], result: dict[str, Any]):
@@ -720,7 +723,7 @@ INDEX_REG_SLOT = re.compile(r"\{(\d+)\}")
 KEY_REG_SLOT = re.compile(r"\{(\w+)\}")
 
 
-def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, str], wrapper: ShortcutRegWrapper):
+def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, str], wrapper: _ShortcutRegWrapper):
     data = []
     for unit in argv.raw_data:
         if not isinstance(unit, str):

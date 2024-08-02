@@ -50,8 +50,9 @@ from .typing import MultiVar as MultiVar
 from .typing import Nargs as Nargs
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
+from .typing import StrMulti as StrMulti
 
-__version__ = "1.8.19"
+__version__ = "1.8.20"
 
 # backward compatibility
 AnyOne = ANY
