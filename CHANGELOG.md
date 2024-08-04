@@ -1,6 +1,12 @@
 # 更新日志
 
-## Alconna 1.8.20
+## 1.8.21
+
+### 改进
+
+- `Arparma.source` 现在返回的是对应的 `Alconna` 对象
+
+## 1.8.20
 
 ### 新增
 
@@ -17,14 +23,14 @@ res = alc.parse("music hello world --artist adele")
 # {'song_name': 'hello world', 'artist_name': 'adele'}
 ```
 
-## Alconna 1.8.19
+## 1.8.19
 
 ### 修复
 
 - `shortcut` 的 wrapper 现在兼容 1.8.18 前的写法（无 context 参数）
 - `shortcut` 在 `fuzzy` 为 False 时的表现
 
-## Alconna 1.8.18
+## 1.8.18
 
 ### 改进
 
@@ -35,43 +41,43 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复传入参数为其他`逻辑值为 False`时参数无法识别的问题
 
-## Alconna 1.8.17
+## 1.8.17
 
 ### 修复
 
 - 更改 `namespace` 会覆盖先前已挂载的命名空间配置的问题
 
-## Alconna 1.8.16
+## 1.8.16
 
 ### 修复
 
 - 更改 `Alconna` 在 manager 中的索引形式以避免 `weakref.ref` 的错误行为
 
-## Alconna 1.8.15
+## 1.8.15
 
 ### 改进
 
 - `shortcut` 的 key 支持正则表达式对象 (`re.Pattern[str]`)
 
-## Alconna 1.8.14
+## 1.8.14
 
 ### 修复
 
 - 修复 `shortcut` 错误处理非字符串参数的问题
 
-## Alconna 1.8.13
+## 1.8.13
 
 ### 改进
 
 - `AllParam` 现在不会将剩余字符串参数进行分割
 
-## Alconna 1.8.12
+## 1.8.12
 
 ### 改进
 
 - 升级 `Tarina` 至 0.5.0 以更新 i18n 文件
 
-## Alconna 1.8.11
+## 1.8.11
 
 ### 改进
 
@@ -81,25 +87,25 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 `Bracket Header` 的正则表达式丢失问题
 
-## Alconna 1.8.10
+## 1.8.10
 
 ### 改进
 
 - 适配 `NEPattern` 0.7.0
 
-## Alconna 1.8.9
+## 1.8.9
 
 ### 修复
 
 - 修复传入命令首个元素非字符串时能错误触发快捷指令的问题
 
-## Alconna 1.8.8
+## 1.8.8
 
 ### 修复
 
 - 修复子命令在自身名称解析失败时其结果被错误存储的问题
 
-## Alconna 1.8.7
+## 1.8.7
 
 ### 改进
 
@@ -109,7 +115,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 manager 更新命令时未使用 `Argv` 的 cache 问题
 
-## Alconna 1.8.6
+## 1.8.6
 
 ### 改进
 
@@ -128,13 +134,13 @@ res = alc.parse("music hello world --artist adele")
 
 - `CommandMeta` 新增属性 `hide_shortcut`, 用于在帮助信息里隐藏命令的快捷指令
 
-## Alconna 1.8.5
+## 1.8.5
 
 ### 修复
 
 - 修复 `Alconna` 的 aliases (继承自subcommand的) 错误
 
-## Alconna 1.8.4
+## 1.8.4
 
 ### 新增
 
@@ -151,19 +157,19 @@ res = alc.parse("music hello world --artist adele")
     ```
 
 
-## Alconna 1.8.3
+## 1.8.3
 
 ### 修复
 
 - 修复 `shortcut.wrapper` 的处理逻辑
 
-## Alconna 1.8.2
+## 1.8.2
 
 ### 修复
 
 - 修复 `manager.get_shortcuts` 的错误
 
-## Alconna 1.8.1
+## 1.8.1
 
 ### 破坏性改动
 
@@ -197,7 +203,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 命令插值的结果现在受类型约束
 
-## Alconna 1.8.0
+## 1.8.0
 
 **此版本为长期支持版本 (LTS)，同时为 v1.x 与 v2.0 之间的过渡版本**
 
@@ -256,13 +262,13 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复类型提示错误
 
-## Alconna 1.7.44
+## 1.7.44
 
 ### 修复
 
 - 修复 `shortcut list` 的错误
 
-## Alconna 1.7.43
+## 1.7.43
 
 ### 改进
 - 允许快捷指令的关键词传入带有分隔符的命令
@@ -270,7 +276,7 @@ res = alc.parse("music hello world --artist adele")
 ### 修复
 - 修复快捷指令使用 `_` 时的异常错误
 
-## Alconna 1.7.42
+## 1.7.42
 
 ### 改进
 - 设置了 completion 的 Arg 在输出文本中会显示其名字
@@ -278,14 +284,14 @@ res = alc.parse("music hello world --artist adele")
 ### 修复
 - 修复 `Alconna.__call__` 接受 sys.argv[1:] 时没有处理引号包裹的参数的 bug
 
-## Alconna 1.7.41
+## 1.7.41
 
 ### 改进
 
 - `Args` 现在可以设置多个 MultiVar 参数
 - 可以通过 `config.remainder` 配置字符来设置多个多参数之间的分隔符
 
-## Alconna 1.7.40
+## 1.7.40
 
 ### 改进
 
@@ -295,71 +301,71 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复快捷指令存在意外匹配的问题
 
-## Alconna 1.7.39
+## 1.7.39
 
 ### 修复
 
 - 修复 `Formatter` 未能正确遍历节点的 bug
 
-## Alconna 1.7.38
+## 1.7.38
 
 ### 修复
 
 - 修复 `command_manager.dump`
 - 修复 `CompSession` 在执行过程中受到其他命令解析干扰的问题
 
-## Alconna 1.7.37
+## 1.7.37
 
 ### 改进
 
 - `Alconna.shortcut` 可以用关键字参数传入 `command` 与 `args` 了
 - 允许提供参数来额外处理 `shortcut` 的正则匹配结果
 
-## Alconna 1.7.36
+## 1.7.36
 
 ### 改进
 
 - 修改换行处理
 
-## Alconna 1.7.35
+## 1.7.35
 
 ### 改进
 
 - 为 completion 下提示列出的选中符号和未选中符号添加 i18n 支持
 
-## Alconna 1.7.34
+## 1.7.34
 
 ### 修复
 
 - 修复 `Option` 与 `Subcommand` 模糊匹配的文本错误
 
-## Alconna 1.7.33
+## 1.7.33
 
 ### 修复
 
 - 修复补全会话下参数过多引起补全错误触发的问题
 
-## Alconna 1.7.32
+## 1.7.32
 
 ### 改进
 
 - 可以选择配置禁用哪些内置选项
 - 自定义的与内置选项名称有冲突的选项 (例如 --help) 在禁用内置选项后能正常解析
 
-## Alconna 1.7.31
+## 1.7.31
 
 ### 改进
 
 - 改进 `CommandMeta`
 - 改进命令头的显示方式
 
-## Alconna 1.7.30
+## 1.7.30
 
 ### 修复
 
 - 修复模糊匹配中错误的判断逻辑
 
-## Alconna 1.7.29
+## 1.7.29
 
 ### 新增
 
@@ -369,19 +375,19 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 `UnpackVar` 的 `kw_only` 参数未生效的问题
 
-## Alconna 1.7.28
+## 1.7.28
 
 ### 修复
 
 - 修复补全会话下补全的命令存在空字符串的问题
 
-## Alconna 1.7.27
+## 1.7.27
 
 ### 改进
 
 - 补全会话现在会处理参数类型错误的情况
 
-## Alconna 1.7.26
+## 1.7.26
 
 ### 改进
 
@@ -391,13 +397,13 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复头部匹配为空时 shortcut 错误运行的问题
 
-## Alconna 1.7.25
+## 1.7.25
 
 ### 修复
 
 - 修复 `shortcut` 下 prefix 未转义的问题
 
-## Alconna 1.7.24
+## 1.7.24
 
 ### 改进
 
@@ -409,26 +415,26 @@ res = alc.parse("music hello world --artist adele")
 - 修复 `UnpackVar` 的分隔符未跟随源参数的 bug
 - 修复 `UnpackVar` 处理 `kw_only` 未生效的 bug
 
-## Alconna 1.7.23
+## 1.7.23
 
 ### 修复
 
 - 处理 Args 时如果传入的参数是内置特殊选项的名字，则优先退出参数解析 (如 `--help`)
 - 修复 `Formatter` 未能正确处理 `Subcommand` 的 bug
 
-## Alconna 1.7.22
+## 1.7.22
 
 ### 改进
 
 - 处理 Args 时如果传入的参数同时是某个选项/子命令的名字，只有在参数设为 `optional=True` 才会退出参数解析
 
-## Alconna 1.7.21
+## 1.7.21
 
 ### 改进
 
 - 升级 `NEPattern` 至 0.5.14
 
-## Alconna 1.7.20
+## 1.7.20
 
 ### 改进
 
@@ -441,7 +447,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 修改了文字拼写错误
 
-## Alconna 1.7.19
+## 1.7.19
 
 ### 新增
 
@@ -453,13 +459,13 @@ res = alc.parse("music hello world --artist adele")
 - `Arparma.query` 改用描述器实现，并支持如 `arp.query[int]("foo.bar")` 的语法，以替代原先的 `query_with` (query_with 方法仍然保留)
 - `Arparma[...]` 增加如 `arp[int, 2]` 的支持，即选择第 i 个匹配类型的参数
 
-## Alconna 1.7.18
+## 1.7.18
 
 ### 新增
 
 - `ShortcutArgs` 加入一个 `prefix: bool` 参数，控制快捷指令是否保留源指令的前缀
 
-## Alconna 1.7.17
+## 1.7.17
 
 ### 新增
 
@@ -474,7 +480,7 @@ res = alc.parse("music hello world --artist adele")
 
 - `ShortcutArgs` 中 slot 的 index 现在正确指向尾随参数的位置
 
-## Alconna 1.7.16
+## 1.7.16
 
 ### 改进
 
@@ -484,7 +490,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复因 `nepattern` 0.5.13 的改动导致的 bug
 
-## Alconna 1.7.15
+## 1.7.15
 
 ### 改进
 
@@ -495,13 +501,13 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 `Arparma.fail` 的问题
 
-## Alconna 1.7.14
+## 1.7.14
 
 ### 修复
 
 - 修复帮助信息生成时节点遍历的错误
 
-## Alconna 1.7.13
+## 1.7.13
 
 ### 新增
 
@@ -516,7 +522,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 kwonly 参数的名字携带 `-` 时无法解析的 bug
 
-## Alconna 1.7.12
+## 1.7.12
 
 ### 改进
 
@@ -526,20 +532,20 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 multi-var 会一并解析 multi-key-var 的bug
 
-## Alconna 1.7.11
+## 1.7.11
 
 ### 修复
 
 - 修复 `Arparma.call` 导致 `pos | kw` 参数解包错误的 bug
 - 修复 kwbool 参数无法解析 `-no-xx` 的 bug
 
-## Alconna 1.7.10
+## 1.7.10
 
 ### 修复
 
 - 修复类型导致的 py3.8 兼容性问题
 
-## Alconna 1.7.9
+## 1.7.9
 
 ### 改进
 
@@ -554,7 +560,7 @@ res = alc.parse("music hello world --artist adele")
     assert alc.parse("draw --height=240.0 width=360.0").matched
     ```
 
-## Alconna 1.7.8
+## 1.7.8
 
 ### 改进
 
@@ -564,7 +570,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 `Args.from_callable` 无法正确解析 kwonly 参数的 bug
 
-## Alconna 1.7.7
+## 1.7.7
 
 ### 改进
 
@@ -575,13 +581,13 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 `append_value` 时列表对象引用错误的 bug
 
-## Alconna 1.7.6
+## 1.7.6
 
 ### 修复
 
 - 修复所有指令都可以响应快捷命令的bug
 
-## Alconna 1.7.5
+## 1.7.5
 
 ### 改进
 
@@ -589,31 +595,31 @@ res = alc.parse("music hello world --artist adele")
 - 当命令头部不存在正则表达式时, 匹配将直接使用 set 比对
 - `Alconna.help_text` 现在与 `Alconna.meta.description` 一致
 
-## Alconna 1.7.4
+## 1.7.4
 
 ### 改进
 
 - `shortcut` 现在将尝试去除非字符串的命令前缀
 
-## Alconna 1.7.3
+## 1.7.3
 
 ### 修复
 
 - 修复 `find_shortcut` 传入意外参数的 bug
 
-## Alconna 1.7.2
+## 1.7.2
 
 ### 修复
 
 - 修复 `sys.argv[0]` 处理错误的 bug
 
-## Alconna 1.7.1
+## 1.7.1
 
 ### 修复
 
 - 修复 `Arparma.error_info` 总为 str 的 bug
 
-## Alconna 1.7.0
+## 1.7.0
 
 **此版本为长期支持版本 (LTS)**
 
@@ -689,13 +695,13 @@ res = alc.parse("music hello world --artist adele")
 - 修复 `anti args` 的 bug
 - 修复 `Formatter.remove` 的 bug
 
-## Alconna 1.6.6
+## 1.6.6
 
 ### 修复
 
 - 修复 `MultiVar` 工作异常的错误
 
-## Alconna 1.6.5
+## 1.6.5
 
 ### 改进
 
@@ -703,7 +709,7 @@ res = alc.parse("music hello world --artist adele")
 - 格式化代码
 - 更改测试文件
 
-## Alconna 1.6.4
+## 1.6.4
 
 ### 修复
 
@@ -713,26 +719,26 @@ res = alc.parse("music hello world --artist adele")
 
 - 字符串处理时不再对后跟引号外的 "\\" 处理
 
-## Alconna 1.6.3
+## 1.6.3
 
 ### 修复
 
 - 修复 `Stub.available` 初始值为 `True` 的错误
 - 修复 `Duplication` 仅对解析存在的选项设置存根的错误
 
-## Alconna 1.6.2
+## 1.6.2
 
 ### 修复
 
 - 修复 语言文件读取时未关闭的错误
 
-## Alconna 1.6.1
+## 1.6.1
 
 ### 修复
 
 - 修复 不同 Args 合并时丢失来自 from_callable 提供的参数
 
-## Alconna 1.6.0
+## 1.6.0
 
 ### 破坏性改动
 
@@ -767,20 +773,20 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复一系列 bugs
 
-## Alconna 1.5.2
+## 1.5.2
 
 ### 改进
 
 - 调整解析器的可拓展性
 - 改进代码的类型提示
 
-## Alconna 1.5.1
+## 1.5.1
 
 ### 修复
 
 - 修复子解析器的 bug
 
-## Alconna 1.5.0
+## 1.5.0
 
 ### 破坏性改动
 
@@ -808,7 +814,7 @@ res = alc.parse("music hello world --artist adele")
 - `output_manager.get` 方法从构建输出行为到只获取输出行为
 - `set_default` 可以细化至更新 `subcmd.opt.args.arg` 的值
 
-## Alconna 1.4.3
+## 1.4.3
 
 ### 改进
 
@@ -819,7 +825,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 bugs
 
-## Alconna 1.4.2
+## 1.4.2
 
 ### 修复
 
@@ -827,14 +833,14 @@ res = alc.parse("music hello world --artist adele")
 - 修复 `Args.from_callable` 的bug
 - 修复 `Arparma.__repr__` 的bug
 
-## Alconna 1.4.1
+## 1.4.1
 
 ### 修复
 
 - 修复 `help text` 的 bug
 - 修复 `Arg` 提取 notice 的 bug
 
-## Alconna 1.4.0
+## 1.4.0
 
 ### 破坏性改动
 
@@ -863,13 +869,13 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复可能存在的内存泄漏问题
 
-## Alconna 1.3.3
+## 1.3.3
 
 ### 修复
 
 - 修复可能存在的内存泄漏问题
 
-## Alconna 1.3.2 ~ 1.3.2.2
+## 1.3.2 ~ 1.3.2.2
 
 ### 新增
 
@@ -885,7 +891,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 bugs
 
-## Alconna 1.3.1
+## 1.3.1
 
 ### 改进
 
@@ -896,7 +902,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 修改 help text 的 bug
 
-## Alconna 1.3.0
+## 1.3.0
 
 ### 破坏性改动
 
@@ -923,7 +929,7 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 bugs
 
-## Alconna 1.2.0
+## 1.2.0
 
 ### 破坏性改动
 
@@ -943,12 +949,12 @@ res = alc.parse("music hello world --artist adele")
 
 - 修复 bugs
 
-## Alconna 1.1.2 - 1.1.2.3
+## 1.1.2 - 1.1.2.3
 
 1. 修复 bugs
 2. BasePattern 加入 `to` 方法
 
-## Alconna 1.1.1
+## 1.1.1
 
 1. `Arpamar` 泛型支持, 可通过`Arpamar[type]`指定原指令的类型
 2. `Alconna` 可通过 `|` 进行组合, 返回命令组
@@ -959,7 +965,7 @@ res = alc.parse("music hello world --artist adele")
     alc.parse("哪里有食物")
     ```
 
-## Alconna 1.1.0
+## 1.1.0
 
 1. `AlconnaDuplication` -> `Duplication`
 2. `Duplication` 现在支持写入参数名或头部名称, 如
@@ -975,18 +981,18 @@ res = alc.parse("music hello world --artist adele")
 3. `Arpamar` 在执行行为器时可以通过抛出 `OutBoundsBehave` 使解析失败
 4. 修复bugs
 
-## Alconna 1.0.2 - 1.0.4
+## 1.0.2 - 1.0.4
 
 1. 修复 BUG
 2. 微调 Args
 
-## Alconna 1.0.1
+## 1.0.1
 
 1. `Args.from_callable` 允许 keyword 参数
 2. 更改ArgAction参数
 3. 修复bugs
 
-## Alconna 1.0.0
+## 1.0.0
 
 1. 将`lang`迁移到新增的`config`中，并为`config`加入了如全局分隔、开启缓存等选项
 2. 压缩代码量并规范化
@@ -1007,7 +1013,7 @@ res = alc.parse("music hello world --artist adele")
 17. `Option` 添加参数`priority`, 仅在需要选项重载时安排优先级
 18. 修复bugs
 
-## Alconna 0.9.4
+## 0.9.4
 
 1. 修改 `Args` 的构造方法, 取消使用 slice 传入参数. 请从 `Args[foo:int, bar:str:default]` 修改为 `Args[foo, int][bar, str, default]`.
 2. Option 与 Subcommand 现支持 requires 参数, 该参数允许解析该节点时判断 require 的字段是否存在.
@@ -1024,7 +1030,7 @@ res = alc.parse("music hello world --artist adele")
 13. `ObjectPattern` 移动到 `arclet.alconna.builtin.pattern` 模块.
 14. 修复 bug.
 
-## Alconna 0.9.3 - 0.9.3.3
+## 0.9.3 - 0.9.3.3
 
 1. 合并 `ArgPattern` 与 `TypePattern` 为 `BasePattern`, 并将诸多分散特性(如 `anti`, `any`) 移动到 `BasePattern` 中.
 2. 取消 `Analyser` 中有关 `arg_handler` 的部分
@@ -1034,7 +1040,7 @@ res = alc.parse("music hello world --artist adele")
 6. 为 `all_command_help` 增加索引选项
 7. 修复 bug.
 
-## Alconna 0.9.2
+## 0.9.2
 
 1. 增强 `Arpamar` 的功能, 使其更类似于一种接口. 其中的修改有:
    - 从 `get()` 变为 `query()`
@@ -1048,13 +1054,13 @@ res = alc.parse("music hello world --artist adele")
 4. `split` 以及 `separator` 现在需要传入 `Set[str]` 类型.
 5. 修复 bug.
 
-## Alconna 0.9.1
+## 0.9.1
 
 1. 增添 `dest`, 其作为选项在 Arpamar 中的实际名称.
 2. 增加内建 `Argument` 方法, 类似于 `add_argument`, 以便捷创建 Option + Args 的组合.
 3. 修复 bug
 
-## Alconna 0.9.0 - 0.9.0.3
+## 0.9.0 - 0.9.0.3
 
 1. 将 HelpAction 与 HelpTextFormatter 作为 help 模块
 2. 语言配置组件的增强. 现在以语言种类标识符作为父级, 以支持多语言.
@@ -1067,7 +1073,7 @@ res = alc.parse("music hello world --artist adele")
    - `handle_message` -> `process_message`
 8. Args 新增 `add_argument` 方法, 以添加参数.
 
-## Alconna 0.8.3
+## 0.8.3
 
 1. 命令头的正则支持格式修改, 由原来的`f"{表达式}"`改为`"{名称:类型或表达式}"`
 2. 加入语言文件配置, 可以通过`Alconna.load_config_file`加载自定义的语言文件, 格式为`json`
@@ -1076,7 +1082,7 @@ res = alc.parse("music hello world --artist adele")
 5. 部分API修改, 暂时去除`from_dict`方法
 6. 修复了一些bug
 
-## Alconna 0.8.2
+## 0.8.2
 
 1. 修改了一些docstring
 2. 修改参数前缀, 现需要以后缀形式传入, 以`';'`为开头, 并用`'|'`分割。
@@ -1093,11 +1099,11 @@ res = alc.parse("music hello world --artist adele")
 6. 加入`pattern`装饰器函数, 用以便捷的创建`ArgPattern`对象
 7. 加入`delegate`装饰器函数, 用以便捷的创建`Alconna`对象
 
-## Alconna 0.8.1
+## 0.8.1
 
 修复了一些严重的bug。
 
-## Alconna 0.8.0
+## 0.8.0
 
 1. `Option`的`alias`现在需要传入List[str]，而不是str。
 2. `help_text`内置两个预选板块`Usage`和`Example`, 编写规则为`"xxx Usage:xxx; Example:xxx;"`。
@@ -1106,14 +1112,14 @@ res = alc.parse("music hello world --artist adele")
 5. `AlconnaString`参数规则修改, 现在`<xx>`表示必选, `[xx]`表示可选, `&xx`表示action的值。
 6. `ArgparseHelpTextFormatter`相关格式修改
 
-## Alconna 0.7.7 - 0.7.7.4
+## 0.7.7 - 0.7.7.4
 
 1. 加入`Argparser`风格的HelpFormatter
 2. 加入`AlconnaDuplication`, 旨在提供更好的解析结果使用
 3. option的name与alias现在会根据长度自动倒换
 4. 修复Bug
 
-## Alconna 0.7.6 - 0.7.6.1
+## 0.7.6 - 0.7.6.1
 
 1. 增加对`Graia`系的原生支持, 位于`arclet.alconna.graia`
 2. header现在可支持非文字类元素与文字混用的解析, 原来的方式请改用`元组(非文本元素, 文本)`
@@ -1123,7 +1129,7 @@ res = alc.parse("music hello world --artist adele")
 6. `Format`中的format slot可以直接写入类型, 如`"{name: str}"`
 7. 修复Bug
 
-## Alconna 0.7.5
+## 0.7.5
 
 1. 内部类型改进, `MessageChain` -> `DataCollection`
 2. 加入`ArpamarBehavior`, 用以解析后的预处理, 并提供三个预制的`behavior`:
@@ -1133,14 +1139,14 @@ res = alc.parse("music hello world --artist adele")
 3. 加入`NodeVisitor`与`HelpFormatter`, 并将原先给CommandNode的help生成转移给Formatter
 4. 加入`AlconnaMessageProxy`, 用作对外适配接口
 
-## Alconna 0.7.4 - 0.7.4.3
+## 0.7.4 - 0.7.4.3
 
 1. 加入`Alconna.local_args`, 可用来注入额外参数
 2. `actions`关键字改为`action`
 3. 加入`_`前缀，用来隐藏该参数的类型注解
 4. 修复bug
 
-## Alconna 0.7.3
+## 0.7.3
 
 1. 优化结构
 2. 增加`AlconnaFire`的Config, 用来约束`AlconnaFire`的参数
@@ -1154,7 +1160,7 @@ res = alc.parse("music hello world --artist adele")
 10. `Arpamar`可以通过`XXX.opt.arg1`、`XXX.sub.sub_opt.arg2`等方式获取参数值
 11. 修复bug
 
-## Alconna 0.7.2
+## 0.7.2
 
 1. 改进`AlconnaFire`方法, 其可通过`AlconnaFire.instance`获取目标对象的可能实例
 2. 加入`SequenceArg`与`MappingArg`, 其对应解析列表、元组、集合与字典
@@ -1163,7 +1169,7 @@ res = alc.parse("music hello world --artist adele")
 5. 增强Format
 6. 修改help—action相关
 
-## Alconna 0.7.1
+## 0.7.1
 
 1. 增加`alconna.builtin.construct.AlconnaFire`，为`Alconna`的`Fire-like`方法.
 其会尝试根据传入的对象生成`Alconna`
@@ -1173,7 +1179,7 @@ res = alc.parse("music hello world --artist adele")
 5. `action`现支持传入异步函数
 6. `AlconnaString`现在会读取`locals`的值
 
-## Alconna 0.7.0
+## 0.7.0
 
 1. 内部结构大更改, 将`Command`与`Analyser`进行了一个解耦
 2. 多个api更改或去除, 请留意. 该特性为不兼容的特性.
@@ -1207,100 +1213,100 @@ res = alc.parse("music hello world --artist adele")
    - `analysis.analyse_subcommand`: 可直接传入`Subcommand`以针对性解析
    - `analysis.analyse_headers`: 可直接传入`Headers`以针对性解析
 
-## Alconna 0.6.5
+## 0.6.5
 
 1. 可以自定义all_command_help
 2. 加入anti-arg, 用以反向检查参数
 3. 修复一些bug
 
-## Alconna 0.6.4
+## 0.6.4
 
 1. 加入快捷指令功能, 可以用一段特殊的字符串来表示命令
 2. 加入arg-choice, 可以指定参数的可选值
 3. 修改docstring, 使其变得更加可读
 4. 加入commandManager.broadcast功能, 可以广播命令
 
-## Alconna 0.6.3
+## 0.6.3
 
 1. 修复命令行的Bug
 2. 加入变长参数的支持, 可以在参数名前面添加一个`*`来表示变长参数
 
-## Alconna 0.6.2
+## 0.6.2
 
 1. 修复几个Bug
 2. 加入from_dict与to_dict，暂时无法支持保存action
 3. 命令行功能加入using
 
-## Alconna 0.6.1
+## 0.6.1
 
 1. 性能优化加强, 现在纯字符串匹配可以跑到60000msg/s (与之相对, 匹配其他消息元素可以跑到10w msg/s, re出来挨打)
 2. commandline增加一个`analysis`功能，可以把命令转为命令格式
 3. 修复Bug
 
-## Alconna 0.6.0
+## 0.6.0
 
 1. 加入click-like构造方法，具体内容在alconna/decorate里
 2. 加入命令行功能，目前功能为便捷式编写Alconna与便捷查看docstring
 3. 性能优化, 包含正则参数解析的速度提升大约10%
 4. Option支持重复输入，此时多个解析结果会以列表形式存放
 
-## Alconna 0.5.9
+## 0.5.9
 
 1. help选项可用传入一自定义函数已达到直接发送帮助说明的效果
 2. 规范format方法；from_string现在可以用#加入帮助说明
 3. 加入commandManager，帮助管理所有命令；支持解析原始消息链
 
-## Alconna 0.5.8
+## 0.5.8
 
 加入有序匹配模式与命令缓存, 能使性能大大提升
 
-## Alconna 0.5.7
+## 0.5.7
 
 修复非ArgPattern修饰的参数无法解析消息元素的Bug
 
-## Alconna 0.5.6
+## 0.5.6
 
 1. 修复Bug
 2. 增加了Email的参数匹配
 
-## Alconna 0.5.5
+## 0.5.5
 
 1. from_sting可以传入option了
 2. 修复bug
 
-## Alconna 0.5.4
+## 0.5.4
 
 1. 优化结构
 2. Arpamar 现可直接以XXX.name方式获取参数
 
-## Alconna 0.5.3
+## 0.5.3
 
 1. 增加自定义消息元素过滤
 2. headers支持传入消息元素
 
-## Alconna 0.5.2
+## 0.5.2
 
 紧急修复Action无法返回值的bug
 
-## Alconna 0.5.1
+## 0.5.1
 
 1. 优化整体结构
 2. 完善了action相关
 3. 修改参数默认值的bug
 
-## Alconna 0.4.3
+## 0.4.3
 
 1. 加入Action (暂时只针对Option)
 2. Args解析出来的结果 (如bool值, int值) 会转为指定的类型
 
-## Alconna 0.4.2
+## 0.4.2
 
 1. 加入AnyFloat预制正则
 2. Args构造支持传入元组;
 3. 增加两种简易构造Alconna的形式
 4. 修复Bug
 
-## Alconna 0.4.1
+## 0.4.1
 
 1. 加入 AnyParam类型 (单次泛匹配)与AllParam类型 (全部泛匹配)
 2. 修改部分逻辑

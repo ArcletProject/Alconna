@@ -431,7 +431,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             fail (bool, optional): 是否解析失败. Defaults to False.
             exception (Exception | None, optional): 解析失败时的异常. Defaults to None.
         """
-        result = Arparma(self.command.path, argv.origin, not fail, self.header_result, ctx=argv.exit())
+        result = Arparma(self.command._hash, argv.origin, not fail, self.header_result, ctx=argv.exit())
         if fail:
             result.error_info = exception
             result.error_data = argv.release()

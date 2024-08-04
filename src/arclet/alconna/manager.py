@@ -131,6 +131,9 @@ class CommandManager:
             namespace[command.name] = command
             self.current_count += 1
 
+    def _resolve(self, cmd_hash: int) -> Alconna:
+        return self.__analysers[cmd_hash].command
+
     def resolve(self, command: Alconna[TDC]) -> Argv[TDC]:
         """获取命令解析器的参数解析器"""
         cmd_hash = command._hash
@@ -443,12 +446,13 @@ class CommandManager:
 
     def get_result(self, command: Alconna) -> list[Arparma]:
         """获取某个命令的所有 `Arparma` 对象"""
-        return [v for v in self.__record.values() if v.source == command.path]
+        return [v for v in self.__record.values() if v._id == command._hash]
 
     def clear_result(self, command: Alconna):
         """清除某个命令下的所有解析缓存"""
-        for token, result in self.__record.items():
-            if result.source == command.path:
+        tokens = list(self.__record.keys())
+        for token in tokens:
+            if self.__record[token]._id == command._hash:
                 del self.__record[token]
         ana = self.require(command)
         ana.used_tokens.clear()

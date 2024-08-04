@@ -296,7 +296,7 @@ class Alconna(Subcommand, Generic[TDC]):
                 return command_manager.add_shortcut(self, key, args)
             elif cmd := command_manager.recent_message:
                 alc = command_manager.last_using
-                if alc and alc == self.path:
+                if alc and alc == self:
                     return command_manager.add_shortcut(self, key, {"command": cmd})  # type: ignore
                 raise ValueError(
                     lang.require("shortcut", "recent_command_error").format(
@@ -358,7 +358,7 @@ class Alconna(Subcommand, Generic[TDC]):
         except NullMessage as e:
             if self.meta.raise_exception:
                 raise e
-            return Arparma(self.path, message, False, error_info=e, ctx=ctx)
+            return Arparma(self._hash, message, False, error_info=e, ctx=ctx)
         if arp.matched:
             arp = arp.execute(self.behaviors)
             if self._executors:

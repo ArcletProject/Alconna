@@ -16,9 +16,8 @@ class Duplication:
 
     def __init__(self, target: Arparma):
         from .base import Option, Subcommand
-        from .manager import command_manager
 
-        source = command_manager.get_command(target.source)
+        source = target.source
         self.header = target.header.copy()
         for key, value in self.__annotations__.items():
             if isclass(value) and issubclass(value, BaseStub):
