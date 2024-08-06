@@ -46,7 +46,7 @@ def analyse_args(
     **kwargs
 ):
     meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
-    argv = Argv(meta, dev_space)
+    argv: Argv[DataCollection] = Argv(meta, dev_space)
     try:
         argv.enter(kwargs)
         argv.build(["test"] + command)
@@ -69,7 +69,7 @@ def analyse_header(
     **kwargs
 ):
     meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
-    argv = Argv(meta, dev_space, separators=(sep,))
+    argv: Argv[DataCollection] = Argv(meta, dev_space, separators=(sep,))
     command_header = Header.generate(command_name, headers, compact=compact)
     try:
         argv.enter(kwargs)
@@ -89,7 +89,7 @@ def analyse_option(
     **kwargs
 ):
     meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
-    argv = Argv(meta, dev_space)
+    argv: Argv[DataCollection] = Argv(meta, dev_space)
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = (" ",)
@@ -116,7 +116,7 @@ def analyse_subcommand(
     **kwargs
 ):
     meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
-    argv = Argv(meta, dev_space)
+    argv: Argv[DataCollection] = Argv(meta, dev_space)
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = (" ",)

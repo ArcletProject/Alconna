@@ -6,14 +6,14 @@ import re
 import sys
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Generic, Iterable, List, Sequence, Type, TypeVar, Union, cast
-from typing_extensions import Self, TypeAlias
+from typing import Any, Callable, Generic, Iterable, List, Sequence, TypeVar, Union, cast
+from typing_extensions import Self
 
 from nepattern import ANY, NONE, AntiPattern, BasePattern, MatchMode, RawStr, UnionPattern, parser
 from tarina import Empty, get_signature, lang
 
 from .exceptions import InvalidArgs
-from .typing import AllParam, KeyWordVar, KWBool, MultiKeyWordVar, MultiVar, UnpackVar
+from .typing import TAValue, AllParam, KeyWordVar, KWBool, MultiKeyWordVar, MultiVar, UnpackVar
 
 
 def safe_dcls_kw(**kwargs):
@@ -23,7 +23,6 @@ def safe_dcls_kw(**kwargs):
 
 
 _T = TypeVar("_T")
-TAValue: TypeAlias = Union[BasePattern[_T, Any, Any], Type[_T], str]
 
 
 class ArgFlag(str, Enum):

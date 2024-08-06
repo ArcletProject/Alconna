@@ -307,7 +307,7 @@ class Header(Generic[TContent, TCompact]):
                 _prefixes: list[tuple[Any, str]] = prefixes  # type: ignore
                 return cls(
                     (command, prefixes),
-                    [Pair(h[0], re.compile(re.escape(h[1]) + _cmd) if to_regex else h[1] + _cmd) for h in _prefixes],
+                    [Pair(h[0], re.compile(re.escape(h[1]) + _cmd)) if to_regex else Pair(h[0], h[1] + _cmd) for h in _prefixes],
                     mapping,
                     compact,
                 )

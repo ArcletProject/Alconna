@@ -112,7 +112,8 @@ class CommandNode:
         _handle_default(self)
         self.separators = (" ",) if separators is None else ((separators,) if isinstance(separators, str) else tuple(separators))  # noqa: E501
         self.nargs = len(self.args.argument)
-        self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + self.name.lstrip("-")).lstrip("-")  # noqa: E501
+        self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + (self.name.lstrip("-") or self.name))  # noqa: E501
+        self.dest = self.dest.lstrip("-") or self.dest
         self.help_text = help_text or self.dest
         self._hash = self._calc_hash()
 

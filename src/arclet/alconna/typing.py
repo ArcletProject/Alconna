@@ -17,7 +17,7 @@ from typing import (
     TypeVar,
     Union,
     final,
-    runtime_checkable,
+    runtime_checkable, Type, Callable,
 )
 from typing_extensions import NotRequired, TypeAlias
 
@@ -25,7 +25,6 @@ from nepattern import BasePattern, MatchMode, parser
 
 TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
-
 
 class _ShortcutRegWrapper(Protocol):
     def __call__(self, slot: int | str, content: str | None, context: dict[str, Any]) -> Any: ...
@@ -145,6 +144,7 @@ class CommandMeta:
 
 TDC = TypeVar("TDC", bound=DataCollection[Any])
 T = TypeVar("T")
+TAValue: TypeAlias = Union[BasePattern[T, Any, Any], Type[T], T, Callable[..., T], Dict[Any, T], List[T]]
 
 
 @final
@@ -167,7 +167,7 @@ class KeyWordVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
 
     base: BasePattern
 
-    def __init__(self, value: BasePattern[T, Any, Any] | type[T], sep: str = "="):
+    def __init__(self, value: TAValue[T], sep: str = "="):
         """构建一个具名参数
 
         Args:
@@ -186,7 +186,7 @@ class KeyWordVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
 class _Kw:
     __slots__ = ()
 
-    def __getitem__(self, item: BasePattern[T, Any, Any] | type[T]):
+    def __getitem__(self, item: BasePattern[T, Any, Any] | type[T] | Any):
         return KeyWordVar(item)
 
     __matmul__ = __getitem__
@@ -200,7 +200,7 @@ class MultiVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
     flag: Literal["+", "*"]
     length: int
 
-    def __init__(self, value: BasePattern[T, Any, Any] | type[T], flag: int | Literal["+", "*"] = "+"):
+    def __init__(self, value: TAValue[T], flag: int | Literal["+", "*"] = "+"):
         """构建一个可变参数
 
         Args:
