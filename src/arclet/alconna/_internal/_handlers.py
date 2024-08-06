@@ -105,6 +105,8 @@ def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict
             _result = default_val if isinstance(default_val, Iterable) else ()
         elif value.flag == "*":
             _result = ()
+        elif arg.optional:
+            return
         else:
             raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
     if isinstance(value, _StrMulti):
@@ -148,6 +150,8 @@ def step_varkey(argv: Argv, slot: tuple[MultiKeyWordVar, Arg], result: dict[str,
             _result = default_val if isinstance(default_val, dict) else {}
         elif value.flag == "*":
             _result = {}
+        elif arg.optional:
+            return
         else:
             raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=name)))
     result[name] = _result

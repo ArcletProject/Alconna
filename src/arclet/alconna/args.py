@@ -343,12 +343,10 @@ class Args(metaclass=ArgsMeta):
                 self.argument.keyword_only[arg.name] = arg
             else:
                 self.argument.normal.append(arg)
-                if arg.optional:
-                    if self.argument.vars_keyword or self.argument.vars_positional:
-                        raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
-                    self.optional_count += 1
-                elif arg.field.default is not Empty:
-                    self.optional_count += 1
+            if arg.optional:
+                self.optional_count += 1
+            elif arg.field.default is not Empty:
+                self.optional_count += 1
         self.argument.clear()
         self.argument.extend(_tmp)
         del _tmp
