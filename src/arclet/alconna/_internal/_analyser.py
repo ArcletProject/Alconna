@@ -30,6 +30,7 @@ from ._handlers import (
     HEAD_HANDLES,
     _handle_shortcut_data,
     _handle_shortcut_reg,
+    handle_head_fuzzy,
     analyse_args,
     analyse_param,
     handle_completion,
@@ -351,6 +352,9 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             try:
                 rest, short, mat = command_manager.find_shortcut(self.command, [_next] + argv.release())
             except ValueError as exc:
+                if argv.fuzzy_match and (res := handle_head_fuzzy(self.command_header, _next, argv.fuzzy_threshold)):
+                    output_manager.send(self.command.name, lambda: res)
+                    return self.export(argv, True, FuzzyMatchSuccess(res))
                 if self.command.meta.raise_exception:
                     raise e from exc
                 return self.export(argv, True, e)
@@ -360,10 +364,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 argv.context[SHORTCUT_REGEX_MATCH] = mat
                 self.reset()
                 return self.shortcut(argv, rest, short, mat)
-
-        except FuzzyMatchSuccess as Fuzzy:
-            output_manager.send(self.command.name, lambda: str(Fuzzy))
-            return self.export(argv, True)
 
         except RuntimeError as e:
             exc = InvalidParam(lang.require("header", "error").format(target=argv.release(recover=True)[0]))

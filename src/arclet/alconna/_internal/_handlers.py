@@ -586,19 +586,15 @@ HEAD_HANDLES: dict[int, Callable[[Header, Argv], HeadResult]] = {
 def _after_analyse_header(header: Header, argv: Argv, head_text: Any, may_cmd: Any, _str: bool, _m_str: bool) -> NoReturn:
     if _str:
         argv.rollback(may_cmd)
-        if argv.fuzzy_match:
-            _handle_fuzzy(header, head_text, argv.fuzzy_threshold)
         raise InvalidParam(lang.require("header", "error").format(target=head_text), head_text)
     if _m_str and may_cmd:
         cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
-        if argv.fuzzy_match:
-            _handle_fuzzy(header, cmd, argv.fuzzy_threshold)
         raise InvalidParam(lang.require("header", "error").format(target=cmd), cmd)
     argv.rollback(may_cmd)
     raise InvalidParam(lang.require("header", "error").format(target=head_text), None)
 
 
-def _handle_fuzzy(header: Header, source: str, threshold: float):
+def handle_head_fuzzy(header: Header, source: str, threshold: float):
     command = header.origin[0]
     if not header.origin[1]:
         headers_text = [str(command)]
@@ -613,7 +609,7 @@ def _handle_fuzzy(header: Header, source: str, threshold: float):
                 headers_text.append(f"{prefix} {command}")
     for ht in headers_text:
         if levenshtein(source, ht) >= threshold:
-            raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(target=source, source=ht))
+            return lang.require("fuzzy", "matched").format(target=source, source=ht)
 
 
 def handle_help(analyser: Analyser, argv: Argv):
