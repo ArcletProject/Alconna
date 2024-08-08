@@ -24,8 +24,8 @@ from typing import (
     runtime_checkable,
 )
 from typing_extensions import NotRequired, TypeAlias
-from tarina import generic_isinstance
-from nepattern import BasePattern, MatchMode, parser
+from tarina import generic_isinstance, lang
+from nepattern import BasePattern, MatchMode, parser, MatchFailed
 
 TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
@@ -165,7 +165,11 @@ class _AllParamPattern(BasePattern[T, T, Literal[MatchMode.KEEP]], Generic[T]):
             return input_
         if generic_isinstance(input_, self.types):  # type: ignore
             return input_
-        raise TypeError(input_)
+        raise MatchFailed(
+            lang.require("nepattern", "type_error").format(
+                type=input_.__class__.__name__, target=input_, expected=" | ".join(map(lambda t: t.__name__, self.types))
+            )
+        )
 
     @overload
     def __call__(self, *, ignore: bool = True) -> _AllParamPattern[Any]: ...

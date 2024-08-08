@@ -209,6 +209,10 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
                 raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)))
 
 
+def _raise(target: Arg, arg: Any, res: Any):
+    raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]))
+
+
 def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
     """
     分析 `Args` 部分
@@ -247,7 +251,10 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             if not value.types:
                 result[arg.name] = argv.converter(argv.release(no_split=True))
             else:
-                data = [d for d in argv.release(no_split=True) if value.validate(d).flag == "valid"]
+                data = [
+                    d for d in argv.release(no_split=True)
+                    if (res := value.validate(d)).flag == "valid" or (not value.ignore and _raise(arg, d, res))
+                ]
                 result[arg.name] = argv.converter(data)
             argv.current_index = argv.ndata
             return result

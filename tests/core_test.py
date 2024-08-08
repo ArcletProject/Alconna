@@ -388,6 +388,14 @@ def test():
         "abc def gh",
         "dsdf",
     ]
+    alc13_2 = Alconna("core13_2", Args["foo", AllParam(str, ignore=False)])
+    assert not alc13_2.parse(["core13_2 abc def gh", 123, 5.0, "dsdf"]).matched
+    assert alc13_2.parse(["core13_2 abc def gh", "123", "5.0", "dsdf"]).foo == [
+        "abc def gh",
+        "123",
+        "5.0",
+        "dsdf",
+    ]
 
 
 def test_alconna_group():
