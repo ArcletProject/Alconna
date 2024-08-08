@@ -6,25 +6,30 @@ import inspect
 from dataclasses import dataclass, field, fields, is_dataclass
 from typing import (
     Any,
+    Callable,
     cast,
     Dict,
+    Generic,
     Iterator,
     List,
     Literal,
     Protocol,
     Tuple,
+    Type,
     TypedDict,
     TypeVar,
     Union,
     final,
-    runtime_checkable, Type, Callable,
+    overload,
+    runtime_checkable,
 )
 from typing_extensions import NotRequired, TypeAlias
-
+from tarina import generic_isinstance
 from nepattern import BasePattern, MatchMode, parser
 
 TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
 DataUnit = TypeVar("DataUnit", covariant=True)
+
 
 class _ShortcutRegWrapper(Protocol):
     def __call__(self, slot: int | str, content: str | None, context: dict[str, Any]) -> Any: ...
@@ -144,22 +149,38 @@ class CommandMeta:
 
 TDC = TypeVar("TDC", bound=DataCollection[Any])
 T = TypeVar("T")
+T1 = TypeVar("T1")
 TAValue: TypeAlias = Union[BasePattern[T, Any, Any], Type[T], T, Callable[..., T], Dict[Any, T], List[T]]
 
 
 @final
-class _AllParamPattern(BasePattern[Any, Any, Literal[MatchMode.KEEP]]):
-    def __init__(self):
+class _AllParamPattern(BasePattern[T, T, Literal[MatchMode.KEEP]], Generic[T]):
+    def __init__(self, types: tuple[type[T1], ...] = (), ignore: bool = True):
+        self.types = types
+        self.ignore = ignore
         super().__init__(mode=MatchMode.KEEP, origin=Any, alias="*")
 
     def match(self, input_: Any) -> Any:  # pragma: no cover
-        return input_
+        if not self.types:
+            return input_
+        if generic_isinstance(input_, self.types):  # type: ignore
+            return input_
+        raise TypeError(input_)
+
+    @overload
+    def __call__(self, *, ignore: bool = True) -> _AllParamPattern[Any]: ...
+
+    @overload
+    def __call__(self, *types: type[T1], ignore: bool = True) -> _AllParamPattern[T1]: ...
+
+    def __call__(self, *types: type[T1], ignore: bool = True) -> _AllParamPattern[T1]:
+        return _AllParamPattern(types, ignore)
 
     def __calc_eq__(self, other):  # pragma: no cover
         return other.__class__ is _AllParamPattern
 
 
-AllParam = _AllParamPattern()
+AllParam: _AllParamPattern[Any] = _AllParamPattern()
 
 
 class KeyWordVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):

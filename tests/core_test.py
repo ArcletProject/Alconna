@@ -383,6 +383,12 @@ def test():
     print("Hello, World!")"""
     ]
 
+    alc13_1 = Alconna("core13_1", Args["foo", AllParam(str)])
+    assert alc13_1.parse(["core13_1 abc def gh", 123, 5.0, "dsdf"]).foo == [
+        "abc def gh",
+        "dsdf",
+    ]
+
 
 def test_alconna_group():
     alc14 = Alconna("core14", Option("--foo"), Option("--bar", Args["num", int])) | Alconna(

@@ -15,7 +15,7 @@ from ..config import config
 from ..exceptions import AlconnaException, ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
 from ..model import HeadResult, OptionResult, Sentence
 from ..output import output_manager
-from ..typing import KWBool, MultiKeyWordVar, MultiVar, _ShortcutRegWrapper, _StrMulti
+from ..typing import KWBool, MultiKeyWordVar, MultiVar, _ShortcutRegWrapper, _StrMulti, _AllParamPattern
 from ._header import Double, Header, Pair
 from ._util import escape, levenshtein, unescape
 
@@ -241,8 +241,14 @@ def analyse_args(argv: Argv, args: Args) -> dict[str, Any]:
             continue
         value = arg.value
         if value.alias == "*":
+            if TYPE_CHECKING:
+                assert isinstance(value, _AllParamPattern)
             argv.rollback(may_arg)
-            result[arg.name] = argv.converter(argv.release(no_split=True))
+            if not value.types:
+                result[arg.name] = argv.converter(argv.release(no_split=True))
+            else:
+                data = [d for d in argv.release(no_split=True) if value.validate(d).flag == "valid"]
+                result[arg.name] = argv.converter(data)
             argv.current_index = argv.ndata
             return result
         _validate(argv, arg, value, result, may_arg, _str)
