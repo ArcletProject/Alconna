@@ -226,7 +226,11 @@ class SubAnalyser(Generic[TDC]):
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)
         if not self.args_result and self.need_main_args:
-            raise ArgumentMissing(lang.require("subcommand", "args_missing").format(name=self.command.dest))
+            raise ArgumentMissing(
+                self.self_args.argument[0].field.get_missing_tips(
+                    lang.require("subcommand", "args_missing").format(name=self.command.dest)
+                )
+            )
         return self
 
     def get_sub_analyser(self, target: Subcommand) -> SubAnalyser[TDC] | None:
@@ -384,7 +388,9 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 return handle_completion(self, argv, rest[-2])
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next(move=False)[0]))
         else:
-            exc = ArgumentMissing(lang.require("analyser", "param_missing"))
+            exc = ArgumentMissing(
+                self.self_args.argument[0].field.get_missing_tips(lang.require("analyser", "param_missing"))
+            )
         if comp_ctx.get(None) and isinstance(exc, ArgumentMissing):
             raise PauseTriggered(prompt(self, argv), exc, argv)
         if self.command.meta.raise_exception:

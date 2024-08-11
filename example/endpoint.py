@@ -8,6 +8,7 @@ class User:
     name: str
     age: int
 
+
 user_ = Alconna(
     "user",
     Option("list"),
@@ -25,6 +26,7 @@ sends = [
 ]
 
 users = {}
+
 
 def handle(send: str):
     res = user_.parse(send)
