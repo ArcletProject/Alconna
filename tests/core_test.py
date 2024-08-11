@@ -977,14 +977,14 @@ def test_tips():
 
     core27 = Alconna(
         "core27",
-        Args["arg1", Literal["1", "2"], Field(unmatch_tips=lambda x: f"参数arg必须是1或2哦，不能是{x}")],
-        Args["arg2", Literal["1", "2"], Field(missing_tips=lambda: "缺少了arg参数哦")],
+        Args["arg1", Literal["1", "2"], Field(unmatch_tips=lambda x: f"参数arg必须是1或2哦，不能是{x}", missing_tips=lambda: "缺少了arg1参数哦")],
+        Args["arg2", Literal["1", "2"], Field(missing_tips=lambda: "缺少了arg2参数哦")],
     )
     assert core27.parse("core27 1 1").matched
     assert str(core27.parse("core27 3 1").error_info) == "参数arg必须是1或2哦，不能是3"
-    assert str(core27.parse("core27 1").error_info) == "缺少了arg参数哦"
+    assert str(core27.parse("core27 1").error_info) == "缺少了arg2参数哦"
     assert str(core27.parse("core27 1 3").error_info) in ("参数 '3' 不正确, 其应该符合 \"'1'|'2'\"", "参数 '3' 不正确, 其应该符合 \"'2'|'1'\"")
-    assert str(core27.parse("core27").error_info) == "参数 arg1 丢失"
+    assert str(core27.parse("core27").error_info) == "缺少了arg1参数哦"
 
 
 def test_disable_builtin_option():

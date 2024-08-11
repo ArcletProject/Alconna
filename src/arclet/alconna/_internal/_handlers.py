@@ -292,11 +292,10 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     error = True
     name, _ = argv.next(opt.separators)
     if opt.compact:
-        for al in opt.aliases:
-            if mat := re.fullmatch(f"{al}(?P<rest>.*?)", name):
-                argv.rollback(mat["rest"], replace=True)
-                error = False
-                break
+        mat = next(filter(None, (re.fullmatch(f"{al}(?P<rest>.*?)", name) for al in opt.aliases)), None)
+        if mat:
+            argv.rollback(mat["rest"], replace=True)
+            error = False
     elif opt.action.type == 2:
         for al in opt.aliases:
             if name.startswith(al) and (cnt := (len(name.lstrip("-")) / len(al.lstrip("-")))).is_integer():
@@ -314,11 +313,9 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
                 raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name))
         raise InvalidParam(lang.require("option", "name_error").format(source=opt.dest, target=name))
     name = opt.dest
-    return (
-        (name, OptionResult(None, analyse_args(argv, opt.args)))
-        if opt.nargs
-        else (name, OptionResult(_cnt or opt.action.value))
-    )
+    if opt.nargs:
+        return name, OptionResult(None, analyse_args(argv, opt.args))
+    return name, OptionResult(_cnt or opt.action.value)
 
 
 def handle_action(param: Option, source: OptionResult, target: OptionResult):
