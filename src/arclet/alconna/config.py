@@ -38,7 +38,7 @@ class Namespace:
     """默认是否抛出异常"""
     enable_message_cache: bool = field(default=True)
     """默认是否启用消息缓存"""
-    disable_builtin_options: set[Literal["help", "shortcut", "completion"]] = field(default_factory=set)
+    disable_builtin_options: set[Literal["help", "shortcut", "completion"]] = field(default_factory=lambda : {"shortcut"})
     builtin_option_name: OptionNames = field(
         default_factory=lambda: {
             "help": {"--help", "-h"},
