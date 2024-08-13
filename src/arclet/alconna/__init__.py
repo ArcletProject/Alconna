@@ -52,7 +52,7 @@ from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
 from .typing import StrMulti as StrMulti
 
-__version__ = "1.8.25"
+__version__ = "1.8.26"
 
 # backward compatibility
 AnyOne = ANY
