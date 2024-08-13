@@ -288,7 +288,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
 
     def shortcut(
         self, argv: Argv[TDC], data: list[Any], short: Arparma | InnerShortcutArgs, reg: Match | None = None
-    ) -> Arparma[TDC]:
+    ) -> Arparma[TDC] | None:
         """处理被触发的快捷命令
 
         Args:
@@ -298,11 +298,13 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             reg (Match | None): 可能的正则匹配结果
 
         Returns:
-            Arparma[TDC]: Arparma 解析结果
+            Arparma[TDC] | None: Arparma 解析结果
 
         Raises:
             ParamsUnmatched: 若不允许快捷命令后随其他参数，则抛出此异常
         """
+        self.reset()
+
         if isinstance(short, Arparma):
             return short
 
@@ -326,7 +328,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             argv.ndata = 0
             argv.current_index = 0
             argv.addon(data)
-        return self.process(argv)
+        return
 
     def process(self, argv: Argv[TDC]) -> Arparma[TDC]:
         """主体解析函数, 应针对各种情况进行解析
@@ -366,8 +368,12 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 argv.context[SHORTCUT_ARGS] = short
                 argv.context[SHORTCUT_REST] = rest
                 argv.context[SHORTCUT_REGEX_MATCH] = mat
-                self.reset()
-                return self.shortcut(argv, rest, short, mat)
+
+                if arp := self.shortcut(argv, rest, short, mat):
+                    return arp
+
+                self.header_result = self.header_handler(self.command_header, argv)
+                self.header_result.origin = _next
 
         except RuntimeError as e:
             exc = InvalidParam(lang.require("header", "error").format(target=argv.release(recover=True)[0]))

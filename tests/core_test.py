@@ -466,6 +466,7 @@ def test_shortcut():
         # 构造体缩写传入；{i} 将被可能的正则匹配替换
         alc16.shortcut(r"TEST(\d+)(.+)", {"args": ["{0}", "bar {1}"]})
         res = alc16.parse("TEST123aa")
+        assert res.header_match.origin == "TEST123aa"
         assert res.matched is True
         assert res.foo == 123
         assert res.baz == "aa"
@@ -488,9 +489,11 @@ def test_shortcut():
         alc16_1.shortcut("echo", command="exec print({%0})")
         alc16_1.shortcut("echo1", command="exec print(\\'{*\n}\\')")
         res5 = alc16_1.parse("echo 123")
+        assert res5.header_match.origin == "echo"
         assert res5.content == "print(123)"
         assert not alc16_1.parse("echo 123 456").matched
         res6 = alc16_1.parse(["echo1", "123", "456 789"])
+        assert res6.header_match.origin == "echo1"
         assert res6.content == "print('123\n456\n789')"
         res7 = alc16_1.parse([123])
         assert not res7.matched

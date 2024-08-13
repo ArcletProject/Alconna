@@ -104,6 +104,28 @@ class InnerShortcutArgs:
     def __repr__(self):
         return f"ShortcutArgs({self.command!r}, args={self.args!r}, fuzzy={self.fuzzy}, prefix={self.prefix})"
 
+    def dump(self):
+        return {
+            "command": self.command,
+            "args": self.args,
+            "fuzzy": self.fuzzy,
+            "prefix": self.prefix,
+            "prefixes": self.prefixes,
+            "flags": self.flags,
+        }
+
+    @classmethod
+    def load(cls, data: dict[str, Any]) -> InnerShortcutArgs:
+        return cls(
+            data["command"],
+            data.get("args"),
+            data.get("fuzzy", True),
+            data.get("prefix", False),
+            data.get("prefixes"),
+            data.get("wrapper"),
+            data.get("flags", 0),
+        )
+
 
 @runtime_checkable
 class DataCollection(Protocol[DataUnit]):

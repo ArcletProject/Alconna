@@ -10,6 +10,7 @@ from copy import copy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Match, MutableSet, Union
 from weakref import WeakValueDictionary
+from pathlib import Path
 
 from nepattern import TPattern
 from tarina import LRU, lang
@@ -47,7 +48,6 @@ class CommandManager:
     __shortcuts: dict[str, tuple[dict[str, Union[Arparma, InnerShortcutArgs]], dict[str, Union[Arparma, InnerShortcutArgs]]]]
 
     def __init__(self):
-        self.cache_path = f"{__file__.replace('manager.py', '')}manager_cache.db"
         self.sign = "ALCONNA::"
         self.current_count = 0
 
@@ -71,23 +71,48 @@ class CommandManager:
 
         weakref.finalize(self, _del)
 
-    def load_cache(self) -> None:
+    def load_shortcuts(self, file: str | Path | None = None) -> None:
         """加载缓存"""
+        path = Path(file or (Path.cwd() / "shortcut.db"))
         with contextlib.suppress(FileNotFoundError, KeyError):
-            with shelve.open(self.cache_path) as db:
-                self.__shortcuts = dict(db["shortcuts"])  # type: ignore
+            with shelve.open(path.resolve().as_posix()) as db:
+                data: dict[str, tuple[dict, dict]] = dict(db["shortcuts"])  # type: ignore
+            for cmd, shorts in data.items():
+                _data = self.__shortcuts.setdefault(cmd, ({}, {}))
+                for key, short in shorts[0].items():
+                    if isinstance(short, dict):
+                        _data[0][key] = InnerShortcutArgs.load(short)
+                    else:
+                        _data[0][key] = short
+                for key, short in shorts[1].items():
+                    if isinstance(short, dict):
+                        _data[1][key] = InnerShortcutArgs.load(short)
+                    else:
+                        _data[1][key] = short
 
-    def dump_cache(self) -> None:
+    load_cache = load_shortcuts
+
+    def dump_shortcuts(self, file: str | Path | None = None) -> None:
         """保存缓存"""
         data = {}
-        for key, short in self.__shortcuts.items():
-            if isinstance(short, dict):
-                data[key] = {k: v for k, v in short.items() if k != "wrapper"}
-            else:
-                data[key] = short
-        with shelve.open(self.cache_path) as db:
+        for cmd, shorts in self.__shortcuts.items():
+            _data = data.setdefault(cmd, ({}, {}))
+            for key, short in shorts[0].items():
+                if isinstance(short, InnerShortcutArgs):
+                    _data[0][key] = short.dump()
+                else:
+                    _data[0][key] = short
+            for key, short in shorts[1].items():
+                if isinstance(short, InnerShortcutArgs):
+                    _data[1][key] = short.dump()
+                else:
+                    _data[1][key] = short
+        path = Path(file or (Path.cwd() / "shortcut.db"))
+        with shelve.open(path.resolve().as_posix()) as db:
             db["shortcuts"] = data
         data.clear()
+
+    dump_cache = dump_shortcuts
 
     @property
     def get_loaded_namespaces(self):
