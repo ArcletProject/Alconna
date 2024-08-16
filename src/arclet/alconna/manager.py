@@ -43,7 +43,7 @@ class CommandManager:
     __commands: dict[str, WeakValueDictionary[str, Alconna]]
     __analysers: dict[int, Analyser]
     __argv: dict[int, Argv]
-    __abandons: list[Alconna]
+    __abandons: list[int]
     __record: LRU[int, Arparma]
     __shortcuts: dict[str, tuple[dict[str, Union[Arparma, InnerShortcutArgs]], dict[str, Union[Arparma, InnerShortcutArgs]]]]
 
@@ -227,16 +227,16 @@ class CommandManager:
 
     def is_disable(self, command: Alconna) -> bool:
         """判断命令是否被禁用"""
-        return command in self.__abandons
+        return command._hash in self.__abandons
 
     def set_enabled(self, command: Alconna | str, enabled: bool):
         """设置命令是否被禁用"""
         if isinstance(command, str):
             command = self.get_command(command)
         if enabled and command in self.__abandons:
-            self.__abandons.remove(command)
+            self.__abandons.remove(command._hash)
         if not enabled and command not in self.__abandons:
-            self.__abandons.append(command)
+            self.__abandons.append(command._hash)
 
     def add_shortcut(self, target: Alconna, key: str | TPattern, source: Arparma | ShortcutArgs):
         """添加快捷命令
@@ -518,7 +518,7 @@ class CommandManager:
             + "\nRecords:\n"
             + "\n".join([f" [{k}]: {v[1].origin}" for k, v in enumerate(self.__record.items()[:20])])
             + "\nDisabled Commands:\n"
-            + f"[{', '.join(map(lambda x: x.path, self.__abandons))}]"
+            + f"[{', '.join(map(lambda x: self.__analysers[x].command.path, self.__abandons))}]"
         )
 
 

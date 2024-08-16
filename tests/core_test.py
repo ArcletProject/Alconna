@@ -910,21 +910,39 @@ def test_default():
 
     alc25_1 = Alconna(
         "core25_1",
+        Option("bar1", Args["baz1;?", int]["qux1", float, 1.0], default={"baz1": 123, "qux1": 2.0}),
+        Option("bar", Args["baz;?", int]["qux", float, 1.0], default=321),
+    )
+    res1_1 = alc25_1.parse("core25_1")
+    assert res1_1.query("baz1") == 123
+    assert res1_1.query("qux1") == 2.0
+    assert res1_1.query("baz") == 321
+
+    alc25_2 = Alconna(
+        "core25_2",
         Option("--foo", action=append, default=423),
         Subcommand("test", Option("--bar", default=False, action=store_true)),
     )
 
-    res5 = alc25_1.parse("core25_1")
+    res5 = alc25_2.parse("core25_2")
     assert res5.query("foo.value") == [423]
     assert res5.query("test.bar.value") is None
 
-    res6 = alc25_1.parse("core25_1 --foo test")
+    res6 = alc25_2.parse("core25_2 --foo test")
     assert res6.query("foo.value") == [423]
     assert res6.query("test.bar.value") is False
 
-    res7 = alc25_1.parse("core25_1 --foo --foo test --bar")
+    res7 = alc25_2.parse("core25_2 --foo --foo test --bar")
     assert res7.query("foo.value") == [423, 423]
     assert res7.query("test.bar.value") is True
+
+    alc25_3 = Alconna(
+        "core25_3",
+        Option("bar", Args["baz;?", int, 321]["qux", float, 1.0]),
+    )
+    res8 = alc25_3.parse("core25_3")
+    assert res8.query("bar.baz") == 321
+    assert res8.query("bar.qux") == 1.0
 
 
 def test_conflict():

@@ -35,6 +35,7 @@ class _DummyAnalyser(Analyser):
         cls.command = cls._DummyALC()  # type: ignore
         cls.compile_params = {}
         cls.compact_params = []
+        cls.default_opt_result = {}
         return super().__new__(cls)
 
 

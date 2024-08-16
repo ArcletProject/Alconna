@@ -34,7 +34,7 @@ def _handle_default(node: CommandNode):
             node.default.value = 1
     else:
         if act.type == 0 and act.value is ...:
-            node.action = Action(act.type, node.default)
+           node.action = Action(act.type, node.default)
         if act.type == 1:
             if not isinstance(node.default, list):
                 node.default = [node.default]
@@ -198,12 +198,19 @@ class Option(CommandNode):
 
         self.priority = priority
         self.compact = compact
-        if default is not Empty:
-            default = default if isinstance(default, OptionResult) else OptionResult(default)
+        if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
+            default = OptionResult(default)
         super().__init__(name, args, alias, dest, default, action, separators, help_text, requires)
+        if not self.args.empty:
+            if default is not Empty and not self.default.args:
+                self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
+                self.default.value = ...
+            if self.default is Empty:
+                self.default = OptionResult(args={arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty})
         if self.separators == ("",):
             self.compact = True
             self.separators = (" ",)
+        self._hash = self._calc_hash()
 
     @overload
     def __add__(self, other: Option) -> Subcommand:
@@ -291,13 +298,18 @@ class Subcommand(CommandNode):
         for li in args:
             if isinstance(li, list):
                 self.options.extend(li)
-        if default is not Empty:
-            default = default if isinstance(default, SubcommandResult) else SubcommandResult(default)
+        if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
+            default = SubcommandResult(default)
         super().__init__(
             name,
             reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
             alias, dest, default, None, separators, help_text, requires,
         )
+        if not self.args.empty and default is not Empty and not self.default.args:
+            self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
+            self.default.args.update()
+            self.default.value = ...
+        self._hash = self._calc_hash()
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:
         """连接子命令与命令选项或命令节点
