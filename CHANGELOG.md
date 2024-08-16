@@ -1,5 +1,12 @@
 # 更新日志
 
+## 1.8.27
+
+### 改进
+
+- `Option` 和 `Subcommand` 在传入 `OptionResult/SubcommandResult` 以外的 `default` 时, 如果其 Args 不为空, 则 `default` 会自动作为 `Result.args` 的值
+- 若 `Option` 或 `Subcommand` 未传入 `default`, 并且其 Args 不为空, 则其 `Result.args` 会被设置为 Args 上所有参数的默认值(如果有的话)
+
 ## 1.8.26
 
 ### 改进
