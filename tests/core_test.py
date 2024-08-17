@@ -939,10 +939,14 @@ def test_default():
     alc25_3 = Alconna(
         "core25_3",
         Option("bar", Args["baz;?", int, 321]["qux", float, 1.0]),
+        Option("bar1", Args["baz1;?", int]["qux1", float]),
     )
     res8 = alc25_3.parse("core25_3")
     assert res8.query("bar.baz") == 321
     assert res8.query("bar.qux") == 1.0
+
+    assert not res8.query("bar1")
+    assert not res8.query("bar1.baz")
 
 
 def test_conflict():

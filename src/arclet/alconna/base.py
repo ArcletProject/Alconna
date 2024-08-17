@@ -205,8 +205,8 @@ class Option(CommandNode):
             if default is not Empty and not self.default.args:
                 self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
                 self.default.value = ...
-            if self.default is Empty:
-                self.default = OptionResult(args={arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty})
+            if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}):
+                self.default = OptionResult(args=defaults)
         if self.separators == ("",):
             self.compact = True
             self.separators = (" ",)
@@ -307,8 +307,9 @@ class Subcommand(CommandNode):
         )
         if not self.args.empty and default is not Empty and not self.default.args:
             self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
-            self.default.args.update()
             self.default.value = ...
+        if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}):
+            self.default = SubcommandResult(args=defaults)
         self._hash = self._calc_hash()
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:
