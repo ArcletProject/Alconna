@@ -642,22 +642,22 @@ def test_help():
         )
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 --help foo")
-        assert cap["output"] == "foo <bar: str> \nFoo bar"
+        assert cap["output"] == "core17 foo <bar: str> \nFoo bar"
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 foo --help")
-        assert cap["output"] == "foo <bar: str> \nFoo bar"
+        assert cap["output"] == "core17 foo <bar: str> \nFoo bar"
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 --help baz")
-        assert cap["output"] == "baz <qux: str> \nBaz qux"
+        assert cap["output"] == "core17 baz <qux: str> \nBaz qux"
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 baz --help")
-        assert cap["output"] == "baz <qux: str> \nBaz qux"
+        assert cap["output"] == "core17 baz <qux: str> \nBaz qux"
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 add --help")
-        assert cap["output"] == "add <bar: str> \nAdd bar"
+        assert cap["output"] == "core17 add <bar: str> \nAdd bar"
     with output_manager.capture("core17") as cap:
         alc17.parse("core17 del --help")
-        assert cap["output"] == "del <bar: str> \nDel bar"
+        assert cap["output"] == "core17 del <bar: str> \nDel bar"
     alc17_1 = Alconna(
         "core17_1",
         Option("foo bar abc baz", Args["qux", int]),
@@ -676,10 +676,10 @@ def test_help():
     )
     with output_manager.capture("core17_2") as cap:
         alc17_2.parse("core17_2 --help foo bar")
-        assert cap["output"] == "bar <baz: str> \nFoo bar"
+        assert cap["output"] == "core17_2 foo bar <baz: str> \nFoo bar"
     with output_manager.capture("core17_2") as cap:
         alc17_2.parse("core17_2 --help foo")
-        assert cap["output"] == "foo <abc: str> \nsub Foo\n\n可用的选项有:\n* Foo bar\n  bar <baz: str> \n"
+        assert cap["output"] == "core17_2 foo <abc: str> \nsub Foo\n\n可用的选项有:\n* Foo bar\n  bar <baz: str> \n"
 
 
 def test_hide_annotation():

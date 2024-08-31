@@ -133,12 +133,15 @@ class TextFormatter:
                 return self.format(trace)
             _cache = resolve_requires(trace.body)
             _parts = []
+            prefix = parts[0]
             for text in parts:
                 if isinstance(_cache, dict) and text in _cache:
                     _cache = _cache[text]
                     _parts.append(text)
             if not _parts:
                 return self.format(trace)
+            if len(_parts) > 1:
+                prefix += trace.separators[0] + trace.separators[0].join(_parts[:-1])
             if isinstance(_cache, dict):
                 if ensure := ensure_node(_parts, trace.body):
                     _cache = ensure
@@ -155,11 +158,11 @@ class TextFormatter:
                     )
             if isinstance(_cache, Option):
                 return self.format(
-                    Trace({"name": "│".join(_cache.aliases), "description": _cache.help_text, 'example': None, 'usage': None}, _cache.args, _cache.separators, [], {})  # noqa: E501
+                    Trace({"name": prefix + trace.separators[0] + "│".join(_cache.aliases), "description": _cache.help_text, 'example': None, 'usage': None}, _cache.args, _cache.separators, [], {})  # noqa: E501
                 )
             if isinstance(_cache, Subcommand):
                 return self.format(
-                    Trace({"name": "│".join(_cache.aliases), "description": _cache.help_text, 'example': None, 'usage': None}, _cache.args, _cache.separators, _cache.options, {})  # noqa: E501
+                    Trace({"name": prefix + trace.separators[0] + "│".join(_cache.aliases), "description": _cache.help_text, 'example': None, 'usage': None}, _cache.args, _cache.separators, _cache.options, {})  # noqa: E501
                 )
             return self.format(trace)
 

@@ -41,7 +41,7 @@ from arclet.alconna import Alconna, Option, Subcommand, Args
 
 cmd = Alconna(
     "/pip",
-    Subcommand("install", Option("-u|--upgrade"), Args.pak_name[str]),
+    Subcommand("install", Option("-U|--upgrade"), Args["pak", str]),
     Option("list")
 )
 
@@ -51,7 +51,7 @@ print(result.query('install'))  # Or result.install
 
 Output as follows:
 ```
-value=None args={'pak_name': 'numpy'} options={'upgrade': value=Ellipsis args={}} subcommands={}
+value=None args={'pak': 'numpy'} options={'upgrade': value=Ellipsis args={}} subcommands={}
 ```
 
 ## Communication
