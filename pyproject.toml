@@ -11,7 +11,7 @@ authors = [
 dependencies = [
     "typing-extensions>=4.5.0",
     "nepattern<1.0.0,>=0.7.6",
-    "tarina>=0.5.5",
+    "tarina>=0.5.8",
 ]
 dynamic = ["version"]
 requires-python = ">=3.8"
