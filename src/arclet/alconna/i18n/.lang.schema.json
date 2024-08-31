@@ -2,8 +2,6 @@
   "title": "Lang Schema",
   "description": "Schema for lang file",
   "type": "object",
-  "minProperties": 19,
-  "maxProperties": 19,
   "properties": {
     "common": {
       "title": "Common",
@@ -388,6 +386,34 @@
           "title": "option_completion",
           "description": "value of lang item type 'option_completion'",
           "type": "string"
+        },
+        "conflict": {
+          "title": "Conflict",
+          "description": "Scope 'conflict' of lang item",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "option": {
+              "title": "option",
+              "description": "value of lang item type 'option'",
+              "type": "string"
+            },
+            "subcommand": {
+              "title": "subcommand",
+              "description": "value of lang item type 'subcommand'",
+              "type": "string"
+            },
+            "arg": {
+              "title": "arg",
+              "description": "value of lang item type 'arg'",
+              "type": "string"
+            },
+            "msg": {
+              "title": "msg",
+              "description": "value of lang item type 'msg'",
+              "type": "string"
+            }
+          }
         }
       }
     },

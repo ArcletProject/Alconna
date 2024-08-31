@@ -21,6 +21,7 @@ from .arparma import ArparmaBehavior as ArparmaBehavior
 from .base import Option as Option
 from .base import Subcommand as Subcommand
 from .builtin import set_default as set_default
+from .builtin import conflict as conflict
 from .completion import CompSession as CompSession
 from .config import Namespace as Namespace
 from .config import config as config

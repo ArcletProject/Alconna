@@ -1,5 +1,5 @@
 from arclet.alconna import Alconna, Args, Arparma, ArparmaBehavior, Option, Subcommand
-from arclet.alconna.builtin import generate_duplication, set_default
+from arclet.alconna.builtin import generate_duplication, set_default, conflict
 from arclet.alconna.duplication import Duplication
 from arclet.alconna.model import OptionResult
 from arclet.alconna.output import output_manager
@@ -21,6 +21,34 @@ def test_behavior():
 
     com.behaviors.append(Test())
     assert com.parse("comp 123").matched is False
+
+    com1 = Alconna("comp1", Option("--foo", Args["bar", int]), Option("--baz", Args["qux", int]))
+    com1.behaviors.append(conflict("foo", "baz"))
+
+    assert com1.parse("comp1 --foo 1").matched
+    assert com1.parse("comp1 --baz 2").matched
+    assert com1.parse("comp1 --foo 1 --baz 2").matched is False
+
+    com1.behaviors.clear()
+    com1.behaviors.append(conflict("foo.bar", "baz.qux", source_limiter=lambda x: x == 2, target_limiter=lambda x: x == 1))
+
+    assert com1.parse("comp1 --foo 1").matched
+    assert com1.parse("comp1 --baz 2").matched
+    assert com1.parse("comp1 --foo 1 --baz 2").matched
+    assert com1.parse("comp1 --foo 2 --baz 1").matched is False
+
+    com1_1 = Alconna(
+        "comp1_1",
+        Option("-1", dest="one"),
+        Option("-2", dest="two"),
+        Option("-3", dest="three")
+    )
+    com1_1.behaviors.append(conflict("one", "two"))
+    com1_1.behaviors.append(conflict("two", "three"))
+
+    assert com1_1.parse("comp1_1 -1 -2").matched is False
+    assert com1_1.parse("comp1_1 -2 -3").matched is False
+    assert com1_1.parse("comp1_1 -1 -3").matched
 
 
 def test_duplication():

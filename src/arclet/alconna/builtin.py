@@ -3,13 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, cast, overload
 
+from tarina import Empty
+
+from .config import lang
 from .arparma import Arparma, ArparmaBehavior
 from .core import Alconna
 from .duplication import Duplication
 from .exceptions import BehaveCancelled
+from .model import OptionResult, SubcommandResult
 from .stub import ArgsStub, OptionStub, SubcommandStub
 
-__all__ = ["set_default", "generate_duplication"]
+__all__ = ["set_default", "generate_duplication", "conflict"]
 
 
 def generate_duplication(alc: Alconna) -> type[Duplication]:
@@ -32,6 +36,55 @@ def generate_duplication(alc: Alconna) -> type[Duplication]:
             },
         ),
     )
+
+
+@dataclass
+class ConflictWith(ArparmaBehavior):
+    source: str
+    target: str
+    source_limiter: Callable[...,  bool] | None = None
+    target_limiter: Callable[..., bool] | None = None
+
+    def get_type(self, res):
+        if isinstance(res, OptionResult):
+            return lang.require("builtin", "conflict.option")
+        if isinstance(res, SubcommandResult):
+            return lang.require("builtin", "conflict.subcommand")
+        return lang.require("builtin", "conflict.arg")
+
+    def operate(self, interface: Arparma):
+        if (s_r := interface.query(self.source, Empty)) is not Empty and (t_r := interface.query(self.target, Empty)) is not Empty:
+            source_type = self.get_type(s_r)
+            target_type = self.get_type(t_r)
+            if self.source_limiter and not self.source_limiter(s_r):
+                return
+            if self.target_limiter and not self.target_limiter(t_r):
+                return
+            interface.behave_fail(lang.require("builtin", "conflict.msg").format(
+                source_type=source_type,
+                target_type=target_type,
+                source=self.source,
+                target=self.target
+            ))
+
+
+def conflict(
+    source: str,
+    target: str,
+    source_limiter: Callable[..., bool] | None = None,
+    target_limiter: Callable[..., bool] | None = None,
+):
+    """
+    当 `source` 与 `target` 同时存在时设置解析结果为失败
+
+    Args:
+        source (str): 参数路径1
+        target (str): 参数路径2
+        source_limiter (Callable[..., bool]): 假设 source 存在时限定特定结果以继续的函数
+        target_limiter (Callable[..., bool]): 假设 target 存在时限定特定结果以继续的函数
+    """
+
+    return ConflictWith(source, target, source_limiter, target_limiter)
 
 
 class _MISSING_TYPE:
@@ -57,10 +110,11 @@ class _SetDefault(ArparmaBehavior):
 
     def operate(self, interface: Arparma):
         if not self.path:
-            raise BehaveCancelled
-        def_val = self.default
-        if not interface.query(self.path):
-            self.update(interface, self.path, def_val)
+            interface.behave_cancel()
+        else:
+            def_val = self.default
+            if not interface.query(self.path):
+                self.update(interface, self.path, def_val)
 
 
 @overload

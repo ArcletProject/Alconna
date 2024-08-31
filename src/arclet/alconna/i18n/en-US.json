@@ -82,7 +82,13 @@
   "builtin": {
     "option_help": "show the help information",
     "option_shortcut": "set a shortcut command",
-    "option_completion": "give a next input suggestion of current command"
+    "option_completion": "give a next input suggestion of current command",
+    "conflict": {
+      "option": "Option",
+      "subcommand": "Subcommand",
+      "arg": "Arg",
+      "msg": "{source_type} {source} conflict with {target_type} {target}"
+    }
   },
   "format": {
     "notice": "Notice",

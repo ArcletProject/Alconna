@@ -82,7 +82,13 @@
   "builtin": {
     "option_help": "显示帮助信息",
     "option_shortcut": "设置快捷命令",
-    "option_completion": "补全当前命令"
+    "option_completion": "补全当前命令",
+    "conflict": {
+      "option": "选项",
+      "subcommand": "子命令",
+      "arg": "参数",
+      "msg": "{source_type} {source} 与 {target_type} {target} 冲突"
+    }
   },
   "format": {
     "notice": "注释",

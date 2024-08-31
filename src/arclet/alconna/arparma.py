@@ -225,14 +225,14 @@ class Arparma(Generic[TDC]):
         self._unpack_subs(self.subcommands)
 
     @staticmethod
-    def behave_cancel():
+    def behave_cancel(*msg: str):
         """取消行为器的后续操作"""
-        raise BehaveCancelled
+        raise BehaveCancelled(*msg)
 
     @staticmethod
-    def behave_fail():
+    def behave_fail(*msg: str):
         """取消行为器的后续操作并抛出 `OutBoundsBehave`"""
-        raise OutBoundsBehave
+        raise OutBoundsBehave(*msg)
 
     def execute(self, behaviors: list[ArparmaBehavior] | None = None) -> Self:
         """执行行为器

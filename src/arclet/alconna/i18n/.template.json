@@ -134,7 +134,16 @@
       "types": [
         "option_help",
         "option_shortcut",
-        "option_completion"
+        "option_completion",
+        {
+          "subtype": "conflict",
+          "types": [
+            "option",
+            "subcommand",
+            "arg",
+            "msg"
+          ]
+        }
       ]
     },
     {

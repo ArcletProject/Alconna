@@ -210,7 +210,7 @@ ParamsUnmatched: 参数 3 不正确
 # fuzzy.py
 from arclet.alconna import Alconna, CommandMeta, Arg
 
-alc = Alconna('!test_fuzzy', Arg("foo", str), meta=CommandMeta(fuzzy_match=True))
+alc = Alconna('!test_fuzzy', Arg("foo", str), CommandMeta(fuzzy_match=True))
 
 if __name__ == '__main__':
     alc()

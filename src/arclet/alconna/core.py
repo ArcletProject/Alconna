@@ -119,7 +119,7 @@ class Alconna(Subcommand, Generic[TDC]):
 
     def __init__(
         self,
-        *args: Option | Subcommand | str | TPrefixes | Any | Args | Arg,
+        *args: Option | Subcommand | str | TPrefixes | Args | Arg | CommandMeta | ArparmaBehavior | Any,
         meta: CommandMeta | None = None,
         namespace: str | Namespace | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
@@ -146,12 +146,12 @@ class Alconna(Subcommand, Generic[TDC]):
             ns_config = namespace
         self.prefixes = next((i for i in args if isinstance(i, list)), ns_config.prefixes.copy())  # type: ignore
         try:
-            self.command = next(i for i in args if not isinstance(i, (list, Option, Subcommand, Args, Arg)))
+            self.command = next(i for i in args if not isinstance(i, (list, Option, Subcommand, Args, Arg, CommandMeta, ArparmaBehavior)))
         except StopIteration:
             self.command = "" if self.prefixes else handle_argv()
         self.namespace = ns_config.name
         self.formatter = (formatter_type or ns_config.formatter_type or TextFormatter)()
-        self.meta = meta or CommandMeta()
+        self.meta = meta or next((i for i in args if isinstance(i, CommandMeta)), CommandMeta())
         if self.meta.example:
             self.meta.example = self.meta.example.replace("$", str(self.prefixes[0]) if self.prefixes else "")
         self.meta.fuzzy_match = self.meta.fuzzy_match or ns_config.fuzzy_match
@@ -167,7 +167,9 @@ class Alconna(Subcommand, Generic[TDC]):
         self.name = name
         self.aliases = frozenset((name,))
         self.behaviors = []
-        for behavior in behaviors or []:
+        _behaviors = [i for i in args if isinstance(i, ArparmaBehavior)]
+        _behaviors.extend(behaviors or [])
+        for behavior in _behaviors:
             self.behaviors.extend(requirement_handler(behavior))
         command_manager.register(self)
         self._executors: dict[ArparmaExecutor, Any] = {}
