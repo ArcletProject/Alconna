@@ -2,7 +2,7 @@
 
 ## 1.8.29
 
-## 新增
+### 新增
 
 - 内置行为器 `conflict`, 可以用来规定冲突选项/子命令/参数：
 
@@ -19,12 +19,12 @@ $ python conflict.py cmd --foo --bar
 选项 foo 与 选项 bar 冲突
 ```
 
-## 改进
+### 改进
 
 - 子节点的帮助现在会把前面的文本部分加上
 - 传入 `CommandMeta`, `behavior` 时现在不需要关键字
 
-## 修复
+### 修复
 
 - 升级 `Tarina` 依赖版本以避免特定python版本下特定字符串导致的 segfault 问题
 
