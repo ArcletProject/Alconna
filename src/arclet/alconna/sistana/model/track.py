@@ -82,7 +82,7 @@ class Track:
                 raise ReceivePanic from e
 
         if tail is not None:
-            buffer.ahead.append(tail)
+            buffer.ahead.append(tail.value)
 
         token.apply()
 
