@@ -54,9 +54,11 @@ class Analyzer(Generic[T]):
                     # 在 option context 里面，因为 satisfied 了，所以可以直接返回 completed。
                     # 并且还得确保 option 也被记录于 activated_options 里面。
                     if pointer_type == "option":
+                        mix.tracks[pointer_val].complete()
                         traverse.activated_options.add(pointer_val)
                         traverse.ref = traverse.ref.parent
 
+                    snapshot.determine(traverse.ref)
                     return LoopflowDescription.completed, snapshot
 
                 # 这里如果没有 satisfied，如果是 option 的 track，则需要 reset
@@ -182,6 +184,7 @@ class Analyzer(Generic[T]):
                     elif pointer_type == "option":
                         if token.val in context.subcommands:
                             # 当且仅当 option 已经 satisfied 时才能让状态流转进 subcommand。
+                            # subcommand.satisfy_previous 处理起来比较复杂，这里先 reject。
                             subcommand = context.subcommands[token.val]
                             option = context.options[pointer_val]
                             track = mix.tracks[option.keyword]
@@ -191,6 +194,7 @@ class Analyzer(Generic[T]):
                                     mix.reset(option.keyword)
                                     return LoopflowDescription.switch_unsatisfied_option, snapshot
                             else:
+                                mix.tracks[option.keyword].complete()
                                 traverse.ref = traverse.ref.parent
                                 traverse.activated_options.add(pointer_val)
                                 # TODO: 重新考虑 traverse 记录 option 的方法
@@ -224,6 +228,7 @@ class Analyzer(Generic[T]):
                                     mix.reset(target_option.keyword)
                                     return LoopflowDescription.option_switch_prohibited_direction, snapshot
                             else:
+                                mix.tracks[target_option.keyword].complete()
                                 traverse.ref = traverse.ref.parent
                                 traverse.activated_options.add(pointer_val)
 
@@ -275,6 +280,7 @@ class Analyzer(Generic[T]):
                     else:
                         if response is None:
                             # track 上没有 fragments 可供分配了。
+                            # 这里没必要 complete。
 
                             traverse.ref = traverse.ref.parent
                             traverse.activated_options.add(origin_option.keyword)

@@ -1,43 +1,37 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 
-if TYPE_CHECKING:
-    from .snapshot import AnalyzeSnapshot
+from ..utils.misc import Some
+
 
 T = TypeVar("T")
 
+RxGet = Callable[[], Some[T]]
+RxPut = Callable[[T], None]
 
-@dataclass
+
 class Rx(Generic[T]):
-    name: str
-
-    def receive(self, snapshot: AnalyzeSnapshot, data: T) -> None:
-        snapshot.cache[self.name] = data
-
-    def load(self, snapshot: AnalyzeSnapshot):
-        return snapshot.cache[self.name]
+    def receive(self, get: RxGet[Any], put: RxPut[Any], data: T) -> None:
+        if get() is None:
+            put(data)
 
 
-@dataclass
 class CountRx(Rx[Any]):
-    def receive(self, snapshot: AnalyzeSnapshot, data: Any) -> None:
-        snapshot.cache[self.name] = snapshot.cache.get(self.name, 0) + 1
+    def receive(self, get: RxGet[int], put: RxPut[int], data: Any) -> None:
+        v = get()
 
-    def load(self, snapshot: AnalyzeSnapshot):
-        return snapshot.cache.get(self.name, 0)
-
-
-@dataclass
-class AccumRx(Rx[T]):
-    def receive(self, snapshot: AnalyzeSnapshot, data: str) -> None:
-        if self.name in snapshot.cache:
-            target = snapshot.cache[self.name]
+        if v is None:
+            put(1)
         else:
-            target = snapshot.cache[self.name] = []
+            put(v.value + 1)
 
-        target.append(data)
 
-    def load(self, snapshot: AnalyzeSnapshot):
-        return snapshot.cache.get(self.name) or []
+class AccumRx(Rx[T]):
+    def receive(self, get: RxGet[list[T]], put: RxPut[list[T]], data: T) -> None:
+        v = get()
+
+        if v is None:
+            put([data])
+        else:
+            put([*v.value, data])

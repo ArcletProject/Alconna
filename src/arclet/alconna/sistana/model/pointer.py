@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Union, Tuple
+from typing import Literal, Tuple, Union
 
 PointerRole = Literal["subcommand", "option"]
 PointerPair = Tuple[PointerRole, str]

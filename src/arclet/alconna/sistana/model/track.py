@@ -4,7 +4,8 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ..err import TransformPanic, ValidateRejected
+from ..err import ReceivePanic, TransformPanic, ValidateRejected
+from ..utils.misc import Value
 from .fragment import _Fragment, assert_fragments_order
 
 if TYPE_CHECKING:
@@ -41,13 +42,28 @@ class Track:
             if first.variadic and first.name not in self.assignes:
                 self.assignes[first.name] = []
 
-    def fetch(
-        self,
-        snapshot: AnalyzeSnapshot,
-        frag: _Fragment,
-        buffer: Buffer,
-        separators: str,
-    ):
+    def _assign_getter(self, name: str):
+        def getter():
+            if name in self.assignes:
+                return Value(self.assignes[name])
+
+        return getter
+
+    def _assign_setter(self, name: str, is_variadic: bool = False):
+        def setter(val):
+            if is_variadic:
+                if name not in self.assignes:
+                    target = self.assignes[name] = []
+                else:
+                    target = self.assignes[name]
+
+                target.append(val)
+            else:
+                self.assignes[name] = val
+
+        return setter
+
+    def fetch(self, snapshot: AnalyzeSnapshot, frag: _Fragment, buffer: Buffer, separators: str):
         val, tail, token = frag.capture.capture(buffer, separators)
 
         if frag.validator is not None and not frag.validator(val):
@@ -61,36 +77,25 @@ class Track:
 
         if frag.receiver is not None:
             try:
-                frag.receiver.receive(snapshot, val)
+                frag.receiver.receive(self._assign_getter(frag.name), self._assign_setter(frag.name, frag.variadic), val)
             except Exception as e:
-                raise ValidateRejected from e
-
-            val = frag.receiver.load(snapshot)
+                raise ReceivePanic from e
 
         if tail is not None:
             buffer.ahead.append(tail)
 
         token.apply()
-        return val
 
     def forward(self, snapshot: AnalyzeSnapshot, buffer: Buffer, separators: str):
         if not self.fragments:
             return
 
         first = self.fragments[0]
-        val = self.fetch(snapshot, first, buffer, separators)
+        self.fetch(snapshot, first, buffer, separators)
 
-        if first.variadic:
-            if first.name not in self.assignes:
-                variadics = self.assignes[first.name] = []
-            else:
-                variadics = self.assignes[first.name]
+        if not first.variadic:
+            self.fragments.popleft()
 
-            variadics.append(val)
-            return first
-
-        self.assignes[first.name] = val
-        self.fragments.popleft()
         return first
 
     @property
@@ -162,6 +167,6 @@ class Mix:
         for track in self.tracks.values():
             track.complete()
 
-    @property
-    def result(self):
-        return {name: track.assignes for name, track in self.tracks.items()}
+    # @property
+    # def result(self):
+    #     return {name: track.assignes for name, track in self.tracks.items()}

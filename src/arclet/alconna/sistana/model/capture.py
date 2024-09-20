@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar, Union
+from typing import Any, Generic, Tuple, TypeVar, Union
 
 from elaina_segment import Quoted, UnmatchedQuoted
 from typing_extensions import TypeAlias
@@ -14,7 +14,7 @@ from ..err import RegexMismatch, UnexpectedType
 
 T = TypeVar("T")
 
-CaptureResult: TypeAlias = "tuple[T, Some[Any], Union[SegmentToken[T], AheadToken[T]]]"
+CaptureResult = Tuple[T, Some[Any], Union[SegmentToken[T], AheadToken[T]]]
 
 
 class Capture(Generic[T]):

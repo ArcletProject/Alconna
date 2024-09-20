@@ -11,7 +11,7 @@ from .receiver import Rx
 from .track import Preset
 
 if TYPE_CHECKING:
-    from .fragment import _Fragment
+    pass
 
 
 @dataclass

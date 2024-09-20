@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
+from ..utils.misc import Some, Value
 
 if TYPE_CHECKING:
-    from .track import Mix
-    from .pattern import OptionPattern, SubcommandPattern
+    from .pattern import SubcommandPattern
     from .pointer import Pointer
+    from .track import Mix
 
 T = TypeVar("T")
 
@@ -29,4 +30,11 @@ class SubcommandTraverse:
 @dataclass
 class AnalyzeSnapshot(Generic[T]):
     traverses: list[SubcommandTraverse] = field(default_factory=list)
-    cache: dict[str, Any] = field(default_factory=dict)
+    endpoint: Some[Pointer] = None
+
+    @property
+    def determined(self):
+        return self.endpoint is not None
+
+    def determine(self, endpoint: Pointer):
+        self.endpoint = Value(endpoint)
