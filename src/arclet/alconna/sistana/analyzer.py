@@ -32,16 +32,22 @@ class LoopflowDescription(str, Enum):
         return self.value
 
 
+
 @dataclass
 class Analyzer(Generic[T]):
     # TODO: 这里可以放一些用于控制 Loopflow 的 options，但如果最后没有的话，就直接单写一个 analyze_loopflow 好了。
 
+    complete_on_determined: bool = True
+
+
     def loopflow(self, snapshot: AnalyzeSnapshot[T], buffer: Buffer[T]) -> tuple[LoopflowDescription, AnalyzeSnapshot[T]]:
         while True:
             traverse = snapshot.traverses[-1]
-            # context = snapshot.context = traverse.subcommand
             context = traverse.subcommand
             mix = traverse.mix
+
+            if snapshot.determined and self.complete_on_determined and mix.satisfied:
+                return LoopflowDescription.completed, snapshot
 
             pointer_type, pointer_val = traverse.ref.data[-1]
 
