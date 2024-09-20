@@ -244,7 +244,7 @@ class Analyzer(Generic[T]):
                     track = mix.tracks[context.header]
 
                     try:
-                        response = track.forward(snapshot, buffer, context.separators)
+                        response = track.forward(buffer, context.separators)
                     except OutOfData:
                         # 称不上是 context switch，continuation 不改变 context。
                         return LoopflowDescription.out_of_data_subcommand, snapshot
@@ -267,7 +267,7 @@ class Analyzer(Generic[T]):
                         return LoopflowDescription.option_duplicated, snapshot
 
                     try:
-                        response = track.forward(snapshot, buffer, origin_option.separators)
+                        response = track.forward(buffer, origin_option.separators)
                     except OutOfData:
                         mix.reset(origin_option.keyword)
                         return LoopflowDescription.out_of_data_option, snapshot

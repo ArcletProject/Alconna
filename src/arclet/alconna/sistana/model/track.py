@@ -10,7 +10,6 @@ from .fragment import _Fragment, assert_fragments_order
 
 if TYPE_CHECKING:
     from ..buffer import Buffer
-    from .snapshot import AnalyzeSnapshot
 
 
 @dataclass
@@ -63,7 +62,7 @@ class Track:
 
         return setter
 
-    def fetch(self, snapshot: AnalyzeSnapshot, frag: _Fragment, buffer: Buffer, separators: str):
+    def fetch(self, frag: _Fragment, buffer: Buffer, separators: str):
         val, tail, token = frag.capture.capture(buffer, separators)
 
         if frag.validator is not None and not frag.validator(val):
@@ -77,7 +76,11 @@ class Track:
 
         if frag.receiver is not None:
             try:
-                frag.receiver.receive(self._assign_getter(frag.name), self._assign_setter(frag.name, frag.variadic), val)
+                frag.receiver.receive(
+                    self._assign_getter(frag.name),
+                    self._assign_setter(frag.name, frag.variadic),
+                    val,
+                )
             except Exception as e:
                 raise ReceivePanic from e
 
@@ -86,12 +89,12 @@ class Track:
 
         token.apply()
 
-    def forward(self, snapshot: AnalyzeSnapshot, buffer: Buffer, separators: str):
+    def forward(self, buffer: Buffer, separators: str):
         if not self.fragments:
             return
 
         first = self.fragments[0]
-        self.fetch(snapshot, first, buffer, separators)
+        self.fetch(first, buffer, separators)
 
         if not first.variadic:
             self.fragments.popleft()
