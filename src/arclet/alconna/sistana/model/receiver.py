@@ -35,3 +35,13 @@ class AccumRx(Rx[T]):
             put([data])
         else:
             put([*v.value, data])
+
+
+class ConstraintRx(Generic[T], Rx[Any]):
+    value: T
+
+    def __init__(self, value: T):
+        self.value = value
+
+    def receive(self, get: RxGet[Any], put: RxPut[T], data: Any) -> None:
+        put(self.value)
