@@ -69,7 +69,7 @@ class Buffer(Generic[T]):
         for seg in segments:
             if isinstance(seg, (UnmatchedQuoted, Quoted)):
                 s.append(str(seg))
-            else:
+            elif seg:  # NOTE: 仅当 seg 不为空时才添加。
                 s.append(seg)
         
         self.runes = build_runes(s) + self.runes
