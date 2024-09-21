@@ -12,7 +12,7 @@ from .utils.misc import Some
 @dataclass
 class Fragment(_Fragment):
     type: Some[Any] = None
-    cast: bool = False
+    cast: bool = True
 
     def apply_msgspec(self):
         if self.type is None:
@@ -35,11 +35,13 @@ class Fragment(_Fragment):
 
             return True
 
-        def _transform(v: Segment):
-            return convert(str(v), t)
-
         self.validator = _validate
-        self.transformer = _transform
+    
+        if self.cast:
+            def _transform(v: Segment):
+                return convert(str(v), t)
+
+            self.transformer = _transform
 
     def apply_nepattern(self, capture_mode: bool = False):
         if self.type is None:
@@ -63,7 +65,8 @@ class Fragment(_Fragment):
 
             self.validator = _validate
 
-        def _transform(v: Segment):
-            return pat.transform(str(v)).value()
+        if self.cast:
+            def _transform(v: Segment):
+                return pat.transform(str(v)).value()
 
-        self.transformer = _transform
+            self.transformer = _transform
