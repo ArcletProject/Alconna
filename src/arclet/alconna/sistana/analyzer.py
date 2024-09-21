@@ -26,7 +26,7 @@ class LoopflowDescription(str, Enum):
     unexpected_segment = "panic@subcommand-process#unexpected-segment"
     option_duplicated = "panic@option-process#duplicated"
     switch_unsatisfied_option = "panic@option-switch#unsatisfied"
-    option_switch_prohibited_direction = "panic@option-switch#prohibited-direction"
+    previous_unsatisfied = "panic@option-switch#previous-unsatisfied"
 
     def __str__(self):
         return self.value
@@ -70,6 +70,7 @@ class Analyzer(Generic[T]):
                     return LoopflowDescription.completed
 
                 # 这里如果没有 satisfied，如果是 option 的 track，则需要 reset
+                # 从 Buffer 吃掉的东西？我才不还。
                 if pointer_type == "option":
                     mix.reset(pointer_val)
 
@@ -132,25 +133,25 @@ class Analyzer(Generic[T]):
                                 return LoopflowDescription.unsatisfied_switch_subcommand
                             # else: soft keycmd，直接进 mainline
                         elif token.val in context.options:
-                            origin_option = context.options[token.val]
+                            option = context.options[token.val]
 
                             # 之前的版本中如果 track 没有 satisfied，就会继续进入 track forward 流程。
                             # 这里有个问题，如果 Fragments 里有个 variadic，那么就会一直进入 forward 流程 —— 这就不太对了，所以我删掉了。
-                            if not origin_option.soft_keyword or mix.satisfied:
-                                if context.preset.tracks[origin_option.keyword]:
+                            if not option.soft_keyword or mix.satisfied:
+                                if context.preset.tracks[option.keyword]:
                                     # 仅当需要解析 fragments 时进行状态流转。
                                     traverse.ref = traverse.ref.option(token.val)
 
-                                if not origin_option.allow_duplicate and origin_option.keyword in traverse.option_traverses:
+                                if not option.allow_duplicate and option.keyword in traverse.option_traverses:
                                     return LoopflowDescription.option_duplicated
 
                                 traverse.option_traverses.append(
                                     OptionTraverse(
                                         trigger=token.val,
                                         is_compact=False,
-                                        completed=not context.preset.tracks[origin_option.keyword],
-                                        option=origin_option,
-                                        track=mix.tracks[origin_option.keyword],
+                                        completed=not context.preset.tracks[option.keyword],
+                                        option=option,
+                                        track=mix.tracks[option.keyword],
                                     )
                                 )
 
@@ -193,24 +194,24 @@ class Analyzer(Generic[T]):
                                         )
                                     )
                                     continue
-                                elif not subcommand.soft_keyword:  # and not phase.satisfied
+                                elif not subcommand.soft_keyword:  # and not mix.satisfied
                                     return LoopflowDescription.unsatisfied_switch_subcommand
 
                         elif token.val in context.options:
-                            target_option = context.options[token.val]
-                            track = mix.tracks[target_option.keyword]
+                            option = context.options[token.val]
+                            track = mix.tracks[option.keyword]
 
                             if not track.satisfied:
-                                if not target_option.soft_keyword:
-                                    mix.reset(target_option.keyword)
-                                    return LoopflowDescription.option_switch_prohibited_direction
+                                if not option.soft_keyword:
+                                    mix.reset(option.keyword)
+                                    return LoopflowDescription.previous_unsatisfied
                             else:
                                 track.complete()
                                 traverse.ref = traverse.ref.parent
                                 option_traverse.completed = True
 
-                                if target_option.allow_duplicate:
-                                    mix.pop_track(target_option.keyword)
+                                if option.allow_duplicate:
+                                    mix.pop_track(option.keyword)
 
                                 continue
 
@@ -266,18 +267,18 @@ class Analyzer(Generic[T]):
                             return LoopflowDescription.unexpected_segment
                 elif pointer_type == "option":
                     # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
-                    origin_option = context.options[pointer_val]
-                    track = mix.tracks[origin_option.keyword]
+                    option = context.options[pointer_val]
+                    track = mix.tracks[option.keyword]
 
-                    if traverse.option_traverses.count(origin_option.keyword) > 1:
+                    if traverse.option_traverses.count(option.keyword) > 1:
                         rx_getter = traverse.option_traverses[-2].track._assign_getter(track.fragments[0].name)
                     else:
                         rx_getter = None
 
                     try:
-                        response = track.forward(buffer, origin_option.separators, rx_getter)
+                        response = track.forward(buffer, option.separators, rx_getter)
                     except OutOfData:
-                        mix.reset(origin_option.keyword)
+                        mix.reset(option.keyword)
                         return LoopflowDescription.out_of_data_option
                     except Rejected:
                         raise
@@ -288,10 +289,10 @@ class Analyzer(Generic[T]):
                     else:
                         if response is None:
                             # track 上没有 fragments 可供分配了。
-                            # 这里没必要 complete。
+                            # 这里没必要 complete：track.complete 只是补全 assignes。
 
                             traverse.ref = traverse.ref.parent
                             traverse.option_traverses[-1].completed = True
 
-                            if origin_option.allow_duplicate:
-                                mix.pop_track(origin_option.keyword)
+                            if option.allow_duplicate:
+                                mix.pop_track(option.keyword)
