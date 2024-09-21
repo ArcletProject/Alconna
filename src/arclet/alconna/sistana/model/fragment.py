@@ -5,9 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 from ..utils.misc import Some
 from .capture import Capture, SimpleCapture
-
-if TYPE_CHECKING:
-    from .receiver import Rx
+from .receiver import Rx
 
 
 @dataclass
@@ -19,7 +17,7 @@ class _Fragment:
     default: Some[Any] = None
 
     capture: Capture = SimpleCapture()
-    receiver: Rx[Any] | None = None
+    receiver: Rx[Any] = Rx()
     validator: Callable[[Any], bool] | None = None
     transformer: Callable[[Any], Any] | None = None
 

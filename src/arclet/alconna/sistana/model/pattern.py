@@ -57,7 +57,6 @@ class SubcommandPattern:
 @dataclass
 class OptionPattern:
     keyword: str
-    receiver: Rx[str] | None = None  # 评估一下这个的用途。
     separators: str = SEPARATORS
 
     soft_keyword: bool = False

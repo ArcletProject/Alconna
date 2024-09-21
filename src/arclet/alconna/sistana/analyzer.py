@@ -6,7 +6,7 @@ from typing import Generic, TypeVar
 
 from .buffer import Buffer
 from .err import OutOfData, ParsePanic, Rejected
-from .model.snapshot import AnalyzeSnapshot, SubcommandTraverse
+from .model.snapshot import AnalyzeSnapshot, OptionTraverse, SubcommandTraverse
 
 T = TypeVar("T")
 
@@ -32,13 +32,11 @@ class LoopflowDescription(str, Enum):
         return self.value
 
 
-
 @dataclass
 class Analyzer(Generic[T]):
     # TODO: 这里可以放一些用于控制 Loopflow 的 options，但如果最后没有的话，就直接单写一个 analyze_loopflow 好了。
 
     complete_on_determined: bool = True
-
 
     def loopflow(self, snapshot: AnalyzeSnapshot[T], buffer: Buffer[T]) -> tuple[LoopflowDescription, AnalyzeSnapshot[T]]:
         while True:
@@ -61,7 +59,15 @@ class Analyzer(Generic[T]):
                     # 并且还得确保 option 也被记录于 activated_options 里面。
                     if pointer_type == "option":
                         mix.tracks[pointer_val].complete()
-                        traverse.activated_options.add(pointer_val)
+                        # traverse.activated_options.add(pointer_val)
+                        # traverse.option_traverses.append(OptionTraverse(
+                        #     trigger=pointer_val,
+                        #     is_compact=False,
+                        #     option=context.options[pointer_val],
+                        #     track=mix.tracks[pointer_val],
+                        # ))
+                        option_traverse = traverse.option_traverses[-1]
+                        option_traverse.completed = True
                         traverse.ref = traverse.ref.parent
 
                     snapshot.determine(traverse.ref)
@@ -73,6 +79,8 @@ class Analyzer(Generic[T]):
 
                 return LoopflowDescription.unsatisfied, snapshot
 
+            print(token, (pointer_type, pointer_val))
+
             if pointer_type == "prefix":
                 if not isinstance(token.val, str):
                     return LoopflowDescription.header_expect_str, snapshot
@@ -82,7 +90,10 @@ class Analyzer(Generic[T]):
                     if matched == "":
                         return LoopflowDescription.prefix_mismatch, snapshot
 
-                    buffer.runes[0:1] = buffer.runes[0][: len(matched)], buffer.runes[0][len(matched) :]
+                    buffer.runes[0:1] = (
+                        buffer.runes[0][: len(matched)],
+                        buffer.runes[0][len(matched) :],
+                    )
                     buffer.next().apply()
                     # FIXME: 现在这里会吃掉很多东西……比如说把第一个 segment 吃的只剩 header.
                     # ahead 不能处理这种情况，详情见下。
@@ -132,26 +143,38 @@ class Analyzer(Generic[T]):
                                 )
                                 continue
                             elif not subcommand.soft_keyword:
-                                return LoopflowDescription.unsatisfied_switch_subcommand, snapshot
+                                return (
+                                    LoopflowDescription.unsatisfied_switch_subcommand,
+                                    snapshot,
+                                )
                             # else: soft keycmd，直接进 mainline
                         elif token.val in context.options:
                             origin_option = context.options[token.val]
-                            track_satisfied = mix.tracks[origin_option.keyword].satisfied
 
-                            if (not origin_option.soft_keyword or mix.satisfied) or not track_satisfied:
-                                token.apply()
-
+                            # 之前的版本中如果 track 没有 satisfied，就会继续进入 track forward 流程。
+                            # 这里有个问题，如果 Fragments 里有个 variadic，那么就会一直进入 forward 流程 —— 这就不太对了，所以我删掉了。
+                            if not origin_option.soft_keyword or mix.satisfied:
                                 if context.preset.tracks[origin_option.keyword]:
-                                    # 仅当需要解析 fragments 时进行状态流转，遵循 option 的解析原子性，这里不标记 activated。
-                                    traverse.ref = traverse.ref.option(origin_option.keyword)
+                                    # 仅当需要解析 fragments 时进行状态流转。
+                                    traverse.ref = traverse.ref.option(token.val)
+
+                                if origin_option.allow_duplicate:
+                                    mix.pop_track(origin_option.keyword)  # 重置之。
                                 else:
-                                    traverse.activated_options.add(token.val)
-                                    # TODO: 重新考虑 traverse 记录 option
-                                    # if origin_option.receiver is not None:
-                                    #     origin_option.receiver.receive(snapshot, origin_option.keyword)
+                                    if origin_option.keyword in traverse.option_traverses:
+                                        return LoopflowDescription.option_duplicated, snapshot
 
-                                    #     #phase.bind[origin_option.keyword] = origin_option.receiver.load(snapshot)
+                                traverse.option_traverses.append(
+                                    OptionTraverse(
+                                        trigger=token.val,
+                                        is_compact=False,
+                                        completed=not context.preset.tracks[origin_option.keyword],
+                                        option=origin_option,
+                                        track=mix.tracks[origin_option.keyword],
+                                    )
+                                )
 
+                                token.apply()  # 在最后才 apply，因为上面会根据 duplicate 的情况判定，不能一开始就吃掉。
                                 continue
                         elif context.compacts is not None:
                             prefix = context.compacts.get_closest_prefix(token.val)
@@ -172,7 +195,8 @@ class Analyzer(Generic[T]):
                                     option = context.options[prefix]
                                     track = mix.tracks[option.keyword]
 
-                                    redirect = track.assignable
+                                    redirect = track.assignable or option.allow_duplicate
+                                    print(redirect, track.assignable, option.allow_duplicate)
                                     # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
 
                                 # else: 你是不是手动构造了 TrieHard？
@@ -182,15 +206,21 @@ class Analyzer(Generic[T]):
                                     token.apply()
                                     prefix_len = len(prefix)
                                     buffer.ahead.append(token.val[:prefix_len])
-                                    buffer.ahead.append(token.val[prefix_len:])
+                                    buffer.ahead.append(
+                                        token.val[prefix_len:]
+                                    )  # FIXME: 关于这里存有疑问，我想还是单独写一个 Buffer.pushleft 比较好。
                                     continue
 
                                     # 这里其实就是 ahead 的应用场景。
 
                     elif pointer_type == "option":
+                        option_traverse = traverse.option_traverses[-1]
+
                         if token.val in context.subcommands:
                             # 当且仅当 option 已经 satisfied 时才能让状态流转进 subcommand。
                             # subcommand.satisfy_previous 处理起来比较复杂，这里先 reject。
+
+                            # 对于 OptionPattern.allow_duplicate。
                             subcommand = context.subcommands[token.val]
                             option = context.options[pointer_val]
                             track = mix.tracks[option.keyword]
@@ -198,15 +228,14 @@ class Analyzer(Generic[T]):
                             if not track.satisfied:
                                 if not subcommand.soft_keyword:
                                     mix.reset(option.keyword)
-                                    return LoopflowDescription.switch_unsatisfied_option, snapshot
+                                    return (
+                                        LoopflowDescription.switch_unsatisfied_option,
+                                        snapshot,
+                                    )
                             else:
                                 mix.tracks[option.keyword].complete()
                                 traverse.ref = traverse.ref.parent
-                                traverse.activated_options.add(pointer_val)
-                                # TODO: 重新考虑 traverse 记录 option 的方法
-                                # if option.receiver is not None:
-                                #     option.receiver.receive(snapshot, option.keyword)
-                                #     phase.bind[option.keyword] = option.receiver.load(snapshot)
+                                option_traverse.completed = True
 
                                 if mix.satisfied:
                                     token.apply()
@@ -222,7 +251,10 @@ class Analyzer(Generic[T]):
                                     )
                                     continue
                                 elif not subcommand.soft_keyword:  # and not phase.satisfied
-                                    return LoopflowDescription.unsatisfied_switch_subcommand, snapshot
+                                    return (
+                                        LoopflowDescription.unsatisfied_switch_subcommand,
+                                        snapshot,
+                                    )
                                 # else: soft keycmd and not phase.satisfied，直接进 mainline / subline 的捕获了。
                         elif token.val in context.options:
                             # 不准进另外一个 option，所以判定一下是不是 soft keycmd 且 unsatisfied。
@@ -232,16 +264,14 @@ class Analyzer(Generic[T]):
                             if not track.satisfied:
                                 if not target_option.soft_keyword:
                                     mix.reset(target_option.keyword)
-                                    return LoopflowDescription.option_switch_prohibited_direction, snapshot
+                                    return (
+                                        LoopflowDescription.option_switch_prohibited_direction,
+                                        snapshot,
+                                    )
                             else:
                                 mix.tracks[target_option.keyword].complete()
                                 traverse.ref = traverse.ref.parent
-                                traverse.activated_options.add(pointer_val)
-
-                                # TODO: 重新考虑 traverse 记录 option 的方法
-                                # if target_option.receiver is not None:
-                                #     target_option.receiver.receive(snapshot, target_option.keyword)
-                                #     phase.bind[target_option.keyword] = target_option.receiver.load(snapshot)
+                                option_traverse.completed = True
 
                                 continue
                         # ~~elif compacts~~，但因为是 option，不处理相关逻辑。
@@ -259,7 +289,7 @@ class Analyzer(Generic[T]):
                     except ParsePanic:
                         raise
                     except Exception as e:
-                        raise ParsePanic from e  # FIXME: 先 raise，错误处理我先摆了
+                        raise ParsePanic from e
                     else:
                         if response is None:
                             # track 上没有 fragments 可供分配了，此时又没有再流转到其他 traverse
@@ -268,9 +298,6 @@ class Analyzer(Generic[T]):
                     # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
                     origin_option = context.options[pointer_val]
                     track = mix.tracks[origin_option.keyword]
-
-                    if origin_option.keyword in traverse.activated_options and not origin_option.allow_duplicate:
-                        return LoopflowDescription.option_duplicated, snapshot
 
                     try:
                         response = track.forward(buffer, origin_option.separators)
@@ -289,5 +316,5 @@ class Analyzer(Generic[T]):
                             # 这里没必要 complete。
 
                             traverse.ref = traverse.ref.parent
-                            traverse.activated_options.add(origin_option.keyword)
+                            traverse.option_traverses[-1].completed = True
                             # TODO: option.receiver 的处理
