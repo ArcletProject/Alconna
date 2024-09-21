@@ -13,8 +13,7 @@ RxPut = Callable[[T], None]
 
 class Rx(Generic[T]):
     def receive(self, get: RxGet[Any], put: RxPut[Any], data: T) -> None:
-        if get() is None:
-            put(data)
+        put(data)
 
 
 class CountRx(Rx[Any]):
