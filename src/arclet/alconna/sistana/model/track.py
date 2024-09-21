@@ -10,6 +10,7 @@ from .fragment import _Fragment, assert_fragments_order
 
 if TYPE_CHECKING:
     from ..buffer import Buffer
+    from .receiver import RxGet, RxPut
 
 
 @dataclass
@@ -62,7 +63,14 @@ class Track:
 
         return setter
 
-    def fetch(self, frag: _Fragment, buffer: Buffer, separators: str):
+    def fetch(
+        self,
+        frag: _Fragment,
+        buffer: Buffer,
+        separators: str,
+        receiver_getter: RxGet[Any] | None = None,
+        receiver_putter: RxPut[Any] | None = None,
+    ):
         val, tail, token = frag.capture.capture(buffer, separators)
 
         if frag.validator is not None and not frag.validator(val):
@@ -77,8 +85,8 @@ class Track:
         if frag.receiver is not None:
             try:
                 frag.receiver.receive(
-                    self._assign_getter(frag.name),
-                    self._assign_setter(frag.name, frag.variadic),
+                    receiver_getter or self._assign_getter(frag.name),
+                    receiver_putter or self._assign_setter(frag.name, frag.variadic),
                     val,
                 )
             except Exception as e:
@@ -89,12 +97,18 @@ class Track:
 
         token.apply()
 
-    def forward(self, buffer: Buffer, separators: str):
+    def forward(
+        self,
+        buffer: Buffer,
+        separators: str,
+        receiver_getter: RxGet[Any] | None = None,
+        receiver_putter: RxPut[Any] | None = None,
+    ):
         if not self.fragments:
             return
 
         first = self.fragments[0]
-        self.fetch(first, buffer, separators)
+        self.fetch(first, buffer, separators, receiver_getter, receiver_putter)
 
         if not first.variadic:
             self.fragments.popleft()
