@@ -54,10 +54,6 @@ class SubcommandTraverse:
     mix: Mix
     option_traverses: IndexedOptionTraversesRecord = field(default_factory=IndexedOptionTraversesRecord)
 
-    @property
-    def satisfied(self):
-        return self.mix.satisfied
-
 
 @dataclass
 class AnalyzeSnapshot(Generic[T]):
