@@ -37,6 +37,14 @@ def test_behavior():
     assert com1.parse("comp1 --foo 1 --baz 2").matched
     assert com1.parse("comp1 --foo 2 --baz 1").matched is False
 
+    com1.behaviors.clear()
+    com1.behaviors.append(conflict("foo", "baz.qux", target_limiter=lambda x: x == 1))
+
+    assert com1.parse("comp1 --foo 1").matched
+    assert com1.parse("comp1 --baz 2").matched
+    assert com1.parse("comp1 --foo 1 --baz 2").matched
+    assert com1.parse("comp1 --foo 1 --baz 1").matched is False
+
     com1_1 = Alconna(
         "comp1_1",
         Option("-1", dest="one"),
