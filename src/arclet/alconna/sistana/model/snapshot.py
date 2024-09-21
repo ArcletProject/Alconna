@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Generic, TypeVar
 
@@ -28,17 +29,31 @@ class IndexedOptionTraversesRecord:
 
     _by_trigger: dict[str, list[OptionTraverse]] = field(default_factory=dict, repr=False)
     _by_keyword: dict[str, list[OptionTraverse]] = field(default_factory=dict, repr=False)
+    _count: defaultdict[str, int] = field(default_factory=lambda: defaultdict(lambda: 0), repr=False)
 
     def append(self, traverse: OptionTraverse):
         self.traverses.append(traverse)
-        self._by_trigger.setdefault(traverse.trigger, []).append(traverse)
-        self._by_keyword.setdefault(traverse.option.keyword, []).append(traverse)
+
+        if traverse.trigger in self._by_trigger:
+            self._by_trigger[traverse.trigger].append(traverse)
+        else:
+            self._by_trigger[traverse.trigger] = [traverse]
+        
+        if traverse.option.keyword in self._by_keyword:
+            self._by_keyword[traverse.option.keyword].append(traverse)
+        else:
+            self._by_keyword[traverse.option.keyword] = [traverse]
+
+        self._count[traverse.option.keyword] += 1
 
     def by_trigger(self, trigger: str):
         return self._by_trigger.get(trigger, [])
 
     def by_keyword(self, keyword: str):
         return self._by_keyword.get(keyword, [])
+
+    def count(self, keyword: str):
+        return self._count[keyword]
 
     def __getitem__(self, ix: int):
         return self.traverses[ix]
