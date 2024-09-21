@@ -36,9 +36,13 @@ class SubcommandPattern:
         from .snapshot import AnalyzeSnapshot, SubcommandTraverse
 
         return AnalyzeSnapshot(
-            # context=self,
             traverses=[
-                SubcommandTraverse(self, self.root_ref.header(), self.preset.new_mix()),
+                SubcommandTraverse(
+                    subcommand=self,
+                    trigger=self.header,
+                    ref=self.root_ref.header(),
+                    mix=self.preset.new_mix(),
+                ),
             ],
         )
 
@@ -46,9 +50,13 @@ class SubcommandPattern:
         from .snapshot import AnalyzeSnapshot, SubcommandTraverse
 
         return AnalyzeSnapshot(
-            # context=self,
             traverses=[
-                SubcommandTraverse(self, self.root_ref.prefix(), self.preset.new_mix()),
+                SubcommandTraverse(
+                    subcommand=self,
+                    trigger=self.header,
+                    ref=self.root_ref.header(),
+                    mix=self.preset.new_mix(),
+                ),
             ],
         )
 

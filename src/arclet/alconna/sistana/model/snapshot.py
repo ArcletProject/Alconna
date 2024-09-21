@@ -65,6 +65,7 @@ class IndexedOptionTraversesRecord:
 @dataclass
 class SubcommandTraverse:
     subcommand: SubcommandPattern
+    trigger: str
     ref: Pointer
     mix: Mix
     option_traverses: IndexedOptionTraversesRecord = field(default_factory=IndexedOptionTraversesRecord)

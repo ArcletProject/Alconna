@@ -122,6 +122,7 @@ class Analyzer(Generic[T]):
                                 snapshot.traverses.append(
                                     SubcommandTraverse(
                                         subcommand,
+                                        token.val,
                                         traverse.ref.subcommand(subcommand.header),
                                         subcommand.preset.new_mix(),
                                     )
@@ -187,6 +188,7 @@ class Analyzer(Generic[T]):
                                     snapshot.traverses.append(
                                         SubcommandTraverse(
                                             subcommand,
+                                            token.val,
                                             traverse.ref.subcommand(token.val),
                                             subcommand.preset.new_mix(),
                                         )
