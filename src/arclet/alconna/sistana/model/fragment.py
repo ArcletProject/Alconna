@@ -11,9 +11,7 @@ from .receiver import Rx
 @dataclass
 class _Fragment:
     name: str
-    type: Some[Any] = None
     variadic: bool = False
-    cast: bool = False
     default: Some[Any] = None
 
     separators: str | None = None

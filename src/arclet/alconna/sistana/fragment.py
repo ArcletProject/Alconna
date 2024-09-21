@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+from typing import Any
 from dataclasses import dataclass
 from elaina_segment import Segment, Quoted, UnmatchedQuoted
 
 from .model.capture import RegexCapture
 from .model.fragment import _Fragment
+from .utils.misc import Some
 
 
 @dataclass
 class Fragment(_Fragment):
+    type: Some[Any] = None
+    cast: bool = False
+
     def apply_msgspec(self):
         if self.type is None:
             return
