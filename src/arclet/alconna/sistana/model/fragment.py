@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Iterable
+from typing import Any, Callable, Iterable
 
 from ..utils.misc import Some
 from .capture import Capture, SimpleCapture
@@ -18,6 +18,7 @@ class _Fragment:
 
     separators: str | None = None
     hybrid_separators: bool = True
+
     capture: Capture = SimpleCapture()
     receiver: Rx[Any] = Rx()
     validator: Callable[[Any], bool] | None = None

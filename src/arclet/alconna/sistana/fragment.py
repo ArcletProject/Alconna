@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from elaina_segment import Segment, Quoted, UnmatchedQuoted
+
+from .model.capture import RegexCapture
 from .model.fragment import _Fragment
 
 
@@ -34,7 +36,7 @@ class Fragment(_Fragment):
         self.validator = _validate
         self.transformer = _transform
 
-    def apply_nepattern(self):
+    def apply_nepattern(self, capture_mode: bool = False):
         if self.type is None:
             return
 
@@ -42,17 +44,21 @@ class Fragment(_Fragment):
 
         pat = type_parser(self.type.value)
 
-        def _validate(v: Segment):
-            if isinstance(v, (Quoted, UnmatchedQuoted)):
-                if isinstance(v.ref, str):
-                    v = str(v)
-                else:
-                    v = v.ref
+        if capture_mode:
+            self.capture = RegexCapture(pat.alias)
+        else:
+            def _validate(v: Segment):
+                if isinstance(v, (Quoted, UnmatchedQuoted)):
+                    if isinstance(v.ref, str):
+                        v = str(v)
+                    else:
+                        v = v.ref
 
-            return pat.validate(v).success
+                return pat.validate(v).success
+
+            self.validator = _validate
 
         def _transform(v: Segment):
             return pat.transform(str(v)).value()
 
-        self.validator = _validate
         self.transformer = _transform
