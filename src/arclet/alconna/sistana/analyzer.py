@@ -38,14 +38,14 @@ class Analyzer(Generic[T]):
 
     complete_on_determined: bool = True
 
-    def loopflow(self, snapshot: AnalyzeSnapshot[T], buffer: Buffer[T]) -> tuple[LoopflowDescription, AnalyzeSnapshot[T]]:
+    def loopflow(self, snapshot: AnalyzeSnapshot[T], buffer: Buffer[T]) -> LoopflowDescription:
         while True:
             traverse = snapshot.traverses[-1]
             context = traverse.subcommand
             mix = traverse.mix
 
             if snapshot.determined and self.complete_on_determined and mix.satisfied:
-                return LoopflowDescription.completed, snapshot
+                return LoopflowDescription.completed
 
             pointer_type, pointer_val = traverse.ref.data[-1]
 
@@ -67,37 +67,30 @@ class Analyzer(Generic[T]):
                             mix.pop_track(pointer_val)
 
                     snapshot.determine(traverse.ref)
-                    return LoopflowDescription.completed, snapshot
+                    return LoopflowDescription.completed
 
                 # 这里如果没有 satisfied，如果是 option 的 track，则需要 reset
                 if pointer_type == "option":
                     mix.reset(pointer_val)
 
-                return LoopflowDescription.unsatisfied, snapshot
+                return LoopflowDescription.unsatisfied
 
             if pointer_type == "prefix":
                 if not isinstance(token.val, str):
-                    return LoopflowDescription.header_expect_str, snapshot
+                    return LoopflowDescription.header_expect_str
 
                 if context.prefixes is not None:
-                    matched = context.prefixes.get_closest_prefix(buffer.runes[0])  # type: ignore
-                    if matched == "":
-                        return LoopflowDescription.prefix_mismatch, snapshot
+                    prefix = context.prefixes.get_closest_prefix(buffer.runes[0])  # type: ignore
+                    if prefix == "":
+                        return LoopflowDescription.prefix_mismatch
 
-                    buffer.runes[0:1] = (
-                        buffer.runes[0][: len(matched)],
-                        buffer.runes[0][len(matched) :],
-                    )
-                    buffer.next().apply()
-                    # FIXME: 现在这里会吃掉很多东西……比如说把第一个 segment 吃的只剩 header.
-                    # ahead 不能处理这种情况，详情见下。
-
-                    # 这种方式不优雅，想个好点的。
+                    token.apply()
+                    buffer.pushleft(token.val[len(prefix) :])
 
                 traverse.ref = traverse.ref.parent.header()  # 直接进 header.
             elif pointer_type == "header":
                 if not isinstance(token.val, str):
-                    return LoopflowDescription.header_expect_str, snapshot
+                    return LoopflowDescription.header_expect_str
 
                 token.apply()
 
@@ -113,7 +106,7 @@ class Analyzer(Generic[T]):
                     if v:
                         buffer.runes.insert(0, v)
                 else:
-                    return LoopflowDescription.header_mismatch, snapshot
+                    return LoopflowDescription.header_mismatch
 
                 traverse.ref = traverse.ref.parent
             else:
@@ -136,10 +129,7 @@ class Analyzer(Generic[T]):
                                 )
                                 continue
                             elif not subcommand.soft_keyword:
-                                return (
-                                    LoopflowDescription.unsatisfied_switch_subcommand,
-                                    snapshot,
-                                )
+                                return LoopflowDescription.unsatisfied_switch_subcommand
                             # else: soft keycmd，直接进 mainline
                         elif token.val in context.options:
                             origin_option = context.options[token.val]
@@ -152,8 +142,8 @@ class Analyzer(Generic[T]):
                                     traverse.ref = traverse.ref.option(token.val)
 
                                 if not origin_option.allow_duplicate and origin_option.keyword in traverse.option_traverses:
-                                    return LoopflowDescription.option_duplicated, snapshot
-                                
+                                    return LoopflowDescription.option_duplicated
+
                                 traverse.option_traverses.append(
                                     OptionTraverse(
                                         trigger=token.val,
@@ -181,10 +171,7 @@ class Analyzer(Generic[T]):
                             if not track.satisfied:
                                 if not subcommand.soft_keyword:
                                     mix.reset(option.keyword)
-                                    return (
-                                        LoopflowDescription.switch_unsatisfied_option,
-                                        snapshot,
-                                    )
+                                    return LoopflowDescription.switch_unsatisfied_option
                             else:
                                 track.complete()
                                 traverse.ref = traverse.ref.parent
@@ -207,11 +194,8 @@ class Analyzer(Generic[T]):
                                     )
                                     continue
                                 elif not subcommand.soft_keyword:  # and not phase.satisfied
-                                    return (
-                                        LoopflowDescription.unsatisfied_switch_subcommand,
-                                        snapshot,
-                                    )
-                                
+                                    return LoopflowDescription.unsatisfied_switch_subcommand
+
                         elif token.val in context.options:
                             target_option = context.options[token.val]
                             track = mix.tracks[target_option.keyword]
@@ -219,10 +203,7 @@ class Analyzer(Generic[T]):
                             if not track.satisfied:
                                 if not target_option.soft_keyword:
                                     mix.reset(target_option.keyword)
-                                    return (
-                                        LoopflowDescription.option_switch_prohibited_direction,
-                                        snapshot,
-                                    )
+                                    return LoopflowDescription.option_switch_prohibited_direction
                             else:
                                 track.complete()
                                 traverse.ref = traverse.ref.parent
@@ -232,7 +213,7 @@ class Analyzer(Generic[T]):
                                     mix.pop_track(target_option.keyword)
 
                                 continue
-                    
+
                     if context.compacts is not None:
                         prefix = context.compacts.get_closest_prefix(token.val)
                         if prefix:
@@ -265,7 +246,6 @@ class Analyzer(Generic[T]):
                                 buffer.pushleft(token.val[prefix_len:])
                                 continue
 
-
                 if pointer_type == "subcommand":
                     track = mix.tracks[context.header]
 
@@ -273,7 +253,7 @@ class Analyzer(Generic[T]):
                         response = track.forward(buffer, context.separators)
                     except OutOfData:
                         # 称不上是 context switch，continuation 不改变 context。
-                        return LoopflowDescription.out_of_data_subcommand, snapshot
+                        return LoopflowDescription.out_of_data_subcommand
                     except Rejected:
                         raise
                     except ParsePanic:
@@ -283,17 +263,14 @@ class Analyzer(Generic[T]):
                     else:
                         if response is None:
                             # track 上没有 fragments 可供分配了，此时又没有再流转到其他 traverse
-                            return LoopflowDescription.unexpected_segment, snapshot
+                            return LoopflowDescription.unexpected_segment
                 elif pointer_type == "option":
                     # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
                     origin_option = context.options[pointer_val]
                     track = mix.tracks[origin_option.keyword]
 
                     if traverse.option_traverses.count(origin_option.keyword) > 1:
-                        rx_getter = traverse.option_traverses[-2].track._assign_getter(
-                            track.fragments[0].name
-                        )
-                        print(traverse.option_traverses[-2])
+                        rx_getter = traverse.option_traverses[-2].track._assign_getter(track.fragments[0].name)
                     else:
                         rx_getter = None
 
@@ -301,7 +278,7 @@ class Analyzer(Generic[T]):
                         response = track.forward(buffer, origin_option.separators, rx_getter)
                     except OutOfData:
                         mix.reset(origin_option.keyword)
-                        return LoopflowDescription.out_of_data_option, snapshot
+                        return LoopflowDescription.out_of_data_option
                     except Rejected:
                         raise
                     except ParsePanic:
@@ -318,5 +295,3 @@ class Analyzer(Generic[T]):
 
                             if origin_option.allow_duplicate:
                                 mix.pop_track(origin_option.keyword)
-
-                            # TODO: option.receiver 的处理

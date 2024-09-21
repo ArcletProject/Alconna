@@ -7,7 +7,6 @@ from elaina_segment import SEPARATORS
 from elaina_triehard import TrieHard
 
 from .pointer import Pointer
-from .receiver import Rx
 from .track import Preset
 
 if TYPE_CHECKING:
