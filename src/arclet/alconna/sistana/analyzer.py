@@ -34,8 +34,6 @@ class LoopflowDescription(str, Enum):
 
 @dataclass
 class Analyzer(Generic[T]):
-    # TODO: 这里可以放一些用于控制 Loopflow 的 options，但如果最后没有的话，就直接单写一个 analyze_loopflow 好了。
-
     complete_on_determined: bool = True
 
     def loopflow(self, snapshot: AnalyzeSnapshot[T], buffer: Buffer[T]) -> LoopflowDescription:
