@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Mapping
+from typing import Mapping
 
 from elaina_segment import SEPARATORS
 from elaina_triehard import TrieHard
 
 from .pointer import Pointer
 from .track import Preset
-
-if TYPE_CHECKING:
-    pass
 
 
 @dataclass
@@ -32,7 +29,7 @@ class SubcommandPattern:
     def root_ref(self):
         return Pointer().subcommand(self.header)
 
-    def new_snapshot(self):
+    def create_snapshot(self, ref: Pointer):
         from .snapshot import AnalyzeSnapshot, SubcommandTraverse
 
         return AnalyzeSnapshot(
@@ -40,25 +37,23 @@ class SubcommandPattern:
                 SubcommandTraverse(
                     subcommand=self,
                     trigger=self.header,
-                    ref=self.root_ref.header(),
+                    ref=ref,
                     mix=self.preset.new_mix(),
                 ),
             ],
         )
 
-    def new_snapshot_from_prefix(self):
-        from .snapshot import AnalyzeSnapshot, SubcommandTraverse
+    @property
+    def root_entrypoint(self):
+        return self.create_snapshot(self.root_ref)
 
-        return AnalyzeSnapshot(
-            traverses=[
-                SubcommandTraverse(
-                    subcommand=self,
-                    trigger=self.header,
-                    ref=self.root_ref.header(),
-                    mix=self.preset.new_mix(),
-                ),
-            ],
-        )
+    @property
+    def prefix_entrypoint(self):
+        return self.create_snapshot(self.root_ref.prefix())
+
+    @property
+    def header_entrypoint(self):
+        return self.create_snapshot(self.root_ref.header())
 
 
 @dataclass
