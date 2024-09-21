@@ -59,16 +59,12 @@ class Analyzer(Generic[T]):
                     # 并且还得确保 option 也被记录于 activated_options 里面。
                     if pointer_type == "option":
                         mix.tracks[pointer_val].complete()
-                        # traverse.activated_options.add(pointer_val)
-                        # traverse.option_traverses.append(OptionTraverse(
-                        #     trigger=pointer_val,
-                        #     is_compact=False,
-                        #     option=context.options[pointer_val],
-                        #     track=mix.tracks[pointer_val],
-                        # ))
                         option_traverse = traverse.option_traverses[-1]
                         option_traverse.completed = True
                         traverse.ref = traverse.ref.parent
+
+                        if context.options[pointer_val].allow_duplicate:
+                            mix.pop_track(pointer_val)
 
                     snapshot.determine(traverse.ref)
                     return LoopflowDescription.completed, snapshot
@@ -78,8 +74,6 @@ class Analyzer(Generic[T]):
                     mix.reset(pointer_val)
 
                 return LoopflowDescription.unsatisfied, snapshot
-
-            print(token, (pointer_type, pointer_val))
 
             if pointer_type == "prefix":
                 if not isinstance(token.val, str):
@@ -115,7 +109,6 @@ class Analyzer(Generic[T]):
                     # 在 perfix 和 header 中，我们需要对 buffer 的第一段进行直接替换，而 ahead 倾向于 **已经** 分好段的情况。
                     # ~~而除了 compact subcommand / option 外，对于 header 和 prefix，可以选择直接操作 runes[0]。~~
 
-                    # FIXME: fluent header handle
                     v = token.val[len(context.header) :]
                     if v:
                         buffer.runes.insert(0, v)
@@ -158,12 +151,9 @@ class Analyzer(Generic[T]):
                                     # 仅当需要解析 fragments 时进行状态流转。
                                     traverse.ref = traverse.ref.option(token.val)
 
-                                if origin_option.allow_duplicate:
-                                    mix.pop_track(origin_option.keyword)  # 重置之。
-                                else:
-                                    if origin_option.keyword in traverse.option_traverses:
-                                        return LoopflowDescription.option_duplicated, snapshot
-
+                                if not origin_option.allow_duplicate and origin_option.keyword in traverse.option_traverses:
+                                    return LoopflowDescription.option_duplicated, snapshot
+                                
                                 traverse.option_traverses.append(
                                     OptionTraverse(
                                         trigger=token.val,
@@ -174,45 +164,8 @@ class Analyzer(Generic[T]):
                                     )
                                 )
 
-                                token.apply()  # 在最后才 apply，因为上面会根据 duplicate 的情况判定，不能一开始就吃掉。
+                                token.apply()  # 在最后才 apply，因为上面会根据 duplicate 的情况判定 panic，不能一开始就吃掉。
                                 continue
-                        elif context.compacts is not None:
-                            prefix = context.compacts.get_closest_prefix(token.val)
-                            if prefix:
-                                # 这里仍然需要关注 soft_keycmd 和 satisfied 的情况。
-                                # 这里有个有趣的点……至少三方因素会参与到这里，所以逻辑关系会稍微复杂那么一点。
-                                # 我加了一个 Track.assignable，这样我们就能知道是否还有 fragments 可供分配了。
-
-                                # 我想了想，soft keyword 不会影响这个 —— token.val 根本不是关键字（如果是就不会在这个分支了）。
-                                redirect = False
-
-                                if prefix in context.subcommands:
-                                    # 老样子，需要 satisfied 才能进 subcommand，不然就进 track forward 流程。
-                                    redirect = mix.satisfied
-                                elif prefix in context.options:
-                                    # NOTE: 这里其实有个有趣的点需要提及：pattern 中的 subcommands, options 和这里的 compacts 都是多对一的关系，
-                                    # 所以如果要取 track 之类的，就需要先绕个路，因为数据结构上的主索引总是采用的 node 上的单个 keyword。
-                                    option = context.options[prefix]
-                                    track = mix.tracks[option.keyword]
-
-                                    redirect = track.assignable or option.allow_duplicate
-                                    print(redirect, track.assignable, option.allow_duplicate)
-                                    # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
-
-                                # else: 你是不是手动构造了 TrieHard？
-                                # 由于默认 redirect 是 False，所以这里不会准许跳转。
-
-                                if redirect:
-                                    token.apply()
-                                    prefix_len = len(prefix)
-                                    buffer.ahead.append(token.val[:prefix_len])
-                                    buffer.ahead.append(
-                                        token.val[prefix_len:]
-                                    )  # FIXME: 关于这里存有疑问，我想还是单独写一个 Buffer.pushleft 比较好。
-                                    continue
-
-                                    # 这里其实就是 ahead 的应用场景。
-
                     elif pointer_type == "option":
                         option_traverse = traverse.option_traverses[-1]
 
@@ -233,9 +186,12 @@ class Analyzer(Generic[T]):
                                         snapshot,
                                     )
                             else:
-                                mix.tracks[option.keyword].complete()
+                                track.complete()
                                 traverse.ref = traverse.ref.parent
                                 option_traverse.completed = True
+
+                                if option.allow_duplicate:
+                                    mix.pop_track(option.keyword)
 
                                 if mix.satisfied:
                                     token.apply()
@@ -255,9 +211,8 @@ class Analyzer(Generic[T]):
                                         LoopflowDescription.unsatisfied_switch_subcommand,
                                         snapshot,
                                     )
-                                # else: soft keycmd and not phase.satisfied，直接进 mainline / subline 的捕获了。
+                                
                         elif token.val in context.options:
-                            # 不准进另外一个 option，所以判定一下是不是 soft keycmd 且 unsatisfied。
                             target_option = context.options[token.val]
                             track = mix.tracks[target_option.keyword]
 
@@ -269,12 +224,47 @@ class Analyzer(Generic[T]):
                                         snapshot,
                                     )
                             else:
-                                mix.tracks[target_option.keyword].complete()
+                                track.complete()
                                 traverse.ref = traverse.ref.parent
                                 option_traverse.completed = True
 
+                                if target_option.allow_duplicate:
+                                    mix.pop_track(target_option.keyword)
+
                                 continue
-                        # ~~elif compacts~~，但因为是 option，不处理相关逻辑。
+                    
+                    if context.compacts is not None:
+                        prefix = context.compacts.get_closest_prefix(token.val)
+                        if prefix:
+                            # 这里仍然需要关注 soft_keycmd 和 satisfied 的情况。
+                            # 这里有个有趣的点……至少三方因素会参与到这里，所以逻辑关系会稍微复杂那么一点。
+                            # 我加了一个 Track.assignable，这样我们就能知道是否还有 fragments 可供分配了。
+
+                            # 我想了想，soft keyword 不会影响这个 —— token.val 根本不是关键字（如果是就不会在这个分支了）。
+                            redirect = False
+
+                            if prefix in context.subcommands:
+                                # 老样子，需要 satisfied 才能进 subcommand，不然就进 track forward 流程。
+                                redirect = mix.satisfied
+                            elif prefix in context.options:
+                                # NOTE: 这里其实有个有趣的点需要提及：pattern 中的 subcommands, options 和这里的 compacts 都是多对一的关系，
+                                # 所以如果要取 track 之类的，就需要先绕个路，因为数据结构上的主索引总是采用的 node 上的单个 keyword。
+                                option = context.options[prefix]
+                                track = mix.tracks[option.keyword]
+
+                                redirect = track.assignable or option.allow_duplicate
+                                # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
+
+                            # else: 你是不是手动构造了 TrieHard？
+                            # 由于默认 redirect 是 False，所以这里不会准许跳转。
+
+                            if redirect:
+                                token.apply()
+                                prefix_len = len(prefix)
+                                buffer.ahead.append(token.val[:prefix_len])
+                                buffer.pushleft(token.val[prefix_len:])
+                                continue
+
 
                 if pointer_type == "subcommand":
                     track = mix.tracks[context.header]
@@ -299,8 +289,16 @@ class Analyzer(Generic[T]):
                     origin_option = context.options[pointer_val]
                     track = mix.tracks[origin_option.keyword]
 
+                    if traverse.option_traverses.count(origin_option.keyword) > 1:
+                        rx_getter = traverse.option_traverses[-2].track._assign_getter(
+                            track.fragments[0].name
+                        )
+                        print(traverse.option_traverses[-2])
+                    else:
+                        rx_getter = None
+
                     try:
-                        response = track.forward(buffer, origin_option.separators)
+                        response = track.forward(buffer, origin_option.separators, rx_getter)
                     except OutOfData:
                         mix.reset(origin_option.keyword)
                         return LoopflowDescription.out_of_data_option, snapshot
@@ -317,4 +315,8 @@ class Analyzer(Generic[T]):
 
                             traverse.ref = traverse.ref.parent
                             traverse.option_traverses[-1].completed = True
+
+                            if origin_option.allow_duplicate:
+                                mix.pop_track(origin_option.keyword)
+
                             # TODO: option.receiver 的处理
