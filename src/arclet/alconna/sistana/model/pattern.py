@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Mapping
+from typing import TYPE_CHECKING, Iterable, Mapping
 
 from elaina_segment import SEPARATORS
 from elaina_triehard import TrieHard
 
 from .pointer import Pointer
 from .track import Preset
+
+if TYPE_CHECKING:
+    from .fragment import _Fragment
 
 
 @dataclass
@@ -24,6 +28,40 @@ class SubcommandPattern:
     compact_keywords: TrieHard | None = field(default=None)  # 后面改成 init=False
     compact_header: bool = False
     satisfy_previous: bool = True
+
+    @classmethod
+    def build(
+        cls,
+        header: str,
+        fragments: list[_Fragment],
+        options: list[OptionPattern],
+        options_fragments: dict[str, list[_Fragment]],
+        prefixes: Iterable[str] = (),
+        compact_keywords: Iterable[str] = (),
+        compact_header: bool = False,
+        satisfy_previous: bool = True,
+        separators: str = SEPARATORS,
+        soft_keyword: bool = False,
+    ):
+        preset = Preset({
+            header: deque(fragments),
+            **{
+                option.keyword: deque(options_fragments[option.keyword])
+                for option in options if option.keyword in options_fragments
+            },
+        })
+        
+        return cls(
+            header=header,
+            preset=preset,
+            options={option.keyword: option for option in options},
+            prefixes=TrieHard(list(prefixes)),
+            compact_keywords=TrieHard(list(compact_keywords)),
+            compact_header=compact_header,
+            satisfy_previous=satisfy_previous,
+            separators=separators,
+            soft_keyword=soft_keyword,
+        )
 
     @property
     def root_ref(self):
