@@ -4,7 +4,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Callable, Generic, TypeVar
 
-from elaina_segment import SEPARATORS, Runes, Segment, build_runes, segment
+from elaina_segment import SEPARATORS, Runes, Segment, build_runes, segment, Quoted, UnmatchedQuoted
 
 from .err import OutOfData
 
@@ -49,7 +49,7 @@ class Buffer(Generic[T]):
         return ins
 
     def __repr__(self) -> str:
-        return f"Buffer({self.runes})"
+        return f"Buffer({self.runes}, ahead={self.ahead})"
 
     def next(self, until: str = SEPARATORS) -> SegmentToken[T] | AheadToken[T]:
         if self.ahead:
@@ -63,3 +63,13 @@ class Buffer(Generic[T]):
 
         val, tail = res
         return SegmentToken(self, val, tail)
+
+    def pushleft(self, *segments: Segment[T]):
+        s = []
+        for seg in segments:
+            if isinstance(seg, (UnmatchedQuoted, Quoted)):
+                s.append(str(seg))
+            else:
+                s.append(seg)
+        
+        self.runes = build_runes(s) + self.runes
