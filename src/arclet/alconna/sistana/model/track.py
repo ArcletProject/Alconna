@@ -67,10 +67,18 @@ class Track:
         self,
         frag: _Fragment,
         buffer: Buffer,
-        separators: str,
+        upper_separators: str,
         receiver_getter: RxGet[Any] | None = None,
         receiver_putter: RxPut[Any] | None = None,
     ):
+        if frag.separators is not None:
+            if frag.hybrid_separators:
+                separators = frag.separators + upper_separators
+            else:
+                separators = frag.separators
+        else:
+            separators = upper_separators
+
         val, tail, token = frag.capture.capture(buffer, separators)
 
         if frag.validator is not None and not frag.validator(val):

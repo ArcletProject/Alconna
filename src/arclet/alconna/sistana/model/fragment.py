@@ -16,6 +16,8 @@ class _Fragment:
     cast: bool = False
     default: Some[Any] = None
 
+    separators: str | None = None
+    hybrid_separators: bool = True
     capture: Capture = SimpleCapture()
     receiver: Rx[Any] = Rx()
     validator: Callable[[Any], bool] | None = None
