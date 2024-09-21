@@ -31,7 +31,7 @@ class Track:
     def apply_defaults(self):
         for frag in self.fragments:
             if frag.default is not None and frag.name not in self.assignes:
-                self.assignes[frag.name] = frag.default
+                self.assignes[frag.name] = frag.default.value
 
     def complete(self):
         self.apply_defaults()
