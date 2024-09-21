@@ -21,7 +21,7 @@ class SubcommandPattern:
     separators: str = SEPARATORS
 
     prefixes: TrieHard | None = field(default=None)  # 后面改成 init=False
-    compacts: TrieHard | None = field(default=None)  # 后面改成 init=False
+    compact_keywords: TrieHard | None = field(default=None)  # 后面改成 init=False
     compact_header: bool = False
     satisfy_previous: bool = True
 

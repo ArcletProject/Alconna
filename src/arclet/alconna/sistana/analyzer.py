@@ -215,8 +215,8 @@ class Analyzer(Generic[T]):
 
                                 continue
 
-                    if context.compacts is not None:
-                        prefix = context.compacts.get_closest_prefix(token.val)
+                    if context.compact_keywords is not None:
+                        prefix = context.compact_keywords.get_closest_prefix(token.val)
                         if prefix:
                             # 这里仍然需要关注 soft_keycmd 和 satisfied 的情况。
                             # 这里有个有趣的点……至少三方因素会参与到这里，所以逻辑关系会稍微复杂那么一点。
