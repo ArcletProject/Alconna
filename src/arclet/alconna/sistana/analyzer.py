@@ -243,7 +243,7 @@ class Analyzer(Generic[T]):
                             if redirect:
                                 token.apply()
                                 prefix_len = len(prefix)
-                                buffer.ahead.append(token.val[:prefix_len])
+                                buffer.ahead.appendleft(token.val[:prefix_len])
                                 buffer.pushleft(token.val[prefix_len:])
                                 continue
 
