@@ -21,8 +21,6 @@ def _alc_args_to_fragments(args: Args) -> deque[_Fragment]:
         else:
             default = Value(ag.field.default)
 
-        ag.value
-
         frag = Fragment(
             name=ag.name,
             default=default,
