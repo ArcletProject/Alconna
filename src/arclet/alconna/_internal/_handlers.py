@@ -442,14 +442,10 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
         return True
     else:
         _param = None
-    if not _param and analyser.command.nargs and not analyser.args_result:
-        analyser.args_result = analyse_args(argv, analyser.self_args)
-        if analyser.args_result:
-            argv.current_node = None
-            return True
     if _param.__class__ is Sentence:
-        analyser.sentences.append(argv.next()[0])
-        return True
+        if _param.name not in analyser.sentences:  # type: ignore
+            analyser.sentences.append(argv.next()[0])
+            return True
     if _param.__class__ is Option:
         oparam: Option = _param  # type: ignore
         if oparam.requires and analyser.sentences != oparam.requires:
@@ -457,7 +453,9 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
                 lang.require("option", "require_error").format(source=oparam.name, target=" ".join(analyser.sentences))
             )
         analyse_option(analyser, argv, oparam)
-    elif _param.__class__ is list:
+        analyser.sentences.clear()
+        return True
+    if _param.__class__ is list:
         exc: Exception | None = None
         lparam: list[Option] = _param  # type: ignore
         for opt in lparam:
@@ -479,38 +477,46 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | Non
                 argv.data_reset(_data, _index)
         if exc:
             raise exc  # type: ignore  # noqa
-    elif _param is not None:
+        analyser.sentences.clear()
+        return True
+    if _param is not None:
         sparam: SubAnalyser = _param  # type: ignore
-        if sparam.command.requires and analyser.sentences != sparam.command.requires:
-            raise InvalidParam(
-                lang.require("subcommand", "require_error").format(
-                    source=sparam.command.name, target=" ".join(analyser.sentences)
+        if sparam.command.dest not in analyser.subcommands_result:
+            if sparam.command.requires and analyser.sentences != sparam.command.requires:
+                raise InvalidParam(
+                    lang.require("subcommand", "require_error").format(
+                        source=sparam.command.name, target=" ".join(analyser.sentences)
+                    )
                 )
-            )
-        try:
-            sparam.process(argv)
-        except (FuzzyMatchSuccess, PauseTriggered, SpecialOptionTriggered):
-            sparam.result()
-            raise
-        except InvalidParam:
-            if argv.current_node is sparam.command:
+            try:
+                sparam.process(argv)
+            except (FuzzyMatchSuccess, PauseTriggered, SpecialOptionTriggered):
                 sparam.result()
+                raise
+            except InvalidParam:
+                if argv.current_node is sparam.command:
+                    sparam.result()
+                else:
+                    analyser.subcommands_result[sparam.command.dest] = sparam.result()
+                raise
+            except AlconnaException:
+                analyser.subcommands_result[sparam.command.dest] = sparam.result()
+                raise
             else:
                 analyser.subcommands_result[sparam.command.dest] = sparam.result()
-            raise
-        except AlconnaException:
-            analyser.subcommands_result[sparam.command.dest] = sparam.result()
-            raise
-        else:
-            analyser.subcommands_result[sparam.command.dest] = sparam.result()
-    elif analyser.extra_allow:
+                analyser.sentences.clear()
+                return True
+    if _param is None and analyser.command.nargs and not analyser.args_result:
+        analyser.args_result = analyse_args(argv, analyser.self_args)
+        if analyser.args_result:
+            argv.current_node = None
+            return True
+    if analyser.extra_allow:
         analyser.args_result.setdefault("$extra", []).append(_text)
         argv.next(seps, move=True)
+        return True
     else:
         return False
-    analyser.sentences.clear()
-    argv.current_node = None
-    return True
 
 
 def _header_handle0(header: "Header[set[str], TPattern]", argv: Argv):

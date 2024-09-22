@@ -868,7 +868,7 @@ def test_action():
         Option("--q", action=count, requires=["foo", "bar"]),
     )
     res = alc24_2.parse(
-        "core24_2 -A --a -vvv -x -x --xyzxyz " "-Fabc -Fdef --flag xyz --i 4 --i 5 " "foo bar --q foo bar --qq"
+        "core24_2 -A --a -vvv -x -x --xyzxyz -Fabc -Fdef --flag xyz --i 4 --i 5 foo bar --q foo bar --qq"
     )
     assert res.query[int]("i.foo") == 5
     assert res.query[List[int]]("a.value") == [1, 1]
