@@ -47,12 +47,15 @@ class Fragment(_Fragment):
         if self.type is None:
             return
 
-        from nepattern import type_parser
+        from nepattern import type_parser, MatchMode
 
         pat = type_parser(self.type.value)
 
         if capture_mode:
-            self.capture = RegexCapture(pat.alias)
+            if pat.mode in (MatchMode.REGEX_MATCH, MatchMode.REGEX_CONVERT):
+                self.capture = RegexCapture(pat.regex_pattern)
+            else:
+                self.capture = RegexCapture(pat.alias)
         else:
             def _validate(v: Segment):
                 if isinstance(v, (Quoted, UnmatchedQuoted)):
