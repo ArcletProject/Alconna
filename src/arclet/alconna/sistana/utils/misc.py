@@ -24,7 +24,7 @@ T = TypeVar("T")
 E = TypeVar("E", bound=BaseException)
 
 
-@contextmanager
+@dataclass
 class Value(Generic[T]):
     value: T
 
