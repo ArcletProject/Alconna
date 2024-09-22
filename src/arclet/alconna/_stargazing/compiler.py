@@ -25,7 +25,7 @@ def _alc_args_to_fragments(args: Args) -> deque[_Fragment]:
             name=ag.name,
             default=default,
         )
-        frag.apply_nepattern()
+        frag.apply_nepattern(ag.value)
         fragments.append(frag)
 
     return fragments

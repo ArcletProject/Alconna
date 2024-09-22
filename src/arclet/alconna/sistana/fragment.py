@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from dataclasses import dataclass
 from elaina_segment import Segment, Quoted, UnmatchedQuoted
 
@@ -8,6 +8,8 @@ from .model.capture import RegexCapture
 from .model.fragment import _Fragment
 from .utils.misc import Some
 
+if TYPE_CHECKING:
+    from nepattern import BasePattern
 
 @dataclass
 class Fragment(_Fragment):
@@ -43,13 +45,15 @@ class Fragment(_Fragment):
 
             self.transformer = _transform
 
-    def apply_nepattern(self, capture_mode: bool = False):
-        if self.type is None:
-            return
+    def apply_nepattern(self, pat: BasePattern | None = None, capture_mode: bool = False):
+        if pat is None:
+            if self.type is None:
+                return
 
-        from nepattern import type_parser, MatchMode
+            from nepattern import type_parser, MatchMode
 
-        pat = type_parser(self.type.value)
+            pat = type_parser(self.type.value)
+            assert pat is not None
 
         if capture_mode:
             if pat.mode in (MatchMode.REGEX_MATCH, MatchMode.REGEX_CONVERT):
@@ -70,6 +74,6 @@ class Fragment(_Fragment):
 
         if self.cast:
             def _transform(v: Segment):
-                return pat.transform(str(v)).value()
+                return pat.validate(str(v)).value()
 
             self.transformer = _transform
