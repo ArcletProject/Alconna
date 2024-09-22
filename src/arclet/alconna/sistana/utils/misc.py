@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
-from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generic, TypeVar, Union
 
@@ -27,15 +25,6 @@ E = TypeVar("E", bound=BaseException)
 
 
 @contextmanager
-def cvar(var: ContextVar[T], val: T):
-    token = var.set(val)
-    try:
-        yield val
-    finally:
-        var.reset(token)
-
-
-@dataclass
 class Value(Generic[T]):
     value: T
 
