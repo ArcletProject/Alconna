@@ -156,6 +156,8 @@ class Analyzer(Generic[T]):
 
                                 token.apply()  # 在最后才 apply，因为上面会根据 duplicate 的情况判定 panic，不能一开始就吃掉。
                                 continue
+                            # else: 给我进 soft keycmd 的 track process (在那之前会先判断 / 分割 compact segment).
+                        # else: 进了 track process. 
                     elif pointer_type == "option":
                         option_traverse = traverse.option_traverses[-1]
 
@@ -214,6 +216,7 @@ class Analyzer(Generic[T]):
                                     mix.pop_track(option.keyword)
 
                                 continue
+                        # else: 进了 track process.
 
                     if context.compact_keywords is not None:
                         prefix = context.compact_keywords.get_closest_prefix(token.val)
@@ -265,6 +268,8 @@ class Analyzer(Generic[T]):
                         if response is None:
                             # track 上没有 fragments 可供分配了，此时又没有再流转到其他 traverse
                             return LoopflowDescription.unexpected_segment
+                        # else: next loop，因为没有 OutOfData。
+                        # 即使有，上面也已经给你处理了。
                 elif pointer_type == "option":
                     # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
                     option = context.options[pointer_val]
@@ -296,3 +301,6 @@ class Analyzer(Generic[T]):
 
                             if option.allow_duplicate:
                                 mix.pop_track(option.keyword)
+                            # else: 如果不允许 duplicate，就没必要 pop （幂等操作嘛）
+                        # else: 还是 enter next loop
+                    # 无论如何似乎都不会到这里来，除非 track process 里有个组件惊世智慧的拿到 snapshot 并改了 traverse.ref。
