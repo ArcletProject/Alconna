@@ -56,13 +56,14 @@ class Analyzer(Generic[T]):
                     # 在 option context 里面，因为 satisfied 了，所以可以直接返回 completed。
                     # 并且还得确保 option 也被记录于 activated_options 里面。
                     if pointer_type == "option":
-                        mix.tracks[pointer_val].complete()
+                        option = context.options[pointer_val]
+                        mix.tracks[option.keyword].complete()
                         option_traverse = traverse.option_traverses[-1]
                         option_traverse.completed = True
                         traverse.ref = traverse.ref.parent
 
-                        if context.options[pointer_val].allow_duplicate:
-                            mix.pop_track(pointer_val)
+                        if option.allow_duplicate:
+                            mix.pop_track(option.keyword)
 
                     snapshot.determine(traverse.ref)
                     return LoopflowDescription.completed
@@ -139,7 +140,7 @@ class Analyzer(Generic[T]):
                             if not option.soft_keyword or mix.satisfied:
                                 if context.preset.tracks[option.keyword]:
                                     # 仅当需要解析 fragments 时进行状态流转。
-                                    traverse.ref = traverse.ref.option(token.val)
+                                    traverse.ref = traverse.ref.option(option.keyword)
 
                                 if not option.allow_duplicate and option.keyword in traverse.option_traverses:
                                     return LoopflowDescription.option_duplicated
@@ -167,7 +168,7 @@ class Analyzer(Generic[T]):
 
                             # 对于 OptionPattern.allow_duplicate。
                             subcommand = context.subcommands[token.val]
-                            option = context.options[pointer_val]
+                            option = context.options[pointer_val]  # 之前的 option
                             track = mix.tracks[option.keyword]
 
                             if not track.satisfied:
@@ -191,7 +192,7 @@ class Analyzer(Generic[T]):
                                         SubcommandTraverse(
                                             subcommand,
                                             token.val,
-                                            traverse.ref.subcommand(token.val),
+                                            traverse.ref.subcommand(subcommand.header),
                                             subcommand.preset.new_mix(),
                                         )
                                     )
@@ -200,20 +201,22 @@ class Analyzer(Generic[T]):
                                     return LoopflowDescription.unsatisfied_switch_subcommand
 
                         elif token.val in context.options:
-                            option = context.options[token.val]
-                            track = mix.tracks[option.keyword]
+                            # 这里仅仅是使 ref 在正确性检查通过后返回 subcommand 上下文。
+                            previous_option = context.options[pointer_val]
+                            target_option = context.options[token.val]
+                            track = mix.tracks[previous_option.keyword]
 
                             if not track.satisfied:
-                                if not option.soft_keyword:
-                                    mix.reset(option.keyword)
+                                if not target_option.soft_keyword:
+                                    mix.reset(previous_option.keyword)
                                     return LoopflowDescription.previous_unsatisfied
                             else:
                                 track.complete()
                                 traverse.ref = traverse.ref.parent
                                 option_traverse.completed = True
 
-                                if option.allow_duplicate:
-                                    mix.pop_track(option.keyword)
+                                if previous_option.allow_duplicate:
+                                    mix.pop_track(previous_option.keyword)
 
                                 continue
                         # else: 进了 track process.
