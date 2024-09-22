@@ -42,34 +42,13 @@ class Track:
             if first.variadic and first.name not in self.assignes:
                 self.assignes[first.name] = []
 
-    def _assign_getter(self, name: str):
-        def getter():
-            if name in self.assignes:
-                return Value(self.assignes[name])
-
-        return getter
-
-    def _assign_setter(self, name: str, is_variadic: bool = False):
-        def setter(val):
-            if is_variadic:
-                if name not in self.assignes:
-                    target = self.assignes[name] = []
-                else:
-                    target = self.assignes[name]
-
-                target.append(val)
-            else:
-                self.assignes[name] = val
-
-        return setter
-
     def fetch(
         self,
         frag: _Fragment,
         buffer: Buffer,
         upper_separators: str,
-        receiver_getter: RxGet[Any] | None = None,
-        receiver_putter: RxPut[Any] | None = None,
+        receiver_getter: RxGet[Any] | None = None,  # type: ignore
+        receiver_putter: RxPut[Any] | None = None,  # type: ignore
     ):
         if frag.separators is not None:
             if frag.hybrid_separators:
@@ -91,10 +70,26 @@ class Track:
                 raise TransformPanic from e
 
         if frag.receiver is not None:
+            if receiver_getter is None:
+                def receiver_getter():
+                    if frag.name in self.assignes:
+                        return Value(self.assignes[frag.name])
+
+            if receiver_putter is None:
+                if frag.variadic:
+                    def receiver_putter(val):
+                        if frag.name not in self.assignes:
+                            self.assignes[frag.name] = []
+                        
+                        self.assignes[frag.name].append(val)
+                else:
+                    def receiver_putter(val):
+                        self.assignes[frag.name] = val
+
             try:
                 frag.receiver.receive(
-                    receiver_getter or self._assign_getter(frag.name),
-                    receiver_putter or self._assign_setter(frag.name, frag.variadic),
+                    receiver_getter,
+                    receiver_putter,
                     val,
                 )
             except Exception as e:

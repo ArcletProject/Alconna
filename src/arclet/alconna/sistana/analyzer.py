@@ -7,6 +7,7 @@ from typing import Generic, TypeVar
 from .buffer import Buffer
 from .err import OutOfData, ParsePanic, Rejected
 from .model.snapshot import AnalyzeSnapshot, OptionTraverse, SubcommandTraverse
+from .utils.misc import Value
 
 T = TypeVar("T")
 
@@ -282,9 +283,11 @@ class Analyzer(Generic[T]):
                     track = mix.tracks[option.keyword]
 
                     if traverse.option_traverses.count(option.keyword) > 1:
-                        rx_getter = traverse.option_traverses[-2].track._assign_getter(track.fragments[0].name)
+                        #rx_getter = traverse.option_traverses[-2].track._assign_getter(track.fragments[0].name)
+                        def rx_getter():
+                            return Value(traverse.option_traverses[-2].track.assignes[track.fragments[0].name])
                     else:
-                        rx_getter = None
+                        rx_getter = None  # type: ignore
 
                     try:
                         response = track.forward(buffer, option.separators, rx_getter)
