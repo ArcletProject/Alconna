@@ -3,23 +3,34 @@ from __future__ import annotations
 import dataclasses as dc
 import inspect
 import re
-import sys
+from dataclasses import dataclass
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Generic, Iterable, List, Sequence, TypeVar, Union, cast
-from typing_extensions import Self
+from typing import TYPE_CHECKING, Any, Callable, Generic, Iterable, List, Sequence, TypeVar, Union, cast
 
 from nepattern import ANY, NONE, AntiPattern, BasePattern, MatchMode, RawStr, UnionPattern, parser
 from tarina import Empty, get_signature, lang
+from typing_extensions import Self
 
 from .exceptions import InvalidArgs
-from .typing import TAValue, AllParam, KeyWordVar, KWBool, MultiKeyWordVar, MultiVar, UnpackVar
+from .typing import AllParam, KeyWordVar, KWBool, MultiKeyWordVar, MultiVar, TAValue, UnpackVar
 
+if TYPE_CHECKING:
 
-def safe_dcls_kw(**kwargs):
-    if sys.version_info < (3, 10):  # pragma: no cover
-        kwargs.pop("slots")
-    return kwargs
+    def safe_dcls_kw(
+        match_args=True,
+        kw_only=False,
+        slots=False,
+        weakref_slot=False,
+        **kwargs,
+    ) -> dict[str, bool]: ...
+else:
+    from inspect import Signature
+
+    _available_dc_attrs = set(Signature.from_callable(dataclass).parameters.keys())
+
+    def safe_dcls_kw(**kwargs):
+        return {k: v for k, v in kwargs.items() if k in _available_dc_attrs}
 
 
 _T = TypeVar("_T")
@@ -244,7 +255,7 @@ class Args(metaclass=ArgsMeta):
                 anno = type(de) if de not in {Empty, None} else ANY
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
-                    anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith('no'))  # noqa: E501
+                    anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith("no"))  # noqa: E501
                 anno = KeyWordVar(anno, sep=kw_sep)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")
