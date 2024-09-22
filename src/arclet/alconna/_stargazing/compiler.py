@@ -74,6 +74,7 @@ def into_sistana(alconna: Alconna | Subcommand | Option):
             options=options,
             subcommands=subcommands,
             prefixes=TrieHard(alconna.prefixes),
+            soft_keyword=alconna.soft_keyword,
         )
     elif isinstance(alconna, Subcommand):
         subcommands = {}
@@ -108,8 +109,10 @@ def into_sistana(alconna: Alconna | Subcommand | Option):
             }),
             options=options,
             subcommands=subcommands,
+            soft_keyword=alconna.soft_keyword,
         )
     else:
         return OptionPattern(
-            keyword=alconna.name
+            keyword=alconna.name,
+            soft_keyword=alconna.soft_keyword,
         )

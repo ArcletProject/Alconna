@@ -165,6 +165,8 @@ class Option(CommandNode):
     """命令选项别名"""
     compact: bool
     "是否允许名称与后随参数之间无分隔符"
+    soft_keyword: bool = False
+    "是否为软关键字；仅 Sistana 支持该特性。"
 
     def __init__(
         self,
@@ -179,6 +181,7 @@ class Option(CommandNode):
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
         compact: bool = False,
         priority: int = 0,
+        soft_keyword: bool = False
     ):
         """初始化命令选项
 
@@ -194,10 +197,12 @@ class Option(CommandNode):
             requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令选项需求前缀
             compact (bool, optional): 是否允许名称与后随参数之间无分隔符
             priority (int, optional): 命令选项优先级
+            soft_keyword (bool, optional): 是否为软关键字；仅 Sistana 支持该特性。
         """
 
         self.priority = priority
         self.compact = compact
+        self.soft_keyword = soft_keyword
         if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
             default = OptionResult(default)
         super().__init__(name, args, alias, dest, default, action, separators, help_text, requires)
@@ -270,6 +275,8 @@ class Subcommand(CommandNode):
     """子命令默认值"""
     options: list[Option | Subcommand]
     """子命令包含的选项与子命令"""
+    soft_keyword: bool = False
+    "是否为软关键字；仅 Sistana 支持该特性。"
 
     def __init__(
         self,
@@ -281,6 +288,7 @@ class Subcommand(CommandNode):
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
         requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
+        soft_keyword: bool = False
     ):
         """初始化子命令
 
@@ -311,6 +319,7 @@ class Subcommand(CommandNode):
         if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}):
             self.default = SubcommandResult(args=defaults)
         self._hash = self._calc_hash()
+        self.soft_keyword = soft_keyword
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:
         """连接子命令与命令选项或命令节点
