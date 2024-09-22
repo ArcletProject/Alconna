@@ -50,10 +50,13 @@ class Fragment(_Fragment):
             if self.type is None:
                 return
 
-            from nepattern import type_parser, MatchMode
+
+            from nepattern import type_parser
 
             pat = type_parser(self.type.value)
             assert pat is not None
+
+        from nepattern import MatchMode
 
         if capture_mode:
             if pat.mode in (MatchMode.REGEX_MATCH, MatchMode.REGEX_CONVERT):
