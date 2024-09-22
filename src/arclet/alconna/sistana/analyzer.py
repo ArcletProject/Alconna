@@ -19,16 +19,16 @@ class LoopflowDescription(str, Enum):
     unsatisfied = "continuation@process#unsatisfied"
     out_of_data_subcommand = "continuation@subcommand#out-of-data"
     out_of_data_option = "continuation@subcommand#out-of-data"
+    previous_unsatisfied = "continuation@option-switch#previous-unsatisfied"
+    switch_unsatisfied_option = "continuation@option-switch#unsatisfied"
+    unsatisfied_switch_subcommand = "continuation@subcommand-switch#unsatisfied"
 
     prefix_expect_str = "panic@prefix-match#expect-str"
     prefix_mismatch = "panic@prefix-match#mismatch"
     header_expect_str = "panic@header-match#expect-str"
     header_mismatch = "panic@header-match#mismatch"
-    unsatisfied_switch_subcommand = "panic@subcommand-switch#unsatisfied"
     unexpected_segment = "panic@subcommand-process#unexpected-segment"
-    option_duplicated = "panic@option-process#duplicated"
-    switch_unsatisfied_option = "panic@option-switch#unsatisfied"
-    previous_unsatisfied = "panic@option-switch#previous-unsatisfied"
+    option_duplicated_prohibited = "panic@option-process#duplicated"
 
     def __str__(self):
         return self.value
@@ -148,7 +148,7 @@ class Analyzer(Generic[T]):
                                     traverse.ref = traverse.ref.option(option.keyword)
 
                                 if not option.allow_duplicate and option.keyword in traverse.option_traverses:
-                                    return LoopflowDescription.option_duplicated
+                                    return LoopflowDescription.option_duplicated_prohibited
 
                                 traverse.option_traverses.append(
                                     OptionTraverse(
@@ -171,7 +171,7 @@ class Analyzer(Generic[T]):
                             # 当且仅当 option 已经 satisfied 时才能让状态流转进 subcommand。
                             # subcommand.satisfy_previous 处理起来比较复杂，这里先 reject。
 
-                            # 对于 OptionPattern.allow_duplicate。
+                            # 对于 OptionPattern.allow_duplicate，当然是标准处理：pop_track。
                             subcommand = context.subcommands[token.val]
                             option = context.options[pointer_val]  # 之前的 option
                             track = mix.tracks[option.keyword]
@@ -206,7 +206,7 @@ class Analyzer(Generic[T]):
                                     return LoopflowDescription.unsatisfied_switch_subcommand
 
                         elif token.val in context.options:
-                            # 这里仅仅是使 ref 在正确性检查通过后返回 subcommand 上下文。
+                            # 这里仅仅是使 ref 在正确性检查通过后回退到 subcommand 上下文。
                             previous_option = context.options[pointer_val]
                             target_option = context.options[token.val]
                             track = mix.tracks[previous_option.keyword]
@@ -247,6 +247,9 @@ class Analyzer(Generic[T]):
 
                                 redirect = track.assignable or option.allow_duplicate
                                 # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
+                                # 但这里有个有趣的例子，比如说我们有 `-v -vv`，这里 v 是一个 duplicate，而 duplicate 仍然可以重入并继续分配，而其 assignable 则成为无关变量。
+                                # 还有一个有趣的例子：如果一个 duplicate 的 option，他具备有几个 default=Value(...) 的 fragment，则多次触发会怎么样？
+                                # 答案是不会怎么样：还记得吗？duplicate 会在回退到 subcommand 时被 pop_track，也就会将其 assignes 清空，所以不会引发任何问题（比如你担心的行为不一致）。
 
                             # else: 你是不是手动构造了 TrieHard？
                             # 由于默认 redirect 是 False，所以这里不会准许跳转。
