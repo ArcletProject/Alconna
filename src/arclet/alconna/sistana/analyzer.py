@@ -8,6 +8,7 @@ from .buffer import Buffer
 from .err import OutOfData, ParsePanic, Rejected
 from .model.snapshot import AnalyzeSnapshot, OptionTraverse, SubcommandTraverse
 from .utils.misc import Value
+from .model.pointer import PointerRole
 
 T = TypeVar("T")
 
@@ -49,7 +50,7 @@ class Analyzer(Generic[T]):
             if snapshot.determined and self.complete_on_determined and mix.satisfied:
                 return LoopflowDescription.completed
 
-            pointer_type, pointer_val = traverse.ref.data[-1]
+            pointer_type, pointer_val = traverse.ref.last
 
             try:
                 token = buffer.next(traverse.subcommand.separators)
@@ -59,7 +60,7 @@ class Analyzer(Generic[T]):
 
                     # 在 option context 里面，因为 satisfied 了，所以可以直接返回 completed。
                     # 并且还得确保 option 也被记录于 activated_options 里面。
-                    if pointer_type == "option":
+                    if pointer_type == PointerRole.OPTION:
                         option = context.options[pointer_val]
                         mix.tracks[option.keyword].complete()
                         option_traverse = traverse.option_traverses[-1]
@@ -74,12 +75,12 @@ class Analyzer(Generic[T]):
 
                 # 这里如果没有 satisfied，如果是 option 的 track，则需要 reset
                 # 从 Buffer 吃掉的东西？我才不还。
-                if pointer_type == "option":
+                if pointer_type == PointerRole.OPTION:
                     mix.reset(pointer_val)
 
                 return LoopflowDescription.unsatisfied
 
-            if pointer_type == "prefix":
+            if pointer_type == PointerRole.PREFIX:
                 if not isinstance(token.val, str):
                     return LoopflowDescription.header_expect_str
 
@@ -92,7 +93,7 @@ class Analyzer(Generic[T]):
                     buffer.pushleft(token.val[len(prefix) :])
 
                 traverse.ref = traverse.ref.parent.header()  # 直接进 header.
-            elif pointer_type == "header":
+            elif pointer_type == PointerRole.HEADER:
                 if not isinstance(token.val, str):
                     return LoopflowDescription.header_expect_str
 
@@ -115,7 +116,7 @@ class Analyzer(Generic[T]):
                 traverse.ref = traverse.ref.parent
             else:
                 if isinstance(token.val, str):
-                    if pointer_type == "subcommand":
+                    if pointer_type == PointerRole.SUBCOMMAND:
                         if token.val in context.subcommands:
                             subcommand = context.subcommands[token.val]
 
@@ -163,7 +164,7 @@ class Analyzer(Generic[T]):
                                 continue
                             # else: 给我进 soft keycmd 的 track process (在那之前会先判断 / 分割 compact segment).
                         # else: 进了 track process. 
-                    elif pointer_type == "option":
+                    elif pointer_type == PointerRole.OPTION:
                         option_traverse = traverse.option_traverses[-1]
 
                         if token.val in context.subcommands:
@@ -257,7 +258,7 @@ class Analyzer(Generic[T]):
                                 buffer.pushleft(token.val[prefix_len:])
                                 continue
 
-                if pointer_type == "subcommand":
+                if pointer_type == PointerRole.SUBCOMMAND:
                     track = mix.tracks[context.header]
 
                     try:
@@ -277,7 +278,7 @@ class Analyzer(Generic[T]):
                             return LoopflowDescription.unexpected_segment
                         # else: next loop，因为没有 OutOfData。
                         # 即使有，上面也已经给你处理了。
-                elif pointer_type == "option":
+                elif pointer_type == PointerRole.OPTION:
                     # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
                     option = context.options[pointer_val]
                     track = mix.tracks[option.keyword]

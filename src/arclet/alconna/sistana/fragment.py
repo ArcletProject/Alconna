@@ -50,7 +50,6 @@ class Fragment(_Fragment):
             if self.type is None:
                 return
 
-
             from nepattern import type_parser
 
             pat = type_parser(self.type.value)
