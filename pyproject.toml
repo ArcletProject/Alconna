@@ -142,3 +142,6 @@ pythonVersion = "3.8"
 pythonPlatform = "All"
 typeCheckingMode = "basic"
 disableBytesTypePromotions = true
+
+[tool.ruff]
+line-length = 140
