@@ -59,7 +59,7 @@ class Fragment(_Fragment):
             if pat.mode in (MatchMode.REGEX_MATCH, MatchMode.REGEX_CONVERT):
                 self.capture = RegexCapture(pat.regex_pattern)
             else:
-                self.capture = RegexCapture(pat.alias)
+                self.capture = RegexCapture(pat.alias)  # type: ignore
         else:
             def _validate(v: Segment):
                 if isinstance(v, (Quoted, UnmatchedQuoted)):
