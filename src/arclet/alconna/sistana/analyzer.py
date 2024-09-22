@@ -229,11 +229,6 @@ class Analyzer(Generic[T]):
                     if context.compact_keywords is not None:
                         prefix = context.compact_keywords.get_closest_prefix(token.val)
                         if prefix:
-                            # 这里仍然需要关注 soft_keycmd 和 satisfied 的情况。
-                            # 这里有个有趣的点……至少三方因素会参与到这里，所以逻辑关系会稍微复杂那么一点。
-                            # 我加了一个 Track.assignable，这样我们就能知道是否还有 fragments 可供分配了。
-
-                            # 我想了想，soft keyword 不会影响这个 —— token.val 根本不是关键字（如果是就不会在这个分支了）。
                             redirect = False
 
                             if prefix in context.subcommands:
@@ -249,7 +244,7 @@ class Analyzer(Generic[T]):
                                 # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
                                 # 但这里有个有趣的例子，比如说我们有 `-v -vv`，这里 v 是一个 duplicate，而 duplicate 仍然可以重入并继续分配，而其 assignable 则成为无关变量。
                                 # 还有一个有趣的例子：如果一个 duplicate 的 option，他具备有几个 default=Value(...) 的 fragment，则多次触发会怎么样？
-                                # 答案是不会怎么样：还记得吗？duplicate 会在回退到 subcommand 时被 pop_track，也就会将其 assignes 清空，所以不会引发任何问题（比如你担心的行为不一致）。
+                                # 答案是不会怎么样：还记得吗？duplicate 会在回退到 subcommand 时被 pop_track，也就会将 Track 换成另外一个，所以不会引发任何问题（比如你担心的行为不一致）。
 
                             # else: 你是不是手动构造了 TrieHard？
                             # 由于默认 redirect 是 False，所以这里不会准许跳转。
@@ -260,6 +255,7 @@ class Analyzer(Generic[T]):
                                 buffer.ahead.appendleft(token.val[:prefix_len])
                                 buffer.pushleft(token.val[prefix_len:])
                                 continue
+                            # else: 进了 track process.
 
                 if pointer_type == PointerRole.SUBCOMMAND:
                     track = mix.tracks[context.header]
@@ -287,7 +283,6 @@ class Analyzer(Generic[T]):
                     track = mix.tracks[option.keyword]
 
                     if traverse.option_traverses.count(option.keyword) > 1:
-                        #rx_getter = traverse.option_traverses[-2].track._assign_getter(track.fragments[0].name)
                         def rx_getter():
                             return Value(traverse.option_traverses[-2].track.assignes[track.fragments[0].name])
                     else:
