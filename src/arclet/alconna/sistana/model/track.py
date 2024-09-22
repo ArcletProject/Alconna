@@ -186,7 +186,3 @@ class Mix:
     def complete_all(self):
         for track in self.tracks.values():
             track.complete()
-
-    # @property
-    # def result(self):
-    #     return {name: track.assignes for name, track in self.tracks.items()}
