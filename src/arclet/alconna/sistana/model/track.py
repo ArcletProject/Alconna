@@ -103,14 +103,14 @@ class Track:
         self,
         buffer: Buffer,
         separators: str,
-        receiver_getter: RxGet[Any] | None = None,
-        receiver_putter: RxPut[Any] | None = None,
+        rxget: RxGet[Any] | None = None,
+        rxput: RxPut[Any] | None = None,
     ):
         if not self.fragments:
             return
 
         first = self.fragments[0]
-        self.fetch(first, buffer, separators, receiver_getter, receiver_putter)
+        self.fetch(first, buffer, separators, rxget, rxput)
 
         if not first.variadic:
             self.fragments.popleft()
