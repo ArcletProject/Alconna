@@ -52,11 +52,11 @@ class Field(Generic[_T]):
     """参数单元的默认值"""
     alias: str | None = dc.field(default=None)
     """参数单元默认值的别名"""
-    completion: Callable[[], str | list[str] | None] | None = dc.field(default=None)
+    completion: Callable[[], str | list[str] | None] | None = dc.field(default=None, repr=False)
     """参数单元的补全"""
-    unmatch_tips: Callable[[Any], str] | None = dc.field(default=None)
+    unmatch_tips: Callable[[Any], str] | None = dc.field(default=None, repr=False)
     """参数单元的错误提示"""
-    missing_tips: Callable[[], str] | None = dc.field(default=None)
+    missing_tips: Callable[[], str] | None = dc.field(default=None, repr=False)
     """参数单元的缺失提示"""
 
     @property
@@ -95,7 +95,7 @@ class Arg(Generic[_T]):
     """参数单元的字段"""
     notice: str | None = dc.field(compare=False, hash=False)
     """参数单元的注释"""
-    flag: set[ArgFlag] = dc.field(compare=False, hash=False)
+    flag: set[ArgFlag] = dc.field(compare=False, hash=False, repr=False)
     """参数单元的标识"""
     separators: tuple[str, ...] = dc.field(compare=False, hash=False)
     """参数单元使用的分隔符"""
@@ -149,7 +149,7 @@ class Arg(Generic[_T]):
         if ArgFlag.ANTI in self.flag and self.value not in (ANY, AllParam):
             self.value = AntiPattern(self.value)  # type: ignore
 
-    def __repr__(self):
+    def __str__(self):
         n, v = f"'{self.name}'", str(self.value)
         return (n if n == v else f"{n}: {v}") + (f" = '{self.field.display}'" if self.field.display is not Empty else "")
 
@@ -419,8 +419,11 @@ class Args(metaclass=ArgsMeta):
     def __eq__(self, other):
         return self.argument == other.argument
 
-    def __repr__(self):
+    def __str__(self):
         return f"Args({', '.join([f'{arg}' for arg in self.argument])})" if self.argument else "Empty"
+
+    def __repr__(self):
+        return repr(self.argument)
 
     @property
     def empty(self) -> bool:

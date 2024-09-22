@@ -313,7 +313,7 @@ class Alconna(Subcommand, Generic[TDC]):
             return str(e)
 
     def __repr__(self):
-        return f"{self.namespace}::{self.name}(args={self.args}, options={self.options})"
+        return f"{self.namespace}::{self.name}(args={self.args!r}, options={self.options})"
 
     def add(self, opt: Option | Subcommand) -> Self:
         """添加选项或子命令
