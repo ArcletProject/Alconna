@@ -70,7 +70,7 @@ class Analyzer(Generic[T]):
                         traverse.ref = traverse.ref.parent
 
                         if option.net_fragment is not None:
-                            mix.forward_net(option.keyword)
+                            mix.forward_net(option.net_fragment.name)
 
                         if option.allow_duplicate:
                             mix.pop_track(option.keyword)
@@ -156,7 +156,7 @@ class Analyzer(Generic[T]):
                                     return LoopflowDescription.option_duplicated_prohibited
 
                                 if option.net_fragment is not None:
-                                    mix.forward_net(option.keyword)
+                                    mix.forward_net(option.net_fragment.name)
 
                                 traverse.option_traverses.append(
                                     OptionTraverse(
@@ -194,7 +194,7 @@ class Analyzer(Generic[T]):
                                 option_traverse.completed = True
 
                                 if option.net_fragment is not None:
-                                    mix.forward_net(option.keyword)
+                                    mix.forward_net(option.net_fragment.name)
 
                                 if option.allow_duplicate:
                                     mix.pop_track(option.keyword)
@@ -318,7 +318,7 @@ class Analyzer(Generic[T]):
                             traverse.option_traverses[-1].completed = True
 
                             if option.net_fragment is not None:
-                                mix.forward_net(option.keyword)
+                                mix.forward_net(option.net_fragment.name)
 
                             if option.allow_duplicate:
                                 mix.pop_track(option.keyword)

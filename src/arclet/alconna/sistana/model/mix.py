@@ -156,15 +156,15 @@ class Net:
         self.assignes = {}
 
         if points is not None:
-            for key, frag in points.items():
+            for frag in points.values():
                 if frag.default is None:
-                    self._required[key] = frag
+                    self._required[frag.name] = frag
                 else:
-                    self._optional[key] = frag
+                    self._optional[frag.name] = frag
 
     @classmethod
     def from_options(cls, options: Iterable[OptionPattern]):
-        return cls({option.keyword: option.net_fragment for option in options if option.net_fragment is not None})
+        return cls({option.net_fragment.name: option.net_fragment for option in options if option.net_fragment is not None})
 
     @property
     def satisfied(self):
@@ -198,9 +198,9 @@ class Net:
             del self._required[key]
 
     def apply_defaults(self):
-        for key, frag in self._optional.items():
-            if key not in self.assignes and frag.default is not None:
-                self.assignes[key] = frag.default.value
+        for frag in self._optional.values():
+            if frag.name not in self.assignes and frag.default is not None:
+                self.assignes[frag.name] = frag.default.value
 
     def copy(self):
         return Net(self.points.copy())
