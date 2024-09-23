@@ -61,7 +61,7 @@ class Analyzer(Generic[T]):
 
                     # 在 option context 里面，因为 satisfied 了，所以可以直接返回 completed。
                     # 并且还得确保 option 也被记录于 activated_options 里面。
-                    if pointer_type == PointerRole.OPTION:
+                    if pointer_type is PointerRole.OPTION:
                         option = context.options[pointer_val]
                         mix.tracks[option.keyword].complete()
                         option_traverse = traverse.option_traverses[-1]
@@ -76,12 +76,12 @@ class Analyzer(Generic[T]):
 
                 # 这里如果没有 satisfied，如果是 option 的 track，则需要 reset
                 # 从 Buffer 吃掉的东西？我才不还。
-                if pointer_type == PointerRole.OPTION:
+                if pointer_type is PointerRole.OPTION:
                     mix.reset(pointer_val)
 
                 return LoopflowDescription.unsatisfied
 
-            if pointer_type == PointerRole.PREFIX:
+            if pointer_type is PointerRole.PREFIX:
                 if not isinstance(token.val, str):
                     return LoopflowDescription.header_expect_str
 
@@ -94,7 +94,7 @@ class Analyzer(Generic[T]):
                     buffer.pushleft(token.val[len(prefix) :])
 
                 traverse.ref = traverse.ref.parent.header()  # 直接进 header.
-            elif pointer_type == PointerRole.HEADER:
+            elif pointer_type is PointerRole.HEADER:
                 if not isinstance(token.val, str):
                     return LoopflowDescription.header_expect_str
 
@@ -117,7 +117,7 @@ class Analyzer(Generic[T]):
                 traverse.ref = traverse.ref.parent
             else:
                 if isinstance(token.val, str):
-                    if pointer_type == PointerRole.SUBCOMMAND:
+                    if pointer_type is PointerRole.SUBCOMMAND:
                         if token.val in context.subcommands:
                             subcommand = context.subcommands[token.val]
 
@@ -165,7 +165,7 @@ class Analyzer(Generic[T]):
                                 continue
                             # else: 给我进 soft keycmd 的 track process (在那之前会先判断 / 分割 compact segment).
                         # else: 进了 track process. 
-                    elif pointer_type == PointerRole.OPTION:
+                    elif pointer_type is PointerRole.OPTION:
                         option_traverse = traverse.option_traverses[-1]
 
                         if token.val in context.subcommands:
@@ -258,7 +258,7 @@ class Analyzer(Generic[T]):
                                 continue
                             # else: 进了 track process.
 
-                if pointer_type == PointerRole.SUBCOMMAND:
+                if pointer_type is PointerRole.SUBCOMMAND:
                     track = mix.tracks[context.header]
 
                     try:
@@ -276,7 +276,7 @@ class Analyzer(Generic[T]):
                             return LoopflowDescription.unexpected_segment
                         # else: next loop，因为没有 OutOfData。
                         # 即使有，上面也已经给你处理了。
-                elif pointer_type == PointerRole.OPTION:
+                elif pointer_type is PointerRole.OPTION:
                     # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
                     option = context.options[pointer_val]
                     track = mix.tracks[option.keyword]
