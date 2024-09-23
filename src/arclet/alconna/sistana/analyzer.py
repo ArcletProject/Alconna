@@ -266,9 +266,7 @@ class Analyzer(Generic[T]):
                     except OutOfData:
                         # 称不上是 context switch，continuation 不改变 context。
                         return LoopflowDescription.out_of_data_subcommand
-                    except Rejected:
-                        raise
-                    except ParsePanic:
+                    except (Rejected, ParsePanic):
                         raise
                     except Exception as e:
                         raise ParsePanic from e
@@ -294,9 +292,7 @@ class Analyzer(Generic[T]):
                     except OutOfData:
                         mix.reset(option.keyword)
                         return LoopflowDescription.out_of_data_option
-                    except Rejected:
-                        raise
-                    except ParsePanic:
+                    except (Rejected, ParsePanic):
                         raise
                     except Exception as e:
                         raise ParsePanic from e
