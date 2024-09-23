@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Generic, TypeVar
 
-from .buffer import Buffer
-from .err import OutOfData, ParsePanic, Rejected
+from elaina_segment import Buffer
+from elaina_segment.err import OutOfData
+from .err import ParsePanic, Rejected
 from .model.snapshot import AnalyzeSnapshot, OptionTraverse, SubcommandTraverse
 from .utils.misc import Value
 from .model.pointer import PointerRole
@@ -109,7 +110,7 @@ class Analyzer(Generic[T]):
 
                     v = token.val[len(context.header) :]
                     if v:
-                        buffer.runes.insert(0, v)
+                        buffer.pushleft(v)
                 else:
                     return LoopflowDescription.header_mismatch
 
@@ -252,7 +253,7 @@ class Analyzer(Generic[T]):
                             if redirect:
                                 token.apply()
                                 prefix_len = len(prefix)
-                                buffer.ahead.appendleft(token.val[:prefix_len])
+                                buffer.add_to_ahead(token.val[:prefix_len])
                                 buffer.pushleft(token.val[prefix_len:])
                                 continue
                             # else: 进了 track process.

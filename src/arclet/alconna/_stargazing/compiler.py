@@ -6,7 +6,7 @@ from typing import overload
 import tarina
 
 from arclet.alconna import Alconna, Arg, Args, Arparma, HeadResult, Option, OptionResult, Subcommand, SubcommandResult
-from arclet.alconna.sistana import Analyzer, Buffer, Fragment, LoopflowDescription, OptionPattern, Preset, SubcommandPattern
+from arclet.alconna.sistana import Analyzer, Fragment, LoopflowDescription, OptionPattern, Preset, SubcommandPattern
 from arclet.alconna.sistana import Value
 from arclet.alconna.sistana.model.fragment import _Fragment
 from elaina_triehard import TrieHard

@@ -9,12 +9,12 @@ from typing_extensions import TypeAlias
 
 from ..utils.misc import Some, Value
 
-from ..buffer import AheadToken, Buffer, SegmentToken
+from elaina_segment.buffer import AheadToken, Buffer, SegmentToken
 from ..err import RegexMismatch, UnexpectedType
 
 T = TypeVar("T")
 
-CaptureResult = Tuple[T, Some[Any], Union[SegmentToken[T], AheadToken[T]]]
+CaptureResult: TypeAlias = "Tuple[T, Some[Any], Union[SegmentToken[T], AheadToken[T]]]"
 
 
 class Capture(Generic[T]):

@@ -12,7 +12,7 @@ dependencies = [
     "typing-extensions>=4.5.0",
     "nepattern<1.0.0,>=0.7.6",
     "tarina>=0.5.8",
-    "elaina-segment>=0.1.2",
+    "elaina-segment>=0.3.2",
     "elaina-triehard>=0.1.2",
 ]
 dynamic = ["version"]
