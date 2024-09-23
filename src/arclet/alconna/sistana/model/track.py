@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
-
-from arclet.alconna._dcls import safe_dcls_kw
 
 from ..err import ReceivePanic, TransformPanic, ValidateRejected
 from ..utils.misc import Value
@@ -15,10 +12,15 @@ if TYPE_CHECKING:
     from .receiver import RxGet, RxPut
 
 
-@dataclass(**safe_dcls_kw(slots=True))
 class Track:
+    __slots__ = ("fragments", "assignes")
+
     fragments: deque[_Fragment]
-    assignes: dict[str, Any] = field(default_factory=dict)
+    assignes: dict[str, Any]
+
+    def __init__(self, fragments: deque[_Fragment], assignes: dict[str, Any] | None = None):
+        self.fragments = fragments
+        self.assignes = assignes or {}
 
     @property
     def satisfied(self):
@@ -43,32 +45,6 @@ class Track:
             first = self.fragments[-1]
             if first.variadic and first.name not in self.assignes:
                 self.assignes[first.name] = []
-
-
-    # def fetch(
-    #     self,
-    #     frag: _Fragment,
-    #     buffer: Buffer,
-    #     upper_separators: str,
-    #     rxget: RxGet[Any] | None = None,  # type: ignore
-    #     rxput: RxPut[Any] | None = None,  # type: ignore
-    # ):
-    #     if frag.separators is not None:
-    #         if frag.hybrid_separators:
-    #             separators = frag.separators + upper_separators
-    #         else:
-    #             separators = frag.separators
-    #     else:
-    #         separators = upper_separators
-
-    #     token = buffer.next(separators)
-
-    #     if rxput is None:
-    #         def rxput(val):
-    #             self.assignes[frag.name] = val
-        
-    #     rxput(token.val)
-    #     token.apply()
 
     def fetch(
         self,
@@ -153,11 +129,12 @@ class Track:
         return Track(self.fragments.copy(), self.assignes.copy())
 
 
-@dataclass(**safe_dcls_kw(slots=True))
 class Preset:
-    tracks: dict[str, deque[_Fragment]] = field(default_factory=dict)
+    tracks: dict[str, deque[_Fragment]]
 
-    def __post_init__(self):
+    def __init__(self, tracks: dict[str, deque[_Fragment]] | None = None):
+        self.tracks = tracks or {}
+
         for fragments in self.tracks.values():
             assert_fragments_order(fragments)
 
@@ -168,12 +145,16 @@ class Preset:
         return Mix(self)
 
 
-@dataclass(**safe_dcls_kw(slots=True))
 class Mix:
-    preset: Preset
-    tracks: dict[str, Track] = field(init=False, default_factory=dict)
+    __slots__ = ("preset", "tracks")
 
-    def __post_init__(self):
+    preset: Preset
+    tracks: dict[str, Track]
+
+    def __init__(self, preset: Preset):
+        self.preset = preset
+        self.tracks = {}
+
         for name in self.preset.tracks:
             self.init_track(name)
 

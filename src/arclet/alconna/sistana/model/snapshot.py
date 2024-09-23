@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Generic, TypeVar
-
-from arclet.alconna._dcls import safe_dcls_kw
 
 from ..utils.misc import Some, Value
 
@@ -16,22 +13,37 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-@dataclass(**safe_dcls_kw(slots=True))
 class OptionTraverse:
+    __slots__ = ("trigger", "is_compact", "completed", "option", "track")
+
     trigger: str
     is_compact: bool
     completed: bool
     option: OptionPattern
     track: Track
 
+    def __init__(self, trigger: str, is_compact: bool, completed: bool, option: OptionPattern, track: Track):
+        self.trigger = trigger
+        self.is_compact = is_compact
+        self.completed = completed
+        self.option = option
+        self.track = track
 
-@dataclass(**safe_dcls_kw(slots=True))
+
 class IndexedOptionTraversesRecord:
-    traverses: list[OptionTraverse] = field(default_factory=list)
+    __slots__ = ("traverses", "_by_trigger", "_by_keyword", "_count")
 
-    _by_trigger: dict[str, list[OptionTraverse]] = field(default_factory=dict, repr=False)
-    _by_keyword: dict[str, list[OptionTraverse]] = field(default_factory=dict, repr=False)
-    _count: defaultdict[str, int] = field(default_factory=lambda: defaultdict(lambda: 0), repr=False)
+    traverses: list[OptionTraverse]
+
+    _by_trigger: dict[str, list[OptionTraverse]]
+    _by_keyword: dict[str, list[OptionTraverse]]
+    _count: defaultdict[str, int]
+
+    def __init__(self, traverses: list[OptionTraverse] | None = None):
+        self.traverses = traverses or []
+        self._by_trigger = {}
+        self._by_keyword = {}
+        self._count = defaultdict(lambda: 0)
 
     def append(self, traverse: OptionTraverse):
         self.traverses.append(traverse)
@@ -40,7 +52,7 @@ class IndexedOptionTraversesRecord:
             self._by_trigger[traverse.trigger].append(traverse)
         else:
             self._by_trigger[traverse.trigger] = [traverse]
-        
+
         if traverse.option.keyword in self._by_keyword:
             self._by_keyword[traverse.option.keyword].append(traverse)
         else:
@@ -64,19 +76,32 @@ class IndexedOptionTraversesRecord:
         return keyword in self._by_keyword
 
 
-@dataclass(**safe_dcls_kw(slots=True))
 class SubcommandTraverse:
+    __slots__ = ("subcommand", "trigger", "ref", "mix", "option_traverses")
+
     subcommand: SubcommandPattern
     trigger: str
     ref: Pointer
     mix: Mix
-    option_traverses: IndexedOptionTraversesRecord = field(default_factory=IndexedOptionTraversesRecord)
+    option_traverses: IndexedOptionTraversesRecord
+
+    def __init__(self, subcommand: SubcommandPattern, trigger: str, ref: Pointer, mix: Mix):
+        self.subcommand = subcommand
+        self.trigger = trigger
+        self.ref = ref
+        self.mix = mix
+        self.option_traverses = IndexedOptionTraversesRecord()
 
 
-@dataclass(**safe_dcls_kw(slots=True))
 class AnalyzeSnapshot(Generic[T]):
-    traverses: list[SubcommandTraverse] = field(default_factory=list)
-    endpoint: Some[Pointer] = None
+    __slots__ = ("traverses", "endpoint")
+
+    traverses: list[SubcommandTraverse]
+    endpoint: Some[Pointer]
+
+    def __init__(self, traverses: list[SubcommandTraverse] | None = None, endpoint: Some[Pointer] = None):
+        self.traverses = traverses or []
+        self.endpoint = endpoint
 
     @property
     def determined(self):

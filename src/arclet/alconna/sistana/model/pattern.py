@@ -11,6 +11,7 @@ from arclet.alconna._dcls import safe_dcls_kw
 
 from .pointer import Pointer
 from .track import Preset
+from .snapshot import AnalyzeSnapshot, SubcommandTraverse
 
 if TYPE_CHECKING:
     from .fragment import _Fragment
@@ -70,8 +71,6 @@ class SubcommandPattern:
         return Pointer().subcommand(self.header)
 
     def create_snapshot(self, ref: Pointer):
-        from .snapshot import AnalyzeSnapshot, SubcommandTraverse
-
         return AnalyzeSnapshot(
             traverses=[
                 SubcommandTraverse(

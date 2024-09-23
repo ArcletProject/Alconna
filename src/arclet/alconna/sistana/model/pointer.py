@@ -24,16 +24,16 @@ class Pointer:
         self.data = data
 
     def subcommand(self, name: str):
-        return Pointer((*self.data, (PointerRole.SUBCOMMAND, name)))
+        return Pointer(self.data + ((PointerRole.SUBCOMMAND, name), ))
 
     def option(self, name: str):
-        return Pointer((*self.data, (PointerRole.OPTION, name)))
+        return Pointer(self.data + ((PointerRole.OPTION, name), ))
 
     def header(self):
-        return Pointer((*self.data, (PointerRole.HEADER, HEADER_STR)))
+        return Pointer(self.data + ((PointerRole.HEADER, HEADER_STR), ))
 
     def prefix(self):
-        return Pointer((*self.data, (PointerRole.PREFIX, PREFIX_STR)))
+        return Pointer(self.data + ((PointerRole.PREFIX, PREFIX_STR),))
 
     @property
     def parent(self):
