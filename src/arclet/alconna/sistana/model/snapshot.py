@@ -4,6 +4,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Generic, TypeVar
 
+from arclet.alconna._dcls import safe_dcls_kw
+
 from ..utils.misc import Some, Value
 
 if TYPE_CHECKING:
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(slots=True))
 class OptionTraverse:
     trigger: str
     is_compact: bool
@@ -23,7 +25,7 @@ class OptionTraverse:
     track: Track
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(slots=True))
 class IndexedOptionTraversesRecord:
     traverses: list[OptionTraverse] = field(default_factory=list)
 
@@ -62,7 +64,7 @@ class IndexedOptionTraversesRecord:
         return keyword in self._by_keyword
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(slots=True))
 class SubcommandTraverse:
     subcommand: SubcommandPattern
     trigger: str
@@ -71,7 +73,7 @@ class SubcommandTraverse:
     option_traverses: IndexedOptionTraversesRecord = field(default_factory=IndexedOptionTraversesRecord)
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(slots=True))
 class AnalyzeSnapshot(Generic[T]):
     traverses: list[SubcommandTraverse] = field(default_factory=list)
     endpoint: Some[Pointer] = None

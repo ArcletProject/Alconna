@@ -16,6 +16,8 @@ PREFIX_STR = "^"
 
 
 class Pointer:
+    __slots__ = ("data",)
+
     data: tuple[PointerContent, ...]
 
     def __init__(self, data: tuple[PointerContent, ...] = ()) -> None:

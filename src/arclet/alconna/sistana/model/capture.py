@@ -7,6 +7,8 @@ from typing import Any, Generic, Tuple, TypeVar, Union
 from elaina_segment import Quoted, UnmatchedQuoted
 from typing_extensions import TypeAlias
 
+from arclet.alconna._dcls import safe_dcls_kw
+
 from ..utils.misc import Some, Value
 
 from elaina_segment.buffer import AheadToken, Buffer, SegmentToken
@@ -27,7 +29,7 @@ class SimpleCapture(Capture[Any]):
         return token.val, None, token
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(eq=True, unsafe_hash=True, slots=True))
 class ObjectCapture(Capture[T]):
     type: type[T] | tuple[type[T], ...]
 
@@ -42,7 +44,7 @@ class ObjectCapture(Capture[T]):
 Plain: TypeAlias = "Union[str, Quoted[str], UnmatchedQuoted[str]]"
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(eq=True, unsafe_hash=True, slots=True))
 class PlainCapture(Capture[Plain]):
     def capture(self, buffer: Buffer[Any], separators: str) -> CaptureResult[Plain]:
         token = buffer.next(separators)
@@ -58,7 +60,7 @@ class PlainCapture(Capture[Plain]):
             raise UnexpectedType(str, type(token.val))
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(eq=True, unsafe_hash=True, slots=True))
 class RegexCapture(Capture[re.Match[str]]):
     pattern: str | re.Pattern[str]
     match_quote: bool = False

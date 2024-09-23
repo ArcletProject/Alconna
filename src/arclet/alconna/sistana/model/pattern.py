@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 from elaina_segment import SEPARATORS
 from elaina_triehard import TrieHard
 
+from arclet.alconna._dcls import safe_dcls_kw
+
 from .pointer import Pointer
 from .track import Preset
 
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
     from .fragment import _Fragment
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(slots=True))
 class SubcommandPattern:
     header: str
     preset: Preset
@@ -94,7 +96,7 @@ class SubcommandPattern:
         return self.create_snapshot(self.root_ref.header())
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(slots=True))
 class OptionPattern:
     keyword: str
     separators: str = SEPARATORS

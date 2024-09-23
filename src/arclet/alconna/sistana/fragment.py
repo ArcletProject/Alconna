@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any
 from dataclasses import dataclass
 from elaina_segment import Segment, Quoted, UnmatchedQuoted
 
+from arclet.alconna._dcls import safe_dcls_kw
+
 from .model.capture import RegexCapture
 from .model.fragment import _Fragment
 from .utils.misc import Some
@@ -11,7 +13,7 @@ from .utils.misc import Some
 if TYPE_CHECKING:
     from nepattern import BasePattern
 
-@dataclass
+@dataclass(**safe_dcls_kw(slots=True))
 class Fragment(_Fragment):
     type: Some[Any] = None
     cast: bool = True

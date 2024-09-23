@@ -116,3 +116,7 @@ def into_sistana(alconna: Alconna | Subcommand | Option):
             keyword=alconna.name,
             soft_keyword=alconna.soft_keyword,
         )
+
+
+def process_adapt():
+    ...

@@ -3,12 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
+from arclet.alconna._dcls import safe_dcls_kw
+
 from ..utils.misc import Some
 from .capture import Capture, SimpleCapture
 from .receiver import Rx
 
 
-@dataclass
+@dataclass(**safe_dcls_kw(slots=True))
 class _Fragment:
     name: str
     variadic: bool = False
