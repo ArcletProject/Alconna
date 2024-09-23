@@ -8,7 +8,7 @@ from ..utils.misc import Some, Value
 if TYPE_CHECKING:
     from .pattern import SubcommandPattern, OptionPattern
     from .pointer import Pointer
-    from .track import Mix, Track
+    from .mix import Mix, Track
 
 T = TypeVar("T")
 
