@@ -102,3 +102,4 @@ class OptionPattern:
 
     soft_keyword: bool = False
     allow_duplicate: bool = False
+    net_fragment: _Fragment | None = None

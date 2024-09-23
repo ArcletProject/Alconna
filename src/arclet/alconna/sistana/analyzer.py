@@ -6,10 +6,11 @@ from typing import Generic, TypeVar
 
 from elaina_segment import Buffer
 from elaina_segment.err import OutOfData
+
 from .err import ParsePanic, Rejected
+from .model.pointer import PointerRole
 from .model.snapshot import AnalyzeSnapshot, OptionTraverse, SubcommandTraverse
 from .utils.misc import Value
-from .model.pointer import PointerRole
 
 T = TypeVar("T")
 
@@ -68,6 +69,9 @@ class Analyzer(Generic[T]):
                         option_traverse.completed = True
                         traverse.ref = traverse.ref.parent
 
+                        if option.net_fragment is not None:
+                            mix.forward_net(option.keyword)
+
                         if option.allow_duplicate:
                             mix.pop_track(option.keyword)
 
@@ -77,7 +81,7 @@ class Analyzer(Generic[T]):
                 # 这里如果没有 satisfied，如果是 option 的 track，则需要 reset
                 # 从 Buffer 吃掉的东西？我才不还。
                 if pointer_type is PointerRole.OPTION:
-                    mix.reset(pointer_val)
+                    mix.reset_track(pointer_val)
 
                 return LoopflowDescription.unsatisfied
 
@@ -151,6 +155,9 @@ class Analyzer(Generic[T]):
                                 if not option.allow_duplicate and option.keyword in traverse.option_traverses:
                                     return LoopflowDescription.option_duplicated_prohibited
 
+                                if option.net_fragment is not None:
+                                    mix.forward_net(option.keyword)
+
                                 traverse.option_traverses.append(
                                     OptionTraverse(
                                         trigger=token.val,
@@ -179,12 +186,15 @@ class Analyzer(Generic[T]):
 
                             if not track.satisfied:
                                 if not subcommand.soft_keyword:
-                                    mix.reset(option.keyword)
+                                    mix.reset_track(option.keyword)
                                     return LoopflowDescription.switch_unsatisfied_option
                             else:
                                 track.complete()
                                 traverse.ref = traverse.ref.parent
                                 option_traverse.completed = True
+
+                                if option.net_fragment is not None:
+                                    mix.forward_net(option.keyword)
 
                                 if option.allow_duplicate:
                                     mix.pop_track(option.keyword)
@@ -214,12 +224,15 @@ class Analyzer(Generic[T]):
 
                             if not track.satisfied:
                                 if not target_option.soft_keyword:
-                                    mix.reset(previous_option.keyword)
+                                    mix.reset_track(previous_option.keyword)
                                     return LoopflowDescription.previous_unsatisfied
                             else:
                                 track.complete()
                                 traverse.ref = traverse.ref.parent
                                 option_traverse.completed = True
+
+                                if previous_option.net_fragment is not None:
+                                    mix.forward_net(previous_option.net_fragment.name)
 
                                 if previous_option.allow_duplicate:
                                     mix.pop_track(previous_option.keyword)
@@ -290,7 +303,7 @@ class Analyzer(Generic[T]):
                     try:
                         response = track.forward(buffer, option.separators, rx_getter)
                     except OutOfData:
-                        mix.reset(option.keyword)
+                        mix.reset_track(option.keyword)
                         return LoopflowDescription.out_of_data_option
                     except (Rejected, ParsePanic):
                         raise
@@ -303,6 +316,9 @@ class Analyzer(Generic[T]):
 
                             traverse.ref = traverse.ref.parent
                             traverse.option_traverses[-1].completed = True
+
+                            if option.net_fragment is not None:
+                                mix.forward_net(option.keyword)
 
                             if option.allow_duplicate:
                                 mix.pop_track(option.keyword)
