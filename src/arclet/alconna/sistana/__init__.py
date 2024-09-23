@@ -26,7 +26,8 @@ from .model import Pointer as Pointer
 from .model import Preset as Preset
 from .model import RegexCapture as RegexCapture
 from .model import Rx as Rx
-from .model import RxGet as RxGet
+from .model import RxFetch as RxFetch
+from .model import RxPrev as RxPrev
 from .model import RxPut as RxPut
 from .model import SimpleCapture as SimpleCapture
 from .model import SubcommandPattern as SubcommandPattern

@@ -4,21 +4,21 @@ from typing import Any, Callable, Generic, TypeVar
 
 from ..utils.misc import Some
 
-
 T = TypeVar("T")
 
-RxGet = Callable[[], Some[T]]
+RxFetch = Callable[[], Any]
+RxPrev = Callable[[], Some[T]]
 RxPut = Callable[[T], None]
 
 
 class Rx(Generic[T]):
-    def receive(self, get: RxGet[Any], put: RxPut[Any], data: T) -> None:
-        put(data)
+    def receive(self, fetch: RxFetch, prev: RxPrev, put: RxPut) -> None:
+        put(fetch())
 
 
-class CountRx(Rx[Any]):
-    def receive(self, get: RxGet[int], put: RxPut[int], data: Any) -> None:
-        v = get()
+class CountRx(Rx[int]):
+    def receive(self, fetch: RxFetch, prev: RxPrev[int], put: RxPut[int]) -> None:
+        v = prev()
 
         if v is None:
             put(1)
@@ -27,20 +27,20 @@ class CountRx(Rx[Any]):
 
 
 class AccumRx(Rx[T]):
-    def receive(self, get: RxGet[list[T]], put: RxPut[list[T]], data: T) -> None:
-        v = get()
+    def receive(self, fetch: RxFetch, prev: RxPrev[list[T]], put: RxPut[list[T]]) -> None:
+        v = prev()
 
         if v is None:
-            put([data])
+            put([fetch()])
         else:
-            put([*v.value, data])
+            put(v.value + [fetch()])
 
 
-class ConstraintRx(Generic[T], Rx[Any]):
+class ConstraintRx(Generic[T], Rx[T]):
     value: T
 
     def __init__(self, value: T):
         self.value = value
 
-    def receive(self, get: RxGet[Any], put: RxPut[T], data: Any) -> None:
+    def receive(self, fetch: RxFetch, prev: RxPrev[T], put: RxPut[T]) -> None:
         put(self.value)

@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections import deque
 from typing import TYPE_CHECKING, Any
 
-from ..err import ReceivePanic, TransformPanic, ValidateRejected
+from ..err import ReceivePanic, TransformPanic, ValidateRejected, CaptureRejected
 from ..utils.misc import Value
 from .fragment import _Fragment, assert_fragments_order
 
 if TYPE_CHECKING:
     from elaina_segment import Buffer
-    from .receiver import RxGet, RxPut
+    from .receiver import RxPrev, RxPut
 
 
 class Track:
@@ -28,14 +28,11 @@ class Track:
             return True
 
         first = self.fragments[0]
-        if first.default is not None or first.variadic:
-            return True
-
-        return False
+        return first.default is not None or first.variadic
 
     def apply_defaults(self):
         for frag in self.fragments:
-            if frag.default is not None and frag.name not in self.assignes:
+            if frag.name not in self.assignes and frag.default is not None:
                 self.assignes[frag.name] = frag.default.value
 
     def complete(self):
@@ -51,70 +48,79 @@ class Track:
         frag: _Fragment,
         buffer: Buffer,
         upper_separators: str,
-        rxget: RxGet[Any] | None = None,  # type: ignore
+        rxprev: RxPrev[Any] | None = None,  # type: ignore
         rxput: RxPut[Any] | None = None,  # type: ignore
     ):
-        if frag.separators is not None:
-            if frag.hybrid_separators:
-                separators = frag.separators + upper_separators
-            else:
-                separators = frag.separators
-        else:
-            separators = upper_separators
+        tail = None
+        token = None
+        def rxfetch():
+            nonlocal tail, token
 
-        val, tail, token = frag.capture.capture(buffer, separators)
-
-        if frag.validator is not None and not frag.validator(val):
-            raise ValidateRejected
-
-        if frag.transformer is not None:
-            try:
-                val = frag.transformer(val)
-            except Exception as e:
-                raise TransformPanic from e
-
-        if frag.receiver is not None:
-            if rxget is None:
-
-                def rxget():
-                    if frag.name in self.assignes:
-                        return Value(self.assignes[frag.name])
-
-            if rxput is None:
-                if frag.variadic:
-
-                    def rxput(val):
-                        if frag.name not in self.assignes:
-                            self.assignes[frag.name] = []
-
-                        self.assignes[frag.name].append(val)
+            if frag.separators is not None:
+                if frag.hybrid_separators:
+                    separators = frag.separators + upper_separators
                 else:
+                    separators = frag.separators
+            else:
+                separators = upper_separators
 
-                    def rxput(val):
-                        self.assignes[frag.name] = val
+            val, tail, token = frag.capture.capture(buffer, separators)
 
-            try:
-                frag.receiver.receive(rxget, rxput, val)
-            except Exception as e:
-                raise ReceivePanic from e
+            if frag.validator is not None and not frag.validator(val):
+                raise ValidateRejected
+
+            if frag.transformer is not None:
+                try:
+                    val = frag.transformer(val)
+                except Exception as e:
+                    raise TransformPanic from e
+            
+            return val
+
+        if rxprev is None:
+
+            def rxprev():
+                if frag.name in self.assignes:
+                    return Value(self.assignes[frag.name])
+
+        if rxput is None:
+            if frag.variadic:
+
+                def rxput(val):
+                    if frag.name not in self.assignes:
+                        self.assignes[frag.name] = []
+
+                    self.assignes[frag.name].append(val)
+            else:
+
+                def rxput(val):
+                    self.assignes[frag.name] = val
+
+        try:
+            frag.receiver.receive(rxfetch, rxprev, rxput)
+        except (CaptureRejected, ValidateRejected, TransformPanic):
+            raise
+        except Exception as e:
+            raise ReceivePanic from e
 
         if tail is not None:
             buffer.add_to_ahead(tail.value)
 
-        token.apply()
+        if token is not None:
+            token.apply()
 
     def forward(
         self,
         buffer: Buffer,
         separators: str,
-        rxget: RxGet[Any] | None = None,
+        rxprev: RxPrev[Any] | None = None,
         rxput: RxPut[Any] | None = None,
     ):
         if not self.fragments:
             return
 
         first = self.fragments[0]
-        self.fetch(first, buffer, separators, rxget, rxput)
+        self.fetch(first, buffer, separators, rxprev, rxput)
 
         if not first.variadic:
             self.fragments.popleft()
@@ -153,17 +159,14 @@ class Mix:
 
     def __init__(self, preset: Preset):
         self.preset = preset
-        self.tracks = {}
-
-        for name in self.preset.tracks:
-            self.init_track(name)
-
-    def init_track(self, name: str):
-        self.tracks[name] = self.preset.new_track(name)
+        self.tracks = {
+            name: self.preset.new_track(name)
+            for name in self.preset.tracks
+        }
 
     def pop_track(self, name: str) -> Track:
         track = self.tracks.pop(name)
-        self.init_track(name)
+        self.tracks[name] = self.preset.new_track(name)
         return track
 
     def reset(self, name: str):

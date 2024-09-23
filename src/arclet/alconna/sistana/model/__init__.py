@@ -11,7 +11,8 @@ from .receiver import AccumRx as AccumRx
 from .receiver import ConstraintRx as ConstraintRx
 from .receiver import CountRx as CountRx
 from .receiver import Rx as Rx
-from .receiver import RxGet as RxGet
+from .receiver import RxFetch as RxFetch
+from .receiver import RxPrev as RxPrev
 from .receiver import RxPut as RxPut
 from .snapshot import AnalyzeSnapshot as AnalyzeSnapshot
 from .snapshot import OptionTraverse as OptionTraverse
