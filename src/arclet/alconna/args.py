@@ -3,10 +3,9 @@ from __future__ import annotations
 import dataclasses as dc
 import inspect
 import re
-from dataclasses import dataclass
 from enum import Enum
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Generic, Iterable, List, Sequence, TypeVar, Union, cast
+from typing import Any, Callable, Generic, Iterable, List, Sequence, TypeVar, Union, cast
 
 from nepattern import ANY, NONE, AntiPattern, BasePattern, MatchMode, RawStr, UnionPattern, parser
 from tarina import Empty, get_signature, lang
