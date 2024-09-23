@@ -86,7 +86,7 @@ class Analyzer(Generic[T]):
                     return LoopflowDescription.header_expect_str
 
                 if context.prefixes is not None:
-                    prefix = context.prefixes.get_closest_prefix(buffer.runes[0])  # type: ignore
+                    prefix = context.prefixes.get_closest_prefix(buffer.first())  # type: ignore
                     if prefix == "":
                         return LoopflowDescription.prefix_mismatch
 
