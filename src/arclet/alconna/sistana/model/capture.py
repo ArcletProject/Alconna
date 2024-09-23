@@ -9,7 +9,7 @@ from typing_extensions import TypeAlias
 
 from arclet.alconna._dcls import safe_dcls_kw
 
-from ..utils.misc import Some, Value
+from ..some import Some, Value
 
 from elaina_segment.buffer import AheadToken, Buffer, SegmentToken
 from ..err import RegexMismatch, UnexpectedType

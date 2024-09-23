@@ -4,7 +4,7 @@ from collections import deque
 from typing import TYPE_CHECKING, Any, Iterable
 
 from ..err import CaptureRejected, ReceivePanic, TransformPanic, ValidateRejected
-from ..utils.misc import Value
+from ..some import Value
 from .fragment import _Fragment, assert_fragments_order
 
 if TYPE_CHECKING:

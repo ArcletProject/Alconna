@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Generic, TypeVar
 
-from ..utils.misc import Some
+from ..some import Some
 
 T = TypeVar("T")
 

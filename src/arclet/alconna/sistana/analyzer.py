@@ -10,7 +10,7 @@ from elaina_segment.err import OutOfData
 from .err import ParsePanic, Rejected
 from .model.pointer import PointerRole
 from .model.snapshot import AnalyzeSnapshot, OptionTraverse, SubcommandTraverse
-from .utils.misc import Value
+from .some import Value
 
 T = TypeVar("T")
 

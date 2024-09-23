@@ -5,7 +5,7 @@ from typing import Any, Callable, Iterable
 
 from arclet.alconna._dcls import safe_dcls_kw
 
-from ..utils.misc import Some
+from ..some import Some
 from .capture import Capture, SimpleCapture
 from .receiver import Rx
 

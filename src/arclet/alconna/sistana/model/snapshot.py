@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Generic, TypeVar
 
-from ..utils.misc import Some, Value
+from ..some import Some, Value
 
 if TYPE_CHECKING:
     from .pattern import SubcommandPattern, OptionPattern

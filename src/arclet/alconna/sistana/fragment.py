@@ -8,7 +8,7 @@ from arclet.alconna._dcls import safe_dcls_kw
 
 from .model.capture import RegexCapture
 from .model.fragment import _Fragment
-from .utils.misc import Some
+from .some import Some
 
 if TYPE_CHECKING:
     from nepattern import BasePattern
