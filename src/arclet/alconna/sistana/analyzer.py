@@ -64,13 +64,14 @@ class Analyzer(Generic[T]):
                     # 并且还得确保 option 也被记录于 activated_options 里面。
                     if pointer_type is PointerRole.OPTION:
                         option = context.options[pointer_val]
-                        mix.tracks[option.keyword].complete()
+                        track = mix.tracks[option.keyword]
+                        track.complete()
                         option_traverse = traverse.option_traverses[-1]
                         option_traverse.completed = True
                         traverse.ref = traverse.ref.parent
 
                         if option.allow_duplicate:
-                            mix.pop_track(option.keyword)
+                            mix.pop_track(option.keyword, option.keep_previous_assignes)
 
                     snapshot.determine(traverse.ref)
                     return LoopflowDescription.completed
@@ -148,6 +149,8 @@ class Analyzer(Generic[T]):
                                 if context.preset.tracks[option.keyword]:
                                     # 仅当需要解析 fragments 时进行状态流转。
                                     traverse.ref = traverse.ref.option(option.keyword)
+                                    track = mix.tracks[option.keyword]
+                                    track.emit_header()
 
                                 if not option.allow_duplicate and option.keyword in traverse.option_traverses:
                                     return LoopflowDescription.option_duplicated_prohibited
@@ -188,7 +191,7 @@ class Analyzer(Generic[T]):
                                 option_traverse.completed = True
 
                                 if option.allow_duplicate:
-                                    mix.pop_track(option.keyword)
+                                    mix.pop_track(option.keyword, option.keep_previous_assignes)
 
                                 if mix.satisfied:
                                     token.apply()
@@ -223,7 +226,7 @@ class Analyzer(Generic[T]):
                                 option_traverse.completed = True
 
                                 if previous_option.allow_duplicate:
-                                    mix.pop_track(previous_option.keyword)
+                                    mix.pop_track(previous_option.keyword, previous_option.keep_previous_assignes)
 
                                 continue
                         # else: 进了 track process.
@@ -306,7 +309,7 @@ class Analyzer(Generic[T]):
                             traverse.option_traverses[-1].completed = True
 
                             if option.allow_duplicate:
-                                mix.pop_track(option.keyword)
+                                mix.pop_track(option.keyword, option.keep_previous_assignes)
                             # else: 如果不允许 duplicate，就没必要 pop （幂等操作嘛）
                         # else: 还是 enter next loop
                     # 无论如何似乎都不会到这里来，除非 track process 里有个组件惊世智慧的拿到 snapshot 并改了 traverse.ref。

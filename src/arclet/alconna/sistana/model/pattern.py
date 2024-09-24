@@ -51,7 +51,7 @@ class SubcommandPattern:
                 header: Track(deque(fragments) if fragments else deque()),
                 **(
                     {
-                        option.keyword: Track(deque(options_fragments[option.keyword]))
+                        option.keyword: Track(deque(options_fragments[option.keyword]), header=option.header_fragment)
                         for option in options
                         if option.keyword in options_fragments
                     }
@@ -158,4 +158,5 @@ class OptionPattern:
 
     soft_keyword: bool = False
     allow_duplicate: bool = False
-    net_fragment: _Fragment | None = None
+    keep_previous_assignes: bool = False
+    header_fragment: _Fragment | None = None

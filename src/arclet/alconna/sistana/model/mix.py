@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 
 from ..err import CaptureRejected, ReceivePanic, TransformPanic, ValidateRejected
 from ..some import Value
@@ -13,15 +13,21 @@ if TYPE_CHECKING:
     from .receiver import RxPrev, RxPut
 
 
-class Track:
-    __slots__ = ("fragments", "assignes")
+def _reject_rxfetch():
+    raise CaptureRejected
 
+
+class Track:
+    __slots__ = ("fragments", "assignes", "header")
+
+    header: _Fragment | None
     fragments: deque[_Fragment]
     assignes: dict[str, Any]
 
-    def __init__(self, fragments: deque[_Fragment], assignes: dict[str, Any] | None = None):
-        self.fragments = fragments
+    def __init__(self, fragments: Iterable[_Fragment], assignes: dict[str, Any] | None = None, header: _Fragment | None = None):
+        self.fragments = deque(fragments)
         self.assignes = assignes or {}
+        self.header = header
 
     @property
     def satisfied(self):
@@ -35,6 +41,9 @@ class Track:
         for frag in self.fragments:
             if frag.name not in self.assignes and frag.default is not None:
                 self.assignes[frag.name] = frag.default.value
+        
+        if self.header is not None and self.header.name not in self.assignes and self.header.default is not None:
+            self.assignes[self.header.name] = self.header.default.value
 
     def complete(self):
         self.apply_defaults()
@@ -129,15 +138,40 @@ class Track:
 
         return first
 
+    def emit_header(self):
+        if self.header is None:
+            return
+
+        header = self.header
+
+        def rxprev():
+            if header.name in self.assignes:
+                return Value(self.assignes[header.name])
+
+        def rxput(val):
+            self.assignes[header.name] = val
+
+        try:
+            header.receiver.receive(
+                _reject_rxfetch,
+                rxprev,
+                rxput,
+            )
+        except (CaptureRejected, ValidateRejected, TransformPanic):
+            raise
+        except Exception as e:
+            raise ReceivePanic from e
+
     @property
     def assignable(self):
         return bool(self.fragments)
 
     def copy(self):
-        return Track(self.fragments.copy(), self.assignes.copy())
+        return Track(fragments=self.fragments.copy(), assignes=self.assignes.copy(), header=self.header)
 
     def copy_spec(self):
-        return Track(self.fragments.copy())
+        return Track(fragments=self.fragments.copy(), header=self.header)
+
 
 class Preset:
     __slots__ = ("tracks", "net")
@@ -167,9 +201,13 @@ class Mix:
         self.preset = preset
         self.tracks = {name: self.preset.new_track(name) for name in self.preset.tracks}
 
-    def pop_track(self, name: str) -> Track:
+    def pop_track(self, name: str, keep_assignes: bool = False) -> Track:
         track = self.tracks.pop(name)
         self.tracks[name] = self.preset.new_track(name)
+    
+        if keep_assignes:
+            self.tracks[name].assignes.update(track.assignes)
+
         return track
 
     def reset_track(self, name: str):
@@ -200,4 +238,3 @@ class Mix:
     def complete_all(self):
         for track in self.tracks.values():
             track.complete()
-
