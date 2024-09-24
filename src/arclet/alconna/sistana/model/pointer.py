@@ -46,11 +46,11 @@ class Pointer:
     def __repr__(self):
         content = []
         for ty, val in self.data:
-            if ty == "header":
+            if ty == PointerRole.HEADER:
                 content.append("[::]")
-            elif ty == "prefix":
+            elif ty == PointerRole.PREFIX:
                 content.append("[^]")
-            elif ty == "subcommand":
+            elif ty == PointerRole.SUBCOMMAND:
                 content.append(val)
             else:
                 content.append(f"#[{val}]")
