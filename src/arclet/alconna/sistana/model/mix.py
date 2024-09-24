@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
 
 from ..err import CaptureRejected, ReceivePanic, TransformPanic, ValidateRejected
 from ..some import Value
@@ -10,7 +10,6 @@ from .fragment import _Fragment, assert_fragments_order
 if TYPE_CHECKING:
     from elaina_segment import Buffer
 
-    from .pattern import OptionPattern
     from .receiver import RxPrev, RxPut
 
 
@@ -141,80 +140,13 @@ class Track:
 def _always_reject_rxfetch():
     raise CaptureRejected
 
-
-class Net:
-    points: dict[str, _Fragment]
-    assignes: dict[str, Any]
-
-    _required: dict[str, _Fragment]
-    _optional: dict[str, _Fragment]
-
-    def __init__(self, points: dict[str, _Fragment] | None = None):
-        self.points = points or {}
-        self._required = {}
-        self._optional = {}
-        self.assignes = {}
-
-        if points is not None:
-            for frag in points.values():
-                if frag.default is None:
-                    self._required[frag.name] = frag
-                else:
-                    self._optional[frag.name] = frag
-
-    @classmethod
-    def from_options(cls, options: Iterable[OptionPattern]):
-        return cls({option.net_fragment.name: option.net_fragment for option in options if option.net_fragment is not None})
-
-    @property
-    def satisfied(self):
-        return not self._required
-
-    @property
-    def assignable(self):
-        return bool(self.points)
-
-    def forward(self, key: str):
-        if key not in self.points:
-            return
-
-        def _rxprev():
-            if key in self.assignes:
-                return Value(self.assignes[key])
-
-        def _rxput(val):
-            self.assignes[key] = val
-
-        frag = self.points[key]
-
-        try:
-            frag.receiver.receive(_always_reject_rxfetch, _rxprev, _rxput)
-        except (CaptureRejected, ValidateRejected, TransformPanic):
-            raise
-        except Exception as e:
-            raise ReceivePanic from e
-
-        if key in self._required:
-            del self._required[key]
-
-    def apply_defaults(self):
-        for frag in self._optional.values():
-            if frag.name not in self.assignes and frag.default is not None:
-                self.assignes[frag.name] = frag.default.value
-
-    def copy(self):
-        return Net(self.points.copy())
-
-
 class Preset:
     __slots__ = ("tracks", "net")
 
     tracks: dict[str, deque[_Fragment]]
-    net: Net
 
-    def __init__(self, tracks: dict[str, deque[_Fragment]] | None = None, net: Net | None = None):
+    def __init__(self, tracks: dict[str, deque[_Fragment]] | None = None):
         self.tracks = tracks or {}
-        self.net = net or Net()
 
         for fragments in self.tracks.values():
             assert_fragments_order(fragments)
@@ -231,12 +163,10 @@ class Mix:
 
     preset: Preset
     tracks: dict[str, Track]
-    net: Net
 
     def __init__(self, preset: Preset):
         self.preset = preset
         self.tracks = {name: self.preset.new_track(name) for name in self.preset.tracks}
-        self.net = self.preset.net.copy()
 
     def pop_track(self, name: str) -> Track:
         track = self.tracks.pop(name)
@@ -257,16 +187,13 @@ class Mix:
     def is_track_satisfied(self, name: str) -> bool:
         return self.tracks[name].satisfied
 
-    def forward_net(self, key: str):
-        self.net.forward(key)
-
     @property
     def satisfied(self) -> bool:
         for track in self.tracks.values():
             if not track.satisfied:
                 return False
 
-        return self.net.satisfied
+        return True
 
     def complete_track(self, name: str):
         self.tracks[name].complete()
@@ -275,4 +202,3 @@ class Mix:
         for track in self.tracks.values():
             track.complete()
 
-        self.net.apply_defaults()

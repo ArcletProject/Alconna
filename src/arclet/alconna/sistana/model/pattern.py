@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Iterable, Mapping
+from typing import TYPE_CHECKING, Iterable, MutableMapping
 
 from elaina_segment import SEPARATORS
 from elaina_triehard import TrieHard
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 class SubcommandPattern:
     header: str
     preset: Preset
-    options: Mapping[str, OptionPattern] = field(default_factory=dict)
-    subcommands: Mapping[str, SubcommandPattern] = field(default_factory=dict)
+    options: MutableMapping[str, OptionPattern] = field(default_factory=dict)
+    subcommands: MutableMapping[str, SubcommandPattern] = field(default_factory=dict)
 
     soft_keyword: bool = False
     separators: str = SEPARATORS
@@ -36,9 +36,9 @@ class SubcommandPattern:
     def build(
         cls,
         header: str,
-        fragments: list[_Fragment],
-        options: list[OptionPattern],
-        options_fragments: dict[str, list[_Fragment]],
+        fragments: list[_Fragment] | None = None,
+        options: list[OptionPattern] | None = None,
+        options_fragments: dict[str, list[_Fragment]] | None = None,
         prefixes: Iterable[str] = (),
         compact_keywords: Iterable[str] = (),
         compact_header: bool = False,
@@ -46,18 +46,21 @@ class SubcommandPattern:
         separators: str = SEPARATORS,
         soft_keyword: bool = False,
     ):
-        preset = Preset({
-            header: deque(fragments),
-            **{
-                option.keyword: deque(options_fragments[option.keyword])
-                for option in options if option.keyword in options_fragments
-            },
-        })
-        
+        preset = Preset(
+            {
+                header: deque(fragments) if fragments else deque(),
+                **(
+                    {option.keyword: deque(options_fragments[option.keyword]) for option in options if option.keyword in options_fragments}
+                    if options and options_fragments
+                    else {}
+                ),
+            }
+        )
+
         return cls(
             header=header,
             preset=preset,
-            options={option.keyword: option for option in options},
+            options={option.keyword: option for option in options} if options else {},
             prefixes=TrieHard(list(prefixes)),
             compact_keywords=TrieHard(list(compact_keywords)),
             compact_header=compact_header,
@@ -93,6 +96,55 @@ class SubcommandPattern:
     @property
     def header_entrypoint(self):
         return self.create_snapshot(self.root_ref.header())
+
+    def subcommand(
+        self,
+        header: str,
+        aliases: Iterable[str] = (),
+        soft_keyword: bool = False,
+        separators: str = SEPARATORS,
+        compact_header: bool = False,
+        satisfy_previous: bool = True,
+    ):
+        pattern = SubcommandPattern(
+            header=header,
+            preset=Preset(),
+            soft_keyword=soft_keyword,
+            separators=separators,
+            compact_header=compact_header,
+            satisfy_previous=satisfy_previous,
+        )
+        self.subcommands[header] = pattern
+        for alias in aliases:
+            self.subcommands[alias] = pattern
+
+        if compact_header:
+            self.compact_keywords = TrieHard([header, *aliases, *(self.compact_keywords or [])])
+
+        return self
+
+    def option(
+        self,
+        keyword: str,
+        aliases: Iterable[str] = (),
+        soft_keyword: bool = False,
+        allow_duplicate: bool = False,
+        compact_header: bool = False,
+    ):
+        pattern = OptionPattern(
+            keyword,
+            separators=self.separators,
+            allow_duplicate=allow_duplicate,
+            soft_keyword=soft_keyword,
+        )
+        self.options[keyword] = pattern
+        for alias in aliases:
+            self.options[alias] = pattern
+
+        if compact_header:
+            self.compact_keywords = TrieHard([keyword, *aliases, *(self.compact_keywords or [])])
+
+        return self
 
 
 @dataclass(**safe_dcls_kw(slots=True))

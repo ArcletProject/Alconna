@@ -69,9 +69,6 @@ class Analyzer(Generic[T]):
                         option_traverse.completed = True
                         traverse.ref = traverse.ref.parent
 
-                        if option.net_fragment is not None:
-                            mix.forward_net(option.net_fragment.name)
-
                         if option.allow_duplicate:
                             mix.pop_track(option.keyword)
 
@@ -155,9 +152,6 @@ class Analyzer(Generic[T]):
                                 if not option.allow_duplicate and option.keyword in traverse.option_traverses:
                                     return LoopflowDescription.option_duplicated_prohibited
 
-                                if option.net_fragment is not None:
-                                    mix.forward_net(option.net_fragment.name)
-
                                 traverse.option_traverses.append(
                                     OptionTraverse(
                                         trigger=token.val,
@@ -193,9 +187,6 @@ class Analyzer(Generic[T]):
                                 traverse.ref = traverse.ref.parent
                                 option_traverse.completed = True
 
-                                if option.net_fragment is not None:
-                                    mix.forward_net(option.net_fragment.name)
-
                                 if option.allow_duplicate:
                                     mix.pop_track(option.keyword)
 
@@ -230,9 +221,6 @@ class Analyzer(Generic[T]):
                                 track.complete()
                                 traverse.ref = traverse.ref.parent
                                 option_traverse.completed = True
-
-                                if previous_option.net_fragment is not None:
-                                    mix.forward_net(previous_option.net_fragment.name)
 
                                 if previous_option.allow_duplicate:
                                     mix.pop_track(previous_option.keyword)
@@ -316,9 +304,6 @@ class Analyzer(Generic[T]):
 
                             traverse.ref = traverse.ref.parent
                             traverse.option_traverses[-1].completed = True
-
-                            if option.net_fragment is not None:
-                                mix.forward_net(option.net_fragment.name)
 
                             if option.allow_duplicate:
                                 mix.pop_track(option.keyword)
