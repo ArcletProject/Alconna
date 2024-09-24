@@ -10,7 +10,7 @@ from elaina_triehard import TrieHard
 from arclet.alconna._dcls import safe_dcls_kw
 
 from .pointer import Pointer
-from .mix import Preset
+from .mix import Preset, Track
 from .snapshot import AnalyzeSnapshot, SubcommandTraverse
 
 if TYPE_CHECKING:
@@ -48,9 +48,13 @@ class SubcommandPattern:
     ):
         preset = Preset(
             {
-                header: deque(fragments) if fragments else deque(),
+                header: Track(deque(fragments) if fragments else deque()),
                 **(
-                    {option.keyword: deque(options_fragments[option.keyword]) for option in options if option.keyword in options_fragments}
+                    {
+                        option.keyword: Track(deque(options_fragments[option.keyword]))
+                        for option in options
+                        if option.keyword in options_fragments
+                    }
                     if options and options_fragments
                     else {}
                 ),

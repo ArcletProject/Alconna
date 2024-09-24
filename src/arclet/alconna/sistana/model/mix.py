@@ -136,23 +136,22 @@ class Track:
     def copy(self):
         return Track(self.fragments.copy(), self.assignes.copy())
 
-
-def _always_reject_rxfetch():
-    raise CaptureRejected
+    def copy_spec(self):
+        return Track(self.fragments.copy())
 
 class Preset:
     __slots__ = ("tracks", "net")
 
-    tracks: dict[str, deque[_Fragment]]
+    tracks: dict[str, Track]
 
-    def __init__(self, tracks: dict[str, deque[_Fragment]] | None = None):
+    def __init__(self, tracks: dict[str, Track] | None = None):
         self.tracks = tracks or {}
 
-        for fragments in self.tracks.values():
-            assert_fragments_order(fragments)
+        for track in self.tracks.values():
+            assert_fragments_order(track.fragments)
 
     def new_track(self, name: str) -> Track:
-        return Track(self.tracks[name].copy())
+        return self.tracks[name].copy_spec()
 
     def new_mix(self) -> Mix:
         return Mix(self)
@@ -178,7 +177,7 @@ class Mix:
             raise KeyError  # invalid track name
 
         track = self.tracks[name]
-        track.fragments = self.preset.tracks[name].copy()
+        track.fragments = self.preset.tracks[name].fragments.copy()
         track.assignes.clear()
 
     def get_track(self, name: str) -> Track:

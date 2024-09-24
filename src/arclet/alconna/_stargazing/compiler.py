@@ -4,12 +4,12 @@ from collections import deque
 from typing import overload
 
 import tarina
+from elaina_triehard import TrieHard
 
 from arclet.alconna import Alconna, Arg, Args, Arparma, HeadResult, Option, OptionResult, Subcommand, SubcommandResult
-from arclet.alconna.sistana import Analyzer, Fragment, LoopflowDescription, OptionPattern, Preset, SubcommandPattern
-from arclet.alconna.sistana import Value
+from arclet.alconna.sistana import Analyzer, Fragment, LoopflowDescription, OptionPattern, Preset, SubcommandPattern, Track, Value
 from arclet.alconna.sistana.model.fragment import _Fragment
-from elaina_triehard import TrieHard
+
 
 def _alc_args_to_fragments(args: Args) -> deque[_Fragment]:
     alc_argument = args.argument
@@ -30,17 +30,17 @@ def _alc_args_to_fragments(args: Args) -> deque[_Fragment]:
 
     return fragments
 
-@overload
-def into_sistana(alconna: Alconna) -> SubcommandPattern:
-    ...
 
 @overload
-def into_sistana(alconna: Subcommand) -> SubcommandPattern:
-    ...
+def into_sistana(alconna: Alconna) -> SubcommandPattern: ...
+
 
 @overload
-def into_sistana(alconna: Option) -> OptionPattern:
-    ...
+def into_sistana(alconna: Subcommand) -> SubcommandPattern: ...
+
+
+@overload
+def into_sistana(alconna: Option) -> OptionPattern: ...
 
 
 def into_sistana(alconna: Alconna | Subcommand | Option):
@@ -64,13 +64,16 @@ def into_sistana(alconna: Alconna | Subcommand | Option):
 
         return SubcommandPattern(
             header=alconna.command,
-            preset=Preset({
-                alconna.name: _alc_args_to_fragments(alconna.args),
-                **{
-                    option.name: _alc_args_to_fragments(option.args)
-                    for option in alconna.options if isinstance(option, Option)
-                },
-            }),
+            preset=Preset(
+                {
+                    alconna.name: Track(deque(_alc_args_to_fragments(alconna.args))),
+                    **{
+                        option.name: Track(deque(_alc_args_to_fragments(option.args)))
+                        for option in alconna.options
+                        if isinstance(option, Option)
+                    },
+                }
+            ),
             options=options,
             subcommands=subcommands,
             prefixes=TrieHard(alconna.prefixes),
@@ -97,16 +100,19 @@ def into_sistana(alconna: Alconna | Subcommand | Option):
             options[option.name] = pattern
             for alias in option.aliases:
                 options[alias] = pattern
-        
+
         return SubcommandPattern(
             header=alconna.name,
-            preset=Preset({
-                alconna.name: _alc_args_to_fragments(alconna.args),
-                **{
-                    option.name: _alc_args_to_fragments(option.args)
-                    for option in alconna.options if isinstance(option, Option)
-                },
-            }),
+            preset=Preset(
+                {
+                    alconna.name: Track(deque(_alc_args_to_fragments(alconna.args))),
+                    **{
+                        option.name: Track(deque(_alc_args_to_fragments(option.args)))
+                        for option in alconna.options
+                        if isinstance(option, Option)
+                    },
+                }
+            ),
             options=options,
             subcommands=subcommands,
             soft_keyword=alconna.soft_keyword,
@@ -118,5 +124,4 @@ def into_sistana(alconna: Alconna | Subcommand | Option):
         )
 
 
-def process_adapt():
-    ...
+def process_adapt(): ...
