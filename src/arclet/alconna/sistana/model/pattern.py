@@ -51,7 +51,6 @@ class SubcommandPattern:
         subcommand = cls(
             header=header,
             preset=Preset(),
-            prefixes=TrieHard(list(prefixes)),
             compact_header=compact_header,
             satisfy_previous=satisfy_previous,
             separators=separators,
@@ -59,6 +58,9 @@ class SubcommandPattern:
             header_fragment=header_fragment,
         )
         subcommand.add_track(header, fragments, header=header_fragment)
+
+        if prefixes:
+            subcommand.prefixes = TrieHard(list(prefixes))
 
         return subcommand
 

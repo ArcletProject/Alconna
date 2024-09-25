@@ -84,16 +84,17 @@ class Analyzer(Generic[T]):
                 return LoopflowExitReason.unsatisfied
 
             if pointer_type is PointerRole.PREFIX:
-                if not isinstance(token.val, str):
-                    return LoopflowExitReason.header_expect_str
-
                 if context.prefixes is not None:
-                    prefix = context.prefixes.get_closest_prefix(buffer.first())  # type: ignore
-                    if prefix == "":
-                        return LoopflowExitReason.prefix_mismatch
+                    if not isinstance(token.val, str):
+                        return LoopflowExitReason.header_expect_str
 
-                    token.apply()
-                    buffer.pushleft(token.val[len(prefix) :])
+                    if context.prefixes is not None:
+                        prefix = context.prefixes.get_closest_prefix(buffer.first())  # type: ignore
+                        if prefix == "":
+                            return LoopflowExitReason.prefix_mismatch
+
+                        token.apply()
+                        buffer.pushleft(token.val[len(prefix) :])
 
                 traverse.ref = traverse.ref.parent.header()  # 直接进 header.
             elif pointer_type is PointerRole.HEADER:
