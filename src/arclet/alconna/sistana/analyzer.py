@@ -238,6 +238,25 @@ class Analyzer(Generic[T]):
                                 continue
                         # else: 进了 track process.
 
+                    if context.separator_optbind is not None:
+                        opt_matched = False
+
+                        for opt_keyword, separators in context.separator_optbind.items():
+                            option = context.options[opt_keyword]
+
+                            keyword_part, *tail = token.val.split(separators, 1)
+                            if keyword_part == opt_keyword or keyword_part in option.aliases:
+                                opt_matched = True
+                                token.apply()
+                                buffer.add_to_ahead(keyword_part)
+                                if tail:
+                                    buffer.pushleft(tail[0])
+
+                                break
+                        
+                        if opt_matched:
+                            continue
+
                     if context.compact_keywords is not None:
                         prefix = context.compact_keywords.get_closest_prefix(token.val)
                         if prefix:
@@ -257,6 +276,7 @@ class Analyzer(Generic[T]):
                                 # 但这里有个有趣的例子，比如说我们有 `-v -vv`，这里 v 是一个 duplicate，而 duplicate 仍然可以重入并继续分配，而其 assignable 则成为无关变量。
                                 # 还有一个有趣的例子：如果一个 duplicate 的 option，他具备有几个 default=Value(...) 的 fragment，则多次触发会怎么样？
                                 # 答案是不会怎么样：还记得吗？duplicate 会在回退到 subcommand 时被 pop_track，也就会将 Track 换成另外一个，所以不会引发任何问题（比如你担心的行为不一致）。
+                                # 顺便一提，我们在这方面做了特殊处理：该 Option 对应的 Track 上，所有 Fragment 的 Rx 调用 rx_prev 都将能获取到之前的 assignes。
 
                             # else: 你是不是手动构造了 TrieHard？
                             # 由于默认 redirect 是 False，所以这里不会准许跳转。

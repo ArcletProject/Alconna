@@ -32,6 +32,8 @@ class SubcommandPattern:
     compact_header: bool = False
     satisfy_previous: bool = True
     header_fragment: _Fragment | None = None
+    separator_optbind: dict[str, str] | None = None
+    # opt_keyword -> header_separators
 
     @classmethod
     def build(
@@ -102,7 +104,7 @@ class SubcommandPattern:
         satisfy_previous: bool = True,
         header_fragment: _Fragment | None = None,
     ):
-        pattern = SubcommandPattern(
+        pattern = self.subcommands[header] = SubcommandPattern(
             header=header,
             preset=Preset(),
             soft_keyword=soft_keyword,
@@ -128,20 +130,29 @@ class SubcommandPattern:
         keyword: str,
         *fragments: _Fragment,
         aliases: Iterable[str] = (),
+        separators: str | None = None,
+        hybrid_separators: bool = False,
         soft_keyword: bool = False,
         allow_duplicate: bool = False,
         compact_header: bool = False,
         compact_aliases: bool = False,
         header_fragment: _Fragment | None = None,
+        header_separators: str | None = None,
     ):
-        pattern = OptionPattern(
+        if separators is None:
+            separators = self.separators
+        elif hybrid_separators:
+            separators = separators + self.separators
+
+        pattern = self.options[keyword] = OptionPattern(
             keyword,
-            separators=self.separators,
+            aliases=list(aliases),
+            separators=separators,
             allow_duplicate=allow_duplicate,
             soft_keyword=soft_keyword,
-            header_fragment=header_fragment
+            header_fragment=header_fragment,
+            header_separators=header_separators,
         )
-        self.options[keyword] = pattern
         for alias in aliases:
             self.options[alias] = pattern
         
@@ -151,15 +162,23 @@ class SubcommandPattern:
         if compact_header:
             self.compact_keywords = TrieHard([keyword, *aliases, *(self.compact_keywords or []), *(aliases if compact_aliases else [])])
 
+        if header_separators:
+            if self.separator_optbind is None:
+                self.separator_optbind = {keyword: header_separators}
+            else:
+                self.separator_optbind[keyword] = header_separators
+
         return self
 
 
 @dataclass(**safe_dcls_kw(slots=True))
 class OptionPattern:
     keyword: str
+    aliases: list[str] = field(default_factory=list)
     separators: str = SEPARATORS
 
     soft_keyword: bool = False
     allow_duplicate: bool = False
     keep_previous_assignes: bool = False
     header_fragment: _Fragment | None = None
+    header_separators: str | None = None
