@@ -150,7 +150,7 @@ class Analyzer(Generic[T]):
                                     # 仅当需要解析 fragments 时进行状态流转。
                                     traverse.ref = traverse.ref.option(option.keyword)
                                     track = mix.tracks[option.keyword]
-                                    track.emit_header()
+                                    track.emit_header(token.val)
 
                                 if not option.allow_duplicate and option.keyword in traverse.option_traverses:
                                     return LoopflowDescription.option_duplicated_prohibited
@@ -211,7 +211,7 @@ class Analyzer(Generic[T]):
                                     return LoopflowDescription.unsatisfied_switch_subcommand
 
                         elif token.val in context.options:
-                            # 这里仅仅是使 ref 在正确性检查通过后回退到 subcommand 上下文。
+                            # 这里仅仅是使 ref 在正确性检查通过后，结束 option 的捕获并回退到 subcommand 上下文。
                             previous_option = context.options[pointer_val]
                             target_option = context.options[token.val]
                             track = mix.tracks[previous_option.keyword]

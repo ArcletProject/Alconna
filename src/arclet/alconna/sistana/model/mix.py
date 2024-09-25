@@ -138,7 +138,7 @@ class Track:
 
         return first
 
-    def emit_header(self):
+    def emit_header(self, segment: str):
         if self.header is None:
             return
 
@@ -153,7 +153,7 @@ class Track:
 
         try:
             header.receiver.receive(
-                _reject_rxfetch,
+                lambda: segment,
                 rxprev,
                 rxput,
             )
