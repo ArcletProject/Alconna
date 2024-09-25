@@ -36,7 +36,7 @@ class SubcommandPattern:
     def build(
         cls,
         header: str,
-        fragments: list[_Fragment] | None = None,
+        *fragments: _Fragment,
         options: list[OptionPattern] | None = None,
         options_fragments: dict[str, list[_Fragment]] | None = None,
         prefixes: Iterable[str] = (),
