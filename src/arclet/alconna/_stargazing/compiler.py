@@ -9,7 +9,7 @@ from elaina_triehard import TrieHard
 from arclet.alconna import Alconna, Arg, Args, Arparma, HeadResult, Option, OptionResult, Subcommand, SubcommandResult
 from arclet.alconna.sistana import Analyzer, Fragment, LoopflowDescription, OptionPattern, Preset, SubcommandPattern, Track, Value
 from arclet.alconna.sistana.model.fragment import _Fragment
-
+from arclet.alconna.exceptions import ArgumentMissing, InvalidArgs, InvalidParam, ParamsUnmatched, UnexpectedElement, NullMessage
 
 def _alc_args_to_fragments(args: Args) -> deque[_Fragment]:
     alc_argument = args.argument
@@ -122,6 +122,46 @@ def into_sistana(alconna: Alconna | Subcommand | Option):
             keyword=alconna.name,
             soft_keyword=alconna.soft_keyword,
         )
+
+
+def reason_raise_alc_exception(reason: LoopflowDescription) -> None:
+    if reason == LoopflowDescription.completed:
+        return
+
+    if reason in {
+        LoopflowDescription.unsatisfied,
+        LoopflowDescription.previous_unsatisfied,
+        LoopflowDescription.switch_unsatisfied_option,
+        LoopflowDescription.unsatisfied_switch_subcommand,
+    }:
+        raise ParamsUnmatched(f"LoopflowDescription: {reason.value}")
+
+    if reason in {
+        LoopflowDescription.out_of_data_subcommand,
+        LoopflowDescription.out_of_data_option,
+    }:
+        raise ArgumentMissing(f"LoopflowDescription: {reason.value}")
+
+    if reason in {
+        LoopflowDescription.prefix_expect_str,
+        LoopflowDescription.header_expect_str,
+    }:
+        raise InvalidParam(f"LoopflowDescription: {reason.value}")
+
+    if reason in {
+        LoopflowDescription.prefix_mismatch,
+        LoopflowDescription.header_mismatch,
+    }:
+        raise InvalidArgs(f"LoopflowDescription: {reason.value}")
+
+    if reason == LoopflowDescription.unexpected_segment:
+        raise UnexpectedElement(f"LoopflowDescription: {reason.value}")
+
+    if reason == LoopflowDescription.option_duplicated_prohibited:
+        raise NullMessage(f"LoopflowDescription: {reason.value}")
+
+
+
 
 
 def process_adapt(): ...
