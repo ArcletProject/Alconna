@@ -101,9 +101,13 @@ class SubcommandPattern:
     def header_entrypoint(self):
         return self.create_snapshot(self.root_ref.header())
 
+    def add_track(self, name: str, fragments: Iterable[_Fragment]):
+        self.preset.tracks[name] = Track(deque(fragments))
+
     def subcommand(
         self,
         header: str,
+        *fragments: _Fragment,
         aliases: Iterable[str] = (),
         soft_keyword: bool = False,
         separators: str = SEPARATORS,
@@ -121,15 +125,19 @@ class SubcommandPattern:
         self.subcommands[header] = pattern
         for alias in aliases:
             self.subcommands[alias] = pattern
+        
+        if fragments:
+            pattern.add_track(header, fragments)
 
         if compact_header:
             self.compact_keywords = TrieHard([header, *aliases, *(self.compact_keywords or [])])
 
-        return self
+        return pattern
 
     def option(
         self,
         keyword: str,
+        *fragments: _Fragment,
         aliases: Iterable[str] = (),
         soft_keyword: bool = False,
         allow_duplicate: bool = False,
@@ -144,6 +152,9 @@ class SubcommandPattern:
         self.options[keyword] = pattern
         for alias in aliases:
             self.options[alias] = pattern
+        
+        if fragments:
+            self.add_track(keyword, fragments)
 
         if compact_header:
             self.compact_keywords = TrieHard([keyword, *aliases, *(self.compact_keywords or [])])
