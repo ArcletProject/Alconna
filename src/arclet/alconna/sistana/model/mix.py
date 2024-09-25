@@ -13,10 +13,6 @@ if TYPE_CHECKING:
     from .receiver import RxPrev, RxPut
 
 
-def _reject_rxfetch():
-    raise CaptureRejected
-
-
 class Track:
     __slots__ = ("fragments", "assignes", "header")
 
