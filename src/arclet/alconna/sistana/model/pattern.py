@@ -112,6 +112,7 @@ class SubcommandPattern:
         soft_keyword: bool = False,
         separators: str = SEPARATORS,
         compact_header: bool = False,
+        compact_aliases: bool = False,
         satisfy_previous: bool = True,
     ):
         pattern = SubcommandPattern(
@@ -130,7 +131,7 @@ class SubcommandPattern:
             pattern.add_track(header, fragments)
 
         if compact_header:
-            self.compact_keywords = TrieHard([header, *aliases, *(self.compact_keywords or [])])
+            self.compact_keywords = TrieHard([header, *aliases, *(self.compact_keywords or []), *(aliases if compact_aliases else [])])
 
         return pattern
 
@@ -142,6 +143,7 @@ class SubcommandPattern:
         soft_keyword: bool = False,
         allow_duplicate: bool = False,
         compact_header: bool = False,
+        compact_aliases: bool = False,
     ):
         pattern = OptionPattern(
             keyword,
@@ -157,7 +159,7 @@ class SubcommandPattern:
             self.add_track(keyword, fragments)
 
         if compact_header:
-            self.compact_keywords = TrieHard([keyword, *aliases, *(self.compact_keywords or [])])
+            self.compact_keywords = TrieHard([keyword, *aliases, *(self.compact_keywords or []), *(aliases if compact_aliases else [])])
 
         return self
 
