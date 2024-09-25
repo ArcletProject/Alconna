@@ -55,9 +55,7 @@ class SubcommandPattern:
             soft_keyword=soft_keyword,
             header_fragment=header_fragment,
         )
-
-        if fragments:
-            subcommand.add_track(header, fragments, header=header_fragment)
+        subcommand.add_track(header, fragments, header=header_fragment)
 
         return subcommand
 
