@@ -15,7 +15,7 @@ from .some import Value
 T = TypeVar("T")
 
 
-class LoopflowDescription(str, Enum):
+class LoopflowExitReason(str, Enum):
     completed = "completed"
 
     unsatisfied = "continuation@process#unsatisfied"
@@ -43,14 +43,14 @@ class LoopflowDescription(str, Enum):
 class Analyzer(Generic[T]):
     complete_on_determined: bool = True
 
-    def loopflow(self, snapshot: AnalyzeSnapshot[T], buffer: Buffer[T]) -> LoopflowDescription:
+    def loopflow(self, snapshot: AnalyzeSnapshot[T], buffer: Buffer[T]) -> LoopflowExitReason:
         while True:
             traverse = snapshot.traverses[-1]
             context = traverse.subcommand
             mix = traverse.mix
 
             if snapshot.determined and self.complete_on_determined and mix.satisfied:
-                return LoopflowDescription.completed
+                return LoopflowExitReason.completed
 
             pointer_type, pointer_val = traverse.ref.last
 
@@ -74,23 +74,23 @@ class Analyzer(Generic[T]):
                             mix.pop_track(option.keyword, option.keep_previous_assignes)
 
                     snapshot.determine(traverse.ref)
-                    return LoopflowDescription.completed
+                    return LoopflowExitReason.completed
 
                 # 这里如果没有 satisfied，如果是 option 的 track，则需要 reset
                 # 从 Buffer 吃掉的东西？我才不还。
                 if pointer_type is PointerRole.OPTION:
                     mix.reset_track(pointer_val)
 
-                return LoopflowDescription.unsatisfied
+                return LoopflowExitReason.unsatisfied
 
             if pointer_type is PointerRole.PREFIX:
                 if not isinstance(token.val, str):
-                    return LoopflowDescription.header_expect_str
+                    return LoopflowExitReason.header_expect_str
 
                 if context.prefixes is not None:
                     prefix = context.prefixes.get_closest_prefix(buffer.first())  # type: ignore
                     if prefix == "":
-                        return LoopflowDescription.prefix_mismatch
+                        return LoopflowExitReason.prefix_mismatch
 
                     token.apply()
                     buffer.pushleft(token.val[len(prefix) :])
@@ -98,7 +98,7 @@ class Analyzer(Generic[T]):
                 traverse.ref = traverse.ref.parent.header()  # 直接进 header.
             elif pointer_type is PointerRole.HEADER:
                 if not isinstance(token.val, str):
-                    return LoopflowDescription.header_expect_str
+                    return LoopflowExitReason.header_expect_str
 
                 token.apply()
 
@@ -115,7 +115,7 @@ class Analyzer(Generic[T]):
                         buffer.pushleft(v)
                     
                 else:
-                    return LoopflowDescription.header_mismatch
+                    return LoopflowExitReason.header_mismatch
 
                 if context.header in mix.tracks:
                     mix.tracks[context.header].emit_header(context.header)
@@ -145,7 +145,7 @@ class Analyzer(Generic[T]):
                                 )
                                 continue
                             elif not subcommand.soft_keyword:
-                                return LoopflowDescription.unsatisfied_switch_subcommand
+                                return LoopflowExitReason.unsatisfied_switch_subcommand
                             # else: soft keycmd，直接进 mainline
                         elif token.val in context.options:
                             option = context.options[token.val]
@@ -160,7 +160,7 @@ class Analyzer(Generic[T]):
                                     track.emit_header(token.val)
 
                                 if not option.allow_duplicate and option.keyword in traverse.option_traverses:
-                                    return LoopflowDescription.option_duplicated_prohibited
+                                    return LoopflowExitReason.option_duplicated_prohibited
 
                                 traverse.option_traverses.append(
                                     OptionTraverse(
@@ -191,7 +191,7 @@ class Analyzer(Generic[T]):
                             if not track.satisfied:
                                 if not subcommand.soft_keyword:
                                     mix.reset_track(option.keyword)
-                                    return LoopflowDescription.switch_unsatisfied_option
+                                    return LoopflowExitReason.switch_unsatisfied_option
                             else:
                                 track.complete()
                                 traverse.ref = traverse.ref.parent
@@ -215,7 +215,7 @@ class Analyzer(Generic[T]):
                                     )
                                     continue
                                 elif not subcommand.soft_keyword:  # and not mix.satisfied
-                                    return LoopflowDescription.unsatisfied_switch_subcommand
+                                    return LoopflowExitReason.unsatisfied_switch_subcommand
 
                         elif token.val in context.options:
                             # 这里仅仅是使 ref 在正确性检查通过后，结束 option 的捕获并回退到 subcommand 上下文。
@@ -226,7 +226,7 @@ class Analyzer(Generic[T]):
                             if not track.satisfied:
                                 if not target_option.soft_keyword:
                                     mix.reset_track(previous_option.keyword)
-                                    return LoopflowDescription.previous_unsatisfied
+                                    return LoopflowExitReason.previous_unsatisfied
                             else:
                                 track.complete()
                                 traverse.ref = traverse.ref.parent
@@ -296,7 +296,7 @@ class Analyzer(Generic[T]):
                         response = track.forward(buffer, context.separators)
                     except OutOfData:
                         # 称不上是 context switch，continuation 不改变 context。
-                        return LoopflowDescription.out_of_data_subcommand
+                        return LoopflowExitReason.out_of_data_subcommand
                     except (Rejected, ParsePanic):
                         raise
                     except Exception as e:
@@ -304,7 +304,7 @@ class Analyzer(Generic[T]):
                     else:
                         if response is None:
                             # track 上没有 fragments 可供分配了，此时又没有再流转到其他 traverse
-                            return LoopflowDescription.unexpected_segment
+                            return LoopflowExitReason.unexpected_segment
                         # else: next loop，因为没有 OutOfData。
                         # 即使有，上面也已经给你处理了。
                 elif pointer_type is PointerRole.OPTION:
@@ -322,7 +322,7 @@ class Analyzer(Generic[T]):
                         response = track.forward(buffer, option.separators, rx_getter)
                     except OutOfData:
                         mix.reset_track(option.keyword)
-                        return LoopflowDescription.out_of_data_option
+                        return LoopflowExitReason.out_of_data_option
                     except (Rejected, ParsePanic):
                         raise
                     except Exception as e:

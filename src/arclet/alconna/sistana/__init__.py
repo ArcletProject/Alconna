@@ -1,5 +1,16 @@
+from elaina_segment import SEPARATORS as SEPARATORS
+from elaina_segment import AheadToken as AheadToken
+from elaina_segment import Buffer as Buffer
+from elaina_segment import Quoted as Quoted
+from elaina_segment import Rune as Rune
+from elaina_segment import Runes as Runes
+from elaina_segment import Segment as Segment
+from elaina_segment import SegmentToken as SegmentToken
+from elaina_segment import UnmatchedQuoted as UnmatchedQuoted
+from elaina_triehard import TrieHard as TrieHard
+
 from .analyzer import Analyzer as Analyzer
-from .analyzer import LoopflowDescription as LoopflowDescription
+from .analyzer import LoopflowExitReason as LoopflowExitReason
 from .err import CaptureRejected as CaptureRejected
 from .err import ParseCancelled as ParseCancelled
 from .err import ParsePanic as ParsePanic
@@ -34,15 +45,3 @@ from .model import SubcommandPattern as SubcommandPattern
 from .model import SubcommandTraverse as SubcommandTraverse
 from .model import Track as Track
 from .some import Value as Value
-
-from elaina_segment import Buffer as Buffer
-from elaina_segment import SEPARATORS as SEPARATORS
-from elaina_segment import Segment as Segment
-from elaina_segment import Rune as Rune
-from elaina_segment import Runes as Runes
-from elaina_segment import SegmentToken as SegmentToken
-from elaina_segment import AheadToken as AheadToken
-from elaina_segment import Quoted as Quoted
-from elaina_segment import UnmatchedQuoted as UnmatchedQuoted
-
-from elaina_triehard import TrieHard as TrieHard
