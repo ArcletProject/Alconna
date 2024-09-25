@@ -8,7 +8,17 @@ from elaina_triehard import TrieHard
 
 from arclet.alconna import Alconna, Arg, Args, Arparma, HeadResult, Option, OptionResult, Subcommand, SubcommandResult
 from arclet.alconna.exceptions import ArgumentMissing, InvalidArgs, InvalidParam, NullMessage, ParamsUnmatched, UnexpectedElement
-from arclet.alconna.sistana import Analyzer, Fragment, LoopflowExitReason, OptionPattern, Preset, SubcommandPattern, Track, Value
+from arclet.alconna.sistana import (
+    Analyzer,
+    Fragment,
+    LoopflowExitReason,
+    OptionPattern,
+    Preset,
+    SubcommandPattern,
+    Track,
+    Value,
+    AnalyzeSnapshot,
+)
 from arclet.alconna.sistana.err import ParsePanic, Rejected
 from arclet.alconna.sistana.model.fragment import _Fragment
 from arclet.alconna.sistana.model.pointer import PointerRole
@@ -166,10 +176,11 @@ def _reason_raise_alc_exception(reason: LoopflowExitReason) -> None:
     if reason == LoopflowExitReason.option_duplicated_prohibited:
         raise NullMessage(f"LoopflowDescription: {reason.value}")
 
+
 def _sistana_to_alc_result(traverses: list[SubcommandTraverse]) -> tuple[str, SubcommandResult] | None:
     if not traverses:
         return
-    
+
     first_traverse = traverses[0]
     mix = first_traverse.mix
 
@@ -180,10 +191,11 @@ def _sistana_to_alc_result(traverses: list[SubcommandTraverse]) -> tuple[str, Su
         return value, args
 
     value, args = extract_values_and_args(first_traverse.subcommand.header)
-    options = {
-        opt: OptionResult(*extract_values_and_args(opt))
-        for opt in first_traverse.option_traverses._by_keyword
-    } if first_traverse.option_traverses.traverses else None
+    options = (
+        {opt: OptionResult(*extract_values_and_args(opt)) for opt in first_traverse.option_traverses._by_keyword}
+        if first_traverse.option_traverses.traverses
+        else None
+    )
     subcommand_result = _sistana_to_alc_result(traverses[1:])
 
     subcommands = None
@@ -194,20 +206,7 @@ def _sistana_to_alc_result(traverses: list[SubcommandTraverse]) -> tuple[str, Su
     return first_traverse.ref.last_value, SubcommandResult(value, args, options, subcommands)
 
 
-def process_adapt(pattern: SubcommandPattern, message: Sequence[Any]):
-    analyzer = Analyzer()
-    buffer = Buffer(build_runes(message), runes=False)
-    snapshot = pattern.prefix_entrypoint
-
-    try:
-        reason = analyzer.loopflow(snapshot, buffer)
-    except Rejected as e:
-        raise InvalidParam from e
-    except ParsePanic as e:
-        raise NullMessage from e
-    else:
-        _reason_raise_alc_exception(reason)
-
+def dump_arparma(snapshot: AnalyzeSnapshot, message: Sequence[Any], matched: bool = True, head_matched: bool = True) -> Arparma:
     subcommands = None
     main_args = None
     subcmds = None
@@ -222,12 +221,34 @@ def process_adapt(pattern: SubcommandPattern, message: Sequence[Any]):
     return Arparma(
         _id=-1,
         origin=message,
-        matched=True,
-        header_match=HeadResult(matched=True),
+        matched=matched,
+        header_match=HeadResult(head_matched),
         main_args=main_args,
         subcommands=subcmds,
         options=options,
     )
+
+
+def process_adapt(pattern: SubcommandPattern, message: Sequence[Any]):
+    analyzer = Analyzer()
+    buffer = Buffer(build_runes(message), runes=False)
+    snapshot = pattern.prefix_entrypoint
+
+    matched = False
+    head_matched = False
+
+    try:
+        reason = analyzer.loopflow(snapshot, buffer)
+    except Exception:
+        matched = False
+    else:
+        if reason not in {LoopflowExitReason.prefix_mismatch, LoopflowExitReason.header_mismatch}:
+            head_matched = True
+
+        if reason == LoopflowExitReason.completed:
+            matched = True
+
+    return dump_arparma(snapshot, message, matched, head_matched)
 
 
 def patch_alconna(alconna: Alconna):
@@ -235,3 +256,38 @@ def patch_alconna(alconna: Alconna):
 
     alconna._sistana_pattern = pattern  # type: ignore
     alconna._parse = lambda message, _: process_adapt(pattern, message)  # type: ignore
+
+
+def _sistana_debug(alc: Alconna, message):
+    pat = into_sistana(alc)
+
+    print(f"{pat=}, {message=}")
+    analyzer = Analyzer()
+    snapshot = pat.prefix_entrypoint
+    buffer = Buffer(build_runes(message), runes=False)
+    res = analyzer.loopflow(snapshot, buffer)
+    print(
+        res,
+        snapshot._export(),
+        dump_arparma(
+            snapshot,
+            message,
+            res == LoopflowExitReason.completed,
+            res in {LoopflowExitReason.prefix_mismatch, LoopflowExitReason.header_mismatch},
+        ),
+    )
+
+
+def patch_global():
+    def cached_parse(self: Alconna, message, _):
+        if hasattr(self, "_sistana_pattern"):
+            pattern = self._sistana_pattern  # type: ignore
+        else:
+            pattern = into_sistana(self)
+            self._sistana_pattern = pattern  # type: ignore
+            # self._sistana_debug = lambda s, message: _sistana_debug(pattern, message)  # type: ignore
+
+        return process_adapt(pattern, message)
+
+    Alconna._parse = cached_parse  # type: ignore
+    Alconna._sistana_debug = _sistana_debug  # type: ignore
