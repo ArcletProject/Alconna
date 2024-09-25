@@ -156,8 +156,7 @@ class SubcommandPattern:
         for alias in aliases:
             self.options[alias] = pattern
         
-        if fragments:
-            self.add_track(keyword, fragments, header=header_fragment)
+        self.add_track(keyword, fragments, header=header_fragment)
 
         if compact_header:
             self.compact_keywords = TrieHard([keyword, *aliases, *(self.compact_keywords or []), *(aliases if compact_aliases else [])])
