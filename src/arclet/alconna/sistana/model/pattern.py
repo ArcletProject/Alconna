@@ -9,8 +9,9 @@ from elaina_triehard import TrieHard
 
 from arclet.alconna._dcls import safe_dcls_kw
 
-from .pointer import Pointer
+from .fragment import assert_fragments_order
 from .mix import Preset, Track
+from .pointer import Pointer
 from .snapshot import AnalyzeSnapshot, SubcommandTraverse
 
 if TYPE_CHECKING:
@@ -81,6 +82,8 @@ class SubcommandPattern:
         return self.create_snapshot(self.root_ref.header())
 
     def add_track(self, name: str, fragments: Iterable[_Fragment], header: _Fragment | None = None):
+        assert_fragments_order(fragments)
+
         self.preset.tracks[name] = Track(deque(fragments), header=header)
 
     def subcommand(

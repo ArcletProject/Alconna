@@ -31,16 +31,17 @@ def assert_fragments_order(fragments: Iterable[_Fragment]):
 
     for frag in fragments:
         if variadic_exists:
-            raise ValueError  # after variadic
+            raise ValueError("Found fragment after a variadic fragment, which is not allowed.")
 
         if frag.default is not None:
             default_exists = True
         elif default_exists:
-            raise ValueError  # required after optional
+            raise ValueError("Found a required fragment after an optional fragment, which is not allowed.")
 
         if frag.variadic:
             if variadic_exists:
-                raise ValueError  # multiple variadic
-
+                raise ValueError("Multiple variadic fragments found, only one is allowed.")
             if frag.default is not None:
-                raise ValueError  # variadic with default
+                raise ValueError("A variadic fragment cannot have a default value.")
+    
+            variadic_exists = True
