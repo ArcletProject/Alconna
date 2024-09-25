@@ -59,3 +59,9 @@ class Pointer:
 
     def __iter__(self):
         yield from self.data
+
+    def __hash__(self):
+        return hash(("Pointer", hash(self.data)))
+
+    def __eq__(self, other):
+        return isinstance(other, Pointer) and self.data == other.data
