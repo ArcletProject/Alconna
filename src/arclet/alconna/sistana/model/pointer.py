@@ -43,6 +43,14 @@ class Pointer:
     def last(self):
         return self.data[-1]
 
+    @property
+    def last_role(self):
+        return self.last[0]
+
+    @property
+    def last_value(self):
+        return self.last[1]
+
     def __repr__(self):
         content = []
         for ty, val in self.data:
