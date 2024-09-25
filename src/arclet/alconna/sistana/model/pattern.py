@@ -163,6 +163,9 @@ class SubcommandPattern:
             self.compact_keywords = TrieHard([keyword, *aliases, *(self.compact_keywords or []), *(aliases if compact_aliases else [])])
 
         if header_separators:
+            if not fragments:
+                raise ValueError("header_separators must be used with fragments")
+
             if self.separator_optbind is None:
                 self.separator_optbind = {keyword: header_separators}
             else:
