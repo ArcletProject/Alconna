@@ -31,47 +31,35 @@ class SubcommandPattern:
     compact_keywords: TrieHard | None = field(default=None)  # 后面改成 init=False
     compact_header: bool = False
     satisfy_previous: bool = True
+    header_fragment: _Fragment | None = None
 
     @classmethod
     def build(
         cls,
         header: str,
         *fragments: _Fragment,
-        options: list[OptionPattern] | None = None,
-        options_fragments: dict[str, list[_Fragment]] | None = None,
         prefixes: Iterable[str] = (),
-        compact_keywords: Iterable[str] = (),
         compact_header: bool = False,
         satisfy_previous: bool = True,
         separators: str = SEPARATORS,
         soft_keyword: bool = False,
+        header_fragment: _Fragment | None = None,
     ):
-        preset = Preset(
-            {
-                header: Track(deque(fragments) if fragments else deque()),
-                **(
-                    {
-                        option.keyword: Track(deque(options_fragments[option.keyword]), header=option.header_fragment)
-                        for option in options
-                        if option.keyword in options_fragments
-                    }
-                    if options and options_fragments
-                    else {}
-                ),
-            }
-        )
-
-        return cls(
+        subcommand = cls(
             header=header,
-            preset=preset,
-            options={option.keyword: option for option in options} if options else {},
+            preset=Preset(),
             prefixes=TrieHard(list(prefixes)),
-            compact_keywords=TrieHard(list(compact_keywords)),
             compact_header=compact_header,
             satisfy_previous=satisfy_previous,
             separators=separators,
             soft_keyword=soft_keyword,
+            header_fragment=header_fragment,
         )
+
+        if fragments:
+            subcommand.add_track(header, fragments, header=header_fragment)
+
+        return subcommand
 
     @property
     def root_ref(self):
@@ -101,8 +89,8 @@ class SubcommandPattern:
     def header_entrypoint(self):
         return self.create_snapshot(self.root_ref.header())
 
-    def add_track(self, name: str, fragments: Iterable[_Fragment]):
-        self.preset.tracks[name] = Track(deque(fragments))
+    def add_track(self, name: str, fragments: Iterable[_Fragment], header: _Fragment | None = None):
+        self.preset.tracks[name] = Track(deque(fragments), header=header)
 
     def subcommand(
         self,
@@ -114,6 +102,7 @@ class SubcommandPattern:
         compact_header: bool = False,
         compact_aliases: bool = False,
         satisfy_previous: bool = True,
+        header_fragment: _Fragment | None = None,
     ):
         pattern = SubcommandPattern(
             header=header,
@@ -122,13 +111,14 @@ class SubcommandPattern:
             separators=separators,
             compact_header=compact_header,
             satisfy_previous=satisfy_previous,
+            header_fragment=header_fragment,
         )
         self.subcommands[header] = pattern
         for alias in aliases:
             self.subcommands[alias] = pattern
         
         if fragments:
-            pattern.add_track(header, fragments)
+            pattern.add_track(header, fragments, header=header_fragment)
 
         if compact_header:
             self.compact_keywords = TrieHard([header, *aliases, *(self.compact_keywords or []), *(aliases if compact_aliases else [])])
@@ -144,19 +134,21 @@ class SubcommandPattern:
         allow_duplicate: bool = False,
         compact_header: bool = False,
         compact_aliases: bool = False,
+        header_fragment: _Fragment | None = None,
     ):
         pattern = OptionPattern(
             keyword,
             separators=self.separators,
             allow_duplicate=allow_duplicate,
             soft_keyword=soft_keyword,
+            header_fragment=header_fragment
         )
         self.options[keyword] = pattern
         for alias in aliases:
             self.options[alias] = pattern
         
         if fragments:
-            self.add_track(keyword, fragments)
+            self.add_track(keyword, fragments, header=header_fragment)
 
         if compact_header:
             self.compact_keywords = TrieHard([keyword, *aliases, *(self.compact_keywords or []), *(aliases if compact_aliases else [])])

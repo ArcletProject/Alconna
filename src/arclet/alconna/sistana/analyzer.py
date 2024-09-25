@@ -113,9 +113,13 @@ class Analyzer(Generic[T]):
                     v = token.val[len(context.header) :]
                     if v:
                         buffer.pushleft(v)
+                    
                 else:
                     return LoopflowDescription.header_mismatch
 
+                if context.header in mix.tracks:
+                    mix.tracks[context.header].emit_header(context.header)
+        
                 traverse.ref = traverse.ref.parent
             else:
                 if isinstance(token.val, str):
@@ -125,6 +129,9 @@ class Analyzer(Generic[T]):
 
                             if mix.satisfied or not subcommand.satisfy_previous:
                                 token.apply()
+                                track = mix.tracks[context.header]
+                                track.emit_header(token.val)
+
                                 mix.complete_all()
 
                                 # context hard switch
