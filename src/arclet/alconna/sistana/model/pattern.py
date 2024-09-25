@@ -27,8 +27,8 @@ class SubcommandPattern:
     soft_keyword: bool = False
     separators: str = SEPARATORS
 
-    prefixes: TrieHard | None = field(default=None)  # 后面改成 init=False
-    compact_keywords: TrieHard | None = field(default=None)  # 后面改成 init=False
+    prefixes: TrieHard | None = field(default=None)
+    compact_keywords: TrieHard | None = field(default=None)
     compact_header: bool = False
     satisfy_previous: bool = True
     header_fragment: _Fragment | None = None
@@ -66,16 +66,7 @@ class SubcommandPattern:
         return Pointer().subcommand(self.header)
 
     def create_snapshot(self, ref: Pointer):
-        return AnalyzeSnapshot(
-            traverses=[
-                SubcommandTraverse(
-                    subcommand=self,
-                    trigger=self.header,
-                    ref=ref,
-                    mix=self.preset.new_mix(),
-                ),
-            ],
-        )
+        return AnalyzeSnapshot(traverses=[SubcommandTraverse(subcommand=self, trigger=self.header, ref=ref, mix=self.preset.new_mix())])
 
     @property
     def root_entrypoint(self):
@@ -116,7 +107,7 @@ class SubcommandPattern:
         self.subcommands[header] = pattern
         for alias in aliases:
             self.subcommands[alias] = pattern
-        
+
         if fragments:
             pattern.add_track(header, fragments, header=header_fragment)
 
@@ -155,7 +146,7 @@ class SubcommandPattern:
         )
         for alias in aliases:
             self.options[alias] = pattern
-        
+
         self.add_track(keyword, fragments, header=header_fragment)
 
         if compact_header:
