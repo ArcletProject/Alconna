@@ -4,7 +4,7 @@ from collections import deque
 from typing import TYPE_CHECKING, Any, Iterable
 
 from ..err import CaptureRejected, ReceivePanic, TransformPanic, ValidateRejected
-from ..some import Value
+from ..some import Some, Value
 from .fragment import _Fragment, assert_fragments_order
 
 if TYPE_CHECKING:
@@ -234,3 +234,23 @@ class Mix:
     def complete_all(self):
         for track in self.tracks.values():
             track.complete()
+
+    def export_track(self, name: str) -> dict[str, Some[Any]]:
+        track = self.tracks[name]
+        result = {}
+        for frag in self.preset.tracks[name].fragments:
+            if not frag.export:
+                continue
+
+            if frag.name in track.assignes:
+                result[frag.name] = Value(track.assignes[frag.name])
+            else:
+                result[frag.name] = None
+        
+        if track.header is not None and track.header.export:
+            if track.header.name in track.assignes:
+                result[track.header.name] = Value(track.assignes[track.header.name])
+            else:
+                result[track.header.name] = None
+        
+        return result

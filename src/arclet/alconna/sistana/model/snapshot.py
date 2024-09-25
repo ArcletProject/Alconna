@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from ..some import Some, Value
 
 if TYPE_CHECKING:
-    from .pattern import SubcommandPattern, OptionPattern
-    from .pointer import Pointer
     from .mix import Mix, Track
+    from .pattern import OptionPattern, SubcommandPattern
+    from .pointer import Pointer
 
 T = TypeVar("T")
 
@@ -109,3 +109,26 @@ class AnalyzeSnapshot(Generic[T]):
 
     def determine(self, endpoint: Pointer):
         self.endpoint = Value(endpoint)
+
+    def _export(self):
+        result: dict[Pointer, dict[str, Some[Any]]] = {}
+
+        for traverse in self.traverses:
+            mix = traverse.mix
+            result[traverse.ref] = mix.export_track(traverse.trigger)
+            for option in traverse.subcommand.options.values():
+                ref = traverse.ref.option(option.keyword)
+
+                if ref in result:
+                    continue
+
+                result[ref] = mix.export_track(option.keyword)
+
+        return result
+
+    def export(self):
+        a = iter(self._export().values())
+        r = next(a).copy()
+        for b in a:
+            r.update(b)
+        return r
