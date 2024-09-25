@@ -278,7 +278,7 @@ def _sistana_debug(alc: Alconna, message):
     )
 
 
-def patch_global():
+def patch_global(debug: bool = False):
     def cached_parse(self: Alconna, message, _):
         if hasattr(self, "_sistana_pattern"):
             pattern = self._sistana_pattern  # type: ignore
@@ -290,4 +290,6 @@ def patch_global():
         return process_adapt(pattern, message)
 
     Alconna._parse = cached_parse  # type: ignore
-    Alconna._sistana_debug = _sistana_debug  # type: ignore
+
+    if debug:
+        Alconna._sistana_debug = _sistana_debug  # type: ignore
