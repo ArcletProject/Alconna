@@ -26,7 +26,7 @@ from .model import AccumRx as AccumRx
 from .model import AnalyzeSnapshot as AnalyzeSnapshot
 from .model import Capture as Capture
 from .model import CaptureResult as CaptureResult
-from .model import ConstraintRx as ConstraintRx
+from .model import ConstRx as ConstRx
 from .model import CountRx as CountRx
 from .model import Mix as Mix
 from .model import ObjectCapture as ObjectCapture

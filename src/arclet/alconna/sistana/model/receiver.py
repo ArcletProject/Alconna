@@ -36,7 +36,7 @@ class AccumRx(Rx[T]):
             put(v.value + [fetch()])
 
 
-class ConstraintRx(Generic[T], Rx[T]):
+class ConstRx(Generic[T], Rx[T]):
     value: T
 
     def __init__(self, value: T):
