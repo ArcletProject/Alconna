@@ -134,15 +134,18 @@ class Track:
 
         return first
 
-    def emit_header(self, segment: str):
+    def emit_header(self, segment: str, rx_prev: RxPrev[Any] | None = None):
         if self.header is None:
             return
 
         header = self.header
 
-        def rxprev():
-            if header.name in self.assignes:
-                return Value(self.assignes[header.name])
+        if rx_prev is None:
+            def rxprev():
+                if header.name in self.assignes:
+                    return Value(self.assignes[header.name])
+        else:
+            rxprev = rx_prev
 
         def rxput(val):
             self.assignes[header.name] = val

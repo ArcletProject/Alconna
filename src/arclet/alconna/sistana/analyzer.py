@@ -157,11 +157,17 @@ class Analyzer(Generic[T]):
                                     # 仅当需要解析 fragments 时进行状态流转。
                                     traverse.ref = traverse.ref.option(option.keyword)
                                     track = mix.tracks[option.keyword]
-                                    track.emit_header(token.val)
 
                                 if not option.allow_duplicate and option.keyword in traverse.option_traverses:
                                     return LoopflowExitReason.option_duplicated_prohibited
+                                
+                                if traverse.option_traverses.count(option.keyword) > 1:
+                                    def rx_prev():
+                                        return Value(traverse.option_traverses[-2].track.assignes[track.header.name])  # type: ignore
+                                else:
+                                    rx_prev = None  # type: ignore
 
+                                track.emit_header(token.val, rx_prev)
                                 traverse.option_traverses.append(
                                     OptionTraverse(
                                         trigger=token.val,
@@ -313,13 +319,13 @@ class Analyzer(Generic[T]):
                     track = mix.tracks[option.keyword]
 
                     if traverse.option_traverses.count(option.keyword) > 1:
-                        def rx_getter():
+                        def rx_prev():
                             return Value(traverse.option_traverses[-2].track.assignes[track.fragments[0].name])
                     else:
-                        rx_getter = None  # type: ignore
+                        rx_prev = None  # type: ignore
 
                     try:
-                        response = track.forward(buffer, option.separators, rx_getter)
+                        response = track.forward(buffer, option.separators, rx_prev)
                     except OutOfData:
                         mix.reset_track(option.keyword)
                         return LoopflowExitReason.out_of_data_option
