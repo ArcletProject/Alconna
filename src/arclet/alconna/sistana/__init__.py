@@ -31,7 +31,6 @@ from .model import CountRx as CountRx
 from .model import Mix as Mix
 from .model import ObjectCapture as ObjectCapture
 from .model import OptionPattern as OptionPattern
-from .model import OptionTraverse as OptionTraverse
 from .model import PlainCapture as PlainCapture
 from .model import Pointer as Pointer
 from .model import Preset as Preset
@@ -42,6 +41,5 @@ from .model import RxPrev as RxPrev
 from .model import RxPut as RxPut
 from .model import SimpleCapture as SimpleCapture
 from .model import SubcommandPattern as SubcommandPattern
-from .model import SubcommandTraverse as SubcommandTraverse
 from .model import Track as Track
 from .some import Value as Value

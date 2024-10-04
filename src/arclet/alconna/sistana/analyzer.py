@@ -9,8 +9,7 @@ from elaina_segment.err import OutOfData
 
 from .err import ParsePanic, Rejected
 from .model.pointer import PointerRole
-from .model.snapshot import AnalyzeSnapshot, OptionTraverse, SubcommandTraverse
-from .some import Value
+from .model.snapshot import AnalyzeSnapshot
 
 T = TypeVar("T")
 
@@ -43,43 +42,32 @@ class LoopflowExitReason(str, Enum):
 class Analyzer(Generic[T]):
     complete_on_determined: bool = True
 
-    def loopflow(self, snapshot: AnalyzeSnapshot[T], buffer: Buffer[T]) -> LoopflowExitReason:
+    def loopflow(self, snapshot: AnalyzeSnapshot, buffer: Buffer[T]) -> LoopflowExitReason:
         while True:
-            traverse = snapshot.traverses[-1]
-            context = traverse.subcommand
-            mix = traverse.mix
-
-            if snapshot.determined and self.complete_on_determined and mix.satisfied:
+            if snapshot.determined and self.complete_on_determined and snapshot.stage_satisfied:
                 return LoopflowExitReason.completed
 
-            pointer_type, pointer_val = traverse.ref.last
+            context = snapshot.context
+            mix = snapshot.mix
+            current = snapshot.current
+            pointer_type = current.last[0]
 
             try:
-                token = buffer.next(traverse.subcommand.separators)
+                token = buffer.next(context.separators)
             except OutOfData:
                 if mix.satisfied:
-                    mix.complete_all()
+                    mix.complete()
 
-                    # 在 option context 里面，因为 satisfied 了，所以可以直接返回 completed。
-                    # 并且还得确保 option 也被记录于 activated_options 里面。
                     if pointer_type is PointerRole.OPTION:
-                        option = context.options[pointer_val]
-                        track = mix.tracks[option.keyword]
-                        track.complete()
-                        option_traverse = traverse.option_traverses[-1]
-                        option_traverse.completed = True
-                        traverse.ref = traverse.ref.parent
+                        snapshot.current = current.parent
 
-                        if option.allow_duplicate:
-                            mix.pop_track(option.keyword, option.keep_previous_assignes)
-
-                    snapshot.determine(traverse.ref)
+                    snapshot.determine()
                     return LoopflowExitReason.completed
 
                 # 这里如果没有 satisfied，如果是 option 的 track，则需要 reset
                 # 从 Buffer 吃掉的东西？我才不还。
                 if pointer_type is PointerRole.OPTION:
-                    mix.reset_track(pointer_val)
+                    mix.reset_track(current)
 
                 return LoopflowExitReason.unsatisfied
 
@@ -96,7 +84,7 @@ class Analyzer(Generic[T]):
                         token.apply()
                         buffer.pushleft(token.val[len(prefix) :])
 
-                traverse.ref = traverse.ref.parent.header()  # 直接进 header.
+                snapshot.current = current.parent.header()  # 直接进 header.
             elif pointer_type is PointerRole.HEADER:
                 if not isinstance(token.val, str):
                     return LoopflowExitReason.header_expect_str
@@ -106,153 +94,118 @@ class Analyzer(Generic[T]):
                 if token.val == context.header:
                     pass  # do nothing
                 elif context.compact_header and token.val.startswith(context.header):
-                    # ahead 似乎并不能很好的处理这种情况：这里目的不是为了分「完全已知」的段落，而是分一半 —— 去掉并留置。
-                    # 再次重申，ahead 里的所有段落全都是「已经分好」了的。
-                    # 在 perfix 和 header 中，我们需要对 buffer 的第一段进行直接替换，而 ahead 倾向于 **已经** 分好段的情况。
-                    # ~~而除了 compact subcommand / option 外，对于 header 和 prefix，可以选择直接操作 runes[0]。~~
-
                     v = token.val[len(context.header) :]
                     if v:
                         buffer.pushleft(v)
-                    
+
                 else:
                     return LoopflowExitReason.header_mismatch
 
-                if context.header in mix.tracks:
-                    mix.tracks[context.header].emit_header(context.header)
-        
-                traverse.ref = traverse.ref.parent
+                next_current = current.parent
+                track = mix.tracks[next_current]
+                track.emit_header(mix, token.val)
+
+                snapshot.current = next_current
             else:
                 if isinstance(token.val, str):
                     if pointer_type is PointerRole.SUBCOMMAND:
-                        if token.val in context.subcommands:
-                            subcommand = context.subcommands[token.val]
+                        if token.val in context._subcommands_bind:
+                            subcommand = context._subcommands_bind[token.val]
 
-                            if mix.satisfied or not subcommand.satisfy_previous:
+                            if snapshot.stage_satisfied or not subcommand.satisfy_previous:
                                 token.apply()
-                                track = mix.tracks[context.header]
-                                track.emit_header(token.val)
+                                snapshot.complete()
 
-                                mix.complete_all()
+                                target_ref = current.subcommand(subcommand.header)
+                                mix.update(target_ref, subcommand.preset)
 
-                                # context hard switch
-                                snapshot.traverses.append(
-                                    SubcommandTraverse(
-                                        subcommand,
-                                        token.val,
-                                        traverse.ref.subcommand(subcommand.header),
-                                        subcommand.preset.new_mix(),
-                                    )
-                                )
+                                target_track = mix.tracks[target_ref]
+                                target_track.emit_header(mix, token.val)
+                                snapshot.leave_context()
+
+                                snapshot.context = subcommand
+                                snapshot.current = target_ref
+                                snapshot.update_pending()
                                 continue
                             elif not subcommand.soft_keyword:
                                 return LoopflowExitReason.unsatisfied_switch_subcommand
-                            # else: soft keycmd，直接进 mainline
-                        elif token.val in context.options:
-                            option = context.options[token.val]
+                        elif (option_info := snapshot.get_option(token.val)) is not None:
+                            owned_subcommand_ref, option_keyword = option_info
+                            owned_subcommand = snapshot.traverses[owned_subcommand_ref]
+                            target_option = owned_subcommand._options_bind[option_keyword]
 
-                            # 之前的版本中如果 track 没有 satisfied，就会继续进入 track forward 流程。
-                            # 这里有个问题，如果 Fragments 里有个 variadic，那么就会一直进入 forward 流程 —— 这就不太对了，所以我删掉了。
-                            if not option.soft_keyword or mix.satisfied:
-                                if context.preset.tracks[option.keyword]:
-                                    # 仅当需要解析 fragments 时进行状态流转。
-                                    traverse.ref = traverse.ref.option(option.keyword)
-                                    track = mix.tracks[option.keyword]
+                            if not target_option.soft_keyword or snapshot.stage_satisfied:
+                                option_ref = owned_subcommand_ref.option(option_keyword)
+                                track = mix.tracks[option_ref]
 
-                                if not option.allow_duplicate and option.keyword in traverse.option_traverses:
+                                if not target_option.allow_duplicate and track.emitted:
                                     return LoopflowExitReason.option_duplicated_prohibited
                                 
-                                if traverse.option_traverses.count(option.keyword) > 1:
-                                    def rx_prev():
-                                        return Value(traverse.option_traverses[-2].track.assignes[track.header.name])  # type: ignore
-                                else:
-                                    rx_prev = None  # type: ignore
+                                if track:
+                                    track.reset()
+                                    snapshot.current = option_ref.roam_to(current)
+                                    snapshot._ref_cache_option[snapshot.current] = target_option
 
-                                track.emit_header(token.val, rx_prev)
-                                traverse.option_traverses.append(
-                                    OptionTraverse(
-                                        trigger=token.val,
-                                        is_compact=False,
-                                        completed=not context.preset.tracks[option.keyword],
-                                        option=option,
-                                        track=mix.tracks[option.keyword],
-                                    )
-                                )
-
-                                token.apply()  # 在最后才 apply，因为上面会根据 duplicate 的情况判定 panic，不能一开始就吃掉。
+                                track.emit_header(mix, token.val)
+                                token.apply()
                                 continue
-                            # else: 给我进 soft keycmd 的 track process (在那之前会先判断 / 分割 compact segment).
-                        # else: 进了 track process. 
+
+                        # else: 进了 track process.
                     elif pointer_type is PointerRole.OPTION:
-                        option_traverse = traverse.option_traverses[-1]
-
-                        if token.val in context.subcommands:
-                            # 当且仅当 option 已经 satisfied 时才能让状态流转进 subcommand。
-                            # subcommand.satisfy_previous 处理起来比较复杂，这里先 reject。
-
-                            # 对于 OptionPattern.allow_duplicate，当然是标准处理：pop_track。
-                            subcommand = context.subcommands[token.val]
-                            option = context.options[pointer_val]  # 之前的 option
-                            track = mix.tracks[option.keyword]
+                        if token.val in context._subcommands_bind:
+                            subcommand = context._subcommands_bind[token.val]
+                            track = mix.tracks[current]
 
                             if not track.satisfied:
                                 if not subcommand.soft_keyword:
-                                    mix.reset_track(option.keyword)
+                                    mix.reset_track(current)
                                     return LoopflowExitReason.switch_unsatisfied_option
                             else:
-                                track.complete()
-                                traverse.ref = traverse.ref.parent
-                                option_traverse.completed = True
+                                track.complete(mix)
+                                snapshot.current = current.parent
 
-                                if option.allow_duplicate:
-                                    mix.pop_track(option.keyword, option.keep_previous_assignes)
-
-                                if mix.satisfied:
+                                if snapshot.stage_satisfied:
                                     token.apply()
-                                    mix.complete_all()
+                                    snapshot.complete()
 
                                     # context hard switch
-                                    snapshot.traverses.append(
-                                        SubcommandTraverse(
-                                            subcommand,
-                                            token.val,
-                                            traverse.ref.subcommand(subcommand.header),
-                                            subcommand.preset.new_mix(),
-                                        )
-                                    )
+                                    mix.update(current, subcommand.preset)
+                                    snapshot.leave_context()
+
+                                    snapshot.current = next_current = current.subcommand(subcommand.header)
+                                    snapshot.context = subcommand
+                                    snapshot.update_pending()
                                     continue
-                                elif not subcommand.soft_keyword:  # and not mix.satisfied
+                                elif not subcommand.soft_keyword:  # and not snapshot.stage_satisfied
                                     return LoopflowExitReason.unsatisfied_switch_subcommand
 
-                        elif token.val in context.options:
+                        elif (option_info := snapshot.get_option(token.val)) is not None:
                             # 这里仅仅是使 ref 在正确性检查通过后，结束 option 的捕获并回退到 subcommand 上下文。
-                            previous_option = context.options[pointer_val]
-                            target_option = context.options[token.val]
-                            track = mix.tracks[previous_option.keyword]
+                            track = mix.tracks[current]
+                            owned_subcommand_ref, option_ref = option_info
+                            owned_subcommand = snapshot.traverses[owned_subcommand_ref]
+                            target_option = owned_subcommand._options_bind[option_ref]
 
                             if not track.satisfied:
                                 if not target_option.soft_keyword:
-                                    mix.reset_track(previous_option.keyword)
+                                    mix.reset_track(current)
                                     return LoopflowExitReason.previous_unsatisfied
                             else:
-                                track.complete()
-                                traverse.ref = traverse.ref.parent
-                                option_traverse.completed = True
-
-                                if previous_option.allow_duplicate:
-                                    mix.pop_track(previous_option.keyword, previous_option.keep_previous_assignes)
-
+                                track.complete(mix)
+                                snapshot.current = current.parent
                                 continue
                         # else: 进了 track process.
 
                     if context.separator_optbind is not None:
+                        # TODO: separator_optbind in snapshot-level
+
                         opt_matched = False
 
                         for opt_keyword, separators in context.separator_optbind.items():
-                            option = context.options[opt_keyword]
+                            opt = context._options_bind[opt_keyword]
 
                             keyword_part, *tail = token.val.split(separators, 1)
-                            if keyword_part == opt_keyword or keyword_part in option.aliases:
+                            if keyword_part == opt_keyword or keyword_part in opt.aliases:
                                 opt_matched = True
                                 token.apply()
                                 buffer.add_to_ahead(keyword_part)
@@ -264,26 +217,26 @@ class Analyzer(Generic[T]):
                         if opt_matched:
                             continue
 
-                    if context.compact_keywords is not None:
-                        prefix = context.compact_keywords.get_closest_prefix(token.val)
+                    if context._compact_keywords is not None:
+                        # TODO: compact in snapshot-level
+
+                        prefix = context._compact_keywords.get_closest_prefix(token.val)
                         if prefix:
                             redirect = False
 
-                            if prefix in context.subcommands:
+                            if prefix in context._subcommands_bind:
                                 # 老样子，需要 satisfied 才能进 subcommand，不然就进 track forward 流程。
-                                redirect = mix.satisfied
-                            elif prefix in context.options:
+                                redirect = snapshot.stage_satisfied or not context._subcommands_bind[prefix].satisfy_previous
+                            elif pointer_type is PointerRole.SUBCOMMAND and prefix in context._options_bind:
                                 # NOTE: 这里其实有个有趣的点需要提及：pattern 中的 subcommands, options 和这里的 compacts 都是多对一的关系，
                                 # 所以如果要取 track 之类的，就需要先绕个路，因为数据结构上的主索引总是采用的 node 上的单个 keyword。
-                                option = context.options[prefix]
-                                track = mix.tracks[option.keyword]
+                                opt = context._options_bind[prefix]
+                                track = mix.tracks[current.option(opt.keyword)]
 
-                                redirect = track.assignable or option.allow_duplicate
+                                redirect = track.assignable or opt.allow_duplicate
                                 # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
                                 # 但这里有个有趣的例子，比如说我们有 `-v -vv`，这里 v 是一个 duplicate，而 duplicate 仍然可以重入并继续分配，而其 assignable 则成为无关变量。
                                 # 还有一个有趣的例子：如果一个 duplicate 的 option，他具备有几个 default=Value(...) 的 fragment，则多次触发会怎么样？
-                                # 答案是不会怎么样：还记得吗？duplicate 会在回退到 subcommand 时被 pop_track，也就会将 Track 换成另外一个，所以不会引发任何问题（比如你担心的行为不一致）。
-                                # 顺便一提，我们在这方面做了特殊处理：该 Option 对应的 Track 上，所有 Fragment 的 Rx 调用 rx_prev 都将能获取到之前的 assignes。
 
                             # else: 你是不是手动构造了 TrieHard？
                             # 由于默认 redirect 是 False，所以这里不会准许跳转。
@@ -297,10 +250,10 @@ class Analyzer(Generic[T]):
                             # else: 进了 track process.
 
                 if pointer_type is PointerRole.SUBCOMMAND:
-                    track = mix.tracks[context.header]
+                    track = mix.tracks[current]
 
                     try:
-                        response = track.forward(buffer, context.separators)
+                        response = track.forward(mix, buffer, context.separators)
                     except OutOfData:
                         # 称不上是 context switch，continuation 不改变 context。
                         return LoopflowExitReason.out_of_data_subcommand
@@ -316,19 +269,13 @@ class Analyzer(Generic[T]):
                         # 即使有，上面也已经给你处理了。
                 elif pointer_type is PointerRole.OPTION:
                     # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
-                    option = context.options[pointer_val]
-                    track = mix.tracks[option.keyword]
-
-                    if traverse.option_traverses.count(option.keyword) > 1:
-                        def rx_prev():
-                            return Value(traverse.option_traverses[-2].track.assignes[track.fragments[0].name])
-                    else:
-                        rx_prev = None  # type: ignore
+                    track = mix.tracks[current]
+                    opt = snapshot._ref_cache_option[current]
 
                     try:
-                        response = track.forward(buffer, option.separators, rx_prev)
+                        response = track.forward(mix, buffer, opt.separators)
                     except OutOfData:
-                        mix.reset_track(option.keyword)
+                        mix.reset_track(current)
                         return LoopflowExitReason.out_of_data_option
                     except (Rejected, ParsePanic):
                         raise
@@ -338,12 +285,10 @@ class Analyzer(Generic[T]):
                         if response is None:
                             # track 上没有 fragments 可供分配了。
                             # 这里没必要 complete：track.complete 只是补全 assignes。
+                            snapshot.current = current.parent
 
-                            traverse.ref = traverse.ref.parent
-                            traverse.option_traverses[-1].completed = True
-
-                            if option.allow_duplicate:
-                                mix.pop_track(option.keyword, option.keep_previous_assignes)
+                            if opt.allow_duplicate:
+                                track.reset()
                             # else: 如果不允许 duplicate，就没必要 pop （幂等操作嘛）
                         # else: 还是 enter next loop
                     # 无论如何似乎都不会到这里来，除非 track process 里有个组件惊世智慧的拿到 snapshot 并改了 traverse.ref。

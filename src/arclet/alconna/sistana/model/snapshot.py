@@ -1,134 +1,90 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 
-from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
-
-from ..some import Some, Value
+from arclet.alconna.sistana.model.mix import Mix
 
 if TYPE_CHECKING:
-    from .mix import Mix, Track
-    from .pattern import OptionPattern, SubcommandPattern
+    from .pattern import SubcommandPattern, OptionPattern
     from .pointer import Pointer
 
-T = TypeVar("T")
+
+# @dataclass
+class AnalyzeSnapshot:
+    __slots__ = ("current", "traverses", "endpoint", "mix", "_pendings", "_ref_cache_option")
 
 
-class OptionTraverse:
-    __slots__ = ("trigger", "is_compact", "completed", "option", "track")
+    current: Pointer
 
-    trigger: str
-    is_compact: bool
-    completed: bool
-    option: OptionPattern
-    track: Track
-
-    def __init__(self, trigger: str, is_compact: bool, completed: bool, option: OptionPattern, track: Track):
-        self.trigger = trigger
-        self.is_compact = is_compact
-        self.completed = completed
-        self.option = option
-        self.track = track
-
-
-class IndexedOptionTraversesRecord:
-    __slots__ = ("traverses", "_by_trigger", "_by_keyword", "_count")
-
-    traverses: list[OptionTraverse]
-
-    _by_trigger: dict[str, list[OptionTraverse]]
-    _by_keyword: dict[str, list[OptionTraverse]]
-    _count: defaultdict[str, int]
-
-    def __init__(self, traverses: list[OptionTraverse] | None = None):
-        self.traverses = traverses or []
-        self._by_trigger = {}
-        self._by_keyword = {}
-        self._count = defaultdict(lambda: 0)
-
-    def append(self, traverse: OptionTraverse):
-        self.traverses.append(traverse)
-
-        if traverse.trigger in self._by_trigger:
-            self._by_trigger[traverse.trigger].append(traverse)
-        else:
-            self._by_trigger[traverse.trigger] = [traverse]
-
-        if traverse.option.keyword in self._by_keyword:
-            self._by_keyword[traverse.option.keyword].append(traverse)
-        else:
-            self._by_keyword[traverse.option.keyword] = [traverse]
-
-        self._count[traverse.option.keyword] += 1
-
-    def by_trigger(self, trigger: str):
-        return self._by_trigger.get(trigger, [])
-
-    def by_keyword(self, keyword: str):
-        return self._by_keyword.get(keyword, [])
-
-    def count(self, keyword: str):
-        return self._count[keyword]
-
-    def __getitem__(self, ix: int):
-        return self.traverses[ix]
-
-    def __contains__(self, keyword: str):
-        return keyword in self._by_keyword
-
-
-class SubcommandTraverse:
-    __slots__ = ("subcommand", "trigger", "ref", "mix", "option_traverses")
-
-    subcommand: SubcommandPattern
-    trigger: str
-    ref: Pointer
+    traverses: dict[Pointer, SubcommandPattern]
+    endpoint: Pointer | None
     mix: Mix
-    option_traverses: IndexedOptionTraversesRecord
 
-    def __init__(self, subcommand: SubcommandPattern, trigger: str, ref: Pointer, mix: Mix):
-        self.subcommand = subcommand
-        self.trigger = trigger
-        self.ref = ref
-        self.mix = mix
-        self.option_traverses = IndexedOptionTraversesRecord()
+    _pendings: list[tuple[Pointer, str, set[str]]]
+    _ref_cache_option: dict[Pointer, OptionPattern]
 
+    def __init__(self, current: Pointer, traverses: dict[Pointer, SubcommandPattern]):
+        self.current = current
+        self.traverses = traverses
 
-class AnalyzeSnapshot(Generic[T]):
-    __slots__ = ("traverses", "endpoint")
+        self.endpoint = None
+        self.mix = Mix()
+        
+        self._pendings = []
+        self._ref_cache_option = {}
 
-    traverses: list[SubcommandTraverse]
-    endpoint: Some[Pointer]
+        self.update_pending()
 
-    def __init__(self, traverses: list[SubcommandTraverse] | None = None, endpoint: Some[Pointer] = None):
-        self.traverses = traverses or []
-        self.endpoint = endpoint
+    @property
+    def context(self):
+        return next(reversed(self.traverses.values()))
+
+    @context.setter
+    def context(self, value: SubcommandPattern):
+        self.traverses[self.current.subcommand(value.header)] = value
 
     @property
     def determined(self):
         return self.endpoint is not None
 
-    def determine(self, endpoint: Pointer):
-        self.endpoint = Value(endpoint)
+    @property
+    def stage_satisfied(self):
+        conda = self.mix.tracks[self.current].satisfied
+        if conda:
+            subcommand = self.traverses[self.current]
+            for ref, keyword, _ in self._pendings:
+                if keyword in subcommand._exit_options:
+                    if not self.mix.tracks[ref.option(keyword)].satisfied:
+                        return False
 
-    def _export(self):
-        result: dict[Pointer, dict[str, Some[Any]]] = {}
+        return conda
 
-        for traverse in self.traverses:
-            mix = traverse.mix
-            result[traverse.ref] = mix.export_track(traverse.trigger)
-            for option in traverse.subcommand.options.values():
-                ref = traverse.ref.option(option.keyword)
+    def determine(self, endpoint: Pointer | None = None):
+        self.endpoint = endpoint or self.current
 
-                if ref in result:
-                    continue
+    def update_pending(self):
+        subcommand_ref, subcommand_pattern = next(reversed(self.traverses.items()))
+        for option in subcommand_pattern._options:
+            self._pendings.append((subcommand_ref, option.keyword, {option.keyword, *option.aliases}))
 
-                result[ref] = mix.export_track(option.keyword)
+    def get_option(self, trigger: str):
+        for subcommand_ref, option_keyword, triggers in self._pendings:
+            if trigger in triggers:
+                return subcommand_ref, option_keyword
 
+    def get_option_strict(self, trigger: str):
+        result = self.get_option(trigger)
+        if result is None:
+            raise RuntimeError
         return result
 
-    def export(self):
-        a = iter(self._export().values())
-        r = next(a).copy()
-        for b in a:
-            r.update(b)
-        return r
+    def leave_context(self):
+        exit_options = self.context._exit_options
+        current = self.current
+        self._pendings = [
+            (ref, keyword, triggers)
+            for ref, keyword, triggers in self._pendings
+            if ref != current or keyword not in exit_options
+        ]
+
+    def complete(self):
+        self.mix.complete()

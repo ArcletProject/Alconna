@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Tuple
 
+
 class PointerRole(int, Enum):
     SUBCOMMAND = 0
     OPTION = 1
@@ -51,17 +52,13 @@ class Pointer:
     def last_value(self):
         return self.last[1]
 
+    def roam_to(self, target: Pointer):
+        return RoamingPointer(self.data, target)
+
     def __repr__(self):
         content = []
         for ty, val in self.data:
-            if ty == PointerRole.HEADER:
-                content.append("[::]")
-            elif ty == PointerRole.PREFIX:
-                content.append("[^]")
-            elif ty == PointerRole.SUBCOMMAND:
-                content.append(val)
-            else:
-                content.append(f"#[{val}]")
+            content.append(f"{ty.name}({val})")
 
         return f'Pointer({".".join(content)})'
 
@@ -69,7 +66,21 @@ class Pointer:
         yield from self.data
 
     def __hash__(self):
-        return hash(("Pointer", hash(self.data)))
+        return hash(self.data)
 
     def __eq__(self, other):
         return isinstance(other, Pointer) and self.data == other.data
+
+
+class RoamingPointer(Pointer):
+    __slots__ = ("data", "source",)
+
+    source: Pointer | None
+
+    def __init__(self, data: tuple[PointerContent, ...] = (), source: Pointer | None = None) -> None:
+        super().__init__(data)
+        self.source = source
+
+    @property
+    def parent(self):
+        return self.source or super().parent

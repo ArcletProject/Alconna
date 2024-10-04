@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Iterable, MutableMapping
 
@@ -12,7 +11,7 @@ from arclet.alconna._dcls import safe_dcls_kw
 from .fragment import assert_fragments_order
 from .mix import Preset, Track
 from .pointer import Pointer
-from .snapshot import AnalyzeSnapshot, SubcommandTraverse
+from .snapshot import AnalyzeSnapshot
 
 if TYPE_CHECKING:
     from .fragment import _Fragment
@@ -22,19 +21,21 @@ if TYPE_CHECKING:
 class SubcommandPattern:
     header: str
     preset: Preset
-    options: MutableMapping[str, OptionPattern] = field(default_factory=dict)
-    subcommands: MutableMapping[str, SubcommandPattern] = field(default_factory=dict)
 
     soft_keyword: bool = False
     separators: str = SEPARATORS
 
     prefixes: TrieHard | None = field(default=None)
-    compact_keywords: TrieHard | None = field(default=None)
     compact_header: bool = False
     satisfy_previous: bool = True
     header_fragment: _Fragment | None = None
-    separator_optbind: dict[str, str] | None = None
-    # opt_keyword -> header_separators
+    separator_optbind: dict[str, str] | None = None  # opt_keyword -> header_separators
+
+    _options: list[OptionPattern] = field(default_factory=list)
+    _compact_keywords: TrieHard | None = field(default=None)
+    _exit_options: list[str] = field(default_factory=list)
+    _options_bind: MutableMapping[str, OptionPattern] = field(default_factory=dict)
+    _subcommands_bind: MutableMapping[str, SubcommandPattern] = field(default_factory=dict)
 
     @classmethod
     def build(
@@ -48,16 +49,16 @@ class SubcommandPattern:
         soft_keyword: bool = False,
         header_fragment: _Fragment | None = None,
     ):
+        preset = Preset(Track(fragments, header=header_fragment), {})
         subcommand = cls(
             header=header,
-            preset=Preset(),
+            preset=preset,
             compact_header=compact_header,
             satisfy_previous=satisfy_previous,
             separators=separators,
             soft_keyword=soft_keyword,
             header_fragment=header_fragment,
         )
-        subcommand.add_track(header, fragments, header=header_fragment)
 
         if prefixes:
             subcommand.prefixes = TrieHard(list(prefixes))
@@ -69,7 +70,9 @@ class SubcommandPattern:
         return Pointer().subcommand(self.header)
 
     def create_snapshot(self, ref: Pointer):
-        return AnalyzeSnapshot(traverses=[SubcommandTraverse(subcommand=self, trigger=self.header, ref=ref, mix=self.preset.new_mix())])
+        snapshot = AnalyzeSnapshot(current=ref, traverses={self.root_ref: self})
+        snapshot.mix.update(self.root_ref, self.preset)
+        return snapshot
 
     @property
     def root_entrypoint(self):
@@ -83,10 +86,13 @@ class SubcommandPattern:
     def header_entrypoint(self):
         return self.create_snapshot(self.root_ref.header())
 
-    def add_track(self, name: str, fragments: Iterable[_Fragment], header: _Fragment | None = None):
+    def add_track(self, name: str, fragments: tuple[_Fragment, ...], header: _Fragment | None = None):
         assert_fragments_order(fragments)
 
-        self.preset.tracks[name] = Track(deque(fragments), header=header)
+        self.preset.option_tracks[name] = Track(fragments, header=header)
+
+    def _opt_alias_to_keyword(self, alias: str):
+        return self._options_bind[alias].keyword
 
     def subcommand(
         self,
@@ -100,24 +106,22 @@ class SubcommandPattern:
         satisfy_previous: bool = True,
         header_fragment: _Fragment | None = None,
     ):
-        pattern = self.subcommands[header] = SubcommandPattern(
+        preset = Preset(Track(fragments, header=header_fragment), {})
+        pattern = self._subcommands_bind[header] = SubcommandPattern(
             header=header,
-            preset=Preset(),
+            preset=preset,
             soft_keyword=soft_keyword,
             separators=separators,
             compact_header=compact_header,
             satisfy_previous=satisfy_previous,
             header_fragment=header_fragment,
         )
-        self.subcommands[header] = pattern
+        self._subcommands_bind[header] = pattern
         for alias in aliases:
-            self.subcommands[alias] = pattern
-
-        if fragments:
-            pattern.add_track(header, fragments, header=header_fragment)
+            self._subcommands_bind[alias] = pattern
 
         if compact_header:
-            self.compact_keywords = TrieHard([header, *aliases, *(self.compact_keywords or []), *(aliases if compact_aliases else [])])
+            self._compact_keywords = TrieHard([header, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])])
 
         return pattern
 
@@ -134,13 +138,14 @@ class SubcommandPattern:
         compact_aliases: bool = False,
         header_fragment: _Fragment | None = None,
         header_separators: str | None = None,
+        forwarding: bool = True,
     ):
         if separators is None:
             separators = self.separators
         elif hybrid_separators:
             separators = separators + self.separators
 
-        pattern = self.options[keyword] = OptionPattern(
+        pattern = self._options_bind[keyword] = OptionPattern(
             keyword,
             aliases=list(aliases),
             separators=separators,
@@ -150,12 +155,16 @@ class SubcommandPattern:
             header_separators=header_separators,
         )
         for alias in aliases:
-            self.options[alias] = pattern
+            self._options_bind[alias] = pattern
 
+        self._options.append(pattern)
         self.add_track(keyword, fragments, header=header_fragment)
 
+        if not forwarding:
+            self._exit_options.append(keyword)
+
         if compact_header:
-            self.compact_keywords = TrieHard([keyword, *aliases, *(self.compact_keywords or []), *(aliases if compact_aliases else [])])
+            self._compact_keywords = TrieHard([keyword, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])])
 
         if header_separators:
             if not fragments:
@@ -177,6 +186,5 @@ class OptionPattern:
 
     soft_keyword: bool = False
     allow_duplicate: bool = False
-    keep_previous_assignes: bool = False
     header_fragment: _Fragment | None = None
     header_separators: str | None = None

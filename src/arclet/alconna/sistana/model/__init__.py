@@ -18,5 +18,3 @@ from .receiver import RxFetch as RxFetch
 from .receiver import RxPrev as RxPrev
 from .receiver import RxPut as RxPut
 from .snapshot import AnalyzeSnapshot as AnalyzeSnapshot
-from .snapshot import OptionTraverse as OptionTraverse
-from .snapshot import SubcommandTraverse as SubcommandTraverse
