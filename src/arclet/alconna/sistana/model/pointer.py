@@ -52,9 +52,6 @@ class Pointer:
     def last_value(self):
         return self.last[1]
 
-    def roam_to(self, target: Pointer):
-        return RoamingPointer(self.data, target)
-
     def __repr__(self):
         content = []
         for ty, val in self.data:
@@ -70,17 +67,3 @@ class Pointer:
 
     def __eq__(self, other):
         return isinstance(other, Pointer) and self.data == other.data
-
-
-class RoamingPointer(Pointer):
-    __slots__ = ("data", "source",)
-
-    source: Pointer | None
-
-    def __init__(self, data: tuple[PointerContent, ...] = (), source: Pointer | None = None) -> None:
-        super().__init__(data)
-        self.source = source
-
-    @property
-    def parent(self):
-        return self.source or super().parent

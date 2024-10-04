@@ -34,6 +34,7 @@ class SubcommandPattern:
     _options: list[OptionPattern] = field(default_factory=list)
     _compact_keywords: TrieHard | None = field(default=None)
     _exit_options: list[str] = field(default_factory=list)
+
     _options_bind: MutableMapping[str, OptionPattern] = field(default_factory=dict)
     _subcommands_bind: MutableMapping[str, SubcommandPattern] = field(default_factory=dict)
 
@@ -70,7 +71,7 @@ class SubcommandPattern:
         return Pointer().subcommand(self.header)
 
     def create_snapshot(self, ref: Pointer):
-        snapshot = AnalyzeSnapshot(current=ref, traverses={self.root_ref: self})
+        snapshot = AnalyzeSnapshot(main_ref=self.root_ref, alter_ref=ref, traverses={self.root_ref: self})
         snapshot.mix.update(self.root_ref, self.preset)
         return snapshot
 

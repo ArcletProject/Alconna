@@ -49,7 +49,7 @@ class Analyzer(Generic[T]):
 
             context = snapshot.context
             mix = snapshot.mix
-            current = snapshot.current
+            current = snapshot.current_ref
             pointer_type = current.last[0]
 
             try:
@@ -59,7 +59,7 @@ class Analyzer(Generic[T]):
                     mix.complete()
 
                     if pointer_type is PointerRole.OPTION:
-                        snapshot.current = current.parent
+                        snapshot.unset_alter()
 
                     snapshot.determine()
                     return LoopflowExitReason.completed
@@ -84,7 +84,8 @@ class Analyzer(Generic[T]):
                         token.apply()
                         buffer.pushleft(token.val[len(prefix) :])
 
-                snapshot.current = current.parent.header()  # 直接进 header.
+                snapshot.set_alter(current.parent.header())
+                # snapshot.current = current.parent.header()  # 直接进 header.
             elif pointer_type is PointerRole.HEADER:
                 if not isinstance(token.val, str):
                     return LoopflowExitReason.header_expect_str
@@ -105,7 +106,7 @@ class Analyzer(Generic[T]):
                 track = mix.tracks[next_current]
                 track.emit_header(mix, token.val)
 
-                snapshot.current = next_current
+                snapshot.unset_alter()
             else:
                 if isinstance(token.val, str):
                     if pointer_type is PointerRole.SUBCOMMAND:
@@ -121,10 +122,9 @@ class Analyzer(Generic[T]):
 
                                 target_track = mix.tracks[target_ref]
                                 target_track.emit_header(mix, token.val)
-                                snapshot.leave_context()
+                                snapshot.pop_pendings()
 
                                 snapshot.context = subcommand
-                                snapshot.current = target_ref
                                 snapshot.update_pending()
                                 continue
                             elif not subcommand.soft_keyword:
@@ -143,8 +143,8 @@ class Analyzer(Generic[T]):
                                 
                                 if track:
                                     track.reset()
-                                    snapshot.current = option_ref.roam_to(current)
-                                    snapshot._ref_cache_option[snapshot.current] = target_option
+                                    snapshot.set_alter(option_ref)
+                                    snapshot._ref_cache_option[option_ref] = target_option
 
                                 track.emit_header(mix, token.val)
                                 token.apply()
@@ -162,7 +162,7 @@ class Analyzer(Generic[T]):
                                     return LoopflowExitReason.switch_unsatisfied_option
                             else:
                                 track.complete(mix)
-                                snapshot.current = current.parent
+                                snapshot.unset_alter()
 
                                 if snapshot.stage_satisfied:
                                     token.apply()
@@ -170,9 +170,8 @@ class Analyzer(Generic[T]):
 
                                     # context hard switch
                                     mix.update(current, subcommand.preset)
-                                    snapshot.leave_context()
+                                    snapshot.pop_pendings()
 
-                                    snapshot.current = next_current = current.subcommand(subcommand.header)
                                     snapshot.context = subcommand
                                     snapshot.update_pending()
                                     continue
@@ -180,7 +179,6 @@ class Analyzer(Generic[T]):
                                     return LoopflowExitReason.unsatisfied_switch_subcommand
 
                         elif (option_info := snapshot.get_option(token.val)) is not None:
-                            # 这里仅仅是使 ref 在正确性检查通过后，结束 option 的捕获并回退到 subcommand 上下文。
                             track = mix.tracks[current]
                             owned_subcommand_ref, option_ref = option_info
                             owned_subcommand = snapshot.traverses[owned_subcommand_ref]
@@ -192,7 +190,10 @@ class Analyzer(Generic[T]):
                                     return LoopflowExitReason.previous_unsatisfied
                             else:
                                 track.complete(mix)
-                                snapshot.current = current.parent
+                                snapshot.unset_alter()
+
+                                
+
                                 continue
                         # else: 进了 track process.
 
@@ -285,7 +286,7 @@ class Analyzer(Generic[T]):
                         if response is None:
                             # track 上没有 fragments 可供分配了。
                             # 这里没必要 complete：track.complete 只是补全 assignes。
-                            snapshot.current = current.parent
+                            snapshot.unset_alter()
 
                             if opt.allow_duplicate:
                                 track.reset()
