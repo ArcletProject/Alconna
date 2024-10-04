@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .pointer import Pointer
+from .pointer import Pointer, PointerData, PointerRole
 from ..err import CaptureRejected, ReceivePanic, TransformPanic, ValidateRejected
 from ..some import Value
 from .fragment import _Fragment, assert_fragments_order
@@ -31,19 +31,16 @@ class Track:
     def satisfied(self):
         return self.cursor >= self.max_length or self.fragments[0].default is not None or self.fragments[0].variadic
 
-    def apply_defaults(self, mix: Mix):
-        for frag in self.fragments:
+    def complete(self, mix: Mix):
+        if self.cursor >= self.max_length:
+            return
+
+        for frag in self.fragments[self.cursor:]:
             if frag.name not in mix.assignes and frag.default is not None:
                 mix.assignes[frag.name] = frag.default.value
 
         if self.header is not None and self.header.name not in mix.assignes and self.header.default is not None:
             mix.assignes[self.header.name] = self.header.default.value
-
-    def complete(self, mix: Mix):
-        if not self.fragments:
-            return
-
-        self.apply_defaults(mix)
 
         first = self.fragments[-1]
         if first.variadic and first.name not in mix.assignes:
@@ -186,7 +183,7 @@ class Mix:
     __slots__ = ("assignes", "tracks")
 
     assignes: dict[str, Any]
-    tracks: dict[Pointer, Track]
+    tracks: dict[PointerData, Track]
 
     def __init__(self):
         self.assignes = {}
@@ -197,15 +194,19 @@ class Mix:
             track.complete(self)
 
     def reset_track(self, ref: Pointer):
-        track = self.tracks[ref]
+        track = self.tracks[ref.data]
         track.reset()
 
     @property
     def satisfied(self):
-        return all(track.satisfied for track in self.tracks.values())
+        for track in self.tracks.values():
+            if not track.satisfied:
+                return False
+
+        return True
 
     def update(self, root: Pointer, preset: Preset):
-        self.tracks[root] = preset.subcommand_track.copy()
+        self.tracks[root.data] = preset.subcommand_track.copy()
 
         for track_id, track in preset.option_tracks.items():
-            self.tracks[root.option(track_id)] = track.copy()
+            self.tracks[root.data + ((PointerRole.OPTION, track_id),)] = track.copy()

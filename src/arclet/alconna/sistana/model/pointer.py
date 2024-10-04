@@ -11,6 +11,8 @@ class PointerRole(int, Enum):
     PREFIX = 3
 
 PointerContent = Tuple[PointerRole, str]
+PointerData = Tuple[PointerContent, ...]
+
 
 HEADER_STR = "::"
 PREFIX_STR = "^"
@@ -19,9 +21,9 @@ PREFIX_STR = "^"
 class Pointer:
     __slots__ = ("data",)
 
-    data: tuple[PointerContent, ...]
+    data: PointerData
 
-    def __init__(self, data: tuple[PointerContent, ...] = ()) -> None:
+    def __init__(self, data: PointerData = ()) -> None:
         self.data = data
 
     def subcommand(self, name: str):

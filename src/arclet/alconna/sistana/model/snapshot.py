@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from arclet.alconna.sistana.model.mix import Mix
+from .mix import Mix
+from .pointer import Pointer, PointerData
 
 if TYPE_CHECKING:
     from .pattern import OptionPattern, SubcommandPattern
-    from .pointer import Pointer
 
 
 # @dataclass
@@ -21,7 +21,7 @@ class AnalyzeSnapshot:
         "_alter_ref",
     )
 
-    traverses: dict[Pointer, SubcommandPattern]
+    traverses: dict[PointerData, SubcommandPattern]
     endpoint: Pointer | None
     mix: Mix
 
@@ -31,7 +31,7 @@ class AnalyzeSnapshot:
     _pending_options: list[tuple[Pointer, str, set[str]]]
     _ref_cache_option: dict[Pointer, OptionPattern]
 
-    def __init__(self, main_ref: Pointer, alter_ref: Pointer | None, traverses: dict[Pointer, SubcommandPattern]):
+    def __init__(self, main_ref: Pointer, alter_ref: Pointer | None, traverses: dict[PointerData, SubcommandPattern]):
         self._main_ref = main_ref
         self._alter_ref = alter_ref
 
@@ -49,20 +49,21 @@ class AnalyzeSnapshot:
     def current_ref(self):
         return self._alter_ref or self._main_ref
 
-    def set_alter(self, option: Pointer):
-        self._alter_ref = option
+    def set_alter(self, ref: Pointer):
+        self._alter_ref = ref
 
     def unset_alter(self):
         self._alter_ref = None
 
     @property
     def context(self):
-        return self.traverses[self._main_ref]
+        return self.traverses[self._main_ref.data]
 
     @context.setter
-    def context(self, value: SubcommandPattern):
-        self._main_ref = self._main_ref.subcommand(value.header)
-        self.traverses[self._main_ref] = value
+    def context(self, value: tuple[Pointer, SubcommandPattern]):
+        ref, cmd = value
+        self._main_ref = ref
+        self.traverses[ref.data] = cmd
 
     @property
     def determined(self):
@@ -70,12 +71,12 @@ class AnalyzeSnapshot:
 
     @property
     def stage_satisfied(self):
-        conda = self.mix.tracks[self._main_ref].satisfied
+        conda = self.mix.tracks[self._main_ref.data].satisfied
         if conda:
-            subcommand = self.traverses[self._main_ref]
+            subcommand = self.traverses[self._main_ref.data]
             for ref, keyword, _ in self._pending_options:
                 if keyword in subcommand._exit_options:
-                    if not self.mix.tracks[ref.option(keyword)].satisfied:
+                    if not self.mix.tracks[ref.option(keyword).data].satisfied:
                         return False
 
         return conda
@@ -85,9 +86,14 @@ class AnalyzeSnapshot:
 
     def update_pending(self):
         subcommand_ref = self._main_ref
-        subcommand_pattern = self.traverses[subcommand_ref]
-        for option in subcommand_pattern._options:
-            self._pending_options.append((subcommand_ref, option.keyword, {option.keyword, *option.aliases}))
+        subcommand_pattern = self.traverses[subcommand_ref.data]
+        # for option in subcommand_pattern._options:
+        #     self._pending_options.append((subcommand_ref, option.keyword, {option.keyword, *option.aliases}))
+
+        self._pending_options.extend([
+            (subcommand_ref, option.keyword, {option.keyword, *option.aliases})
+            for option in subcommand_pattern._options
+        ])
 
     def get_option(self, trigger: str):
         for subcommand_ref, option_keyword, triggers in self._pending_options:

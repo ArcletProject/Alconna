@@ -44,7 +44,7 @@ class Analyzer(Generic[T]):
 
     def loopflow(self, snapshot: AnalyzeSnapshot, buffer: Buffer[T]) -> LoopflowExitReason:
         while True:
-            if snapshot.determined and self.complete_on_determined and snapshot.stage_satisfied:
+            if self.complete_on_determined and snapshot.determined and snapshot.stage_satisfied:
                 return LoopflowExitReason.completed
 
             context = snapshot.context
@@ -85,7 +85,6 @@ class Analyzer(Generic[T]):
                         buffer.pushleft(token.val[len(prefix) :])
 
                 snapshot.set_alter(current.parent.header())
-                # snapshot.current = current.parent.header()  # 直接进 header.
             elif pointer_type is PointerRole.HEADER:
                 if not isinstance(token.val, str):
                     return LoopflowExitReason.header_expect_str
@@ -103,7 +102,7 @@ class Analyzer(Generic[T]):
                     return LoopflowExitReason.header_mismatch
 
                 next_current = current.parent
-                track = mix.tracks[next_current]
+                track = mix.tracks[next_current.data]
                 track.emit_header(mix, token.val)
 
                 snapshot.unset_alter()
@@ -120,23 +119,23 @@ class Analyzer(Generic[T]):
                                 target_ref = current.subcommand(subcommand.header)
                                 mix.update(target_ref, subcommand.preset)
 
-                                target_track = mix.tracks[target_ref]
+                                target_track = mix.tracks[target_ref.data]
                                 target_track.emit_header(mix, token.val)
                                 snapshot.pop_pendings()
 
-                                snapshot.context = subcommand
+                                snapshot.context = target_ref, subcommand
                                 snapshot.update_pending()
                                 continue
                             elif not subcommand.soft_keyword:
                                 return LoopflowExitReason.unsatisfied_switch_subcommand
                         elif (option_info := snapshot.get_option(token.val)) is not None:
                             owned_subcommand_ref, option_keyword = option_info
-                            owned_subcommand = snapshot.traverses[owned_subcommand_ref]
+                            owned_subcommand = snapshot.traverses[owned_subcommand_ref.data]
                             target_option = owned_subcommand._options_bind[option_keyword]
 
                             if not target_option.soft_keyword or snapshot.stage_satisfied:
                                 option_ref = owned_subcommand_ref.option(option_keyword)
-                                track = mix.tracks[option_ref]
+                                track = mix.tracks[option_ref.data]
 
                                 if not target_option.allow_duplicate and track.emitted:
                                     return LoopflowExitReason.option_duplicated_prohibited
@@ -154,7 +153,7 @@ class Analyzer(Generic[T]):
                     elif pointer_type is PointerRole.OPTION:
                         if token.val in context._subcommands_bind:
                             subcommand = context._subcommands_bind[token.val]
-                            track = mix.tracks[current]
+                            track = mix.tracks[current.data]
 
                             if not track.satisfied:
                                 if not subcommand.soft_keyword:
@@ -168,32 +167,48 @@ class Analyzer(Generic[T]):
                                     token.apply()
                                     snapshot.complete()
 
-                                    # context hard switch
-                                    mix.update(current, subcommand.preset)
+                                    target_ref = current.subcommand(subcommand.header)
+                                    mix.update(target_ref, subcommand.preset)
+
+                                    target_track = mix.tracks[target_ref.data]
+                                    target_track.emit_header(mix, token.val)
                                     snapshot.pop_pendings()
 
-                                    snapshot.context = subcommand
+                                    snapshot.context = target_ref, subcommand
                                     snapshot.update_pending()
                                     continue
                                 elif not subcommand.soft_keyword:  # and not snapshot.stage_satisfied
                                     return LoopflowExitReason.unsatisfied_switch_subcommand
 
                         elif (option_info := snapshot.get_option(token.val)) is not None:
-                            track = mix.tracks[current]
-                            owned_subcommand_ref, option_ref = option_info
-                            owned_subcommand = snapshot.traverses[owned_subcommand_ref]
-                            target_option = owned_subcommand._options_bind[option_ref]
+                            current_track = mix.tracks[current.data]
 
-                            if not track.satisfied:
+                            owned_subcommand_ref, option_name = option_info
+                            owned_subcommand = snapshot.traverses[owned_subcommand_ref.data]
+                            target_option = owned_subcommand._options_bind[option_name]
+                            target_option_ref = owned_subcommand_ref.option(option_name)
+
+                            if not current_track.satisfied:
                                 if not target_option.soft_keyword:
                                     mix.reset_track(current)
                                     return LoopflowExitReason.previous_unsatisfied
                             else:
-                                track.complete(mix)
+                                current_track.complete(mix)
                                 snapshot.unset_alter()
 
-                                
+                                if not target_option.soft_keyword or snapshot.stage_satisfied:
+                                    # 这里的逻辑基本上和上面的一致。
+                                    target_track = mix.tracks[target_option_ref.data]
+                                    if not target_option.allow_duplicate and target_track.emitted:
+                                        return LoopflowExitReason.option_duplicated_prohibited
 
+                                    if target_track:
+                                        target_track.reset()
+                                        snapshot.set_alter(target_option_ref)
+                                        snapshot._ref_cache_option[target_option_ref] = target_option
+
+                                    target_track.emit_header(mix, token.val)
+                                    token.apply()
                                 continue
                         # else: 进了 track process.
 
@@ -232,7 +247,7 @@ class Analyzer(Generic[T]):
                                 # NOTE: 这里其实有个有趣的点需要提及：pattern 中的 subcommands, options 和这里的 compacts 都是多对一的关系，
                                 # 所以如果要取 track 之类的，就需要先绕个路，因为数据结构上的主索引总是采用的 node 上的单个 keyword。
                                 opt = context._options_bind[prefix]
-                                track = mix.tracks[current.option(opt.keyword)]
+                                track = mix.tracks[current.option(opt.keyword).data]
 
                                 redirect = track.assignable or opt.allow_duplicate
                                 # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
@@ -251,7 +266,7 @@ class Analyzer(Generic[T]):
                             # else: 进了 track process.
 
                 if pointer_type is PointerRole.SUBCOMMAND:
-                    track = mix.tracks[current]
+                    track = mix.tracks[current.data]
 
                     try:
                         response = track.forward(mix, buffer, context.separators)
@@ -270,7 +285,7 @@ class Analyzer(Generic[T]):
                         # 即使有，上面也已经给你处理了。
                 elif pointer_type is PointerRole.OPTION:
                     # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
-                    track = mix.tracks[current]
+                    track = mix.tracks[current.data]
                     opt = snapshot._ref_cache_option[current]
 
                     try:

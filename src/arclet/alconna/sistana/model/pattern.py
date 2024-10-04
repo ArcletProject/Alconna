@@ -10,7 +10,7 @@ from arclet.alconna._dcls import safe_dcls_kw
 
 from .fragment import assert_fragments_order
 from .mix import Preset, Track
-from .pointer import Pointer
+from .pointer import Pointer, PointerRole
 from .snapshot import AnalyzeSnapshot
 
 if TYPE_CHECKING:
@@ -71,7 +71,7 @@ class SubcommandPattern:
         return Pointer().subcommand(self.header)
 
     def create_snapshot(self, ref: Pointer):
-        snapshot = AnalyzeSnapshot(main_ref=self.root_ref, alter_ref=ref, traverses={self.root_ref: self})
+        snapshot = AnalyzeSnapshot(main_ref=self.root_ref, alter_ref=ref, traverses={((PointerRole.SUBCOMMAND, self.header),): self})
         snapshot.mix.update(self.root_ref, self.preset)
         return snapshot
 
