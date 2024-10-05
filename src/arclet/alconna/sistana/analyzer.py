@@ -33,7 +33,7 @@ class LoopflowExitReason(str, Enum):
 
     def __str__(self):
         return self.value
-    
+
     def __repr__(self):
         return f"<loopflow(::) => {self.value}>"
 
@@ -118,12 +118,10 @@ class Analyzer(Generic[T]):
                             elif not subcommand.soft_keyword:
                                 return LoopflowExitReason.unsatisfied_switch_subcommand
                         elif (option_info := snapshot.get_option(token.val)) is not None:
-                            owned_subcommand_ref, option_keyword = option_info
-                            owned_subcommand = snapshot.traverses[owned_subcommand_ref.data]
-                            target_option = owned_subcommand._options_bind[option_keyword]
+                            target_option, option_ref = option_info
 
                             if not target_option.soft_keyword or snapshot.stage_satisfied:
-                                if not snapshot.enter_option(token.val, owned_subcommand_ref.option(option_keyword), target_option):
+                                if not snapshot.enter_option(trigger=token.val, ref=option_ref, pattern=target_option):
                                     return LoopflowExitReason.option_duplicated_prohibited
 
                                 token.apply()
@@ -154,9 +152,7 @@ class Analyzer(Generic[T]):
                                     return LoopflowExitReason.unsatisfied_switch_subcommand
 
                         elif (option_info := snapshot.get_option(token.val)) is not None:
-                            owned_subcommand_ref, option_name = option_info
-                            owned_subcommand = snapshot.traverses[owned_subcommand_ref.data]
-                            target_option = owned_subcommand._options_bind[option_name]
+                            target_option, option_ref = option_info
 
                             if not current_track.satisfied:
                                 if not target_option.soft_keyword:
@@ -168,7 +164,7 @@ class Analyzer(Generic[T]):
 
                                 if not target_option.soft_keyword or snapshot.stage_satisfied:
                                     # 这里的逻辑基本上和上面的一致。
-                                    if not snapshot.enter_option(token.val, owned_subcommand_ref.option(option_name), target_option):
+                                    if not snapshot.enter_option(trigger=token.val, ref=option_ref, pattern=target_option):
                                         return LoopflowExitReason.option_duplicated_prohibited
 
                                     token.apply()
@@ -192,7 +188,7 @@ class Analyzer(Generic[T]):
                     #                 buffer.pushleft(tail[0])
 
                     #             break
-                        
+
                     #     if opt_matched:
                     #         continue
 
@@ -243,10 +239,7 @@ class Analyzer(Generic[T]):
                         if response is None:
                             # track 上没有 fragments 可供分配了，此时又没有再流转到其他 traverse
                             return LoopflowExitReason.unexpected_segment
-                        # else: next loop，因为没有 OutOfData。
-                        # 即使有，上面也已经给你处理了。
                 elif pointer_type is PointerRole.OPTION:
-                    # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
                     opt = snapshot._ref_cache_option[current.data]
 
                     try:
@@ -260,12 +253,4 @@ class Analyzer(Generic[T]):
                         raise ParsePanic from e
                     else:
                         if response is None:
-                            # track 上没有 fragments 可供分配了。
-                            # 这里没必要 complete：track.complete 只是补全 assignes。
                             snapshot.unset_alter()
-
-                            if opt.allow_duplicate:
-                                track.reset()
-                            # else: 如果不允许 duplicate，就没必要 pop （幂等操作嘛）
-                        # else: 还是 enter next loop
-                    # 无论如何似乎都不会到这里来，除非 track process 里有个组件惊世智慧的拿到 snapshot 并改了 traverse.ref。

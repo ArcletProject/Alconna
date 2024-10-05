@@ -118,7 +118,9 @@ class AnalyzeSnapshot:
     def get_option(self, trigger: str):
         for subcommand_ref, option_keyword, triggers in self._pending_options:
             if trigger in triggers:
-                return subcommand_ref, option_keyword
+                owned_subcommand = self.traverses[subcommand_ref.data]
+                target_option = owned_subcommand._options_bind[option_keyword]
+                return target_option, subcommand_ref.option(option_keyword)
 
     def pop_pendings(self):
         current = self.main_ref
