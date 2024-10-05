@@ -193,9 +193,8 @@ class Mix:
         for track in self.tracks.values():
             track.complete(self)
 
-    def reset_track(self, ref: Pointer):
-        track = self.tracks[ref.data]
-        track.reset()
+    def reset_track(self, ref: PointerData):
+        self.tracks[ref].reset()
 
     @property
     def satisfied(self):

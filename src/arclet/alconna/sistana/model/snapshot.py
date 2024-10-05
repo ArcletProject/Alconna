@@ -18,7 +18,7 @@ class AnalyzeSnapshot:
         "_pending_options",
         "_ref_cache_option",
         "main_ref",
-        "_alter_ref",
+        "alter_ref",
     )
 
     traverses: dict[PointerData, SubcommandPattern]
@@ -26,14 +26,14 @@ class AnalyzeSnapshot:
     mix: Mix
 
     main_ref: Pointer
-    _alter_ref: Pointer | None
+    alter_ref: Pointer | None
 
     _pending_options: list[tuple[Pointer, str, set[str]]]
     _ref_cache_option: dict[PointerData, OptionPattern]
 
     def __init__(self, main_ref: Pointer, alter_ref: Pointer | None, traverses: dict[PointerData, SubcommandPattern]):
         self.main_ref = main_ref
-        self._alter_ref = alter_ref
+        self.alter_ref = alter_ref
 
         self.traverses = traverses
 
@@ -47,17 +47,11 @@ class AnalyzeSnapshot:
 
     @property
     def current_ref(self):
-        return self._alter_ref or self.main_ref
+        return self.alter_ref or self.main_ref
 
     @property
     def context(self):
         return self.traverses[self.main_ref.data]
-
-    def set_alter(self, ref: Pointer):
-        self._alter_ref = ref
-
-    def unset_alter(self):
-        self._alter_ref = None
 
     def set_traverse(self, ref: Pointer, cmd: SubcommandPattern):
         self.main_ref = ref
@@ -84,7 +78,7 @@ class AnalyzeSnapshot:
 
         if track:
             track.reset()
-            self.set_alter(ref)
+            self.alter_ref = ref
             self._ref_cache_option[ref.data] = pattern
         
         return True
@@ -130,6 +124,3 @@ class AnalyzeSnapshot:
             for ref, keyword, triggers in self._pending_options
             if not (ref.data == current.data and keyword in exit_options)
         ]
-
-    def complete(self):
-        self.mix.complete()

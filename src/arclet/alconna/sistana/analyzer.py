@@ -40,17 +40,18 @@ class LoopflowExitReason(str, Enum):
 
 @dataclass
 class Analyzer(Generic[T]):
-    complete_on_determined: bool = True
+    complete_on_determined: bool = False
 
     def loopflow(self, snapshot: AnalyzeSnapshot, buffer: Buffer[T]) -> LoopflowExitReason:
+        mix = snapshot.mix
+
         while True:
             if self.complete_on_determined and snapshot.endpoint is not None and snapshot.stage_satisfied:
                 return LoopflowExitReason.completed
 
             main_ref = snapshot.main_ref
-            current = snapshot._alter_ref or main_ref
+            current = snapshot.alter_ref or main_ref
             context = snapshot.traverses[main_ref.data]
-            mix = snapshot.mix
             pointer_type = current.data[-1][0]
 
             try:
@@ -58,7 +59,7 @@ class Analyzer(Generic[T]):
             except OutOfData:
                 if mix.satisfied:
                     mix.complete()
-                    snapshot.unset_alter()
+                    snapshot.alter_ref = None
                     snapshot.determine()
                     return LoopflowExitReason.completed
 
@@ -82,7 +83,7 @@ class Analyzer(Generic[T]):
                         token.apply()
                         buffer.pushleft(token.val[len(prefix) :])
 
-                snapshot.set_alter(main_ref.header())
+                snapshot.alter_ref = main_ref.header()
             elif pointer_type is PointerRole.HEADER:
                 if not isinstance(token.val, str):
                     return LoopflowExitReason.header_expect_str
@@ -102,7 +103,7 @@ class Analyzer(Generic[T]):
                 track = mix.tracks[main_ref.data]
                 track.emit_header(mix, token.val)
 
-                snapshot.unset_alter()
+                snapshot.alter_ref = None
             else:
                 if isinstance(token.val, str):
                     if pointer_type is PointerRole.SUBCOMMAND:
@@ -111,7 +112,7 @@ class Analyzer(Generic[T]):
 
                             if snapshot.stage_satisfied or not subcommand.satisfy_previous:
                                 token.apply()
-                                snapshot.complete()
+                                mix.complete()
 
                                 snapshot.enter_subcommand(token.val, subcommand)
                                 continue
@@ -120,10 +121,11 @@ class Analyzer(Generic[T]):
                         elif (option_info := snapshot.get_option(token.val)) is not None:
                             target_option, option_ref = option_info
 
+                            # = !(soft_keyword and !stage_satisfied)
+                            # 我们希望当 !stage_satisfied 时，如果是 soft_keyword，则不进入 option enter；只有这种情况才需要进入 track process。
                             if not target_option.soft_keyword or snapshot.stage_satisfied:
-                                if not snapshot.enter_option(trigger=token.val, ref=option_ref, pattern=target_option):
+                                if not snapshot.enter_option(token.val, option_ref, target_option):
                                     return LoopflowExitReason.option_duplicated_prohibited
-
                                 token.apply()
                                 continue
 
@@ -140,11 +142,11 @@ class Analyzer(Generic[T]):
                                     return LoopflowExitReason.switch_unsatisfied_option
                             else:
                                 current_track.complete(mix)
-                                snapshot.unset_alter()
+                                snapshot.alter_ref = None
 
-                                if snapshot.stage_satisfied:
+                                if snapshot.stage_satisfied or not subcommand.satisfy_previous:
                                     token.apply()
-                                    snapshot.complete()
+                                    mix.complete()
 
                                     snapshot.enter_subcommand(token.val, subcommand)
                                     continue
@@ -160,11 +162,11 @@ class Analyzer(Generic[T]):
                                     return LoopflowExitReason.previous_unsatisfied
                             else:
                                 current_track.complete(mix)
-                                snapshot.unset_alter()
+                                snapshot.alter_ref = None
 
                                 if not target_option.soft_keyword or snapshot.stage_satisfied:
                                     # 这里的逻辑基本上和上面的一致。
-                                    if not snapshot.enter_option(trigger=token.val, ref=option_ref, pattern=target_option):
+                                    if not snapshot.enter_option(token.val, option_ref, target_option):
                                         return LoopflowExitReason.option_duplicated_prohibited
 
                                     token.apply()
@@ -239,7 +241,7 @@ class Analyzer(Generic[T]):
                         if response is None:
                             # track 上没有 fragments 可供分配了，此时又没有再流转到其他 traverse
                             return LoopflowExitReason.unexpected_segment
-                elif pointer_type is PointerRole.OPTION:
+                else:
                     opt = snapshot._ref_cache_option[current.data]
 
                     try:
@@ -253,4 +255,4 @@ class Analyzer(Generic[T]):
                         raise ParsePanic from e
                     else:
                         if response is None:
-                            snapshot.unset_alter()
+                            snapshot.alter_ref = None
