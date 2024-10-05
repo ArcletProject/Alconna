@@ -44,23 +44,21 @@ class Analyzer(Generic[T]):
 
     def loopflow(self, snapshot: AnalyzeSnapshot, buffer: Buffer[T]) -> LoopflowExitReason:
         while True:
-            if self.complete_on_determined and snapshot.determined and snapshot.stage_satisfied:
+            if self.complete_on_determined and snapshot.endpoint is not None and snapshot.stage_satisfied:
                 return LoopflowExitReason.completed
 
-            context = snapshot.context
+            main_ref = snapshot.main_ref
+            current = snapshot._alter_ref or main_ref
+            context = snapshot.traverses[main_ref.data]
             mix = snapshot.mix
-            current = snapshot.current_ref
-            pointer_type = current.last[0]
+            pointer_type = current.data[-1][0]
 
             try:
                 token = buffer.next(context.separators)
             except OutOfData:
                 if mix.satisfied:
                     mix.complete()
-
-                    if pointer_type is PointerRole.OPTION:
-                        snapshot.unset_alter()
-
+                    snapshot.unset_alter()
                     snapshot.determine()
                     return LoopflowExitReason.completed
 
@@ -84,7 +82,7 @@ class Analyzer(Generic[T]):
                         token.apply()
                         buffer.pushleft(token.val[len(prefix) :])
 
-                snapshot.set_alter(current.parent.header())
+                snapshot.set_alter(main_ref.header())
             elif pointer_type is PointerRole.HEADER:
                 if not isinstance(token.val, str):
                     return LoopflowExitReason.header_expect_str
@@ -101,8 +99,7 @@ class Analyzer(Generic[T]):
                 else:
                     return LoopflowExitReason.header_mismatch
 
-                next_current = current.parent
-                track = mix.tracks[next_current.data]
+                track = mix.tracks[main_ref.data]
                 track.emit_header(mix, token.val)
 
                 snapshot.unset_alter()
@@ -121,9 +118,9 @@ class Analyzer(Generic[T]):
 
                                 target_track = mix.tracks[target_ref.data]
                                 target_track.emit_header(mix, token.val)
-                                snapshot.pop_pendings()
 
-                                snapshot.context = target_ref, subcommand
+                                snapshot.pop_pendings()
+                                snapshot.set_traverse(target_ref, subcommand)
                                 snapshot.update_pending()
                                 continue
                             elif not subcommand.soft_keyword:
@@ -143,7 +140,7 @@ class Analyzer(Generic[T]):
                                 if track:
                                     track.reset()
                                     snapshot.set_alter(option_ref)
-                                    snapshot._ref_cache_option[option_ref] = target_option
+                                    snapshot._ref_cache_option[option_ref.data] = target_option
 
                                 track.emit_header(mix, token.val)
                                 token.apply()
@@ -151,16 +148,17 @@ class Analyzer(Generic[T]):
 
                         # else: 进了 track process.
                     elif pointer_type is PointerRole.OPTION:
+                        current_track = mix.tracks[current.data]
+
                         if token.val in context._subcommands_bind:
                             subcommand = context._subcommands_bind[token.val]
-                            track = mix.tracks[current.data]
 
-                            if not track.satisfied:
+                            if not current_track.satisfied:
                                 if not subcommand.soft_keyword:
                                     mix.reset_track(current)
                                     return LoopflowExitReason.switch_unsatisfied_option
                             else:
-                                track.complete(mix)
+                                current_track.complete(mix)
                                 snapshot.unset_alter()
 
                                 if snapshot.stage_satisfied:
@@ -174,15 +172,14 @@ class Analyzer(Generic[T]):
                                     target_track.emit_header(mix, token.val)
                                     snapshot.pop_pendings()
 
-                                    snapshot.context = target_ref, subcommand
+                                    snapshot.set_traverse(target_ref, subcommand)
                                     snapshot.update_pending()
+
                                     continue
                                 elif not subcommand.soft_keyword:  # and not snapshot.stage_satisfied
                                     return LoopflowExitReason.unsatisfied_switch_subcommand
 
                         elif (option_info := snapshot.get_option(token.val)) is not None:
-                            current_track = mix.tracks[current.data]
-
                             owned_subcommand_ref, option_name = option_info
                             owned_subcommand = snapshot.traverses[owned_subcommand_ref.data]
                             target_option = owned_subcommand._options_bind[option_name]
@@ -199,75 +196,76 @@ class Analyzer(Generic[T]):
                                 if not target_option.soft_keyword or snapshot.stage_satisfied:
                                     # 这里的逻辑基本上和上面的一致。
                                     target_track = mix.tracks[target_option_ref.data]
+
                                     if not target_option.allow_duplicate and target_track.emitted:
                                         return LoopflowExitReason.option_duplicated_prohibited
+
+                                    token.apply()
+                                    target_track.emit_header(mix, token.val)
 
                                     if target_track:
                                         target_track.reset()
                                         snapshot.set_alter(target_option_ref)
-                                        snapshot._ref_cache_option[target_option_ref] = target_option
+                                        snapshot._ref_cache_option[target_option_ref.data] = target_option
 
-                                    target_track.emit_header(mix, token.val)
-                                    token.apply()
-                                continue
+                                    continue
                         # else: 进了 track process.
 
-                    if context.separator_optbind is not None:
-                        # TODO: separator_optbind in snapshot-level
+                    # if context.separator_optbind is not None:
+                    #     # TODO: separator_optbind in snapshot-level
 
-                        opt_matched = False
+                    #     opt_matched = False
 
-                        for opt_keyword, separators in context.separator_optbind.items():
-                            opt = context._options_bind[opt_keyword]
+                    #     for opt_keyword, separators in context.separator_optbind.items():
+                    #         opt = context._options_bind[opt_keyword]
 
-                            keyword_part, *tail = token.val.split(separators, 1)
-                            if keyword_part == opt_keyword or keyword_part in opt.aliases:
-                                opt_matched = True
-                                token.apply()
-                                buffer.add_to_ahead(keyword_part)
-                                if tail:
-                                    buffer.pushleft(tail[0])
+                    #         keyword_part, *tail = token.val.split(separators, 1)
+                    #         if keyword_part == opt_keyword or keyword_part in opt.aliases:
+                    #             opt_matched = True
+                    #             token.apply()
+                    #             buffer.add_to_ahead(keyword_part)
+                    #             if tail:
+                    #                 buffer.pushleft(tail[0])
 
-                                break
+                    #             break
                         
-                        if opt_matched:
-                            continue
+                    #     if opt_matched:
+                    #         continue
 
-                    if context._compact_keywords is not None:
-                        # TODO: compact in snapshot-level
+                    # if context._compact_keywords is not None:
+                    #     # TODO: compact in snapshot-level
 
-                        prefix = context._compact_keywords.get_closest_prefix(token.val)
-                        if prefix:
-                            redirect = False
+                    #     prefix = context._compact_keywords.get_closest_prefix(token.val)
+                    #     if prefix:
+                    #         redirect = False
 
-                            if prefix in context._subcommands_bind:
-                                # 老样子，需要 satisfied 才能进 subcommand，不然就进 track forward 流程。
-                                redirect = snapshot.stage_satisfied or not context._subcommands_bind[prefix].satisfy_previous
-                            elif pointer_type is PointerRole.SUBCOMMAND and prefix in context._options_bind:
-                                # NOTE: 这里其实有个有趣的点需要提及：pattern 中的 subcommands, options 和这里的 compacts 都是多对一的关系，
-                                # 所以如果要取 track 之类的，就需要先绕个路，因为数据结构上的主索引总是采用的 node 上的单个 keyword。
-                                opt = context._options_bind[prefix]
-                                track = mix.tracks[current.option(opt.keyword).data]
+                    #         if prefix in context._subcommands_bind:
+                    #             # 老样子，需要 satisfied 才能进 subcommand，不然就进 track forward 流程。
+                    #             redirect = snapshot.stage_satisfied or not context._subcommands_bind[prefix].satisfy_previous
+                    #         elif pointer_type is PointerRole.SUBCOMMAND and prefix in context._options_bind:
+                    #             # NOTE: 这里其实有个有趣的点需要提及：pattern 中的 subcommands, options 和这里的 compacts 都是多对一的关系，
+                    #             # 所以如果要取 track 之类的，就需要先绕个路，因为数据结构上的主索引总是采用的 node 上的单个 keyword。
+                    #             opt = context._options_bind[prefix]
+                    #             track = mix.tracks[current.option(opt.keyword).data]
 
-                                redirect = track.assignable or opt.allow_duplicate
-                                # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
-                                # 但这里有个有趣的例子，比如说我们有 `-v -vv`，这里 v 是一个 duplicate，而 duplicate 仍然可以重入并继续分配，而其 assignable 则成为无关变量。
-                                # 还有一个有趣的例子：如果一个 duplicate 的 option，他具备有几个 default=Value(...) 的 fragment，则多次触发会怎么样？
+                    #             redirect = track.assignable or opt.allow_duplicate
+                    #             # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
+                    #             # 但这里有个有趣的例子，比如说我们有 `-v -vv`，这里 v 是一个 duplicate，而 duplicate 仍然可以重入并继续分配，而其 assignable 则成为无关变量。
+                    #             # 还有一个有趣的例子：如果一个 duplicate 的 option，他具备有几个 default=Value(...) 的 fragment，则多次触发会怎么样？
 
-                            # else: 你是不是手动构造了 TrieHard？
-                            # 由于默认 redirect 是 False，所以这里不会准许跳转。
+                    #         # else: 你是不是手动构造了 TrieHard？
+                    #         # 由于默认 redirect 是 False，所以这里不会准许跳转。
 
-                            if redirect:
-                                token.apply()
-                                prefix_len = len(prefix)
-                                buffer.add_to_ahead(token.val[:prefix_len])
-                                buffer.pushleft(token.val[prefix_len:])
-                                continue
-                            # else: 进了 track process.
+                    #         if redirect:
+                    #             token.apply()
+                    #             prefix_len = len(prefix)
+                    #             buffer.add_to_ahead(token.val[:prefix_len])
+                    #             buffer.pushleft(token.val[prefix_len:])
+                    #             continue
+                    #         # else: 进了 track process.
 
+                track = mix.tracks[current.data]
                 if pointer_type is PointerRole.SUBCOMMAND:
-                    track = mix.tracks[current.data]
-
                     try:
                         response = track.forward(mix, buffer, context.separators)
                     except OutOfData:
@@ -285,8 +283,7 @@ class Analyzer(Generic[T]):
                         # 即使有，上面也已经给你处理了。
                 elif pointer_type is PointerRole.OPTION:
                     # option fragments 的处理是原子性的，整段成功才会 apply changes，否则会被 reset。
-                    track = mix.tracks[current.data]
-                    opt = snapshot._ref_cache_option[current]
+                    opt = snapshot._ref_cache_option[current.data]
 
                     try:
                         response = track.forward(mix, buffer, opt.separators)
