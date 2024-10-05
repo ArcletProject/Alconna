@@ -113,15 +113,7 @@ class Analyzer(Generic[T]):
                                 token.apply()
                                 snapshot.complete()
 
-                                target_ref = current.subcommand(subcommand.header)
-                                mix.update(target_ref, subcommand.preset)
-
-                                target_track = mix.tracks[target_ref.data]
-                                target_track.emit_header(mix, token.val)
-
-                                snapshot.pop_pendings()
-                                snapshot.set_traverse(target_ref, subcommand)
-                                snapshot.update_pending()
+                                snapshot.enter_subcommand(token.val, subcommand)
                                 continue
                             elif not subcommand.soft_keyword:
                                 return LoopflowExitReason.unsatisfied_switch_subcommand
@@ -131,18 +123,9 @@ class Analyzer(Generic[T]):
                             target_option = owned_subcommand._options_bind[option_keyword]
 
                             if not target_option.soft_keyword or snapshot.stage_satisfied:
-                                option_ref = owned_subcommand_ref.option(option_keyword)
-                                track = mix.tracks[option_ref.data]
-
-                                if not target_option.allow_duplicate and track.emitted:
+                                if not snapshot.enter_option(token.val, owned_subcommand_ref.option(option_keyword), target_option):
                                     return LoopflowExitReason.option_duplicated_prohibited
-                                
-                                if track:
-                                    track.reset()
-                                    snapshot.set_alter(option_ref)
-                                    snapshot._ref_cache_option[option_ref.data] = target_option
 
-                                track.emit_header(mix, token.val)
                                 token.apply()
                                 continue
 
@@ -165,16 +148,7 @@ class Analyzer(Generic[T]):
                                     token.apply()
                                     snapshot.complete()
 
-                                    target_ref = current.subcommand(subcommand.header)
-                                    mix.update(target_ref, subcommand.preset)
-
-                                    target_track = mix.tracks[target_ref.data]
-                                    target_track.emit_header(mix, token.val)
-                                    snapshot.pop_pendings()
-
-                                    snapshot.set_traverse(target_ref, subcommand)
-                                    snapshot.update_pending()
-
+                                    snapshot.enter_subcommand(token.val, subcommand)
                                     continue
                                 elif not subcommand.soft_keyword:  # and not snapshot.stage_satisfied
                                     return LoopflowExitReason.unsatisfied_switch_subcommand
@@ -183,7 +157,6 @@ class Analyzer(Generic[T]):
                             owned_subcommand_ref, option_name = option_info
                             owned_subcommand = snapshot.traverses[owned_subcommand_ref.data]
                             target_option = owned_subcommand._options_bind[option_name]
-                            target_option_ref = owned_subcommand_ref.option(option_name)
 
                             if not current_track.satisfied:
                                 if not target_option.soft_keyword:
@@ -195,19 +168,10 @@ class Analyzer(Generic[T]):
 
                                 if not target_option.soft_keyword or snapshot.stage_satisfied:
                                     # 这里的逻辑基本上和上面的一致。
-                                    target_track = mix.tracks[target_option_ref.data]
-
-                                    if not target_option.allow_duplicate and target_track.emitted:
+                                    if not snapshot.enter_option(token.val, owned_subcommand_ref.option(option_name), target_option):
                                         return LoopflowExitReason.option_duplicated_prohibited
 
                                     token.apply()
-                                    target_track.emit_header(mix, token.val)
-
-                                    if target_track:
-                                        target_track.reset()
-                                        snapshot.set_alter(target_option_ref)
-                                        snapshot._ref_cache_option[target_option_ref.data] = target_option
-
                                     continue
                         # else: 进了 track process.
 

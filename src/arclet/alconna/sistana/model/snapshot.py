@@ -63,6 +63,32 @@ class AnalyzeSnapshot:
         self.main_ref = ref
         self.traverses[ref.data] = cmd
 
+    def enter_subcommand(self, trigger: str, pattern: SubcommandPattern):
+        ref = self.main_ref.subcommand(pattern.header)
+
+        self.mix.update(ref, pattern.preset)
+        track = self.mix.tracks[self.main_ref.data]
+        track.emit_header(self.mix, trigger)
+        self.pop_pendings()
+
+        self.set_traverse(ref, pattern)
+        self.update_pending()
+
+    def enter_option(self, trigger: str, ref: Pointer, pattern: OptionPattern):
+        track = self.mix.tracks[ref.data]
+
+        if track.emitted and not pattern.allow_duplicate:
+            return False
+        
+        track.emit_header(self.mix, trigger)
+
+        if track:
+            track.reset()
+            self.set_alter(ref)
+            self._ref_cache_option[ref.data] = pattern
+        
+        return True
+
     @property
     def determined(self):
         return self.endpoint is not None
