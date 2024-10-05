@@ -32,7 +32,6 @@ from .model import Mix as Mix
 from .model import ObjectCapture as ObjectCapture
 from .model import OptionPattern as OptionPattern
 from .model import PlainCapture as PlainCapture
-from .model import Pointer as Pointer
 from .model import Preset as Preset
 from .model import RegexCapture as RegexCapture
 from .model import Rx as Rx

@@ -10,7 +10,7 @@ from arclet.alconna._dcls import safe_dcls_kw
 
 from .fragment import assert_fragments_order
 from .mix import Preset, Track
-from .pointer import Pointer, PointerRole
+from .pointer import PointerRole, PointerData, ccprefix, ccheader
 from .snapshot import AnalyzeSnapshot
 
 if TYPE_CHECKING:
@@ -68,11 +68,12 @@ class SubcommandPattern:
 
     @property
     def root_ref(self):
-        return Pointer().subcommand(self.header)
+        return (PointerRole.SUBCOMMAND, self.header),
 
-    def create_snapshot(self, ref: Pointer):
-        snapshot = AnalyzeSnapshot(main_ref=self.root_ref, alter_ref=ref, traverses={((PointerRole.SUBCOMMAND, self.header),): self})
-        snapshot.mix.update(self.root_ref, self.preset)
+    def create_snapshot(self, ref: PointerData):
+        root_ref = self.root_ref
+        snapshot = AnalyzeSnapshot(main_ref=self.root_ref, alter_ref=ref, traverses={root_ref: self})
+        snapshot.mix.update(root_ref, self.preset)
         return snapshot
 
     @property
@@ -81,11 +82,11 @@ class SubcommandPattern:
 
     @property
     def prefix_entrypoint(self):
-        return self.create_snapshot(self.root_ref.prefix())
+        return self.create_snapshot(self.root_ref + ccprefix)
 
     @property
     def header_entrypoint(self):
-        return self.create_snapshot(self.root_ref.header())
+        return self.create_snapshot(self.root_ref + ccheader)
 
     def add_track(self, name: str, fragments: tuple[_Fragment, ...], header: _Fragment | None = None):
         assert_fragments_order(fragments)

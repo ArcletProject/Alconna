@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from .pointer import Pointer
+    from .pointer import PointerData
 
 
 T = TypeVar("T")
@@ -12,4 +12,4 @@ T = TypeVar("T")
 
 @dataclass
 class Router(Generic[T]):
-    endpoint_handlers: dict[Pointer, Any] = field(default_factory=dict)
+    endpoint_handlers: dict[PointerData, Any] = field(default_factory=dict)

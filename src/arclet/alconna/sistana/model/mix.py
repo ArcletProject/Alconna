@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .pointer import Pointer, PointerData, PointerRole
 from ..err import CaptureRejected, ReceivePanic, TransformPanic, ValidateRejected
 from ..some import Value
 from .fragment import _Fragment, assert_fragments_order
+from .pointer import PointerData, ccoption
 
 if TYPE_CHECKING:
     from elaina_segment import Buffer
@@ -35,7 +35,7 @@ class Track:
         if self.cursor >= self.max_length:
             return
 
-        for frag in self.fragments[self.cursor:]:
+        for frag in self.fragments[self.cursor :]:
             if frag.name not in mix.assignes and frag.default is not None:
                 mix.assignes[frag.name] = frag.default.value
 
@@ -85,12 +85,14 @@ class Track:
                 return Value(mix.assignes[frag.name])
 
         if frag.variadic:
+
             def rxput(val):
                 if frag.name not in mix.assignes:
                     mix.assignes[frag.name] = []
 
                 mix.assignes[frag.name].append(val)
         else:
+
             def rxput(val):
                 mix.assignes[frag.name] = val
 
@@ -140,11 +142,7 @@ class Track:
             mix.assignes[header.name] = val
 
         try:
-            header.receiver.receive(
-                lambda: segment,
-                rxprev,
-                rxput,
-            )
+            header.receiver.receive(lambda: segment, rxprev, rxput)
         except (CaptureRejected, ValidateRejected, TransformPanic):
             raise
         except Exception as e:
@@ -204,8 +202,8 @@ class Mix:
 
         return True
 
-    def update(self, root: Pointer, preset: Preset):
-        self.tracks[root.data] = preset.subcommand_track.copy()
+    def update(self, root: PointerData, preset: Preset):
+        self.tracks[root] = preset.subcommand_track.copy()
 
         for track_id, track in preset.option_tracks.items():
-            self.tracks[root.data + ((PointerRole.OPTION, track_id),)] = track.copy()
+            self.tracks[root + ccoption(track_id)] = track.copy()

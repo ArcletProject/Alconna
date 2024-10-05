@@ -9,7 +9,6 @@ from .mix import Preset as Preset
 from .mix import Track as Track
 from .pattern import OptionPattern as OptionPattern
 from .pattern import SubcommandPattern as SubcommandPattern
-from .pointer import Pointer as Pointer
 from .receiver import AccumRx as AccumRx
 from .receiver import ConstRx as ConstRx
 from .receiver import CountRx as CountRx

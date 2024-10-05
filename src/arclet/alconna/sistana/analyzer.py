@@ -8,7 +8,7 @@ from elaina_segment import Buffer
 from elaina_segment.err import OutOfData
 
 from .err import ParsePanic, Rejected
-from .model.pointer import PointerRole
+from .model.pointer import PointerRole, ccheader
 from .model.snapshot import AnalyzeSnapshot
 
 T = TypeVar("T")
@@ -51,8 +51,8 @@ class Analyzer(Generic[T]):
 
             main_ref = snapshot.main_ref
             current = snapshot.alter_ref or main_ref
-            context = snapshot.traverses[main_ref.data]
-            pointer_type = current.data[-1][0]
+            context = snapshot.traverses[main_ref]
+            pointer_type = current[-1][0]
 
             try:
                 token = buffer.next(context.separators)
@@ -83,7 +83,7 @@ class Analyzer(Generic[T]):
                         token.apply()
                         buffer.pushleft(token.val[len(prefix) :])
 
-                snapshot.alter_ref = main_ref.header()
+                snapshot.alter_ref = main_ref + ccheader
             elif pointer_type is PointerRole.HEADER:
                 if not isinstance(token.val, str):
                     return LoopflowExitReason.header_expect_str
@@ -100,7 +100,7 @@ class Analyzer(Generic[T]):
                 else:
                     return LoopflowExitReason.header_mismatch
 
-                track = mix.tracks[main_ref.data]
+                track = mix.tracks[main_ref]
                 track.emit_header(mix, token.val)
 
                 snapshot.alter_ref = None
@@ -131,7 +131,7 @@ class Analyzer(Generic[T]):
 
                         # else: 进了 track process.
                     elif pointer_type is PointerRole.OPTION:
-                        current_track = mix.tracks[current.data]
+                        current_track = mix.tracks[current]
 
                         if token.val in context._subcommands_bind:
                             subcommand = context._subcommands_bind[token.val]
@@ -208,7 +208,7 @@ class Analyzer(Generic[T]):
                     #             # NOTE: 这里其实有个有趣的点需要提及：pattern 中的 subcommands, options 和这里的 compacts 都是多对一的关系，
                     #             # 所以如果要取 track 之类的，就需要先绕个路，因为数据结构上的主索引总是采用的 node 上的单个 keyword。
                     #             opt = context._options_bind[prefix]
-                    #             track = mix.tracks[current.option(opt.keyword).data]
+                    #             track = mix.tracks[current.option(opt.keyword)]
 
                     #             redirect = track.assignable or opt.allow_duplicate
                     #             # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
@@ -226,7 +226,7 @@ class Analyzer(Generic[T]):
                     #             continue
                     #         # else: 进了 track process.
 
-                track = mix.tracks[current.data]
+                track = mix.tracks[current]
                 if pointer_type is PointerRole.SUBCOMMAND:
                     try:
                         response = track.forward(mix, buffer, context.separators)
@@ -242,7 +242,7 @@ class Analyzer(Generic[T]):
                             # track 上没有 fragments 可供分配了，此时又没有再流转到其他 traverse
                             return LoopflowExitReason.unexpected_segment
                 else:
-                    opt = snapshot._ref_cache_option[current.data]
+                    opt = snapshot._ref_cache_option[current]
 
                     try:
                         response = track.forward(mix, buffer, opt.separators)
