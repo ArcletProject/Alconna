@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 from ..err import CaptureRejected, ReceivePanic, TransformPanic, ValidateRejected
 from ..some import Value
 from .fragment import _Fragment, assert_fragments_order
-from .pointer import PointerData, ccoption
+from .pointer import PointerData, PointerRole
 
 if TYPE_CHECKING:
     from elaina_segment import Buffer
@@ -206,4 +206,4 @@ class Mix:
         self.tracks[root] = preset.subcommand_track.copy()
 
         for track_id, track in preset.option_tracks.items():
-            self.tracks[root + ccoption(track_id)] = track.copy()
+            self.tracks[root + ((PointerRole.OPTION, track_id),)] = track.copy()

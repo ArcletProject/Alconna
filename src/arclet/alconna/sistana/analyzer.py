@@ -142,7 +142,6 @@ class Analyzer(Generic[T]):
                                     return LoopflowExitReason.switch_unsatisfied_option
                             else:
                                 current_track.complete(mix)
-                                snapshot.alter_ref = None
 
                                 if snapshot.stage_satisfied or not subcommand.satisfy_previous:
                                     token.apply()

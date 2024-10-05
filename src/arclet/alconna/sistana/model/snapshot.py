@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .mix import Mix
-from .pointer import PointerData, PointerRole, ccoption, ccsubcommand
+from .pointer import PointerData, PointerRole
 
 if TYPE_CHECKING:
     from .pattern import OptionPattern, SubcommandPattern
@@ -28,21 +28,17 @@ class AnalyzeSnapshot:
     main_ref: PointerData
     alter_ref: PointerData | None
 
-    _pending_options: list[tuple[PointerData, str, set[str]]]
+    _pending_options: list[tuple[OptionPattern, PointerData, set[str]]]
     _ref_cache_option: dict[PointerData, OptionPattern]
 
     def __init__(self, main_ref: PointerData, alter_ref: PointerData | None, traverses: dict[PointerData, SubcommandPattern]):
         self.main_ref = main_ref
         self.alter_ref = alter_ref
-
         self.traverses = traverses
-
         self.endpoint = None
         self.mix = Mix()
-
         self._pending_options = []
         self._ref_cache_option = {}
-
         self.update_pending()
 
     @property
@@ -62,6 +58,7 @@ class AnalyzeSnapshot:
         self.pop_pendings()
 
         self.main_ref = ref
+        self.alter_ref = None
         self.traverses[ref] = pattern
         self.update_pending()
 
@@ -86,14 +83,14 @@ class AnalyzeSnapshot:
 
     @property
     def stage_satisfied(self):
-        conda = self.mix.tracks[self.main_ref].satisfied
-        if conda:
+        cond = self.mix.tracks[self.main_ref].satisfied
+        if cond:
             subcommand = self.traverses[self.main_ref]
-            for ref, keyword, _ in self._pending_options:
-                if keyword in subcommand._exit_options and not self.mix.tracks[ref + ((PointerRole.OPTION, keyword),)].satisfied:
+            for option, ref, _ in self._pending_options:
+                if option.keyword in subcommand._exit_options and not self.mix.tracks[ref].satisfied:
                     return False
 
-        return conda
+        return cond
 
     def determine(self, endpoint: PointerData | None = None):
         self.endpoint = endpoint or self.main_ref
@@ -103,21 +100,23 @@ class AnalyzeSnapshot:
         subcommand_pattern = self.traverses[subcommand_ref]
 
         self._pending_options.extend(
-            [(subcommand_ref, option.keyword, {option.keyword, *option.aliases}) for option in subcommand_pattern._options]
+            [
+                (option, subcommand_ref + ((PointerRole.OPTION, option.keyword),), {option.keyword, *option.aliases})
+                for option in subcommand_pattern._options
+            ]
         )
 
     def get_option(self, trigger: str):
-        for subcommand_ref, option_keyword, triggers in self._pending_options:
+        for option, ref, triggers in self._pending_options:
             if trigger in triggers:
-                owned_subcommand = self.traverses[subcommand_ref]
-                target_option = owned_subcommand._options_bind[option_keyword]
-                return target_option, subcommand_ref + ((PointerRole.OPTION, option_keyword),)
+                return option, ref
 
     def pop_pendings(self):
         current = self.main_ref
         exit_options = self.context._exit_options
 
         self._pending_options = [
-            (ref, keyword, triggers) for ref, keyword, triggers in self._pending_options if not (ref == current and keyword in exit_options)
+            (option, ref, triggers)
+            for option, ref, triggers in self._pending_options
+            if not (ref[:-1] == current and option.keyword in exit_options)
         ]
- 
