@@ -8,8 +8,7 @@ from elaina_segment import Buffer
 from elaina_segment.err import OutOfData
 
 from .err import ParsePanic, Rejected
-from .model.pointer import PointerRole, ccheader
-from .model.snapshot import AnalyzeSnapshot
+from .model.snapshot import AnalyzeSnapshot, ProcessingState
 
 T = TypeVar("T")
 
@@ -49,28 +48,25 @@ class Analyzer(Generic[T]):
             if self.complete_on_determined and snapshot.endpoint is not None and snapshot.stage_satisfied:
                 return LoopflowExitReason.completed
 
-            main_ref = snapshot.main_ref
-            current = snapshot.alter_ref or main_ref
-            context = snapshot.traverses[main_ref]
-            pointer_type = current[-1][0]
+            state = snapshot.state
+            context = snapshot.context
 
             try:
                 token = buffer.next(context.separators)
             except OutOfData:
                 if mix.satisfied:
                     mix.complete()
-                    snapshot.alter_ref = None
                     snapshot.determine()
                     return LoopflowExitReason.completed
 
                 # 这里如果没有 satisfied，如果是 option 的 track，则需要 reset
                 # 从 Buffer 吃掉的东西？我才不还。
-                if pointer_type is PointerRole.OPTION:
-                    mix.reset_track(current)
+                if state is ProcessingState.OPTION:
+                    mix.option_tracks[snapshot.option].reset()  # type: ignore
 
                 return LoopflowExitReason.unsatisfied
 
-            if pointer_type is PointerRole.PREFIX:
+            if state is ProcessingState.PREFIX:
                 if context.prefixes is not None:
                     if not isinstance(token.val, str):
                         return LoopflowExitReason.header_expect_str
@@ -83,8 +79,8 @@ class Analyzer(Generic[T]):
                         token.apply()
                         buffer.pushleft(token.val[len(prefix) :])
 
-                snapshot.alter_ref = main_ref + ccheader
-            elif pointer_type is PointerRole.HEADER:
+                snapshot.state = ProcessingState.HEADER
+            elif state is ProcessingState.HEADER:
                 if not isinstance(token.val, str):
                     return LoopflowExitReason.header_expect_str
 
@@ -100,13 +96,13 @@ class Analyzer(Generic[T]):
                 else:
                     return LoopflowExitReason.header_mismatch
 
-                track = mix.tracks[main_ref]
+                track = mix.command_tracks[tuple(snapshot.command)]
                 track.emit_header(mix, token.val)
 
-                snapshot.alter_ref = None
+                snapshot.state = ProcessingState.COMMAND
             else:
                 if isinstance(token.val, str):
-                    if pointer_type is PointerRole.SUBCOMMAND:
+                    if state is ProcessingState.COMMAND:
                         if token.val in context._subcommands_bind:
                             subcommand = context._subcommands_bind[token.val]
 
@@ -119,26 +115,27 @@ class Analyzer(Generic[T]):
                             elif not subcommand.soft_keyword:
                                 return LoopflowExitReason.unsatisfied_switch_subcommand
                         elif (option_info := snapshot.get_option(token.val)) is not None:
-                            target_option, option_ref = option_info
+                            target_option, target_owner = option_info
 
-                            # = !(soft_keyword and !stage_satisfied)
+                            # = !(!stage_satisfied and soft_keyword)
                             # 我们希望当 !stage_satisfied 时，如果是 soft_keyword，则不进入 option enter；只有这种情况才需要进入 track process。
                             if not target_option.soft_keyword or snapshot.stage_satisfied:
-                                if not snapshot.enter_option(token.val, option_ref, target_option):
+                                if not snapshot.enter_option(token.val, target_owner, target_option.keyword, target_option):
                                     return LoopflowExitReason.option_duplicated_prohibited
                                 token.apply()
                                 continue
 
                         # else: 进了 track process.
-                    elif pointer_type is PointerRole.OPTION:
-                        current_track = mix.tracks[current]
+                    elif state is ProcessingState.OPTION:
+                        owner, keyword = snapshot.option  # type: ignore
+                        current_track = mix.option_tracks[snapshot.option]  # type: ignore
 
                         if token.val in context._subcommands_bind:
                             subcommand = context._subcommands_bind[token.val]
 
                             if not current_track.satisfied:
                                 if not subcommand.soft_keyword:
-                                    mix.reset_track(current)
+                                    mix.option_tracks[owner, keyword].reset()
                                     return LoopflowExitReason.switch_unsatisfied_option
                             else:
                                 current_track.complete(mix)
@@ -153,19 +150,19 @@ class Analyzer(Generic[T]):
                                     return LoopflowExitReason.unsatisfied_switch_subcommand
 
                         elif (option_info := snapshot.get_option(token.val)) is not None:
-                            target_option, option_ref = option_info
+                            target_option, target_owner = option_info
 
                             if not current_track.satisfied:
                                 if not target_option.soft_keyword:
-                                    mix.reset_track(current)
+                                    mix.option_tracks[target_owner, target_option.keyword].reset()
                                     return LoopflowExitReason.previous_unsatisfied
                             else:
                                 current_track.complete(mix)
-                                snapshot.alter_ref = None
+                                snapshot.state = ProcessingState.COMMAND
 
                                 if not target_option.soft_keyword or snapshot.stage_satisfied:
                                     # 这里的逻辑基本上和上面的一致。
-                                    if not snapshot.enter_option(token.val, option_ref, target_option):
+                                    if not snapshot.enter_option(token.val, target_owner, target_option.keyword, target_option):
                                         return LoopflowExitReason.option_duplicated_prohibited
 
                                     token.apply()
@@ -225,8 +222,9 @@ class Analyzer(Generic[T]):
                     #             continue
                     #         # else: 进了 track process.
 
-                track = mix.tracks[current]
-                if pointer_type is PointerRole.SUBCOMMAND:
+                if state is ProcessingState.COMMAND:
+                    track = mix.command_tracks[tuple(snapshot.command)]
+
                     try:
                         response = track.forward(mix, buffer, context.separators)
                     except OutOfData:
@@ -241,12 +239,13 @@ class Analyzer(Generic[T]):
                             # track 上没有 fragments 可供分配了，此时又没有再流转到其他 traverse
                             return LoopflowExitReason.unexpected_segment
                 else:
-                    opt = snapshot._ref_cache_option[current]
+                    track = mix.option_tracks[snapshot.option]  # type: ignore
+                    opt = snapshot._ref_cache_option[snapshot.option]  # type: ignore
 
                     try:
                         response = track.forward(mix, buffer, opt.separators)
                     except OutOfData:
-                        mix.reset_track(current)
+                        mix.option_tracks[snapshot.option].reset()  # type: ignore
                         return LoopflowExitReason.out_of_data_option
                     except (Rejected, ParsePanic):
                         raise
@@ -254,4 +253,4 @@ class Analyzer(Generic[T]):
                         raise ParsePanic from e
                     else:
                         if response is None:
-                            snapshot.alter_ref = None
+                            snapshot.state = ProcessingState.COMMAND

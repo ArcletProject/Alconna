@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any
 from ..err import CaptureRejected, ReceivePanic, TransformPanic, ValidateRejected
 from ..some import Value
 from .fragment import _Fragment, assert_fragments_order
-from .pointer import PointerData, PointerRole
 
 if TYPE_CHECKING:
     from elaina_segment import Buffer
@@ -178,32 +177,32 @@ class Preset:
 
 
 class Mix:
-    __slots__ = ("assignes", "tracks")
+    __slots__ = ("assignes", "command_tracks", "option_tracks")
 
     assignes: dict[str, Any]
-    tracks: dict[PointerData, Track]
+
+    command_tracks: dict[tuple[str, ...], Track]
+    option_tracks: dict[tuple[tuple[str, ...], str], Track]
 
     def __init__(self):
         self.assignes = {}
-        self.tracks = {}
+        self.command_tracks = {}
+        self.option_tracks = {}
 
     def complete(self):
-        for track in self.tracks.values():
+        for track in self.command_tracks.values():
             track.complete(self)
-
-    def reset_track(self, ref: PointerData):
-        self.tracks[ref].reset()
 
     @property
     def satisfied(self):
-        for track in self.tracks.values():
+        for track in self.command_tracks.values():
             if not track.satisfied:
                 return False
 
         return True
 
-    def update(self, root: PointerData, preset: Preset):
-        self.tracks[root] = preset.subcommand_track.copy()
+    def update(self, root: tuple[str, ...], preset: Preset):
+        self.command_tracks[root] = preset.subcommand_track.copy()
 
         for track_id, track in preset.option_tracks.items():
-            self.tracks[root + ((PointerRole.OPTION, track_id),)] = track.copy()
+            self.option_tracks[root, track_id] = track.copy()

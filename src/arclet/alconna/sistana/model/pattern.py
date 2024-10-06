@@ -10,8 +10,7 @@ from arclet.alconna._dcls import safe_dcls_kw
 
 from .fragment import assert_fragments_order
 from .mix import Preset, Track
-from .pointer import PointerRole, PointerData, ccprefix, ccheader
-from .snapshot import AnalyzeSnapshot
+from .snapshot import AnalyzeSnapshot, ProcessingState
 
 if TYPE_CHECKING:
     from .fragment import _Fragment
@@ -68,25 +67,24 @@ class SubcommandPattern:
 
     @property
     def root_ref(self):
-        return (PointerRole.SUBCOMMAND, self.header),
+        return [self.header]
 
-    def create_snapshot(self, ref: PointerData):
-        root_ref = self.root_ref
-        snapshot = AnalyzeSnapshot(main_ref=self.root_ref, alter_ref=ref, traverses={root_ref: self})
-        snapshot.mix.update(root_ref, self.preset)
+    def create_snapshot(self, state: ProcessingState = ProcessingState.COMMAND):
+        snapshot = AnalyzeSnapshot(command=[self.header], state=state, traverses={(self.header,): self})
+        snapshot.mix.update((self.header,), self.preset)
         return snapshot
 
     @property
     def root_entrypoint(self):
-        return self.create_snapshot(self.root_ref)
+        return self.create_snapshot()
 
     @property
     def prefix_entrypoint(self):
-        return self.create_snapshot(self.root_ref + ccprefix)
+        return self.create_snapshot(ProcessingState.PREFIX)
 
     @property
     def header_entrypoint(self):
-        return self.create_snapshot(self.root_ref + ccheader)
+        return self.create_snapshot(ProcessingState.HEADER)
 
     def add_track(self, name: str, fragments: tuple[_Fragment, ...], header: _Fragment | None = None):
         assert_fragments_order(fragments)
