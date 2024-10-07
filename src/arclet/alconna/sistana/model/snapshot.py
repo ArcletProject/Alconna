@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 from .mix import Mix
 
 if TYPE_CHECKING:
+    from elaina_segment import Buffer
+
     from .pattern import OptionPattern, SubcommandPattern
 
 
@@ -21,11 +23,9 @@ class AnalyzeSnapshot:
         "state",
         "command",
         "option",
-
         "traverses",
         "endpoint",
         "mix",
-
         "_pending_options",
         "_ref_cache_option",
     )
@@ -38,13 +38,13 @@ class AnalyzeSnapshot:
     endpoint: tuple[str, ...] | None
     mix: Mix
 
-    _pending_options: list[tuple[OptionPattern, tuple[str, ...], set[str]]]  # (pattern, owner, triggers)
+    _pending_options: list[tuple[OptionPattern, tuple[str, ...], set[str], str | None]]  # (pattern, owner, triggers, header-separator)
     _ref_cache_option: dict[tuple[tuple[str, ...], str], OptionPattern]
 
     def __init__(
         self,
         command: list[str],
-        traverses: dict[tuple[str], SubcommandPattern],
+        traverses: dict[tuple[str, ...], SubcommandPattern],
         state: ProcessingState = ProcessingState.COMMAND,
     ):
         self.command = command
@@ -55,7 +55,8 @@ class AnalyzeSnapshot:
         self.mix = Mix()
         self._pending_options = []
         self._ref_cache_option = {}
-        self.update_pending()
+
+        self.update(tuple(command), traverses[tuple(command)])
 
     @property
     def context(self):
@@ -65,6 +66,7 @@ class AnalyzeSnapshot:
         self.command.append(pattern.header)
         self.state = ProcessingState.COMMAND
         self.option = None
+
         key = tuple(self.command)
         self.traverses[key] = pattern
 
@@ -72,9 +74,7 @@ class AnalyzeSnapshot:
         track = self.mix.command_tracks[key]
         track.emit_header(self.mix, trigger)
 
-        self.pop_pendings()
-
-        self.update_pending()
+        self.update(key, pattern)
 
     def enter_option(self, trigger: str, owned_command: tuple[str, ...], option_keyword: str, pattern: OptionPattern):
         track = self.mix.option_tracks[owned_command, option_keyword]
@@ -102,7 +102,7 @@ class AnalyzeSnapshot:
         cond = self.mix.command_tracks[cmd].satisfied
         if cond:
             subcommand = self.context
-            for option, owner, _ in self._pending_options:
+            for option, owner, _, _ in self._pending_options:
                 if option.keyword in subcommand._exit_options and not self.mix.option_tracks[owner, option.keyword].satisfied:
                     return False
 
@@ -112,28 +112,21 @@ class AnalyzeSnapshot:
         self.state = ProcessingState.COMMAND
         self.endpoint = tuple(self.command)
 
-    def update_pending(self):
-        subcommand_ref = tuple(self.command)
-        subcommand_pattern = self.traverses[subcommand_ref]
-
-        self._pending_options.extend(
-            [
-                (option, subcommand_ref, {option.keyword, *option.aliases})
-                for option in subcommand_pattern._options
-            ]
-        )
-
-    def get_option(self, trigger: str):
-        for option, owner, triggers in self._pending_options:
-            if trigger in triggers:
-                return option, owner
-
-    def pop_pendings(self):
-        cmd = tuple(self.command)
-        exit_options = self.context._exit_options
+    def update(self, key: tuple[str, ...], pattern: SubcommandPattern):
+        exit_options = pattern._exit_options
 
         self._pending_options = [
-            (option, owner, triggers)
-            for option, owner, triggers in self._pending_options
-            if not (owner == cmd and option.keyword in exit_options)
-        ]
+            (option, owner, triggers, separators)
+            for option, owner, triggers, separators in self._pending_options
+            if not (owner == key and option.keyword in exit_options)
+        ] + [(option, key, {option.keyword, *option.aliases}, option.header_separators) for option in pattern._options]
+
+    def get_option(self, val: str):
+        for option, owner, triggers, separator in self._pending_options:
+            if val in triggers:
+                return option, owner, None
+
+            if separator is not None:
+                keyword, *tail = val.split(separator, 1)
+                if keyword in triggers:
+                    return option, owner, tail[0] if tail else None

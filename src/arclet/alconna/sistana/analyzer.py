@@ -115,7 +115,7 @@ class Analyzer(Generic[T]):
                             elif not subcommand.soft_keyword:
                                 return LoopflowExitReason.unsatisfied_switch_subcommand
                         elif (option_info := snapshot.get_option(token.val)) is not None:
-                            target_option, target_owner = option_info
+                            target_option, target_owner, tail = option_info
 
                             # = !(!stage_satisfied and soft_keyword)
                             # 我们希望当 !stage_satisfied 时，如果是 soft_keyword，则不进入 option enter；只有这种情况才需要进入 track process。
@@ -123,6 +123,10 @@ class Analyzer(Generic[T]):
                                 if not snapshot.enter_option(token.val, target_owner, target_option.keyword, target_option):
                                     return LoopflowExitReason.option_duplicated_prohibited
                                 token.apply()
+
+                                if tail is not None:
+                                    buffer.pushleft(tail)
+
                                 continue
 
                         # else: 进了 track process.
@@ -150,7 +154,7 @@ class Analyzer(Generic[T]):
                                     return LoopflowExitReason.unsatisfied_switch_subcommand
 
                         elif (option_info := snapshot.get_option(token.val)) is not None:
-                            target_option, target_owner = option_info
+                            target_option, target_owner, tail = option_info
 
                             if not current_track.satisfied:
                                 if not target_option.soft_keyword:
@@ -166,29 +170,13 @@ class Analyzer(Generic[T]):
                                         return LoopflowExitReason.option_duplicated_prohibited
 
                                     token.apply()
+
+                                    if tail is not None:
+                                        buffer.pushleft(tail)
+
                                     continue
+
                         # else: 进了 track process.
-
-                    # if context.separator_optbind is not None:
-                    #     # TODO: separator_optbind in snapshot-level
-
-                    #     opt_matched = False
-
-                    #     for opt_keyword, separators in context.separator_optbind.items():
-                    #         opt = context._options_bind[opt_keyword]
-
-                    #         keyword_part, *tail = token.val.split(separators, 1)
-                    #         if keyword_part == opt_keyword or keyword_part in opt.aliases:
-                    #             opt_matched = True
-                    #             token.apply()
-                    #             buffer.add_to_ahead(keyword_part)
-                    #             if tail:
-                    #                 buffer.pushleft(tail[0])
-
-                    #             break
-
-                    #     if opt_matched:
-                    #         continue
 
                     # if context._compact_keywords is not None:
                     #     # TODO: compact in snapshot-level
