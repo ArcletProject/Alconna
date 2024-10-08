@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING
 from .mix import Mix
 
 if TYPE_CHECKING:
-    from elaina_segment import Buffer
-
     from .pattern import OptionPattern, SubcommandPattern
 
 
@@ -86,6 +84,7 @@ class AnalyzeSnapshot:
 
         if track:
             track.reset()
+
             self.state = ProcessingState.OPTION
             self.option = owned_command, option_keyword
             self._ref_cache_option[self.option] = pattern

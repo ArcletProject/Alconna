@@ -102,79 +102,60 @@ class Analyzer(Generic[T]):
                 snapshot.state = ProcessingState.COMMAND
             else:
                 if isinstance(token.val, str):
-                    if state is ProcessingState.COMMAND:
-                        if token.val in context._subcommands_bind:
-                            subcommand = context._subcommands_bind[token.val]
+                    if token.val in context._subcommands_bind:
+                        subcommand = context._subcommands_bind[token.val]
+                        enter_forward = False
 
-                            if snapshot.stage_satisfied or not subcommand.satisfy_previous:
-                                token.apply()
-                                mix.complete()
-
-                                snapshot.enter_subcommand(token.val, subcommand)
-                                continue
-                            elif not subcommand.soft_keyword:
-                                return LoopflowExitReason.unsatisfied_switch_subcommand
-                        elif (option_info := snapshot.get_option(token.val)) is not None:
-                            target_option, target_owner, tail = option_info
-
-                            # = !(!stage_satisfied and soft_keyword)
-                            # 我们希望当 !stage_satisfied 时，如果是 soft_keyword，则不进入 option enter；只有这种情况才需要进入 track process。
-                            if not target_option.soft_keyword or snapshot.stage_satisfied:
-                                if not snapshot.enter_option(token.val, target_owner, target_option.keyword, target_option):
-                                    return LoopflowExitReason.option_duplicated_prohibited
-                                token.apply()
-
-                                if tail is not None:
-                                    buffer.pushleft(tail)
-
-                                continue
-
-                        # else: 进了 track process.
-                    elif state is ProcessingState.OPTION:
-                        owner, keyword = snapshot.option  # type: ignore
-                        current_track = mix.option_tracks[snapshot.option]  # type: ignore
-
-                        if token.val in context._subcommands_bind:
-                            subcommand = context._subcommands_bind[token.val]
+                        if state is ProcessingState.OPTION:
+                            owner, keyword = snapshot.option  # type: ignore
+                            current_track = mix.option_tracks[owner, keyword]
 
                             if not current_track.satisfied:
                                 if not subcommand.soft_keyword:
                                     mix.option_tracks[owner, keyword].reset()
                                     return LoopflowExitReason.switch_unsatisfied_option
+                                else:
+                                    enter_forward = True
                             else:
                                 current_track.complete(mix)
 
-                                if snapshot.stage_satisfied or not subcommand.satisfy_previous:
-                                    token.apply()
-                                    mix.complete()
+                        if not enter_forward and snapshot.stage_satisfied or not subcommand.enter_instantly:
+                            token.apply()
+                            mix.complete()
 
-                                    snapshot.enter_subcommand(token.val, subcommand)
-                                    continue
-                                elif not subcommand.soft_keyword:  # and not snapshot.stage_satisfied
-                                    return LoopflowExitReason.unsatisfied_switch_subcommand
+                            snapshot.enter_subcommand(token.val, subcommand)
+                            continue
+                        elif not subcommand.soft_keyword:
+                            return LoopflowExitReason.unsatisfied_switch_subcommand
 
-                        elif (option_info := snapshot.get_option(token.val)) is not None:
-                            target_option, target_owner, tail = option_info
+                    elif (option_info := snapshot.get_option(token.val)) is not None:
+                        target_option, target_owner, tail = option_info
+                        enter_forward = False
+
+                        if state is ProcessingState.OPTION:
+                            owner, keyword = snapshot.option  # type: ignore
+                            current_track = mix.option_tracks[owner, keyword]
 
                             if not current_track.satisfied:
                                 if not target_option.soft_keyword:
                                     mix.option_tracks[target_owner, target_option.keyword].reset()
                                     return LoopflowExitReason.previous_unsatisfied
+                                else:
+                                    enter_forward = True
                             else:
                                 current_track.complete(mix)
                                 snapshot.state = ProcessingState.COMMAND
 
-                                if not target_option.soft_keyword or snapshot.stage_satisfied:
-                                    # 这里的逻辑基本上和上面的一致。
-                                    if not snapshot.enter_option(token.val, target_owner, target_option.keyword, target_option):
-                                        return LoopflowExitReason.option_duplicated_prohibited
+                        if not enter_forward and (not target_option.soft_keyword or snapshot.stage_satisfied):
+                            if not snapshot.enter_option(token.val, target_owner, target_option.keyword, target_option):
+                                return LoopflowExitReason.option_duplicated_prohibited
 
-                                    token.apply()
+                            token.apply()
 
-                                    if tail is not None:
-                                        buffer.pushleft(tail)
+                            if tail is not None:
+                                buffer.pushleft(tail)
 
-                                    continue
+                            continue
 
                         # else: 进了 track process.
 

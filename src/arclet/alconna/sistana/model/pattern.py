@@ -26,9 +26,8 @@ class SubcommandPattern:
 
     prefixes: TrieHard | None = field(default=None)
     compact_header: bool = False
-    satisfy_previous: bool = True
+    enter_instantly: bool = True
     header_fragment: _Fragment | None = None
-    separator_optbind: dict[str, str] | None = None  # opt_keyword -> header_separators
 
     _options: list[OptionPattern] = field(default_factory=list)
     _compact_keywords: TrieHard | None = field(default=None)
@@ -44,7 +43,7 @@ class SubcommandPattern:
         *fragments: _Fragment,
         prefixes: Iterable[str] = (),
         compact_header: bool = False,
-        satisfy_previous: bool = True,
+        enter_instantly: bool = True,
         separators: str = SEPARATORS,
         soft_keyword: bool = False,
         header_fragment: _Fragment | None = None,
@@ -54,7 +53,7 @@ class SubcommandPattern:
             header=header,
             preset=preset,
             compact_header=compact_header,
-            satisfy_previous=satisfy_previous,
+            enter_instantly=enter_instantly,
             separators=separators,
             soft_keyword=soft_keyword,
             header_fragment=header_fragment,
@@ -103,7 +102,7 @@ class SubcommandPattern:
         separators: str = SEPARATORS,
         compact_header: bool = False,
         compact_aliases: bool = False,
-        satisfy_previous: bool = True,
+        enter_instantly: bool = True,
         header_fragment: _Fragment | None = None,
     ):
         preset = Preset(Track(fragments, header=header_fragment), {})
@@ -113,7 +112,7 @@ class SubcommandPattern:
             soft_keyword=soft_keyword,
             separators=separators,
             compact_header=compact_header,
-            satisfy_previous=satisfy_previous,
+            enter_instantly=enter_instantly,
             header_fragment=header_fragment,
         )
         self._subcommands_bind[header] = pattern
