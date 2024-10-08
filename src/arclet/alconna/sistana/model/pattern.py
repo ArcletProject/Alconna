@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Iterable, MutableMapping
 
 from elaina_segment import SEPARATORS
-from elaina_triehard import TrieHard
+from tarina.trie import CharTrie, Trie
 
 from arclet.alconna._dcls import safe_dcls_kw
 
@@ -24,13 +24,13 @@ class SubcommandPattern:
     soft_keyword: bool = False
     separators: str = SEPARATORS
 
-    prefixes: TrieHard | None = field(default=None)
+    prefixes: Trie[str] | None = field(default=None)
     compact_header: bool = False
     enter_instantly: bool = True
     header_fragment: _Fragment | None = None
 
     _options: list[OptionPattern] = field(default_factory=list)
-    _compact_keywords: TrieHard | None = field(default=None)
+    _compact_keywords: Trie[str] | None = field(default=None)
     _exit_options: list[str] = field(default_factory=list)
 
     _options_bind: MutableMapping[str, OptionPattern] = field(default_factory=dict)
@@ -60,7 +60,7 @@ class SubcommandPattern:
         )
 
         if prefixes:
-            subcommand.prefixes = TrieHard(list(prefixes))
+            subcommand.prefixes = CharTrie.fromkeys(list(prefixes))  # type: ignore
 
         return subcommand
 
@@ -120,7 +120,8 @@ class SubcommandPattern:
             self._subcommands_bind[alias] = pattern
 
         if compact_header:
-            self._compact_keywords = TrieHard([header, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])])
+            # self._compact_keywords = TrieHard([header, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])])
+            self._compact_keywords = CharTrie.fromkeys([header, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])])  # type: ignore
 
         return pattern
 
@@ -152,6 +153,7 @@ class SubcommandPattern:
             soft_keyword=soft_keyword,
             header_fragment=header_fragment,
             header_separators=header_separators,
+            compact_header=compact_header,
         )
         for alias in aliases:
             self._options_bind[alias] = pattern
@@ -161,9 +163,6 @@ class SubcommandPattern:
 
         if not forwarding:
             self._exit_options.append(keyword)
-
-        if compact_header:
-            self._compact_keywords = TrieHard([keyword, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])])
 
         if header_separators:
             if not fragments:
@@ -187,3 +186,4 @@ class OptionPattern:
     allow_duplicate: bool = False
     header_fragment: _Fragment | None = None
     header_separators: str | None = None
+    compact_header: bool = False

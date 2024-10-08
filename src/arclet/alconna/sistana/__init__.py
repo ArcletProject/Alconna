@@ -7,7 +7,6 @@ from elaina_segment import Runes as Runes
 from elaina_segment import Segment as Segment
 from elaina_segment import SegmentToken as SegmentToken
 from elaina_segment import UnmatchedQuoted as UnmatchedQuoted
-from elaina_triehard import TrieHard as TrieHard
 
 from .analyzer import Analyzer as Analyzer
 from .analyzer import LoopflowExitReason as LoopflowExitReason

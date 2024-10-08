@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 
 from .mix import Mix
 
+from tarina.trie import CharTrie, Trie
+
 if TYPE_CHECKING:
     from .pattern import OptionPattern, SubcommandPattern
 
@@ -36,7 +38,9 @@ class AnalyzeSnapshot:
     endpoint: tuple[str, ...] | None
     mix: Mix
 
-    _pending_options: list[tuple[OptionPattern, tuple[str, ...], set[str], str | None]]  # (pattern, owner, triggers, header-separator)
+    _pending_options: list[
+        tuple[OptionPattern, tuple[str, ...], set[str] | Trie[str], str | None]
+    ]  # (pattern, owner, triggers, header-separator)
     _ref_cache_option: dict[tuple[tuple[str, ...], str], OptionPattern]
 
     def __init__(
@@ -118,11 +122,30 @@ class AnalyzeSnapshot:
             (option, owner, triggers, separators)
             for option, owner, triggers, separators in self._pending_options
             if not (owner == key and option.keyword in exit_options)
-        ] + [(option, key, {option.keyword, *option.aliases}, option.header_separators) for option in pattern._options]
+        ] + [
+            (option, key, CharTrie.fromkeys([option.keyword, *option.aliases]), option.header_separators)  # type: ignore
+            if option.compact_header
+            else (option, key, {option.keyword, *option.aliases}, option.header_separators)
+            for option in pattern._options
+        ]
+
+    def get_subcommand(self, context: SubcommandPattern, val: str):
+        if val in context._subcommands_bind:
+            return context._subcommands_bind[val], None
+        
+        if context._compact_keywords is not None:
+            prefix = context._compact_keywords.longest_prefix(val).key
+            if prefix is not None:
+                return context._subcommands_bind[prefix], val[len(prefix) :]
+
 
     def get_option(self, val: str):
         for option, owner, triggers, separator in self._pending_options:
-            if val in triggers:
+            if option.compact_header:
+                prefix = triggers.longest_prefix(val).key  # type: ignore
+                if prefix is not None:
+                    return option, owner, val[len(prefix) :]
+            elif val in triggers:
                 return option, owner, None
 
             if separator is not None:

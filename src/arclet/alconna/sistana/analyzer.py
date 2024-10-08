@@ -72,8 +72,8 @@ class Analyzer(Generic[T]):
                         return LoopflowExitReason.header_expect_str
 
                     if context.prefixes is not None:
-                        prefix = context.prefixes.get_closest_prefix(buffer.first())  # type: ignore
-                        if prefix == "":
+                        prefix = context.prefixes.longest_prefix(buffer.first()).key  # type: ignore
+                        if prefix is None:
                             return LoopflowExitReason.prefix_mismatch
 
                         token.apply()
@@ -102,8 +102,8 @@ class Analyzer(Generic[T]):
                 snapshot.state = ProcessingState.COMMAND
             else:
                 if isinstance(token.val, str):
-                    if token.val in context._subcommands_bind:
-                        subcommand = context._subcommands_bind[token.val]
+                    if (subcommand_info := snapshot.get_subcommand(context, token.val)) is not None:
+                        subcommand, tail = subcommand_info
                         enter_forward = False
 
                         if state is ProcessingState.OPTION:
@@ -122,6 +122,9 @@ class Analyzer(Generic[T]):
                         if not enter_forward and snapshot.stage_satisfied or not subcommand.enter_instantly:
                             token.apply()
                             mix.complete()
+
+                            if tail is not None:
+                                buffer.pushleft(tail)
 
                             snapshot.enter_subcommand(token.val, subcommand)
                             continue
@@ -157,39 +160,6 @@ class Analyzer(Generic[T]):
 
                             continue
 
-                        # else: 进了 track process.
-
-                    # if context._compact_keywords is not None:
-                    #     # TODO: compact in snapshot-level
-
-                    #     prefix = context._compact_keywords.get_closest_prefix(token.val)
-                    #     if prefix:
-                    #         redirect = False
-
-                    #         if prefix in context._subcommands_bind:
-                    #             # 老样子，需要 satisfied 才能进 subcommand，不然就进 track forward 流程。
-                    #             redirect = snapshot.stage_satisfied or not context._subcommands_bind[prefix].satisfy_previous
-                    #         elif pointer_type is PointerRole.SUBCOMMAND and prefix in context._options_bind:
-                    #             # NOTE: 这里其实有个有趣的点需要提及：pattern 中的 subcommands, options 和这里的 compacts 都是多对一的关系，
-                    #             # 所以如果要取 track 之类的，就需要先绕个路，因为数据结构上的主索引总是采用的 node 上的单个 keyword。
-                    #             opt = context._options_bind[prefix]
-                    #             track = mix.tracks[current.option(opt.keyword)]
-
-                    #             redirect = track.assignable or opt.allow_duplicate
-                    #             # 这也排除了没有 fragments 设定的情况，因为这里 token.val 是形如 "-xxx11112222"，已经传了一个 fragment 进去。
-                    #             # 但这里有个有趣的例子，比如说我们有 `-v -vv`，这里 v 是一个 duplicate，而 duplicate 仍然可以重入并继续分配，而其 assignable 则成为无关变量。
-                    #             # 还有一个有趣的例子：如果一个 duplicate 的 option，他具备有几个 default=Value(...) 的 fragment，则多次触发会怎么样？
-
-                    #         # else: 你是不是手动构造了 TrieHard？
-                    #         # 由于默认 redirect 是 False，所以这里不会准许跳转。
-
-                    #         if redirect:
-                    #             token.apply()
-                    #             prefix_len = len(prefix)
-                    #             buffer.add_to_ahead(token.val[:prefix_len])
-                    #             buffer.pushleft(token.val[prefix_len:])
-                    #             continue
-                    #         # else: 进了 track process.
 
                 if state is ProcessingState.COMMAND:
                     track = mix.command_tracks[tuple(snapshot.command)]
