@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Iterable, MutableMapping
 
 from elaina_segment import SEPARATORS
@@ -187,3 +188,10 @@ class OptionPattern:
     header_fragment: _Fragment | None = None
     header_separators: str | None = None
     compact_header: bool = False
+
+    @cached_property
+    def _trigger(self):
+        if self.compact_header:
+            return CharTrie.fromkeys([self.keyword, *self.aliases])
+        
+        return {self.keyword, *self.aliases}

@@ -160,7 +160,6 @@ class Analyzer(Generic[T]):
 
                             continue
 
-
                 if state is ProcessingState.COMMAND:
                     track = mix.command_tracks[tuple(snapshot.command)]
 

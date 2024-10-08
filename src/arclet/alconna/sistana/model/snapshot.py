@@ -123,9 +123,7 @@ class AnalyzeSnapshot:
             for option, owner, triggers, separators in self._pending_options
             if not (owner == key and option.keyword in exit_options)
         ] + [
-            (option, key, CharTrie.fromkeys([option.keyword, *option.aliases]), option.header_separators)  # type: ignore
-            if option.compact_header
-            else (option, key, {option.keyword, *option.aliases}, option.header_separators)
+            (option, key, option._trigger, option.header_separators)  # type: ignore
             for option in pattern._options
         ]
 
@@ -137,7 +135,6 @@ class AnalyzeSnapshot:
             prefix = context._compact_keywords.longest_prefix(val).key
             if prefix is not None:
                 return context._subcommands_bind[prefix], val[len(prefix) :]
-
 
     def get_option(self, val: str):
         for option, owner, triggers, separator in self._pending_options:
