@@ -122,7 +122,9 @@ class SubcommandPattern:
 
         if compact_header:
             # self._compact_keywords = TrieHard([header, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])])
-            self._compact_keywords = CharTrie.fromkeys([header, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])])  # type: ignore
+            self._compact_keywords = CharTrie.fromkeys(
+                [header, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])]
+            )  # type: ignore
 
         return pattern
 
@@ -165,19 +167,13 @@ class SubcommandPattern:
         if not forwarding:
             self._exit_options.append(keyword)
 
-        if header_separators:
-            if not fragments:
-                raise ValueError("header_separators must be used with fragments")
-
-            if self.separator_optbind is None:
-                self.separator_optbind = {keyword: header_separators}
-            else:
-                self.separator_optbind[keyword] = header_separators
+        if header_separators and not fragments:
+            raise ValueError("header_separators must be used with fragments")
 
         return self
 
 
-@dataclass(**safe_dcls_kw(slots=True))
+@dataclass
 class OptionPattern:
     keyword: str
     aliases: list[str] = field(default_factory=list)
@@ -193,5 +189,5 @@ class OptionPattern:
     def _trigger(self):
         if self.compact_header:
             return CharTrie.fromkeys([self.keyword, *self.aliases])
-        
+
         return {self.keyword, *self.aliases}
