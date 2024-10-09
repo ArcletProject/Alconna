@@ -28,7 +28,7 @@ class Track:
 
     @property
     def satisfied(self):
-        return self.cursor >= self.max_length or self.fragments[0].default is not None or self.fragments[0].variadic
+        return self.cursor >= self.max_length or self.fragments[self.cursor].default is not None or self.fragments[self.cursor].variadic
 
     def complete(self, mix: Mix):
         if self.cursor >= self.max_length:
@@ -198,7 +198,7 @@ class Mix:
         for track in self.command_tracks.values():
             if not track.satisfied:
                 return False
-        
+
         for track in self.option_tracks.values():
             if not track.satisfied:
                 return False
