@@ -31,6 +31,9 @@ class Track:
         return self.cursor >= self.max_length or self.fragments[self.cursor].default is not None or self.fragments[self.cursor].variadic
 
     def complete(self, mix: Mix):
+        if self.header is not None and self.header.name not in mix.assignes and self.header.default is not None:
+            mix.assignes[self.header.name] = self.header.default.value
+
         if self.cursor >= self.max_length:
             return
 
@@ -38,12 +41,9 @@ class Track:
             if frag.name not in mix.assignes and frag.default is not None:
                 mix.assignes[frag.name] = frag.default.value
 
-        if self.header is not None and self.header.name not in mix.assignes and self.header.default is not None:
-            mix.assignes[self.header.name] = self.header.default.value
-
-        first = self.fragments[-1]
-        if first.variadic and first.name not in mix.assignes:
-            mix.assignes[first.name] = []
+        last = self.fragments[-1]
+        if last.variadic and last.name not in mix.assignes:
+            mix.assignes[last.name] = []
 
     def fetch(
         self,
