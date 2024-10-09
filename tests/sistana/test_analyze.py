@@ -4,6 +4,8 @@ from elaina_segment import Buffer
 
 from arclet.alconna.sistana import Fragment, SubcommandPattern
 from arclet.alconna.sistana.analyzer import LoopflowExitReason
+from arclet.alconna.sistana.model.receiver import CountRx, Rx
+from arclet.alconna.sistana.some import Value
 
 from .asserts import analyze
 
@@ -47,13 +49,14 @@ def test_analyze_slots():
     bf.expect_empty()
 
     sn.expect_determined(False)
-    
+
     track_test = sn.mix["test",]
     track_test.expect_emitted()
     track_test.expect_satisfied(False)
 
     frag_name = track_test["name"]
     frag_name.expect_assigned(False)
+
 
 def test_analyze_option():
     pattern = SubcommandPattern.build("test")
@@ -99,6 +102,7 @@ def test_analyze_option():
 
     frag_name = track_opt_name["name"]
     frag_name.expect_assigned(False)
+
 
 def test_analyze_option_unsatisfied():
     pattern = SubcommandPattern.build("test")
@@ -279,7 +283,7 @@ def test_compact_header():
 def test_subcommand():
     lp = SubcommandPattern.build("lp")
     lp_user = lp.subcommand("user", Fragment("name"))
-    lp_user_permission = lp_user.subcommand("permission", Fragment("permission"))
+    lp_user.subcommand("permission", Fragment("permission"))
 
     a, sn, bf = analyze(
         lp,
@@ -319,7 +323,7 @@ def test_subcommand():
 
     lp = SubcommandPattern.build("lp")
     lp_user = lp.subcommand("user", Fragment("name"))
-    lp_user_permission = lp_user.subcommand("permission", Fragment("permission"), soft_keyword=True)
+    lp_user.subcommand("permission", Fragment("permission"), soft_keyword=True)
 
     a, sn, bf = analyze(
         lp,
@@ -490,6 +494,7 @@ def test_unexpected_segment():
     frag_name.expect_assigned()
     frag_name.expect_value("alice")
 
+
 def test_determined_and_exit():
     pattern = SubcommandPattern.build("test", Fragment("name"))
 
@@ -500,3 +505,118 @@ def test_determined_and_exit():
     )
     a.expect_completed()
     bf.expect_non_empty()
+
+
+def test_header_separator():
+    pattern = SubcommandPattern.build("test")
+    pattern.option("--name", Fragment("name"), header_separators="=")
+
+    a, sn, bf = analyze(
+        pattern,
+        Buffer(["test --name=alice"]),
+    )
+    a.expect_completed()
+    bf.expect_empty()
+
+    track_name = sn.mix[("test",), "--name"]
+    frag_name = track_name["name"]
+    frag_name.expect_assigned()
+    frag_name.expect_value("alice")
+
+
+def test_stage_unsatisfied():
+    pattern = SubcommandPattern.build("test")
+    pattern.option("--name", Fragment("name"), forwarding=False)
+    pattern.subcommand("add", Fragment("tail"))
+
+    a, sn, bf = analyze(
+        pattern,
+        Buffer(["test add 111"]),
+    )
+    a.expect(LoopflowExitReason.unsatisfied_switch_subcommand)
+    bf.expect_empty()
+
+
+def test_header_fragment():
+    class LengthRx(Rx):
+        def receive(self, fetch, prev, put) -> None:
+            le = len(fetch())
+            n = prev()
+            if n is not None:
+                n = n.value
+            else:
+                n = 0
+
+            put(le + n)
+
+    pat = SubcommandPattern.build("test")
+    pat.option(
+        "-t",
+        Fragment(
+            "verbose_level",
+            receiver=LengthRx(),
+            default=Value(0),
+        ),
+        header_fragment=Fragment(
+            "verbose_level",
+            default=Value(0),
+            receiver=CountRx(),
+        ),
+        allow_duplicate=True,
+        compact_header=True,
+    )
+
+    a, sn, bf = analyze(
+        pat,
+        Buffer(["test -t"]),  # verbose_level = 1
+    )
+    a.expect_completed()
+    bf.expect_empty()
+
+    frag_verbose_level = sn.mix[("test",), "-t"]["verbose_level"]
+    frag_verbose_level.expect_assigned()
+    frag_verbose_level.expect_value(1)
+
+    a, sn, bf = analyze(
+        pat,
+        Buffer(["test -t -t"]),
+    )
+    a.expect_completed()
+    bf.expect_empty()
+
+    frag_verbose_level = sn.mix[("test",), "-t"]["verbose_level"]
+    frag_verbose_level.expect_assigned()
+    frag_verbose_level.expect_value(2)
+
+    a, sn, bf = analyze(
+        pat,
+        Buffer(["test -tt"]),
+    )
+    a.expect_completed()
+    bf.expect_empty()
+
+    frag_verbose_level = sn.mix[("test",), "-t"]["verbose_level"]
+    frag_verbose_level.expect_assigned()
+    frag_verbose_level.expect_value(2)
+
+    a, sn, bf = analyze(
+        pat,
+        Buffer(["test -t -tt"]),
+    )
+    a.expect_completed()
+    bf.expect_empty()
+
+    frag_verbose_level = sn.mix[("test",), "-t"]["verbose_level"]
+    frag_verbose_level.expect_assigned()
+    frag_verbose_level.expect_value(3)
+
+    a, sn, bf = analyze(
+        pat,
+        Buffer(["test -tttttttttttttttttttt"]),
+    )
+    a.expect_completed()
+    bf.expect_empty()
+
+    frag_verbose_level = sn.mix[("test",), "-t"]["verbose_level"]
+    frag_verbose_level.expect_assigned()
+    frag_verbose_level.expect_value(20)

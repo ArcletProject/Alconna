@@ -130,16 +130,26 @@ class TrackTest:
     def expect_satisfied(self, expected: bool = True):
         assert self.track.satisfied == expected
 
+    def expect_assignable(self, expected: bool = False):
+        assert self.track.assignable == expected
+
     def get_fragment(self, name: str):
         for fragment in self.track.fragments:
             if fragment.name == name:
                 return fragment
-        
+
     def __getitem__(self, index: str):
         frag = self.get_fragment(index)
         if frag is None:
             raise ValueError(f"Fragment {index} not found in track {self.track}")
         return FragmentTest(self.mix, self.track, frag)
+
+    @property
+    def header(self):
+        if self.track.header is None:
+            raise ValueError(f"Track {self.track} has no header")
+
+        return FragmentTest(self.mix, self.track, self.track.header)
 
 @dataclass
 class FragmentTest:
