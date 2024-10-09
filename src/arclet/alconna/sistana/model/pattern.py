@@ -91,9 +91,6 @@ class SubcommandPattern:
 
         self.preset.option_tracks[name] = Track(fragments, header=header)
 
-    def _opt_alias_to_keyword(self, alias: str):
-        return self._options_bind[alias].keyword
-
     def subcommand(
         self,
         header: str,
