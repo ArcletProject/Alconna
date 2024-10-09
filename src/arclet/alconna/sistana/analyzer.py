@@ -45,9 +45,6 @@ class Analyzer(Generic[T]):
         mix = snapshot.mix
 
         while True:
-            if self.complete_on_determined and snapshot.endpoint is not None and snapshot.stage_satisfied:
-                return LoopflowExitReason.completed
-
             state = snapshot.state
             context = snapshot.context
 
@@ -174,6 +171,11 @@ class Analyzer(Generic[T]):
                         raise ParsePanic from e
                     else:
                         if response is None:
+                            if self.complete_on_determined and mix.satisfied:
+                                mix.complete()
+                                snapshot.determine()
+                                return LoopflowExitReason.completed
+
                             # track 上没有 fragments 可供分配了，此时又没有再流转到其他 traverse
                             return LoopflowExitReason.unexpected_segment
                 else:
