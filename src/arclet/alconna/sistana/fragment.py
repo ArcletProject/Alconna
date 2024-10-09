@@ -13,6 +13,7 @@ from .some import Some
 if TYPE_CHECKING:
     from nepattern import BasePattern
 
+
 @dataclass(**safe_dcls_kw(slots=True))
 class Fragment(_Fragment):
     type: Some[Any] = None
@@ -50,8 +51,9 @@ class Fragment(_Fragment):
             return True
 
         self.validator = _validate
-    
+
         if self.cast:
+
             def _transform(v: Segment):
                 return convert(str(v), t)
 
@@ -75,6 +77,7 @@ class Fragment(_Fragment):
             else:
                 self.capture = RegexCapture(pat.alias)  # type: ignore
         else:
+
             def _validate(v: Segment):
                 if isinstance(v, (Quoted, UnmatchedQuoted)):
                     if isinstance(v.ref, str):
@@ -87,6 +90,7 @@ class Fragment(_Fragment):
             self.validator = _validate
 
         if self.cast:
+
             def _transform(v: Segment):
                 return pat.validate(str(v)).value()
 

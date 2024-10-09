@@ -42,5 +42,5 @@ def assert_fragments_order(fragments: Iterable[_Fragment]):
         if frag.variadic:
             if frag.default is not None:
                 raise ValueError("A variadic fragment cannot have a default value.")
-    
+
             variadic_exists = True

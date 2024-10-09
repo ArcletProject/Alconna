@@ -130,7 +130,7 @@ class AnalyzeSnapshot:
     def get_subcommand(self, context: SubcommandPattern, val: str):
         if val in context._subcommands_bind:
             return context._subcommands_bind[val], None
-        
+
         if context._compact_keywords is not None:
             prefix = context._compact_keywords.longest_prefix(val).key
             if prefix is not None:
