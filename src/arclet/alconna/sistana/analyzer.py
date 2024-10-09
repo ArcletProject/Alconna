@@ -20,7 +20,7 @@ class LoopflowExitReason(str, Enum):
     out_of_data_subcommand = "continuation@subcommand#out-of-data"
     out_of_data_option = "continuation@subcommand#out-of-data"
     previous_unsatisfied = "continuation@option-switch#previous-unsatisfied"
-    switch_unsatisfied_option = "continuation@option-switch#unsatisfied"
+    unsatisfied_switch_option = "continuation@option-switch#unsatisfied"
     unsatisfied_switch_subcommand = "continuation@subcommand-switch#unsatisfied"
 
     prefix_expect_str = "panic@prefix-match#expect-str"
@@ -113,7 +113,7 @@ class Analyzer(Generic[T]):
                             if not current_track.satisfied:
                                 if not subcommand.soft_keyword:
                                     mix.option_tracks[owner, keyword].reset()
-                                    return LoopflowExitReason.switch_unsatisfied_option
+                                    return LoopflowExitReason.unsatisfied_switch_option
                                 else:
                                     enter_forward = True
                             else:
