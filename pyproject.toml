@@ -12,8 +12,8 @@ dependencies = [
     "typing-extensions>=4.5.0",
     "nepattern<1.0.0,>=0.7.6",
     "tarina>=0.5.8",
-    "elaina-segment>=0.3.2",
-    "elaina-triehard>=0.1.2",
+    "elaina-segment>=0.4.0",
+    "elaina-flywheel>=0.6.0",
 ]
 dynamic = ["version"]
 requires-python = ">=3.9"
