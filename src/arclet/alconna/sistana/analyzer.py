@@ -69,7 +69,7 @@ class Analyzer(Generic[T]):
             if state is ProcessingState.PREFIX:
                 if context.prefixes is not None:
                     if not isinstance(token.val, str):
-                        return LoopflowExitReason.header_expect_str
+                        return LoopflowExitReason.prefix_expect_str
 
                     if context.prefixes is not None:
                         prefix = context.prefixes.longest_prefix(buffer.first()).key  # type: ignore
