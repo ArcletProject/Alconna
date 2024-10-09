@@ -65,10 +65,11 @@ class BufferTest:
             self.buffer.next("")
     
     def expect_non_empty(self):
+        v = None
         with suppress(OutOfData):
-            return self.buffer.next("")
-
-        assert False
+            v = self.buffer.next()
+        
+        assert v is not None
 
     def expect_ahead(self):
         token = self.buffer.next("")
