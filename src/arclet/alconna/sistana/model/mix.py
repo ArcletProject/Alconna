@@ -198,6 +198,10 @@ class Mix:
         for track in self.command_tracks.values():
             if not track.satisfied:
                 return False
+        
+        for track in self.option_tracks.values():
+            if not track.satisfied:
+                return False
 
         return True
 
