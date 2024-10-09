@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from dataclasses import dataclass
 from elaina_segment import Segment, Quoted, UnmatchedQuoted
 
@@ -17,6 +17,16 @@ if TYPE_CHECKING:
 class Fragment(_Fragment):
     type: Some[Any] = None
     cast: bool = True
+    prefer_checker: Literal["msgspec", "nepattern"] = "nepattern"
+
+    def __post_init__(self):
+        if self.type is not None:
+            if self.prefer_checker == "msgspec":
+                self.apply_msgspec()
+            elif self.prefer_checker == "nepattern":
+                self.apply_nepattern()
+            else:
+                raise ValueError("Invalid prefer_checker value.")
 
     def apply_msgspec(self):
         if self.type is None:

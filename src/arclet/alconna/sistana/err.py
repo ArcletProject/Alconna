@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import Any
 
 
 class ReasonableParseError(Exception): ...
@@ -22,7 +23,7 @@ class ValidateRejected(Rejected): ...
 @dataclass
 class UnexpectedType(CaptureRejected):
     expected: type | tuple[type, ...]
-    got: type
+    got: type | Any
 
     def __str__(self):
         return f"Expected {self.expected}, got {self.got}"

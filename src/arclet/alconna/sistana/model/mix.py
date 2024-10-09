@@ -172,6 +172,7 @@ class Preset:
         self.option_tracks = option_tracks
 
         assert_fragments_order(subcommand_track.fragments)
+
         for track in self.option_tracks.values():
             assert_fragments_order(track.fragments)
 
