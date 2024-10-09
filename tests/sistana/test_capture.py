@@ -6,10 +6,8 @@ import pytest
 from elaina_segment import Buffer
 
 from arclet.alconna.sistana import Fragment, SubcommandPattern
-from arclet.alconna.sistana.analyzer import LoopflowExitReason
 from arclet.alconna.sistana.err import RegexMismatch, UnexpectedType
 from arclet.alconna.sistana.model.capture import ObjectCapture, PlainCapture, RegexCapture
-from arclet.alconna.sistana.some import Value
 
 from .asserts import analyze
 

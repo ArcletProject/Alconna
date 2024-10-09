@@ -3,9 +3,7 @@ from __future__ import annotations
 from elaina_segment import Buffer
 
 from arclet.alconna.sistana import Fragment, SubcommandPattern
-from arclet.alconna.sistana.analyzer import LoopflowExitReason
-from arclet.alconna.sistana.model.receiver import AccumRx, ConstRx, CountRx, Rx
-from arclet.alconna.sistana.some import Value
+from arclet.alconna.sistana.model.receiver import AccumRx, ConstRx, CountRx
 
 from .asserts import analyze
 
