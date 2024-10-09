@@ -121,7 +121,6 @@ class SubcommandPattern:
             self._subcommands_bind[alias] = pattern
 
         if compact_header:
-            # self._compact_keywords = TrieHard([header, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])])
             self._compact_keywords = CharTrie.fromkeys(
                 [header, *aliases, *(self._compact_keywords or []), *(aliases if compact_aliases else [])]
             )  # type: ignore
@@ -138,7 +137,6 @@ class SubcommandPattern:
         soft_keyword: bool = False,
         allow_duplicate: bool = False,
         compact_header: bool = False,
-        compact_aliases: bool = False,
         header_fragment: _Fragment | None = None,
         header_separators: str | None = None,
         forwarding: bool = True,
