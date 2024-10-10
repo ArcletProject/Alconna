@@ -138,7 +138,7 @@ skip_gitignore = true
 extra_standard_library = ["typing_extensions"]
 
 [tool.pyright]
-pythonVersion = "3.8"
+pythonVersion = "3.9"
 pythonPlatform = "All"
 typeCheckingMode = "basic"
 disableBytesTypePromotions = true
