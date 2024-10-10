@@ -31,7 +31,7 @@ class Fragment(_Fragment):
 
     def apply_msgspec(self):
         if self.type is None:
-            return
+            return self
 
         t = self.type.value
 
@@ -58,40 +58,38 @@ class Fragment(_Fragment):
                 return convert(str(v), t)
 
             self.transformer = _transform
+        
+        return self
 
     def apply_nepattern(self, pat: BasePattern | None = None, capture_mode: bool = False):
         if pat is None:
             if self.type is None:
-                return
+                return self
 
-            from nepattern import type_parser
+            from nepattern import BasePattern
 
-            pat = type_parser(self.type.value)
+            pat = BasePattern.to(self.type.value)
             assert pat is not None
 
-        from nepattern import MatchMode
+        def _validate(v: Segment):
+            if isinstance(v, (Quoted, UnmatchedQuoted)):
+                if isinstance(v.ref, str):
+                    v = str(v)
+                else:
+                    v = v.ref[0]
+            return pat.validate(v).success
 
-        if capture_mode:
-            if pat.mode in (MatchMode.REGEX_MATCH, MatchMode.REGEX_CONVERT):
-                self.capture = RegexCapture(pat.regex_pattern)
-            else:
-                self.capture = RegexCapture(pat.alias)  # type: ignore
-        else:
+        self.validator = _validate
+        if self.cast:
+            def _transform(v: Segment):
 
-            def _validate(v: Segment):
                 if isinstance(v, (Quoted, UnmatchedQuoted)):
                     if isinstance(v.ref, str):
                         v = str(v)
                     else:
-                        v = v.ref
+                        v = v.ref[0]
 
-                return pat.validate(v).success
-
-            self.validator = _validate
-
-        if self.cast:
-
-            def _transform(v: Segment):
-                return pat.validate(str(v)).value()
+                return pat.validate(v).value()
 
             self.transformer = _transform
+        return self
