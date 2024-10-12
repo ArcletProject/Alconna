@@ -3,24 +3,17 @@ from __future__ import annotations
 import dataclasses as dc
 import inspect
 import re
-import sys
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, List, Sequence, TypeVar, Union, cast
-from typing_extensions import Self
 
 from nepattern import ANY, NONE, AntiPattern, BasePattern, MatchMode, RawStr, UnionPattern, parser
 from tarina import Empty, get_signature, lang
+from typing_extensions import Self
 
 from .exceptions import InvalidArgs
-from .typing import TAValue, AllParam, KeyWordVar, KWBool, MultiKeyWordVar, MultiVar, UnpackVar
-
-
-def safe_dcls_kw(**kwargs):
-    if sys.version_info < (3, 10):  # pragma: no cover
-        kwargs.pop("slots")
-    return kwargs
-
+from .typing import AllParam, KeyWordVar, KWBool, MultiKeyWordVar, MultiVar, TAValue, UnpackVar
+from ._dcls import safe_dcls_kw
 
 _T = TypeVar("_T")
 
@@ -244,7 +237,7 @@ class Args(metaclass=ArgsMeta):
                 anno = type(de) if de not in {Empty, None} else ANY
             if param.kind == param.KEYWORD_ONLY:
                 if anno == bool:
-                    anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith('no'))  # noqa: E501
+                    anno = KWBool(f"(?:-*no)?-*{name}", MatchMode.REGEX_CONVERT, bool, lambda _, x: not x[0].lstrip("-").startswith("no"))  # noqa: E501
                 anno = KeyWordVar(anno, sep=kw_sep)
             if param.kind == param.VAR_POSITIONAL:
                 anno = MultiVar(anno, "*")

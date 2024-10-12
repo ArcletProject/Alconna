@@ -27,7 +27,7 @@ from typing_extensions import NotRequired, TypeAlias
 from tarina import generic_isinstance, lang
 from nepattern import BasePattern, MatchMode, parser, MatchFailed
 
-TPrefixes = Union[List[Union[str, object]], List[Tuple[object, str]]]
+TPrefixes = List[str]
 DataUnit = TypeVar("DataUnit", covariant=True)
 
 
