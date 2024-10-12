@@ -76,7 +76,7 @@ class Trace:
 
     head: TraceHead
     args: Args
-    separators: tuple[str, ...]
+    separators: str
     body: list[Option | Subcommand]
     shortcuts: dict[str, Any]
 

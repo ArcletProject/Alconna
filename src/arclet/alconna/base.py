@@ -57,7 +57,7 @@ class CommandNode:
     """命令节点默认值"""
     args: Args
     """命令节点参数"""
-    separators: tuple[str, ...]
+    separators: str
     """命令节点分隔符"""
     action: Action
     """命令节点响应动作"""
@@ -110,7 +110,7 @@ class CommandNode:
         self.default = default
         self.action = action or store
         _handle_default(self)
-        self.separators = (" ",) if separators is None else ((separators,) if isinstance(separators, str) else tuple(separators))  # noqa: E501
+        self.separators = " " if separators is None else "".join(separators)
         self.nargs = len(self.args.argument)
         self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + (self.name.lstrip("-") or self.name))  # noqa: E501
         self.dest = self.dest.lstrip("-") or self.dest
@@ -129,7 +129,7 @@ class CommandNode:
         Returns:
             Self: 命令节点本身
         """
-        self.separators = separator
+        self.separators = "".join(separator)
         self._hash = self._calc_hash()
         return self
 
@@ -212,9 +212,9 @@ class Option(CommandNode):
                 self.default.value = ...
             if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}):
                 self.default = OptionResult(args=defaults)
-        if self.separators == ("",):
+        if not self.separators:
             self.compact = True
-            self.separators = (" ",)
+            self.separators = " "
         self._hash = self._calc_hash()
 
     @overload

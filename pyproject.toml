@@ -11,7 +11,7 @@ authors = [
 dependencies = [
     "typing-extensions>=4.5.0",
     "nepattern<1.0.0,>=0.7.6",
-    "tarina>=0.5.8",
+    "tarina<0.7.0,>=0.6.1",
     "elaina-segment>=0.4.0",
     "elaina-flywheel>=0.6.0",
 ]
@@ -126,7 +126,7 @@ exclude_lines = [
 
 [tool.black]
 line-length = 120
-target-version = ["py38", "py39", "py310", "py311"]
+target-version = ["py39", "py310", "py311", "py312", "py313"]
 include = '\.pyi?$'
 extend-exclude = '''
 '''

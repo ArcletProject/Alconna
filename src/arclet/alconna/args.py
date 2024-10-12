@@ -79,7 +79,7 @@ class Arg(Generic[_T]):
     """参数单元的注释"""
     flag: set[ArgFlag] = dc.field(compare=False, hash=False, repr=False)
     """参数单元的标识"""
-    separators: tuple[str, ...] = dc.field(compare=False, hash=False)
+    separators: str = dc.field(compare=False, hash=False)
     """参数单元使用的分隔符"""
     optional: bool = dc.field(compare=False, hash=False)
     hidden: bool = dc.field(compare=False, hash=False)
@@ -117,7 +117,7 @@ class Arg(Generic[_T]):
         self.value = _value  # type: ignore
         self.field = default
         self.notice = notice
-        self.separators = (seps,) if isinstance(seps, str) else tuple(seps)
+        self.separators = seps if isinstance(seps, str) else "".join(seps)
         flags = flags or []
         if res := re.match(r"^(?P<name>.+?)#(?P<notice>[^;?!/#]+)", name):
             self.notice = res["notice"]
@@ -291,7 +291,7 @@ class Args(metaclass=ArgsMeta):
             Self: 参数集合自身
         """
         for arg in self.argument:
-            arg.separators = separator
+            arg.separators = "".join(separator)
         return self
 
     def __check_vars__(self):
