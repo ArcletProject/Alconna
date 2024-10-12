@@ -16,14 +16,6 @@ def test_single_args():
     assert node1.args == Args["bar", int]
 
 
-def test_node_requires():
-    node2 = CommandNode("foo", requires=["baz", "qux"])
-    assert node2.dest == "baz_qux_foo"
-    node2_1 = CommandNode("baz qux foo")
-    assert node2_1.name == "foo"
-    assert node2_1.requires == ["baz", "qux"]
-
-
 def test_option_aliases():
     opt = Option("test|T|t")
     assert opt.aliases == {"test", "T", "t"}
@@ -31,14 +23,6 @@ def test_option_aliases():
     assert opt_1.aliases == {"test", "T", "t"}
     assert opt == opt_1
     assert opt == Option("T|t|test")
-
-
-def test_option_requires():
-    opt1 = Option("foo bar test|T|t")
-    assert opt1.aliases == {"test", "T", "t"}
-    assert opt1.requires == ["foo", "bar"]
-    opt1_1 = Option("foo bar test| T | t")
-    assert opt1_1.aliases != {"test", "T", "t"}
 
 
 def test_separator():

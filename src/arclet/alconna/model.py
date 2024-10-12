@@ -8,27 +8,6 @@ _repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in 
 
 
 @dataclass(init=False, eq=True)
-class Sentence:
-    """句段
-
-    句段由 `Analyser` 编译而来, 代表选项或者子命令的需求前缀。
-
-    Attributes:
-        name (str): 句段名称
-    """
-
-    __slots__ = ("name",)
-    __str__ = lambda self: self.name  # type: ignore
-    __repr__ = lambda self: self.name  # type: ignore
-
-    if TYPE_CHECKING:
-        name: str
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-
-@dataclass(init=False, eq=True)
 class OptionResult:
     """选项解析结果
 

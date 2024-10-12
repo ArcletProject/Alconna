@@ -27,7 +27,6 @@ from .config import Namespace as Namespace
 from .config import config as config
 from .config import namespace as namespace
 from .core import Alconna as Alconna
-from .duplication import Duplication as Duplication
 from .exceptions import AlconnaException as AlconnaException
 from .exceptions import InvalidArgs as InvalidArgs
 from .exceptions import InvalidParam as InvalidParam
@@ -40,9 +39,6 @@ from .model import HeadResult as HeadResult
 from .model import OptionResult as OptionResult
 from .model import SubcommandResult as SubcommandResult
 from .output import output_manager as output_manager
-from .stub import ArgsStub as ArgsStub
-from .stub import OptionStub as OptionStub
-from .stub import SubcommandStub as SubcommandStub
 from .typing import AllParam as AllParam
 from .typing import CommandMeta as CommandMeta
 from .typing import KeyWordVar as KeyWordVar

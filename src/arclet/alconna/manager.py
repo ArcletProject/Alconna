@@ -258,12 +258,8 @@ class CommandManager:
         if isinstance(source, dict):
             humanize = source.pop("humanized", None)
             if source.get("prefix", False) and target.prefixes:
-                prefixes = []
                 out = []
                 for prefix in target.prefixes:
-                    if not isinstance(prefix, str):
-                        continue
-                    prefixes.append(prefix)
                     _shortcut[1][f"{re.escape(prefix)}{_key}"] = InnerShortcutArgs(
                         **{**source, "command": argv.converter(prefix + source.get("command", str(target.command)))},
                         flags=_flags,
@@ -272,7 +268,7 @@ class CommandManager:
                         lang.require("shortcut", "add_success").format(shortcut=f"{prefix}{_key}", target=target.path)
                     )
                 _shortcut[0][humanize or _key] = InnerShortcutArgs(
-                    **{**source, "command": argv.converter(source.get("command", str(target.command))), "prefixes": prefixes},
+                    **{**source, "command": argv.converter(source.get("command", str(target.command))), "prefixes": target.prefixes},
                     flags=_flags,
                 )
                 target.formatter.update_shortcut(target)

@@ -14,7 +14,6 @@ from typing import (
     List,
     Literal,
     Protocol,
-    Tuple,
     Type,
     TypedDict,
     TypeVar,
@@ -27,7 +26,6 @@ from typing_extensions import NotRequired, TypeAlias
 from tarina import generic_isinstance, lang
 from nepattern import BasePattern, MatchMode, parser, MatchFailed
 
-TPrefixes = List[str]
 DataUnit = TypeVar("DataUnit", covariant=True)
 
 

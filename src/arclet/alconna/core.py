@@ -20,7 +20,7 @@ from .config import Namespace, config
 from .exceptions import ExecuteFailed, NullMessage
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDC, CommandMeta, DataCollection, InnerShortcutArgs, ShortcutRegWrapper, TPrefixes
+from .typing import TDC, CommandMeta, DataCollection, InnerShortcutArgs, ShortcutRegWrapper
 
 T = TypeVar("T")
 TDC1 = TypeVar("TDC1", bound=DataCollection[Any])
@@ -100,7 +100,7 @@ class Alconna(Subcommand, Generic[TDC]):
         >>> alc.parse("name opt opt_arg")
     """
 
-    prefixes: TPrefixes
+    prefixes: list[str]
     """命令前缀"""
     command: str | Any
     """命令名"""
@@ -119,7 +119,7 @@ class Alconna(Subcommand, Generic[TDC]):
 
     def __init__(
         self,
-        *args: Option | Subcommand | str | TPrefixes | Args | Arg | CommandMeta | ArparmaBehavior | Any,
+        *args: Option | Subcommand | str | list[str] | Args | Arg | CommandMeta | ArparmaBehavior | Any,
         meta: CommandMeta | None = None,
         namespace: str | Namespace | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
@@ -153,7 +153,7 @@ class Alconna(Subcommand, Generic[TDC]):
         self.formatter = (formatter_type or ns_config.formatter_type or TextFormatter)()
         self.meta = meta or next((i for i in args if isinstance(i, CommandMeta)), CommandMeta())
         if self.meta.example:
-            self.meta.example = self.meta.example.replace("$", str(self.prefixes[0]) if self.prefixes else "")
+            self.meta.example = self.meta.example.replace("$", self.prefixes[0] if self.prefixes else "")
         self.meta.fuzzy_match = self.meta.fuzzy_match or ns_config.fuzzy_match
         self.meta.raise_exception = self.meta.raise_exception or ns_config.raise_exception
         self.meta.compact = self.meta.compact or ns_config.compact

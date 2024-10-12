@@ -1,6 +1,7 @@
 """Alconna 的基础内容相关"""
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 from functools import reduce
 from typing import Any, Iterable, Sequence, overload
@@ -63,8 +64,6 @@ class CommandNode:
     """命令节点响应动作"""
     help_text: str
     """命令节点帮助信息"""
-    requires: list[str]
-    """命令节点需求前缀"""
 
     def __init__(
         self,
@@ -76,7 +75,6 @@ class CommandNode:
         action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
-        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
     ):
         """
         初始化命令节点
@@ -89,30 +87,27 @@ class CommandNode:
             action (Action | None, optional): 命令节点响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             help_text (str | None, optional): 命令帮助信息
-            requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令节点需求前缀
         """
+        self.separators = " " if separators is None else "".join(separators)
         aliases = list(alias or [])
-        parts = name.split(" ")
-        _name = parts[-1]
-        if "|" in _name:
-            _aliases = _name.split("|")
+        name = re.sub(f"[{self.separators}]", "", name)
+        if "|" in name:
+            _aliases = name.split("|")
             _aliases.sort(key=len, reverse=True)
-            _name = _aliases[0]
+            name = _aliases[0]
             aliases.extend(_aliases[1:])
-        if not _name:
+        if not name:
             raise InvalidArgs(lang.require("common", "name_empty"))
-        aliases.insert(0, _name)
-        self.name = _name
+        aliases.insert(0, name)
+        self.name = name
         self.aliases = frozenset(aliases)
-        self.requires = ([requires] if isinstance(requires, str) else list(requires)) if requires else []
-        self.requires.extend(parts[:-1])
         self.args = Args() + args
         self.default = default
         self.action = action or store
         _handle_default(self)
-        self.separators = " " if separators is None else "".join(separators)
+
         self.nargs = len(self.args.argument)
-        self.dest = (dest or (("_".join(self.requires) + "_") if self.requires else "") + (self.name.lstrip("-") or self.name))  # noqa: E501
+        self.dest = dest or self.name
         self.dest = self.dest.lstrip("-") or self.dest
         self.help_text = help_text or self.dest
         self._hash = self._calc_hash()
@@ -178,7 +173,6 @@ class Option(CommandNode):
         action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
-        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
         compact: bool = False,
         priority: int = 0,
         soft_keyword: bool = False
@@ -194,7 +188,6 @@ class Option(CommandNode):
             action (Action | None, optional): 命令选项响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             help_text (str | None, optional): 命令选项帮助信息
-            requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 命令选项需求前缀
             compact (bool, optional): 是否允许名称与后随参数之间无分隔符
             priority (int, optional): 命令选项优先级
             soft_keyword (bool, optional): 是否为软关键字；仅 Sistana 支持该特性。
@@ -205,7 +198,7 @@ class Option(CommandNode):
         self.soft_keyword = soft_keyword
         if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
             default = OptionResult(default)
-        super().__init__(name, args, alias, dest, default, action, separators, help_text, requires)
+        super().__init__(name, args, alias, dest, default, action, separators, help_text)
         if not self.args.empty:
             if default is not Empty and not self.default.args:
                 self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
@@ -238,7 +231,7 @@ class Option(CommandNode):
             TypeError: 如果other不是命令选项或命令节点, 则抛出此异常
         """
         if isinstance(other, Option):
-            return Subcommand(self.name, other, self.args, dest=self.dest, separators=self.separators, help_text=self.help_text, requires=self.requires)  # noqa: E501
+            return Subcommand(self.name, other, self.args, dest=self.dest, separators=self.separators, help_text=self.help_text, soft_keyword=self.soft_keyword)  # noqa: E501
         if isinstance(other, (Arg, Args)):
             self.args += other
             self.nargs = len(self.args)
@@ -287,7 +280,6 @@ class Subcommand(CommandNode):
         default: Any = Empty,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
-        requires: str | list[str] | tuple[str, ...] | set[str] | None = None,
         soft_keyword: bool = False
     ):
         """初始化子命令
@@ -300,7 +292,6 @@ class Subcommand(CommandNode):
             action (Action | None, optional): 子命令选项响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 子命令分隔符
             help_text (str | None, optional): 子命令选项帮助信息
-            requires (str | list[str] | tuple[str, ...] | set[str] | None, optional): 子命令选项需求前缀
         """
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         for li in args:
@@ -311,7 +302,7 @@ class Subcommand(CommandNode):
         super().__init__(
             name,
             reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            alias, dest, default, None, separators, help_text, requires,
+            alias, dest, default, None, separators, help_text
         )
         if not self.args.empty and default is not Empty and not self.default.args:
             self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value

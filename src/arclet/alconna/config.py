@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, ContextManager, Literal, TypedD
 
 
 from .i18n import lang as lang
-from .typing import DataCollection, TPrefixes
+from .typing import DataCollection
 
 if TYPE_CHECKING:
     from .formatter import TextFormatter
@@ -26,7 +26,7 @@ class Namespace:
 
     name: str
     """命名空间名称"""
-    prefixes: TPrefixes = field(default_factory=list)
+    prefixes: list[str] = field(default_factory=list)
     """默认前缀配置"""
     separators: tuple[str, ...] = field(default_factory=lambda: (" ",))
     """默认分隔符配置"""

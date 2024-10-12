@@ -13,10 +13,10 @@ from ..base import Option, Subcommand
 from ..completion import Prompt, comp_ctx
 from ..config import config
 from ..exceptions import AlconnaException, ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
-from ..model import HeadResult, OptionResult, Sentence
+from ..model import HeadResult, OptionResult
 from ..output import output_manager
 from ..typing import KWBool, MultiKeyWordVar, MultiVar, _ShortcutRegWrapper, _StrMulti, _AllParamPattern
-from ._header import Double, Header, Pair
+from ._header import Header
 from ._util import escape, levenshtein, unescape
 
 if TYPE_CHECKING:
@@ -370,17 +370,9 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
         try:
             if param.__class__ is Option:
                 oparam: Option = param  # type: ignore
-                if oparam.requires and analyser.sentences != oparam.requires:
-                    return lang.require("option", "require_error").format(
-                        source=oparam.name, target=" ".join(analyser.sentences)
-                    )
                 analyse_option(analyser, argv, oparam)
             else:
                 sparam: SubAnalyser = param  # type: ignore
-                if sparam.command.requires and analyser.sentences != sparam.command.requires:
-                    return lang.require("subcommand", "require_error").format(
-                        source=sparam.command.name, target=" ".join(analyser.sentences)
-                    )
                 try:
                     sparam.process(argv)
                 except (FuzzyMatchSuccess, PauseTriggered, SpecialOptionTriggered):
@@ -426,87 +418,38 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: str | None = None):
         seps (str, optional): 指定的分隔符.
     """
     _text, _str = argv.next(seps, move=False)
-    if _str and _text in argv.special:
-        if argv.special[_text] not in argv.namespace.disable_builtin_options:
+    if _str and _text:
+        if _text in argv.special and argv.special[_text] not in argv.namespace.disable_builtin_options:
             if _text in argv.completion_names:
                 argv.bak_data[argv.current_index] = argv.bak_data[argv.current_index].replace(_text, "")
             raise SpecialOptionTriggered(argv.special[_text])
-    if not _str or not _text:
-        _param = None
-    elif _text in analyser.compile_params:
-        _param = analyser.compile_params[_text]
-    elif analyser.compact_params and (res := analyse_compact_params(analyser, argv)):
-        if res.__class__ is str:
-            raise InvalidParam(res)
-        argv.current_node = None
-        return True
-    else:
-        _param = None
-    if _param.__class__ is Sentence:
-        if _param.name not in analyser.sentences:  # type: ignore
-            analyser.sentences.append(argv.next()[0])
-            return True
-    if _param.__class__ is Option:
-        oparam: Option = _param  # type: ignore
-        if oparam.requires and analyser.sentences != oparam.requires:
-            raise InvalidParam(
-                lang.require("option", "require_error").format(source=oparam.name, target=" ".join(analyser.sentences))
-            )
-        analyse_option(analyser, argv, oparam)
-        analyser.sentences.clear()
-        return True
-    if _param.__class__ is list:
-        exc: Exception | None = None
-        lparam: list[Option] = _param  # type: ignore
-        for opt in lparam:
-            _data, _index = argv.data_set()
-            try:
-                if opt.requires and analyser.sentences != opt.requires:
-                    raise InvalidParam(
-                        lang.require("option", "require_error").format(
-                            source=opt.name, target=" ".join(analyser.sentences)
-                        )
-                    )
-                analyser.sentences = []
-                analyse_option(analyser, argv, opt)
-                _data.clear()
-                exc = None
-                break
-            except Exception as e:
-                exc = e
-                argv.data_reset(_data, _index)
-        if exc:
-            raise exc  # type: ignore  # noqa
-        analyser.sentences.clear()
-        return True
-    if _param is not None:
-        sparam: SubAnalyser = _param  # type: ignore
-        if sparam.command.dest not in analyser.subcommands_result:
-            if sparam.command.requires and analyser.sentences != sparam.command.requires:
-                raise InvalidParam(
-                    lang.require("subcommand", "require_error").format(
-                        source=sparam.command.name, target=" ".join(analyser.sentences)
-                    )
-                )
-            try:
-                sparam.process(argv)
-            except (FuzzyMatchSuccess, PauseTriggered, SpecialOptionTriggered):
-                sparam.result()
-                raise
-            except InvalidParam:
-                if argv.current_node is sparam.command:
+        if _param := analyser.compile_params.get(_text):
+            if _param.__class__ is Option:
+                oparam: Option = _param  # type: ignore
+                analyse_option(analyser, argv, oparam)
+                return True
+            sparam: SubAnalyser = _param  # type: ignore
+            if sparam.command.dest not in analyser.subcommands_result:
+                try:
+                    sparam.process(argv)
+                except (FuzzyMatchSuccess, PauseTriggered, SpecialOptionTriggered):
                     sparam.result()
+                    raise
+                except InvalidParam:
+                    if argv.current_node is sparam.command:
+                        sparam.result()
+                    else:
+                        analyser.subcommands_result[sparam.command.dest] = sparam.result()
+                    raise
+                except AlconnaException:
+                    analyser.subcommands_result[sparam.command.dest] = sparam.result()
+                    raise
                 else:
                     analyser.subcommands_result[sparam.command.dest] = sparam.result()
-                raise
-            except AlconnaException:
-                analyser.subcommands_result[sparam.command.dest] = sparam.result()
-                raise
-            else:
-                analyser.subcommands_result[sparam.command.dest] = sparam.result()
-                analyser.sentences.clear()
-                return True
-    if _param is None and analyser.command.nargs and not analyser.args_result:
+                    return True
+        elif analyser.compact_params and analyse_compact_params(analyser, argv):
+            return True
+    if analyser.command.nargs and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
         if analyser.args_result:
             argv.current_node = None
@@ -571,31 +514,10 @@ def _header_handle2(header: "Header[BasePattern, BasePattern]", argv: Argv):
     _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
 
 
-def _header_handle3(header: "Header[list[Pair], Any]", argv: Argv):
-    head_text, _str = argv.next()
-    may_cmd, _m_str = argv.next()
-    if _m_str:
-        for pair in header.content:
-            if res := pair.match(head_text, may_cmd, argv.rollback, header.compact):
-                return HeadResult(*res, fixes=header.mapping)
-    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
-
-
-def _header_handle4(header: "Header[Double, Any]", argv: Argv):
-    head_text, _str = argv.next()
-    may_cmd, _m_str = argv.next()
-
-    if res := header.content.match(head_text, may_cmd, _str, _m_str, argv.rollback, header.compact):
-        return HeadResult(*res, fixes=header.mapping)
-    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
-
-
 HEAD_HANDLES: dict[int, Callable[[Header, Argv], HeadResult]] = {
     0: _header_handle0,
     1: _header_handle1,
     2: _header_handle2,
-    3: _header_handle3,
-    4: _header_handle4,
 }
 
 
@@ -790,20 +712,6 @@ def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
     return [Prompt(f"{trig.name}: {i}", False, target) for i in o]
 
 
-def _prompt_sentence(analyser: Analyser):
-    res: list[str] = []
-    s_len = len(stc := analyser.sentences)
-    for opt in filter(
-        lambda x: len(x.requires) >= s_len and x.requires[s_len - 1] == stc[-1],
-        analyser.command.options,
-    ):
-        if len(opt.requires) > s_len:
-            res.append(opt.requires[s_len])
-        else:
-            res.extend(opt.aliases if isinstance(opt, Option) else [opt.name])
-    return [Prompt(i) for i in res]
-
-
 def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
     res: list[Prompt] = []
     if not analyser.args_result and analyser.self_args.argument:
@@ -818,9 +726,7 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
         lambda x: x.name not in (argv.special if len(analyser.command.options) > 3 else argv.completion_names),
         analyser.command.options,
     ):
-        if opt.requires and all(opt.requires[0] not in i for i in got):
-            res.append(Prompt(opt.requires[0]))
-        elif opt.dest not in got:
+        if opt.dest not in got:
             res.extend([Prompt(al) for al in opt.aliases] if isinstance(opt, Option) else [Prompt(opt.name)])
     return res
 
@@ -844,7 +750,7 @@ def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
     if _res := list(filter(lambda x: target in x and target != x, analyser.compile_params)):
         out = [i for i in _res if i not in got]
         return [Prompt(i, True, target) for i in (out or _res)]
-    return _prompt_sentence(analyser) if analyser.sentences else _prompt_none(analyser, argv, got)
+    return _prompt_none(analyser, argv, got)
 
 
 def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None):
