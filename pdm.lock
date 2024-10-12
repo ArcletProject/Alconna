@@ -2,13 +2,28 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default", "dev"]
+groups = ["default", "dev", "full"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
 content_hash = "sha256:babb045e66cd5789bd62c59abe769158f98b849965a04c5bc4dd1c3521c66a66"
 
 [[metadata.targets]]
 requires_python = ">=3.9"
+
+[[package]]
+name = "arclet-alconna-tools"
+version = "0.7.9"
+requires_python = ">=3.8"
+summary = "Builtin Tools for Alconna"
+groups = ["full"]
+dependencies = [
+    "arclet-alconna>=1.8.21",
+    "nepattern<1.0.0,>=0.7.3",
+]
+files = [
+    {file = "arclet_alconna_tools-0.7.9-py3-none-any.whl", hash = "sha256:01a3462bb9f8dbe55010b394f7a0ac11e331799d463e326738870dce191aa608"},
+    {file = "arclet_alconna_tools-0.7.9.tar.gz", hash = "sha256:bded24c4157e13e2d803fe7b77ee246fda456206451337015513f150d1e4449c"},
+]
 
 [[package]]
 name = "attrs"
@@ -197,7 +212,7 @@ name = "nepattern"
 version = "0.7.6"
 requires_python = ">=3.8"
 summary = "a complex pattern, support typing"
-groups = ["default"]
+groups = ["default", "full"]
 dependencies = [
     "tarina>=0.5.1",
     "typing-extensions>=4.5.0",
@@ -302,7 +317,7 @@ name = "tarina"
 version = "0.6.1"
 requires_python = ">=3.9"
 summary = "A collection of common utils for Arclet"
-groups = ["default"]
+groups = ["default", "full"]
 dependencies = [
     "typing-extensions>=4.4.0",
 ]
@@ -414,7 +429,7 @@ name = "typing-extensions"
 version = "4.12.2"
 requires_python = ">=3.8"
 summary = "Backported and Experimental Type Hints for Python 3.8+"
-groups = ["default", "dev"]
+groups = ["default", "dev", "full"]
 files = [
     {file = "typing_extensions-4.12.2-py3-none-any.whl", hash = "sha256:04e5ca0351e0f3f85c6853954072df659d0d13fac324d0072316b67d7794700d"},
     {file = "typing_extensions-4.12.2.tar.gz", hash = "sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8"},
