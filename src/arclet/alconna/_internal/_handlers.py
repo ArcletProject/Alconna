@@ -75,7 +75,7 @@ def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict
     key = arg.name
     default_val = arg.field.default
     _result = []
-    kwonly_seps = tuple(arg.value.sep for arg in args.argument.keyword_only.values())  # type: ignore
+    kwonly_seps = "".join([arg.value.sep for arg in args.argument.keyword_only.values()])  # type: ignore
     count = 0
     while argv.current_index != argv.ndata:
         may_arg, _str = argv.next(arg.separators)
@@ -161,11 +161,11 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
     kwonly_seps = set()
     for arg in args.argument.keyword_only.values():
         kwonly_seps.update(arg.separators)
-    kwonly_seps1 = tuple(arg.value.sep for arg in args.argument.keyword_only.values())  # type: ignore
+    kwonly_seps1 = "".join([arg.value.sep for arg in args.argument.keyword_only.values()])  # type: ignore
     target = len(args.argument.keyword_only)
     count = 0
     while count < target:
-        may_arg, _str = argv.next(tuple(kwonly_seps))
+        may_arg, _str = argv.next("".join(kwonly_seps))
         if _str and may_arg in argv.special:
             if argv.special[may_arg] not in argv.namespace.disable_builtin_options:
                 raise SpecialOptionTriggered(argv.special[may_arg])
@@ -417,13 +417,13 @@ def handle_opt_default(defaults: dict[str, tuple[OptionResult, Action]], data: d
             data[k].args.setdefault(key, [value] if v[1].value == 1 else value)
 
 
-def analyse_param(analyser: SubAnalyser, argv: Argv, seps: tuple[str, ...] | None = None):
+def analyse_param(analyser: SubAnalyser, argv: Argv, seps: str | None = None):
     """处理参数
 
     Args:
         analyser (SubAnalyser): 当前解析器
         argv (Argv): 命令行参数
-        seps (tuple[str, ...], optional): 指定的分隔符.
+        seps (str, optional): 指定的分隔符.
     """
     _text, _str = argv.next(seps, move=False)
     if _str and _text in argv.special:

@@ -11,10 +11,10 @@ authors = [
 dependencies = [
     "typing-extensions>=4.5.0",
     "nepattern<1.0.0,>=0.7.6",
-    "tarina>=0.5.8",
+    "tarina<0.7.0,>=0.6.1",
 ]
 dynamic = ["version"]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 readme = "README-EN.md"
 license = {text = "MIT"}
 keywords = [
@@ -123,7 +123,7 @@ exclude_lines = [
 
 [tool.black]
 line-length = 120
-target-version = ["py38", "py39", "py310", "py311"]
+target-version = ["py39", "py310", "py311", "py312", "py313"]
 include = '\.pyi?$'
 extend-exclude = '''
 '''
@@ -135,7 +135,7 @@ skip_gitignore = true
 extra_standard_library = ["typing_extensions"]
 
 [tool.pyright]
-pythonVersion = "3.8"
+pythonVersion = "3.9"
 pythonPlatform = "All"
 typeCheckingMode = "basic"
 disableBytesTypePromotions = true

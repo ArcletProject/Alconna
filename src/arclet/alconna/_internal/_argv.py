@@ -21,7 +21,7 @@ class Argv(Generic[TDC]):
     meta: InitVar[CommandMeta]
     namespace: Namespace = field(default=config.default_namespace)
     """命名空间"""
-    separators: tuple[str, ...] = field(default=(" ",))
+    separators: str = field(default=" ")
     """命令分隔符"""
 
     preprocessors: dict[type, Callable[..., Any]] = field(default_factory=dict)
@@ -65,7 +65,7 @@ class Argv(Generic[TDC]):
     context: dict[str, Any] = field(init=False, default_factory=dict)
     special: dict[str, str] = field(init=False, default_factory=dict)
     completion_names: set[str] = field(init=False, default_factory=set)
-    _sep: tuple[str, ...] | None = field(init=False)
+    _sep: str | None = field(init=False)
 
     _cache: ClassVar[dict[type, dict[str, Any]]] = {}
 
@@ -185,11 +185,11 @@ class Argv(Generic[TDC]):
             self.token = self.generate_token(self.raw_data)
         return self
 
-    def next(self, separate: tuple[str, ...] | None = None, move: bool = True) -> tuple[str | Any, bool]:
+    def next(self, separate: str | None = None, move: bool = True) -> tuple[str | Any, bool]:
         """获取解析需要的下个数据
 
         Args:
-            separate (tuple[str, ...] | None, optional): 分隔符.
+            separate (str | None, optional): 分隔符.
             move (bool, optional): 是否移动指针.
 
         Returns:
@@ -234,7 +234,7 @@ class Argv(Generic[TDC]):
         if replace:
             self.raw_data[self.current_index] = data
 
-    def free(self, separate: tuple[str, ...] | None = None):
+    def free(self, separate: str | None = None):
         """将当前位置的数据释放"""
         separate = separate or self.separators
         if self.current_index == self.ndata:
@@ -246,17 +246,17 @@ class Argv(Generic[TDC]):
                 self.bak_data.insert(self.current_index + 1, _rest_text)
                 self.raw_data.insert(self.current_index + 1, _rest_text)
                 self.ndata += 1
-            self.bak_data[self.current_index] = self.bak_data[self.current_index][: -len(_current_data)]
+            self.bak_data[self.current_index] = self.bak_data[self.current_index][: -len(_current_data)].rstrip(separate)
             self.raw_data[self.current_index] = ""
         else:
             self.bak_data.pop(self.current_index)
             self.raw_data.pop(self.current_index)
 
-    def release(self, separate: tuple[str, ...] | None = None, recover: bool = False, no_split: bool = False) -> list[str | Any]:
+    def release(self, separate: str | None = None, recover: bool = False, no_split: bool = False) -> list[str | Any]:
         """获取剩余的数据
 
         Args:
-            separate (tuple[str, ...] | None, optional): 分隔符.
+            separate (str | None, optional): 分隔符.
             recover (bool, optional): 是否从头开始获取.
             no_split (bool, optional): 是否不分割.
 
@@ -269,7 +269,7 @@ class Argv(Generic[TDC]):
             if _data.__class__ is str and not _data:
                 continue
             if _data.__class__ is str and not no_split:
-                _result.extend(split(_data, separate or (" ",), self.filter_crlf))
+                _result.extend(split(_data, separate or " ", self.filter_crlf))
             else:
                 _result.append(_data)
         return _result
