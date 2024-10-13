@@ -49,6 +49,7 @@ if __name__ == "__main__":
         st = time.perf_counter()
         argv.build(msg)
         analyser.process(argv)
+        analyser.reset()
         sec += time.perf_counter() - st
     print(f"Alconna: {count / sec:.2f}msg/s")
 
@@ -59,6 +60,7 @@ if __name__ == "__main__":
         st = time.thread_time_ns()
         argv.build(msg)
         analyser.process(argv)
+        analyser.reset()
         li += (time.thread_time_ns() - st)
 
     print(f"Alconna: {li / count} ns per loop with {count} loops")
@@ -70,6 +72,7 @@ if __name__ == "__main__":
     for _ in range(count):
         argv.build(msg)
         analyser.process(argv)
+        analyser.reset()
     prof.create_stats()
 
     stats = pstats.Stats(prof)

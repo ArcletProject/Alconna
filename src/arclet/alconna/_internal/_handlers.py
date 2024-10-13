@@ -557,7 +557,7 @@ def handle_help(analyser: Analyser, argv: Argv):
         analyser.command.name,
         lambda: analyser.command.formatter.format_node(_help_param),
     )
-    return analyser.export(argv, True, SpecialOptionTriggered("help"))
+    return SpecialOptionTriggered("help")
 
 
 _args = Args["action?", "delete|list"]["name?", str]["command", str, "$"]
@@ -588,7 +588,7 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
             output_manager.send(analyser.command.name, lambda: msg)
     except Exception as e:
         output_manager.send(analyser.command.name, lambda: str(e))
-    return analyser.export(argv, True, SpecialOptionTriggered("shortcut"))
+    return SpecialOptionTriggered("shortcut")
 
 
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
@@ -624,7 +624,7 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
 def prompt(analyser: Analyser, argv: Argv, trigger: str | None = None):
     """获取补全列表"""
     _trigger = trigger or argv.current_node
-    got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys(), *analyser.sentences]
+    got = [*analyser.options_result.keys(), *analyser.subcommands_result.keys()]
     if isinstance(_trigger, Arg):
         return _prompt_unit(analyser, argv, _trigger)
     elif isinstance(_trigger, Subcommand):
@@ -655,4 +655,4 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
             analyser.command.name,
             lambda: f"{node}{prompt_other}" + f"\n{prompt_other}".join([i.text for i in res]),
         )
-    return analyser.export(argv, True, SpecialOptionTriggered("completion"))  # type: ignore
+    return SpecialOptionTriggered("completion")

@@ -5,7 +5,6 @@ from typing import Any
 
 from tarina import lang
 
-from .. import Arparma
 from ..exceptions import ArgumentMissing, ParamsUnmatched
 from ..typing import _ShortcutRegWrapper, TDC, InnerShortcutArgs
 from ._util import escape, unescape
@@ -123,25 +122,22 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
 
 
 def shortcut(
-    argv: Argv[TDC], data: list[Any], short: Arparma[Any] | InnerShortcutArgs, reg: re.Match | None = None
-) -> Arparma[TDC] | None:
+    argv: Argv, data: list[Any], short: InnerShortcutArgs, reg: re.Match | None = None
+) -> None:
     """处理被触发的快捷命令
 
     Args:
-        argv (Argv[TDC]): 命令行参数
+        argv (Argv): 命令行参数
         data (list[Any]): 剩余参数
-        short (Arparma | InnerShortcutArgs): 快捷命令
+        short (InnerShortcutArgs): 快捷命令
         reg (Match | None): 可能的正则匹配结果
 
     Returns:
-        Arparma[TDC] | None: Arparma 解析结果
+        None
 
     Raises:
         ParamsUnmatched: 若不允许快捷命令后随其他参数，则抛出此异常
     """
-
-    if isinstance(short, Arparma):
-        return short
 
     argv.build(short.command)  # type: ignore
     if not short.fuzzy and data:
@@ -149,7 +145,7 @@ def shortcut(
     argv.addon(short.args, merge_str=False)
     data = _handle_shortcut_data(argv, data)
     if not data and argv.raw_data and any(
-            isinstance(i, str) and bool(re.search(r"\{%(\d+)|\*(.*?)\}", i)) for i in argv.raw_data
+        isinstance(i, str) and bool(re.search(r"\{%(\d+)|\*(.*?)\}", i)) for i in argv.raw_data
     ):
         raise ArgumentMissing(lang.require("analyser", "param_missing"))
     argv.addon(data, merge_str=False)

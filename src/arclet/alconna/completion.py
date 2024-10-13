@@ -144,14 +144,14 @@ class CompSession:
         exc = None
         try:
             res = self.source.process(argv)
-            if not res.matched:
-                exc = res.error_info
-            if isinstance(exc, (ParamsUnmatched, SpecialOptionTriggered)):
-                self.exit()
-                return EnterResult(res)
+            if not res:
+                res = self.source.export(argv)
         except Exception as e:
             exc = e
         if exc:
+            if isinstance(exc, (ParamsUnmatched, SpecialOptionTriggered)):
+                self.exit()
+                return EnterResult(self.source.export(argv, True, exc))
             if isinstance(exc, PauseTriggered):
                 self.fresh(exc)
                 return EnterResult(exception=self.trigger if isinstance(self.trigger, InvalidParam) else None)

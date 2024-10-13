@@ -147,7 +147,6 @@ class SubAnalyser:
         self.args_result = {}
         self.options_result = {}
         self.subcommands_result = {}
-        self.sentences = []
         self.value_result = None
         self.header_result = None
 
@@ -176,22 +175,8 @@ class SubAnalyser:
             raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
 
         self.value_result = sub.action.value
-        return self.analyse(argv)
 
-    def analyse(self, argv: Argv[TDC]) -> Self:
-        """解析传入的参数集合
-
-        Args:
-            argv (Argv[TDC]): 命令行参数
-
-        Returns:
-            Self: 自身
-
-        Raises:
-            ArgumentMissing: 参数缺失
-        """
         while analyse_param(self, argv, self.command.separators):
-            self.sentences.clear()
             argv.current_node = None
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)
@@ -256,7 +241,7 @@ class Analyser(SubAnalyser):
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
-    def process(self, argv: Argv[TDC]) -> Arparma[TDC]:
+    def process(self, argv: Argv[TDC]) -> Arparma[TDC] | None:
         """主体解析函数, 应针对各种情况进行解析
 
         Args:
@@ -277,52 +262,62 @@ class Analyser(SubAnalyser):
         except InvalidParam as e:
             _next = e.args[1]
             if _next.__class__ is not str or not _next:
-                if self.command.meta.raise_exception:
-                    raise e
-                return self.export(argv, True, e)
+                raise e
             argv.context[SHORTCUT_TRIGGER] = _next
             try:
                 rest, short, mat = command_manager.find_shortcut(self.command, [_next] + argv.release())
             except ValueError as exc:
                 if argv.fuzzy_match and (res := handle_head_fuzzy(self.command_header, _next, argv.fuzzy_threshold)):
                     output_manager.send(self.command.name, lambda: res)
-                    return self.export(argv, True, FuzzyMatchSuccess(res))
-                if self.command.meta.raise_exception:
-                    raise e from exc
-                return self.export(argv, True, e)
+                    raise FuzzyMatchSuccess(res) from None
+                raise e from exc
 
             argv.context[SHORTCUT_ARGS] = short
             argv.context[SHORTCUT_REST] = rest
             argv.context[SHORTCUT_REGEX_MATCH] = mat
             self.reset()
-            try:
-                if arp := shortcut(argv, rest, short, mat):
-                    return arp
-            except Exception as e1:
-                if self.command.meta.raise_exception:
-                    raise
-                return self.export(argv, True, e1)
-
+            if isinstance(short, Arparma):
+                return short
+            shortcut(argv, rest, short, mat)
             self.header_result = self.header_handler(self.command_header, argv)
             self.header_result.origin = _next
 
         except RuntimeError as e:
             exc = InvalidParam(lang.require("header", "error").format(target=argv.release(recover=True)[0]))
-            if self.command.meta.raise_exception:
-                raise exc from e
-            return self.export(argv, True, exc)
+            raise exc from e
 
-        if fail := self.analyse(argv):
-            return fail
+        try:
+            while analyse_param(self, argv) and argv.current_index != argv.ndata:
+                argv.current_node = None
+        except FuzzyMatchSuccess as e:
+            output_manager.send(self.command.name, lambda: str(e))
+            raise e
+        except SpecialOptionTriggered as sot:
+            raise _SPECIAL[sot.args[0]](self, argv)
+        except (InvalidParam, ArgumentMissing) as e1:
+            if (rest := argv.release()) and isinstance(rest[-1], str):
+                if rest[-1] in argv.completion_names and "completion" not in argv.namespace.disable_builtin_options:
+                    argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
+                    raise handle_completion(self, argv)
+                if (handler := argv.special.get(rest[-1])) and handler not in argv.namespace.disable_builtin_options:
+                    raise _SPECIAL[handler](self, argv)
+            if comp_ctx.get(None):
+                if isinstance(e1, InvalidParam):
+                    argv.free(argv.current_node.separators if argv.current_node else None)
+                raise PauseTriggered(prompt(self, argv), e1, argv) from e1
+            raise
+
+        if self.default_main_only and not self.args_result:
+            self.args_result = analyse_args(argv, self.self_args)
 
         if argv.done and (not self.need_main_args or self.args_result):
-            return self.export(argv)
+            return
 
         rest = argv.release()
         if len(rest) > 0:
             if isinstance(rest[-1], str) and rest[-1] in argv.completion_names:
                 argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
-                return handle_completion(self, argv, rest[-2])
+                raise handle_completion(self, argv, rest[-2])
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next(move=False)[0]))
         else:
             exc = ArgumentMissing(
@@ -330,36 +325,7 @@ class Analyser(SubAnalyser):
             )
         if comp_ctx.get(None) and isinstance(exc, ArgumentMissing):
             raise PauseTriggered(prompt(self, argv), exc, argv)
-        if self.command.meta.raise_exception:
-            raise exc
-        return self.export(argv, True, exc)
-
-    def analyse(self, argv: Argv[TDC]) -> Arparma[TDC] | None:
-        try:
-            while analyse_param(self, argv) and argv.current_index != argv.ndata:
-                argv.current_node = None
-        except FuzzyMatchSuccess as e:
-            output_manager.send(self.command.name, lambda: str(e))
-            return self.export(argv, True)
-        except SpecialOptionTriggered as sot:
-            return _SPECIAL[sot.args[0]](self, argv)
-        except (InvalidParam, ArgumentMissing) as e1:
-            if (rest := argv.release()) and isinstance(rest[-1], str):
-                if rest[-1] in argv.completion_names and "completion" not in argv.namespace.disable_builtin_options:
-                    argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
-                    return handle_completion(self, argv)
-                if (handler := argv.special.get(rest[-1])) and handler not in argv.namespace.disable_builtin_options:
-                    return _SPECIAL[handler](self, argv)
-            if comp_ctx.get(None):
-                if isinstance(e1, InvalidParam):
-                    argv.free(argv.current_node.separators if argv.current_node else None)
-                raise PauseTriggered(prompt(self, argv), e1, argv) from e1
-            if self.command.meta.raise_exception:
-                raise
-            return self.export(argv, True, e1)
-
-        if self.default_main_only and not self.args_result:
-            self.args_result = analyse_args(argv, self.self_args)
+        raise exc
 
     def export(
         self,

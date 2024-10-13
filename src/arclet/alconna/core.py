@@ -17,10 +17,10 @@ from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Completion, Help, Option, Shortcut, Subcommand
 from .config import Namespace, config
-from .exceptions import ExecuteFailed, NullMessage
+from .exceptions import ExecuteFailed, PauseTriggered, AlconnaException
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDC, CommandMeta, DataCollection, InnerShortcutArgs, ShortcutRegWrapper
+from .typing import TDC, CommandMeta, InnerShortcutArgs, ShortcutRegWrapper
 
 T = TypeVar("T")
 
@@ -341,7 +341,16 @@ class Alconna(Subcommand):
         analyser = command_manager.require(self)
         argv = command_manager.resolve(self)
         argv.enter(ctx).build(message)
-        return analyser.process(argv)
+        try:
+            if cache := analyser.process(argv):
+                return cache
+            return analyser.export(argv)
+        except PauseTriggered:
+            raise
+        except AlconnaException as e:
+            if self.meta.raise_exception:
+                raise e
+            return analyser.export(argv, True, e)
 
     def parse(self, message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类
@@ -354,12 +363,7 @@ class Alconna(Subcommand):
         Raises:
             NullMessage: 传入的消息为空时抛出
         """
-        try:
-            arp = self._parse(message, ctx)
-        except NullMessage as e:
-            if self.meta.raise_exception:
-                raise e
-            return Arparma(self._hash, message, False, error_info=e, ctx=ctx)
+        arp = self._parse(message, ctx)
         if arp.matched:
             arp = arp.execute(self.behaviors)
             if self._executors:
@@ -410,10 +414,22 @@ class Alconna(Subcommand):
         self.union.add(other)
 
         def _parse(message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
-            for ana, argv in command_manager.unpack(self.union):
-                if (res := ana.process(argv.enter(ctx).build(message))).matched:
+            for alc in self.union:
+                if (res := alc._parse(message, ctx)).matched:
                     return res
-            return command_manager.require(self).process(command_manager.resolve(self).enter(ctx).build(message))
+            analyser = command_manager.require(self)
+            argv = command_manager.resolve(self)
+            argv.enter(ctx).build(message)
+            try:
+                if cache := analyser.process(argv):
+                    return cache
+                return analyser.export(argv)
+            except PauseTriggered:
+                raise
+            except AlconnaException as e:
+                if self.meta.raise_exception:
+                    raise e
+                return analyser.export(argv, True, e)
 
         self._parse = _parse
         return self

@@ -177,14 +177,6 @@ class CommandManager:
             namespace, name = self._command_part(command.path)
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
-    def unpack(self, commands: MutableSet[Alconna]) -> "zip[tuple[Analyser, Argv]]":
-        """获取多个命令解析器"""
-        hashs = {cmd._hash for cmd in commands}
-        return zip(
-            [v for k, v in self.__analysers.items() if k in hashs],
-            [v for k, v in self.__argv.items() if k in hashs],
-        )
-
     def delete(self, command: Alconna) -> None:
         """删除命令"""
         namespace, name = self._command_part(command.path)
