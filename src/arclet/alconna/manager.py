@@ -159,7 +159,7 @@ class CommandManager:
     def _resolve(self, cmd_hash: int) -> Alconna:
         return self.__analysers[cmd_hash].command
 
-    def resolve(self, command: Alconna[TDC]) -> Argv[TDC]:
+    def resolve(self, command: Alconna) -> Argv:
         """获取命令解析器的参数解析器"""
         cmd_hash = command._hash
         try:
@@ -168,7 +168,7 @@ class CommandManager:
             namespace, name = self._command_part(command.path)
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
-    def require(self, command: Alconna[TDC]) -> Analyser[TDC]:
+    def require(self, command: Alconna) -> Analyser:
         """获取命令解析器"""
         cmd_hash = command._hash
         try:
@@ -238,7 +238,7 @@ class CommandManager:
         if not enabled and command not in self.__abandons:
             self.__abandons.append(command._hash)
 
-    def add_shortcut(self, target: Alconna, key: str | TPattern, source: Arparma | ShortcutArgs):
+    def add_shortcut(self, target: Alconna, key: str | TPattern, source: Arparma[Any] | ShortcutArgs):
         """添加快捷命令
 
         Args:
@@ -286,7 +286,7 @@ class CommandManager:
         else:
             raise ValueError(lang.require("manager", "incorrect_shortcut").format(target=f"{_key}"))
 
-    def get_shortcut(self, target: Alconna[TDC]) -> dict[str, Union[Arparma[TDC], InnerShortcutArgs]]:
+    def get_shortcut(self, target: Alconna) -> dict[str, Union[Arparma[Any], InnerShortcutArgs]]:
         """列出快捷命令
 
         Args:
@@ -305,8 +305,8 @@ class CommandManager:
         return shortcuts[0]
 
     def find_shortcut(
-        self, target: Alconna[TDC], data: list
-    ) -> tuple[list, Arparma[TDC] | InnerShortcutArgs, Match[str] | None]:
+        self, target: Alconna, data: list
+    ) -> tuple[list, Arparma[Any] | InnerShortcutArgs, Match[str] | None]:
         """查找快捷命令
 
         Args:
@@ -461,11 +461,11 @@ class CommandManager:
         if token in self.__record:
             return self.__record[token]
 
-    def get_token(self, result: Arparma) -> int:
+    def get_token(self, result: Arparma[Any]) -> int:
         """获取某个命令的 `token`"""
         return next((token for token, res in self.__record.items() if res == result), 0)
 
-    def get_result(self, command: Alconna) -> list[Arparma]:
+    def get_result(self, command: Alconna) -> list[Arparma[Any]]:
         """获取某个命令的所有 `Arparma` 对象"""
         return [v for v in self.__record.values() if v._id == command._hash]
 
@@ -491,7 +491,7 @@ class CommandManager:
             return rct[1].source  # type: ignore
 
     @property
-    def records(self) -> LRU[int, Arparma]:
+    def records(self) -> LRU[int, Arparma[Any]]:
         """获取当前记录"""
         return self.__record
 

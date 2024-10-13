@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
-from re import Match
-from typing import TYPE_CHECKING, Any, Callable, Generic, Set
+from typing import TYPE_CHECKING, Any, Callable, Set
 from typing_extensions import Self, TypeAlias
 
 from tarina import Empty, lang
@@ -25,11 +23,9 @@ from ..exceptions import (
 from ..manager import command_manager
 from ..model import HeadResult, OptionResult, SubcommandResult
 from ..output import output_manager
-from ..typing import TDC, InnerShortcutArgs
+from ..typing import TDC
 from ._handlers import (
     HEAD_HANDLES,
-    _handle_shortcut_data,
-    _handle_shortcut_reg,
     handle_head_fuzzy,
     analyse_args,
     analyse_param,
@@ -39,6 +35,7 @@ from ._handlers import (
     handle_shortcut,
     prompt,
 )
+from ._shortcut import shortcut
 from ._header import Header
 from ._util import levenshtein
 
@@ -78,7 +75,7 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
 
 
 @dataclass
-class SubAnalyser(Generic[TDC]):
+class SubAnalyser:
     """子解析器, 用于子命令的解析"""
 
     command: Subcommand
@@ -87,9 +84,9 @@ class SubAnalyser(Generic[TDC]):
     """命令是否只有主参数"""
     need_main_args: bool = field(default=False)
     """是否需要主参数"""
-    compile_params: dict[str, Option | SubAnalyser[TDC]] = field(default_factory=dict)
+    compile_params: dict[str, Option | SubAnalyser] = field(default_factory=dict)
     """编译的节点"""
-    compact_params: list[Option | SubAnalyser[TDC]] = field(default_factory=list)
+    compact_params: list[Option | SubAnalyser] = field(default_factory=list)
     """可能紧凑的需要逐个解析的节点"""
     self_args: Args = field(init=False)
     """命令自身参数"""
@@ -206,7 +203,7 @@ class SubAnalyser(Generic[TDC]):
             )
         return self
 
-    def get_sub_analyser(self, target: Subcommand) -> SubAnalyser[TDC] | None:
+    def get_sub_analyser(self, target: Subcommand) -> SubAnalyser | None:
         """获取子解析器
 
         Args:
@@ -222,7 +219,7 @@ class SubAnalyser(Generic[TDC]):
                 return param.get_sub_analyser(target)
 
 
-class Analyser(SubAnalyser[TDC], Generic[TDC]):
+class Analyser(SubAnalyser):
     """命令解析器"""
 
     command: Alconna
@@ -234,11 +231,11 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
     header_handler: Callable[[Header, Argv], HeadResult]
     """头部处理器"""
 
-    def __init__(self, alconna: Alconna[TDC], compiler: TCompile | None = None):
+    def __init__(self, alconna: Alconna, compiler: TCompile | None = None):
         """初始化解析器
 
         Args:
-            alconna (Alconna[TDC]): 命令实例
+            alconna (Alconna): 命令实例
             compiler (TCompile | None, optional): 编译器方法
         """
         super().__init__(alconna)
@@ -258,50 +255,6 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.path}>"
-
-    def shortcut(
-        self, argv: Argv[TDC], data: list[Any], short: Arparma | InnerShortcutArgs, reg: Match | None = None
-    ) -> Arparma[TDC] | None:
-        """处理被触发的快捷命令
-
-        Args:
-            argv (Argv[TDC]): 命令行参数
-            data (list[Any]): 剩余参数
-            short (Arparma | InnerShortcutArgs): 快捷命令
-            reg (Match | None): 可能的正则匹配结果
-
-        Returns:
-            Arparma[TDC] | None: Arparma 解析结果
-
-        Raises:
-            ParamsUnmatched: 若不允许快捷命令后随其他参数，则抛出此异常
-        """
-        self.reset()
-
-        if isinstance(short, Arparma):
-            return short
-
-        argv.build(short.command)  # type: ignore
-        if not short.fuzzy and data:
-            exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=data[0]))
-            if self.command.meta.raise_exception:
-                raise exc
-            return self.export(argv, True, exc)
-        argv.addon(short.args, merge_str=False)
-        data = _handle_shortcut_data(argv, data)
-        if not data and argv.raw_data and any(isinstance(i, str) and bool(re.search(r"\{%(\d+)|\*(.*?)\}", i)) for i in argv.raw_data):
-            exc = ArgumentMissing(lang.require("analyser", "param_missing"))
-            if self.command.meta.raise_exception:
-                raise exc
-            return self.export(argv, True, exc)
-        argv.addon(data, merge_str=False)
-        if reg:
-            data = _handle_shortcut_reg(argv, reg.groups(), reg.groupdict(), short.wrapper)
-            argv.raw_data.clear()
-            argv.ndata = 0
-            argv.current_index = 0
-            argv.addon(data)
-        return
 
     def process(self, argv: Argv[TDC]) -> Arparma[TDC]:
         """主体解析函数, 应针对各种情况进行解析
@@ -337,16 +290,21 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 if self.command.meta.raise_exception:
                     raise e from exc
                 return self.export(argv, True, e)
-            else:
-                argv.context[SHORTCUT_ARGS] = short
-                argv.context[SHORTCUT_REST] = rest
-                argv.context[SHORTCUT_REGEX_MATCH] = mat
 
-                if arp := self.shortcut(argv, rest, short, mat):
+            argv.context[SHORTCUT_ARGS] = short
+            argv.context[SHORTCUT_REST] = rest
+            argv.context[SHORTCUT_REGEX_MATCH] = mat
+            self.reset()
+            try:
+                if arp := shortcut(argv, rest, short, mat):
                     return arp
+            except Exception as e1:
+                if self.command.meta.raise_exception:
+                    raise
+                return self.export(argv, True, e1)
 
-                self.header_result = self.header_handler(self.command_header, argv)
-                self.header_result.origin = _next
+            self.header_result = self.header_handler(self.command_header, argv)
+            self.header_result.origin = _next
 
         except RuntimeError as e:
             exc = InvalidParam(lang.require("header", "error").format(target=argv.release(recover=True)[0]))

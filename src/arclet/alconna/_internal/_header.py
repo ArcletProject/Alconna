@@ -104,8 +104,6 @@ class Header(Generic[TContent, TCompact]):
             if not self.origin[1]:
                 return self.origin[0]
             return f"[{'│'.join(self.origin[1])}]{self.origin[0]}"
-        if isinstance(self.content, list):
-            return "│".join(map(str, self.content))
         return str(self.content)
 
     @classmethod

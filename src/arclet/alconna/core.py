@@ -23,7 +23,6 @@ from .manager import ShortcutArgs, command_manager
 from .typing import TDC, CommandMeta, DataCollection, InnerShortcutArgs, ShortcutRegWrapper
 
 T = TypeVar("T")
-TDC1 = TypeVar("TDC1", bound=DataCollection[Any])
 
 
 def handle_argv():
@@ -79,7 +78,7 @@ class ArparmaExecutor(Generic[T]):
             raise ExecuteFailed(e) from e
 
 
-class Alconna(Subcommand, Generic[TDC]):
+class Alconna(Subcommand):
     """
     更加精确的命令解析
 
@@ -113,7 +112,7 @@ class Alconna(Subcommand, Generic[TDC]):
     behaviors: list[ArparmaBehavior]
     """命令行为器"""
 
-    def compile(self, compiler: TCompile | None = None, param_ids: set[str] | None = None) -> Analyser[TDC]:
+    def compile(self, compiler: TCompile | None = None, param_ids: set[str] | None = None) -> Analyser:
         """编译 `Alconna` 为对应的解析器"""
         return Analyser(self, compiler).compile(set() if param_ids is None else param_ids)
 
