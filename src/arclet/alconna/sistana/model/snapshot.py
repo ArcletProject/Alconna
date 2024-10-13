@@ -3,9 +3,9 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from .mix import Mix
-
 from tarina.trie import Trie
+
+from .mix import Mix
 
 if TYPE_CHECKING:
     from .pattern import OptionPattern, SubcommandPattern

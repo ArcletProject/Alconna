@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 from contextlib import suppress
 from dataclasses import dataclass
 
 import pytest
-from elaina_segment import Buffer, AheadToken, SegmentToken
+from elaina_segment import AheadToken, Buffer, SegmentToken
 from elaina_segment.err import OutOfData
 
 from arclet.alconna.sistana.analyzer import Analyzer, LoopflowExitReason

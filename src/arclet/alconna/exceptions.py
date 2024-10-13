@@ -13,6 +13,10 @@ class InvalidParam(AlconnaException):
     """传入参数验证失败"""
 
 
+class InvalidHeader(AlconnaException):
+    """传入的消息头部无效"""
+
+
 class ArgumentMissing(AlconnaException):
     """组件内的 Args 参数未能解析到任何内容"""
 

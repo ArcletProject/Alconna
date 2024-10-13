@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TypeVar, Generic
+from typing import Generic, TypeVar
 
 from nepattern import BasePattern, MatchMode, all_patterns, parser
 from nepattern.util import TPattern

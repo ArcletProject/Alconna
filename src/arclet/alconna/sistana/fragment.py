@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
 from dataclasses import dataclass
-from elaina_segment import Segment, Quoted, UnmatchedQuoted
+from typing import TYPE_CHECKING, Any, Literal
+
+from elaina_segment import Quoted, Segment, UnmatchedQuoted
 
 from arclet.alconna._dcls import safe_dcls_kw
 
@@ -35,7 +36,7 @@ class Fragment(_Fragment):
 
         t = self.type.value
 
-        from msgspec import convert, ValidationError
+        from msgspec import ValidationError, convert
 
         def _validate(v: Segment):
             if not isinstance(v, (str, Quoted, UnmatchedQuoted)):

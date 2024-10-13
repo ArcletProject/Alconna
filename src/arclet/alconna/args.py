@@ -6,14 +6,14 @@ import re
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Generic, Iterable, List, Sequence, TypeVar, Union, cast
+from typing_extensions import Self
 
 from nepattern import ANY, NONE, AntiPattern, BasePattern, MatchMode, RawStr, UnionPattern, parser
 from tarina import Empty, get_signature, lang
-from typing_extensions import Self
 
+from ._dcls import safe_dcls_kw
 from .exceptions import InvalidArgs
 from .typing import AllParam, KeyWordVar, KWBool, MultiKeyWordVar, MultiVar, TAValue, UnpackVar
-from ._dcls import safe_dcls_kw
 
 _T = TypeVar("_T")
 

@@ -4,12 +4,21 @@ from collections import deque
 from typing import Any, Iterable, Sequence, overload
 
 import tarina
+from elaina_segment import Buffer
 from elaina_triehard import TrieHard
 
 from arclet.alconna import Alconna, Arg, Args, Arparma, HeadResult, Option, OptionResult, Subcommand, SubcommandResult
-from arclet.alconna.exceptions import ArgumentMissing, InvalidArgs, InvalidParam, NullMessage, ParamsUnmatched, UnexpectedElement
+from arclet.alconna.exceptions import (
+    ArgumentMissing,
+    InvalidArgs,
+    InvalidParam,
+    NullMessage,
+    ParamsUnmatched,
+    UnexpectedElement,
+)
 from arclet.alconna.sistana import (
     Analyzer,
+    AnalyzeSnapshot,
     Fragment,
     LoopflowExitReason,
     OptionPattern,
@@ -17,14 +26,13 @@ from arclet.alconna.sistana import (
     SubcommandPattern,
     Track,
     Value,
-    AnalyzeSnapshot,
 )
 from arclet.alconna.sistana.err import ParsePanic, Rejected
 from arclet.alconna.sistana.model.fragment import _Fragment
 from arclet.alconna.sistana.model.pointer import PointerRole
 from arclet.alconna.sistana.model.snapshot import SubcommandTraverse
+
 from .flywheel import build_runes
-from elaina_segment import Buffer
 
 
 def _alc_args_to_fragments(args: Args) -> deque[_Fragment]:

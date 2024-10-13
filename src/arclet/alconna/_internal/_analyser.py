@@ -11,10 +11,10 @@ from ..args import Args
 from ..arparma import Arparma
 from ..base import Completion, Help, Option, Shortcut, Subcommand
 from ..completion import comp_ctx
-from ..constraint import SHORTCUT_ARGS, SHORTCUT_REGEX_MATCH, SHORTCUT_REST, SHORTCUT_TRIGGER
 from ..exceptions import (
     ArgumentMissing,
     FuzzyMatchSuccess,
+    InvalidHeader,
     InvalidParam,
     ParamsUnmatched,
     PauseTriggered,
@@ -26,7 +26,6 @@ from ..output import output_manager
 from ..typing import TDC
 from ._handlers import (
     HEAD_HANDLES,
-    handle_head_fuzzy,
     analyse_args,
     analyse_param,
     handle_completion,
@@ -35,7 +34,6 @@ from ._handlers import (
     handle_shortcut,
     prompt,
 )
-from ._shortcut import shortcut
 from ._header import Header
 from ._util import levenshtein
 
@@ -209,8 +207,6 @@ class Analyser(SubAnalyser):
 
     command: Alconna
     """命令实例"""
-    used_tokens: set[int]
-    """已使用的token"""
     command_header: Header
     """命令头部"""
     header_handler: Callable[[Header, Argv], HeadResult]
@@ -225,7 +221,6 @@ class Analyser(SubAnalyser):
         """
         super().__init__(alconna)
         self._compiler = compiler or default_compiler
-        self.used_tokens = set()
 
     def compile(self, param_ids: set[str]):
         self.extra_allow = not self.command.meta.strict or not self.command.namespace_config.strict
@@ -234,78 +229,45 @@ class Analyser(SubAnalyser):
         self._compiler(self, param_ids)
         return self
 
-    def _clr(self):
-        self.used_tokens.clear()
-        super()._clr()
-
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
-    def process(self, argv: Argv[TDC]) -> Arparma[TDC] | None:
+    def process(self, argv: Argv[TDC]) -> Exception | None:
         """主体解析函数, 应针对各种情况进行解析
 
         Args:
             argv (Argv[TDC]): 命令行参数
 
-        Returns:
-            Arparma[TDC]: Arparma 解析结果
-
-        Raises:
-            ValueError: 快捷命令查找失败
-            InvalidParam: 参数不匹配
-            ArgumentMissing: 参数缺失
         """
-        if argv.message_cache and argv.token in self.used_tokens and (res := command_manager.get_record(argv.token)):
-            return res
-        try:
-            self.header_result = self.header_handler(self.command_header, argv)
-        except InvalidParam as e:
-            _next = e.args[1]
-            if _next.__class__ is not str or not _next:
-                raise e
-            argv.context[SHORTCUT_TRIGGER] = _next
+        if not self.header_result:
             try:
-                rest, short, mat = command_manager.find_shortcut(self.command, [_next] + argv.release())
-            except ValueError as exc:
-                if argv.fuzzy_match and (res := handle_head_fuzzy(self.command_header, _next, argv.fuzzy_threshold)):
-                    output_manager.send(self.command.name, lambda: res)
-                    raise FuzzyMatchSuccess(res) from None
-                raise e from exc
-
-            argv.context[SHORTCUT_ARGS] = short
-            argv.context[SHORTCUT_REST] = rest
-            argv.context[SHORTCUT_REGEX_MATCH] = mat
-            self.reset()
-            if isinstance(short, Arparma):
-                return short
-            shortcut(argv, rest, short, mat)
-            self.header_result = self.header_handler(self.command_header, argv)
-            self.header_result.origin = _next
-
-        except RuntimeError as e:
-            exc = InvalidParam(lang.require("header", "error").format(target=argv.release(recover=True)[0]))
-            raise exc from e
+                self.header_result = self.header_handler(self.command_header, argv)
+            except InvalidHeader as e:
+                return e
+            except RuntimeError:
+                exc = InvalidParam(lang.require("header", "error").format(target=argv.release(recover=True)[0]))
+                return exc
 
         try:
             while analyse_param(self, argv) and argv.current_index != argv.ndata:
                 argv.current_node = None
         except FuzzyMatchSuccess as e:
             output_manager.send(self.command.name, lambda: str(e))
-            raise e
+            return e
         except SpecialOptionTriggered as sot:
-            raise _SPECIAL[sot.args[0]](self, argv)
+            return _SPECIAL[sot.args[0]](self, argv)
         except (InvalidParam, ArgumentMissing) as e1:
             if (rest := argv.release()) and isinstance(rest[-1], str):
                 if rest[-1] in argv.completion_names and "completion" not in argv.namespace.disable_builtin_options:
                     argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
-                    raise handle_completion(self, argv)
+                    return handle_completion(self, argv)
                 if (handler := argv.special.get(rest[-1])) and handler not in argv.namespace.disable_builtin_options:
-                    raise _SPECIAL[handler](self, argv)
+                    return _SPECIAL[handler](self, argv)
             if comp_ctx.get(None):
                 if isinstance(e1, InvalidParam):
                     argv.free(argv.current_node.separators if argv.current_node else None)
-                raise PauseTriggered(prompt(self, argv), e1, argv) from e1
-            raise
+                return PauseTriggered(prompt(self, argv), e1, argv)
+            return e1
 
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)
@@ -317,15 +279,15 @@ class Analyser(SubAnalyser):
         if len(rest) > 0:
             if isinstance(rest[-1], str) and rest[-1] in argv.completion_names:
                 argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
-                raise handle_completion(self, argv, rest[-2])
+                return handle_completion(self, argv, rest[-2])
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next(move=False)[0]))
         else:
             exc = ArgumentMissing(
                 self.self_args.argument[0].field.get_missing_tips(lang.require("analyser", "param_missing"))
             )
         if comp_ctx.get(None) and isinstance(exc, ArgumentMissing):
-            raise PauseTriggered(prompt(self, argv), exc, argv)
-        raise exc
+            return PauseTriggered(prompt(self, argv), exc, argv)
+        return exc
 
     def export(
         self,
@@ -357,7 +319,6 @@ class Analyser(SubAnalyser):
             result.unpack()
             if argv.message_cache:
                 command_manager.record(argv.token, result)
-                self.used_tokens.add(argv.token)
         self.reset()
         return result  # type: ignore
 

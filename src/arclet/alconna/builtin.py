@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, cast, overload
+from typing import Any, Callable, overload
 
 from tarina import Empty
 
-from .config import lang
 from .arparma import Arparma, ArparmaBehavior
-from .core import Alconna
+from .config import lang
 from .exceptions import BehaveCancelled
 from .model import OptionResult, SubcommandResult
 

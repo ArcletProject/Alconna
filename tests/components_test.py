@@ -1,5 +1,5 @@
 from arclet.alconna import Alconna, Args, Arparma, ArparmaBehavior, Option, Subcommand
-from arclet.alconna.builtin import set_default, conflict
+from arclet.alconna.builtin import conflict, set_default
 from arclet.alconna.model import OptionResult
 from arclet.alconna.output import output_manager
 

@@ -3,16 +3,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Any, Generic, Tuple, TypeVar, Union
+from typing_extensions import TypeAlias
 
 from elaina_segment import Quoted, UnmatchedQuoted
-from typing_extensions import TypeAlias
+from elaina_segment.buffer import AheadToken, Buffer, SegmentToken
 
 from arclet.alconna._dcls import safe_dcls_kw
 
-from ..some import Some, Value
-
-from elaina_segment.buffer import AheadToken, Buffer, SegmentToken
 from ..err import RegexMismatch, UnexpectedType
+from ..some import Some, Value
 
 T = TypeVar("T")
 

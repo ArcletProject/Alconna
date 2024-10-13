@@ -20,8 +20,8 @@ from .arparma import Arparma as Arparma
 from .arparma import ArparmaBehavior as ArparmaBehavior
 from .base import Option as Option
 from .base import Subcommand as Subcommand
-from .builtin import set_default as set_default
 from .builtin import conflict as conflict
+from .builtin import set_default as set_default
 from .completion import CompSession as CompSession
 from .config import Namespace as Namespace
 from .config import config as config
@@ -45,9 +45,9 @@ from .typing import KeyWordVar as KeyWordVar
 from .typing import Kw as Kw
 from .typing import MultiVar as MultiVar
 from .typing import Nargs as Nargs
+from .typing import StrMulti as StrMulti
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
-from .typing import StrMulti as StrMulti
 
 __version__ = "1.8.31"
 

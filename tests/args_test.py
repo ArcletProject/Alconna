@@ -1,6 +1,6 @@
 from typing import Union
 
-from nepattern import BasePattern, MatchMode, INTEGER, combine
+from nepattern import INTEGER, BasePattern, MatchMode, combine
 
 from arclet.alconna import ArgFlag, Args, KeyWordVar, Kw, Nargs, StrMulti
 from devtool import analyse_args

@@ -1,23 +1,31 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Iterable, Callable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
+from typing_extensions import NoReturn
 
 from nepattern import ANY, STRING, AnyString, BasePattern, TPattern
 from tarina import Empty, lang, safe_eval, split_once
-from typing_extensions import NoReturn
 
 from ..action import Action
 from ..args import Arg, Args
 from ..base import Option, Subcommand
 from ..completion import Prompt, comp_ctx
 from ..config import config
-from ..exceptions import AlconnaException, ArgumentMissing, FuzzyMatchSuccess, InvalidParam, PauseTriggered, SpecialOptionTriggered
+from ..exceptions import (
+    AlconnaException,
+    ArgumentMissing,
+    FuzzyMatchSuccess,
+    InvalidHeader,
+    InvalidParam,
+    PauseTriggered,
+    SpecialOptionTriggered,
+)
 from ..model import HeadResult, OptionResult
 from ..output import output_manager
-from ..typing import KWBool, MultiKeyWordVar, MultiVar, _ShortcutRegWrapper, _StrMulti, _AllParamPattern
+from ..typing import KWBool, MultiKeyWordVar, MultiVar, _AllParamPattern, _StrMulti
 from ._header import Header
-from ._util import escape, levenshtein, unescape
+from ._util import levenshtein
 
 if TYPE_CHECKING:
     from ._analyser import Analyser, SubAnalyser
@@ -479,7 +487,7 @@ def _header_handle0(header: "Header[set[str], TPattern]", argv: Argv):
         if header.compact and (mat := header.compact_pattern.match(cmd)):
             argv.rollback(cmd[len(mat[0]):], replace=True)
             return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
-    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
+    _after_analyse_header(argv, head_text, may_cmd, _str, _m_str)
 
 
 def _header_handle1(header: "Header[TPattern, TPattern]", argv: Argv):
@@ -499,7 +507,7 @@ def _header_handle1(header: "Header[TPattern, TPattern]", argv: Argv):
         if header.compact and (mat := header.compact_pattern.match(cmd)):
             argv.rollback(cmd[len(mat[0]):], replace=True)
             return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
-    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
+    _after_analyse_header(argv, head_text, may_cmd, _str, _m_str)
 
 
 def _header_handle2(header: "Header[BasePattern, BasePattern]", argv: Argv):
@@ -511,7 +519,7 @@ def _header_handle2(header: "Header[BasePattern, BasePattern]", argv: Argv):
             argv.rollback(head_text[len(str(val._value)):], replace=True)
         return HeadResult(val.value, val._value, True, fixes=header.mapping)
     may_cmd, _m_str = argv.next()
-    _after_analyse_header(header, argv, head_text, may_cmd, _str, _m_str)
+    _after_analyse_header(argv, head_text, may_cmd, _str, _m_str)
 
 
 HEAD_HANDLES: dict[int, Callable[[Header, Argv], HeadResult]] = {
@@ -521,15 +529,15 @@ HEAD_HANDLES: dict[int, Callable[[Header, Argv], HeadResult]] = {
 }
 
 
-def _after_analyse_header(header: Header, argv: Argv, head_text: Any, may_cmd: Any, _str: bool, _m_str: bool) -> NoReturn:
+def _after_analyse_header(argv: Argv, head_text: Any, may_cmd: Any, _str: bool, _m_str: bool) -> NoReturn:
     if _str:
         argv.rollback(may_cmd)
-        raise InvalidParam(lang.require("header", "error").format(target=head_text), head_text)
+        raise InvalidHeader(lang.require("header", "error").format(target=head_text), head_text)
     if _m_str and may_cmd:
         cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
-        raise InvalidParam(lang.require("header", "error").format(target=cmd), cmd)
+        raise InvalidHeader(lang.require("header", "error").format(target=cmd), cmd)
     argv.rollback(may_cmd)
-    raise InvalidParam(lang.require("header", "error").format(target=head_text), None)
+    raise InvalidHeader(lang.require("header", "error").format(target=head_text), None)
 
 
 def handle_head_fuzzy(header: Header, source: str, threshold: float):
@@ -579,8 +587,6 @@ def handle_shortcut(analyser: Analyser, argv: Argv):
                 raise ArgumentMissing(lang.require("shortcut", "name_require"))
             if opt_v.get("action") == "delete":
                 msg = analyser.command.shortcut(opt_v["name"], delete=True)
-            elif opt_v["command"] == "_":
-                msg = analyser.command.shortcut(opt_v["name"], None)
             elif opt_v["command"] == "$":
                 msg = analyser.command.shortcut(opt_v["name"], fuzzy=True)
             else:

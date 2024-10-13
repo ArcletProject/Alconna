@@ -5,21 +5,31 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, cast, overload
-
-from nepattern import TPattern
 from typing_extensions import Self
 from weakref import WeakSet
 
+from nepattern import TPattern
 from tarina import init_spec, lang
 
 from ._internal._analyser import Analyser, TCompile
+from ._internal._handlers import handle_head_fuzzy
+from ._internal._shortcut import shortcut as _shortcut
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Completion, Help, Option, Shortcut, Subcommand
 from .config import Namespace, config
-from .exceptions import ExecuteFailed, PauseTriggered, AlconnaException
+from .constraint import SHORTCUT_ARGS, SHORTCUT_REGEX_MATCH, SHORTCUT_REST, SHORTCUT_TRIGGER
+from .exceptions import (
+    AlconnaException,
+    ExecuteFailed,
+    FuzzyMatchSuccess,
+    InvalidHeader,
+    PauseTriggered,
+    SpecialOptionTriggered,
+)
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
+from .output import output_manager
 from .typing import TDC, CommandMeta, InnerShortcutArgs, ShortcutRegWrapper
 
 T = TypeVar("T")
@@ -223,7 +233,7 @@ class Alconna(Subcommand):
         return command_manager.get_shortcut(self)
 
     @overload
-    def shortcut(self, key: str | TPattern, args: ShortcutArgs | None = None) -> str:
+    def shortcut(self, key: str | TPattern, args: ShortcutArgs) -> str:
         """操作快捷命令
 
         Args:
@@ -295,17 +305,8 @@ class Alconna(Subcommand):
                 args = cast(ShortcutArgs, kwargs)
             if args is not None:
                 return command_manager.add_shortcut(self, key, args)
-            elif cmd := command_manager.recent_message:
-                alc = command_manager.last_using
-                if alc and alc == self:
-                    return command_manager.add_shortcut(self, key, {"command": cmd})  # type: ignore
-                raise ValueError(
-                    lang.require("shortcut", "recent_command_error").format(
-                        target=self.path, source=getattr(alc, "path", "Unknown")
-                    )
-                )
             else:
-                raise ValueError(lang.require("shortcut", "no_recent_command"))
+                raise ValueError(args)
         except Exception as e:
             if self.meta.raise_exception:
                 raise e
@@ -338,19 +339,42 @@ class Alconna(Subcommand):
         return self.add(sub)
 
     def _parse(self, message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
+        if self.union:
+            for alc in self.union:
+                if (res := alc._parse(message, ctx)).matched:
+                    return res
         analyser = command_manager.require(self)
         argv = command_manager.resolve(self)
         argv.enter(ctx).build(message)
-        try:
-            if cache := analyser.process(argv):
-                return cache
+        if argv.message_cache and (res := command_manager.get_record(argv.token)):
+            return res
+        if not (exc := analyser.process(argv)):
             return analyser.export(argv)
-        except PauseTriggered:
-            raise
-        except AlconnaException as e:
-            if self.meta.raise_exception:
-                raise e
-            return analyser.export(argv, True, e)
+        if isinstance(exc, InvalidHeader):
+            trigger = exc.args[1]
+            if trigger.__class__ is str and trigger:
+                argv.context[SHORTCUT_TRIGGER] = trigger
+                try:
+                    rest, short, mat = command_manager.find_shortcut(self, [trigger] + argv.release())
+                    argv.context[SHORTCUT_ARGS] = short
+                    argv.context[SHORTCUT_REST] = rest
+                    argv.context[SHORTCUT_REGEX_MATCH] = mat
+                    _shortcut(argv, rest, short, mat)
+                    analyser.header_result = analyser.header_handler(analyser.command_header, argv)
+                    analyser.header_result.origin = trigger
+                    if not (exc := analyser.process(argv)):
+                        return analyser.export(argv)
+                except ValueError:
+                    if argv.fuzzy_match and (res := handle_head_fuzzy(analyser.command_header, trigger, argv.fuzzy_threshold)):
+                        output_manager.send(self.name, lambda: res)
+                        exc = FuzzyMatchSuccess(res)
+                except AlconnaException as e:
+                    exc = e
+        if isinstance(exc, PauseTriggered):
+            raise exc
+        if self.meta.raise_exception and not isinstance(exc, (FuzzyMatchSuccess, SpecialOptionTriggered)):
+            raise exc
+        return analyser.export(argv, True, exc)
 
     def parse(self, message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
         """命令分析功能, 传入字符串或消息链, 返回一个特定的数据集合类
@@ -412,26 +436,6 @@ class Alconna(Subcommand):
 
     def __or__(self, other: Alconna) -> Self:
         self.union.add(other)
-
-        def _parse(message: TDC, ctx: dict[str, Any] | None = None) -> Arparma[TDC]:
-            for alc in self.union:
-                if (res := alc._parse(message, ctx)).matched:
-                    return res
-            analyser = command_manager.require(self)
-            argv = command_manager.resolve(self)
-            argv.enter(ctx).build(message)
-            try:
-                if cache := analyser.process(argv):
-                    return cache
-                return analyser.export(argv)
-            except PauseTriggered:
-                raise
-            except AlconnaException as e:
-                if self.meta.raise_exception:
-                    raise e
-                return analyser.export(argv, True, e)
-
-        self._parse = _parse
         return self
 
     def _calc_hash(self):

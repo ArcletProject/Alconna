@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from elaina_segment import Buffer
 import pytest
+from elaina_segment import Buffer
 
 from arclet.alconna.sistana import Fragment, SubcommandPattern
 from arclet.alconna.sistana.analyzer import LoopflowExitReason

@@ -138,17 +138,13 @@ class CompSession:
         argv.bak_data = argv.raw_data.copy()
         argv.ndata = len(argv.bak_data)
         argv.current_index = 0
+        argv.origin = argv.converter(argv.raw_data)
         if argv.message_cache:
             argv.token = argv.generate_token(argv.raw_data)
-        argv.origin = argv.converter(argv.raw_data)
-        exc = None
-        try:
-            res = self.source.process(argv)
-            if not res:
-                res = self.source.export(argv)
-        except Exception as e:
-            exc = e
-        if exc:
+            if res := command_manager.get_record(argv.token):
+                self.exit()
+                return EnterResult(res)
+        if exc := self.source.process(argv):
             if isinstance(exc, (ParamsUnmatched, SpecialOptionTriggered)):
                 self.exit()
                 return EnterResult(self.source.export(argv, True, exc))
@@ -157,7 +153,7 @@ class CompSession:
                 return EnterResult(exception=self.trigger if isinstance(self.trigger, InvalidParam) else None)
             return EnterResult(exception=exc)
         self.exit()
-        return EnterResult(res)  # noqa # type: ignore
+        return EnterResult(self.source.export(argv))  # noqa # type: ignore
 
     def push(self, *suggests: Prompt):
         """添加补全选项。

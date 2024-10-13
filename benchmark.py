@@ -28,7 +28,6 @@ class At:
 
 
 with namespace("test") as np:
-    np.enable_message_cache = False
     np.to_text = lambda x: x.text if x.__class__ is Plain else None
     alc = Alconna(
         ["."],

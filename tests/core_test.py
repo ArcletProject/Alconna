@@ -422,7 +422,7 @@ def test_fuzzy():
 
 
 def test_shortcut():
-    from arclet.alconna import output_manager, namespace
+    from arclet.alconna import namespace, output_manager
 
     with namespace("test16") as ns:
         ns.disable_builtin_options = set()
@@ -522,9 +522,6 @@ Unknown
         alc16_8 = Alconna("core16_8", Args["bar", str])
         res11 = alc16_8.parse("core16_8 1234")
         assert res11.bar == "1234"
-        alc16_8.parse("core16_8 --shortcut test _")
-        res12 = alc16_8.parse("test")
-        assert res12.bar == "1234"
 
         alc16_9 = Alconna("core16_9", Args["bar", str])
         alc16_9.shortcut("test(.+)?", command="core16_9 {0}")

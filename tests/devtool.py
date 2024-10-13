@@ -5,15 +5,15 @@ from collections import namedtuple
 from typing import Any, Literal
 
 from arclet.alconna._internal._analyser import Analyser, default_compiler
-from arclet.alconna._internal._handlers import analyse_args as ala
 from arclet.alconna._internal._handlers import HEAD_HANDLES
+from arclet.alconna._internal._handlers import analyse_args as ala
 from arclet.alconna._internal._handlers import analyse_option as alo
 from arclet.alconna._internal._header import Header
 from arclet.alconna.args import Args
 from arclet.alconna.argv import Argv
 from arclet.alconna.base import Option, Subcommand
 from arclet.alconna.config import Namespace
-from arclet.alconna.typing import DataCollection, CommandMeta
+from arclet.alconna.typing import CommandMeta, DataCollection
 
 
 class AnalyseError(Exception):

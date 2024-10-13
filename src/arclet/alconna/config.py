@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, ContextManager, Literal, TypedDict
 
-
 from .i18n import lang as lang
 from .typing import DataCollection
 

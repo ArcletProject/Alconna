@@ -6,10 +6,9 @@ from typing import Any
 from tarina import lang
 
 from ..exceptions import ArgumentMissing, ParamsUnmatched
-from ..typing import _ShortcutRegWrapper, TDC, InnerShortcutArgs
-from ._util import escape, unescape
+from ..typing import InnerShortcutArgs, _ShortcutRegWrapper
 from ._argv import Argv
-
+from ._util import escape, unescape
 
 INDEX_SLOT = re.compile(r"\{%(\d+)\}")
 WILDCARD_SLOT = re.compile(r"\{\*(.*)\}", re.DOTALL)
