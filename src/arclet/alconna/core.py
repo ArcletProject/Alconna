@@ -1,6 +1,7 @@
 """Alconna 主体"""
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,11 +13,11 @@ from nepattern import TPattern
 from tarina import init_spec, lang
 
 from ._internal._analyser import Analyser, TCompile
-from ._internal._handlers import handle_head_fuzzy
+from ._internal._handlers import handle_head_fuzzy, analyse_header
 from ._internal._shortcut import shortcut as _shortcut
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
-from .base import Completion, Help, Option, Shortcut, Subcommand
+from .base import Completion, Help, Option, Shortcut, Subcommand, Header
 from .config import Namespace, config
 from .constraint import SHORTCUT_ARGS, SHORTCUT_REGEX_MATCH, SHORTCUT_REST, SHORTCUT_TRIGGER
 from .exceptions import (
@@ -113,6 +114,8 @@ class Alconna(Subcommand):
     """命令前缀"""
     command: str | Any
     """命令名"""
+    _header: Header
+    """命令头部"""
     formatter: TextFormatter
     """文本格式化器"""
     namespace: str
@@ -167,20 +170,22 @@ class Alconna(Subcommand):
         self.meta.raise_exception = self.meta.raise_exception or ns_config.raise_exception
         self.meta.compact = self.meta.compact or ns_config.compact
         self.meta.context_style = self.meta.context_style or ns_config.context_style
+        self._header = Header.generate(self.command, self.prefixes, self.meta.compact)
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
         add_builtin_options(options, ns_config)
-        name = f"{self.command or self.prefixes[0]}"  # type: ignore
+        name = next(iter(self._header.content), self.command or self.prefixes[0])
         self.path = f"{self.namespace}::{name}"
         _args = sum((i for i in args if isinstance(i, (Args, Arg))), Args())
         super().__init__("ALCONNA::", _args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description)  # noqa: E501
         self.name = name
-        self.aliases = frozenset((name,))
+        self.aliases = frozenset(self._header.content)
         self.behaviors = []
         _behaviors = [i for i in args if isinstance(i, ArparmaBehavior)]
         _behaviors.extend(behaviors or [])
         for behavior in _behaviors:
             self.behaviors.extend(requirement_handler(behavior))
         command_manager.register(self)
+        self.formatter.add(self)
         self._executors: dict[ArparmaExecutor, Any] = {}
         self.union: "WeakSet[Alconna]" = WeakSet()
 
@@ -360,12 +365,12 @@ class Alconna(Subcommand):
                     argv.context[SHORTCUT_REST] = rest
                     argv.context[SHORTCUT_REGEX_MATCH] = mat
                     _shortcut(argv, rest, short, mat)
-                    analyser.header_result = analyser.header_handler(analyser.command_header, argv)
+                    analyser.header_result = analyse_header(self._header, argv)
                     analyser.header_result.origin = trigger
                     if not (exc := analyser.process(argv)):
                         return analyser.export(argv)
                 except ValueError:
-                    if argv.fuzzy_match and (res := handle_head_fuzzy(analyser.command_header, trigger, argv.fuzzy_threshold)):
+                    if argv.fuzzy_match and (res := handle_head_fuzzy(self._header, trigger, argv.fuzzy_threshold)):
                         output_manager.send(self.name, lambda: res)
                         exc = FuzzyMatchSuccess(res)
                 except AlconnaException as e:
@@ -439,7 +444,7 @@ class Alconna(Subcommand):
         return self
 
     def _calc_hash(self):
-        return hash((self.path + str(self.prefixes), self.meta, *self.options, *self.args))
+        return hash((self.namespace, self.header_display, self.meta, *self.options, *self.args))
 
     def __call__(self, *args):
         if args:
@@ -452,8 +457,7 @@ class Alconna(Subcommand):
 
     @property
     def header_display(self):
-        ana = command_manager.require(self)
-        return str(ana.command_header)
+        return str(self._header)
 
 
 __all__ = ["Alconna", "ArparmaExecutor"]

@@ -5,13 +5,12 @@ from collections import namedtuple
 from typing import Any, Literal
 
 from arclet.alconna._internal._analyser import Analyser, default_compiler
-from arclet.alconna._internal._handlers import HEAD_HANDLES
+from arclet.alconna._internal._handlers import analyse_header as alh
 from arclet.alconna._internal._handlers import analyse_args as ala
 from arclet.alconna._internal._handlers import analyse_option as alo
-from arclet.alconna._internal._header import Header
 from arclet.alconna.args import Args
 from arclet.alconna.argv import Argv
-from arclet.alconna.base import Option, Subcommand
+from arclet.alconna.base import Option, Subcommand, Header
 from arclet.alconna.config import Namespace
 from arclet.alconna.typing import CommandMeta, DataCollection
 
@@ -70,12 +69,12 @@ def analyse_header(
     **kwargs
 ):
     meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
-    argv: Argv[DataCollection] = Argv(meta, dev_space, separators=(sep,))
+    argv: Argv[DataCollection] = Argv(meta, dev_space, separators=sep)
     command_header = Header.generate(command_name, headers, compact=compact)
     try:
         argv.enter(kwargs)
         argv.build(command)
-        return HEAD_HANDLES[command_header.flag](command_header, argv)
+        return alh(command_header, argv)
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

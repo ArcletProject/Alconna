@@ -25,7 +25,7 @@ from ..model import HeadResult, OptionResult, SubcommandResult
 from ..output import output_manager
 from ..typing import TDC
 from ._handlers import (
-    HEAD_HANDLES,
+    analyse_header,
     analyse_args,
     analyse_param,
     handle_completion,
@@ -34,7 +34,6 @@ from ._handlers import (
     handle_shortcut,
     prompt,
 )
-from ._header import Header
 from ._util import levenshtein
 
 if TYPE_CHECKING:
@@ -207,10 +206,6 @@ class Analyser(SubAnalyser):
 
     command: Alconna
     """命令实例"""
-    command_header: Header
-    """命令头部"""
-    header_handler: Callable[[Header, Argv], HeadResult]
-    """头部处理器"""
 
     def __init__(self, alconna: Alconna, compiler: TCompile | None = None):
         """初始化解析器
@@ -224,8 +219,6 @@ class Analyser(SubAnalyser):
 
     def compile(self, param_ids: set[str]):
         self.extra_allow = not self.command.meta.strict or not self.command.namespace_config.strict
-        self.command_header = Header.generate(self.command.command, self.command.prefixes, self.command.meta.compact)
-        self.header_handler = HEAD_HANDLES[self.command_header.flag]
         self._compiler(self, param_ids)
         return self
 
@@ -241,7 +234,7 @@ class Analyser(SubAnalyser):
         """
         if not self.header_result:
             try:
-                self.header_result = self.header_handler(self.command_header, argv)
+                self.header_result = analyse_header(self.command._header, argv)
             except InvalidHeader as e:
                 return e
             except RuntimeError:

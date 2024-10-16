@@ -165,19 +165,9 @@ class Arparma(Generic[TDC]):
             delattr(self, k)
 
     @property
-    def header(self) -> dict[str, Any]:
-        """返回可能解析到的命令头中的组信息"""
-        return self.header_match.groups
-
-    @property
     def head_matched(self):
         """返回命令头是否匹配"""
         return self.header_match.matched
-
-    @property
-    def header_result(self):
-        """返回命令头匹配结果"""
-        return self.header_match.result
 
     @property
     def non_component(self) -> bool:

@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterable
-from typing_extensions import NoReturn
+from typing import TYPE_CHECKING, Any, Iterable
 
-from nepattern import ANY, STRING, AnyString, BasePattern, TPattern
+from nepattern import ANY, STRING, AnyString, BasePattern
 from tarina import Empty, lang, safe_eval, split_once
 
 from ..action import Action
 from ..args import Arg, Args
-from ..base import Option, Subcommand
+from ..base import Option, Subcommand, Header
 from ..completion import Prompt, comp_ctx
 from ..config import config
 from ..exceptions import (
@@ -24,7 +23,7 @@ from ..exceptions import (
 from ..model import HeadResult, OptionResult
 from ..output import output_manager
 from ..typing import KWBool, MultiKeyWordVar, MultiVar, _AllParamPattern, _StrMulti
-from ._header import Header
+
 from ._util import levenshtein
 
 if TYPE_CHECKING:
@@ -470,66 +469,24 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: str | None = None):
         return False
 
 
-def _header_handle0(header: "Header[set[str], TPattern]", argv: Argv):
+def analyse_header(header: "Header", argv: Argv):
     content = header.content
     head_text, _str = argv.next()
     if _str:
         if head_text in content:
-            return HeadResult(head_text, head_text, True, fixes=header.mapping)
+            return HeadResult(head_text, head_text, True)
         if header.compact and (mat := header.compact_pattern.match(head_text)):
             argv.rollback(head_text[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
+            return HeadResult(mat[0], mat[0], True)
     may_cmd, _m_str = argv.next()
     if _m_str:
         cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
         if cmd in content:
-            return HeadResult(cmd, cmd, True, fixes=header.mapping)
+            return HeadResult(cmd, cmd, True)
         if header.compact and (mat := header.compact_pattern.match(cmd)):
             argv.rollback(cmd[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
-    _after_analyse_header(argv, head_text, may_cmd, _str, _m_str)
-
-
-def _header_handle1(header: "Header[TPattern, TPattern]", argv: Argv):
-    content = header.content
-    head_text, _str = argv.next()
-    if _str:
-        if mat := content.fullmatch(head_text):
-            return HeadResult(head_text, head_text, True, mat.groupdict(), header.mapping)
-        if header.compact and (mat := header.compact_pattern.match(head_text)):
-            argv.rollback(head_text[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
-    may_cmd, _m_str = argv.next()
-    if _m_str:
-        cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
-        if mat := content.fullmatch(cmd):
-            return HeadResult(cmd, cmd, True, mat.groupdict(), header.mapping)
-        if header.compact and (mat := header.compact_pattern.match(cmd)):
-            argv.rollback(cmd[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True, mat.groupdict(), header.mapping)
-    _after_analyse_header(argv, head_text, may_cmd, _str, _m_str)
-
-
-def _header_handle2(header: "Header[BasePattern, BasePattern]", argv: Argv):
-    head_text, _str = argv.next()
-    if (val := header.content.validate(head_text)).success:
-        return HeadResult(head_text, val._value, True, fixes=header.mapping)
-    if header.compact and (val := header.compact_pattern.validate(head_text)).success:
-        if _str:
-            argv.rollback(head_text[len(str(val._value)):], replace=True)
-        return HeadResult(val.value, val._value, True, fixes=header.mapping)
-    may_cmd, _m_str = argv.next()
-    _after_analyse_header(argv, head_text, may_cmd, _str, _m_str)
-
-
-HEAD_HANDLES: dict[int, Callable[[Header, Argv], HeadResult]] = {
-    0: _header_handle0,
-    1: _header_handle1,
-    2: _header_handle2,
-}
-
-
-def _after_analyse_header(argv: Argv, head_text: Any, may_cmd: Any, _str: bool, _m_str: bool) -> NoReturn:
+            return HeadResult(mat[0], mat[0], True)
+    # _after_analyse_header
     if _str:
         argv.rollback(may_cmd)
         raise InvalidHeader(lang.require("header", "error").format(target=head_text), head_text)

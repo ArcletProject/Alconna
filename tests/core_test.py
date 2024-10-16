@@ -26,7 +26,7 @@ def test_alconna_create():
         Args["foo", str],
         Option("bar", Args["num", int]),
     )
-    assert alc.path == "Alconna::core"
+    assert alc.path == "Alconna::!core"
     assert alc.parse("!core abc bar 123").matched is True
 
     alc_1 = Alconna("core_1", Args["foo", str]["bar;!", int])
@@ -109,17 +109,6 @@ def test_alconna_multi_match():
     assert alc1_3.parse("core1_3 foo bar baz").matched
     assert alc1_3.parse("core1_3 foo bar 123 baz").matched
     assert not alc1_3.parse("core1_3 foo bar baz 123").matched
-
-
-def test_bracket_header():
-    alc2 = Alconna("RD{r:int}?=={e:int}")
-    res = alc2.parse("RD100==36")
-    assert res.matched is True
-    assert res.header["r"] == 100
-    assert res.header["e"] == 36
-    alc2_1 = Alconna(r"RD\{r:int\}")
-    assert not alc2_1.parse("RD100").matched
-    assert alc2_1.parse("RD{r:int}").matched
 
 
 def test_formatter():
@@ -402,13 +391,13 @@ def test_fuzzy():
         assert cap["output"] == '无法解析 "1 core15"。您想要输入的是不是 "!core15" ?'
 
     alc15_1 = Alconna(["/"], "core15_1", meta=CommandMeta(fuzzy_match=True))
-    with output_manager.capture("core15_1") as cap:
-        output_manager.set_action(lambda x: x, "core15_1")
+    with output_manager.capture("/core15_1") as cap:
+        output_manager.set_action(lambda x: x, "/core15_1")
         res2 = alc15_1.parse("core15_1")
         assert res2.matched is False
         assert cap["output"] == '无法解析 "core15_1"。您想要输入的是不是 "/core15_1" ?'
-    with output_manager.capture("core15_1") as cap:
-        output_manager.set_action(lambda x: x, "core15_1")
+    with output_manager.capture("/core15_1") as cap:
+        output_manager.set_action(lambda x: x, "/core15_1")
         res2 = alc15_1.parse("@core15_1")
         assert res2.matched is False
         assert cap["output"] == '无法解析 "@core15_1"。您想要输入的是不是 "/core15_1" ?'
@@ -570,6 +559,13 @@ Unknown
         assert alc16_13.parse("iorank x").matched
         assert alc16_13.parse("iorankx").rank == "x"
         assert alc16_13.parse("iorank").rank == "--all"
+
+    alc16_14 = Alconna("core16_14", Args["r", int]["e", int])
+    alc16_14.shortcut(r"RD(?P<r>\d+)==(?P<e>\d+)", {"command": "core16_14 {r} {e}"})
+    res = alc16_14.parse("RD100==36")
+    assert res.matched is True
+    assert res.query("r") == 100
+    assert res.query("e") == 36
 
 
 def test_help():

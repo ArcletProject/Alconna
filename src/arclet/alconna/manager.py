@@ -40,7 +40,6 @@ class CommandManager:
     def max_count(self) -> int:
         return config.command_max_count
 
-    __commands: dict[str, WeakValueDictionary[str, Alconna]]
     __analysers: dict[int, Analyser]
     __argv: dict[int, Argv]
     __abandons: list[int]
@@ -51,7 +50,6 @@ class CommandManager:
         self.sign = "ALCONNA::"
         self.current_count = 0
 
-        self.__commands = {}
         self.__argv = {}
         self.__analysers = {}
         self.__abandons = []
@@ -59,7 +57,6 @@ class CommandManager:
         self.__record = LRU(128)
 
         def _del():
-            self.__commands.clear()
             for ana in self.__analysers.values():
                 ana._clr()
             self.__analysers.clear()
@@ -114,15 +111,6 @@ class CommandManager:
 
     dump_cache = dump_shortcuts
 
-    @property
-    def get_loaded_namespaces(self):
-        """获取所有命名空间
-
-        Returns:
-            list[str]: 所有命名空间的名称
-        """
-        return list(self.__commands.keys())
-
     @staticmethod
     def _command_part(command: str) -> tuple[str, str]:
         """获取命令的组成部分"""
@@ -130,11 +118,6 @@ class CommandManager:
         if len(command_parts) != 2:
             command_parts.insert(0, config.default_namespace.name)
         return command_parts[0], command_parts[1]
-
-    def get_namespace_config(self, name: str) -> Namespace | None:
-        if name not in self.__commands:
-            return
-        return config.namespaces.get(name)
 
     def register(self, command: Alconna) -> None:
         """注册命令解析器, 会同时记录解析器对应的命令"""
@@ -145,16 +128,6 @@ class CommandManager:
         argv = self.__argv[cmd_hash] = __argv_type__.get()(command.meta, command.namespace_config, command.separators)  # type: ignore
         self.__analysers.pop(cmd_hash, None)
         self.__analysers[cmd_hash] = command.compile(param_ids=argv.param_ids)
-        namespace = self.__commands.setdefault(command.namespace, WeakValueDictionary())
-        if _cmd := namespace.get(command.name):
-            if _cmd == command:
-                return
-            _cmd.formatter.add(command)
-            command.formatter = _cmd.formatter
-        else:
-            command.formatter.add(command)
-            namespace[command.name] = command
-            self.current_count += 1
 
     def _resolve(self, cmd_hash: int) -> Alconna:
         return self.__analysers[cmd_hash].command
@@ -179,17 +152,14 @@ class CommandManager:
 
     def delete(self, command: Alconna) -> None:
         """删除命令"""
-        namespace, name = self._command_part(command.path)
         cmd_hash = command._hash
         try:
             command.formatter.remove(command)
             del self.__argv[cmd_hash]
             del self.__analysers[cmd_hash]
-            del self.__commands[namespace][name]
             self.current_count -= 1
         except KeyError:
-            if self.__commands.get(namespace) == {}:
-                del self.__commands[namespace]
+            pass
 
     @contextlib.contextmanager
     def update(self, command: Alconna):
@@ -197,12 +167,10 @@ class CommandManager:
         cmd_hash = command._hash
         if cmd_hash not in self.__argv:
             raise ValueError(lang.require("manager", "undefined_command").format(target=command.path))
-        namespace, name = self._command_part(command.path)
         self.clear_result(command)
         command.formatter.remove(command)
         argv = self.__argv.pop(cmd_hash)
         analyser = self.__analysers.pop(cmd_hash)
-        del self.__commands[namespace][name]
         yield
         name = f"{command.command or command.prefixes[0]}"  # type: ignore
         command.path = f"{command.namespace}::{name}"
@@ -212,7 +180,6 @@ class CommandManager:
         argv.__post_init__(command.meta)
         argv.param_ids.clear()
         analyser.compile(argv.param_ids)
-        self.__commands.setdefault(command.namespace, WeakValueDictionary())[name] = command
         self.__argv[cmd_hash] = argv
         self.__analysers[cmd_hash] = analyser
         command.formatter.add(command)
@@ -347,10 +314,11 @@ class CommandManager:
 
     def get_command(self, command: str) -> Alconna:
         """获取命令"""
-        namespace, name = self._command_part(command)
-        if namespace not in self.__commands or name not in self.__commands[namespace]:
-            raise ValueError(command)
-        return self.__commands[namespace][name]
+        for ana in self.__analysers.values():
+            namespace, name = self._command_part(command)
+            if ana.command.namespace == namespace and (ana.command.command == name or ana.command.name == name):
+                return ana.command
+        raise ValueError(lang.require("manager", "undefined_command").format(target=command))
 
     def get_commands(self, namespace: str | Namespace = "") -> list[Alconna]:
         """获取命令列表"""
@@ -358,9 +326,7 @@ class CommandManager:
             return [ana.command for ana in self.__analysers.values()]
         if isinstance(namespace, Namespace):
             namespace = Namespace.name
-        if namespace not in self.__commands:
-            return []
-        return list(self.__commands[namespace].values())
+        return [ana.command for ana in self.__analysers.values() if ana.command.namespace == namespace]
 
     def test(self, message: TDC, namespace: str | Namespace = "") -> Arparma[TDC] | None:
         """将一段命令给当前空间内的所有命令测试匹配"""

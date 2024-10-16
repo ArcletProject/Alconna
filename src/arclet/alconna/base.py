@@ -5,6 +5,8 @@ import re
 from dataclasses import replace
 from functools import reduce
 from typing import Any, Iterable, Sequence, overload
+
+from nepattern import TPattern
 from typing_extensions import Self
 
 from tarina import Empty, lang
@@ -13,6 +15,56 @@ from .action import Action, store
 from .args import Arg, Args
 from .exceptions import InvalidArgs
 from .model import OptionResult, SubcommandResult
+
+
+class Header:
+    """命令头部的匹配表达式"""
+
+    __slots__ = ("origin", "content", "mapping", "compact", "compact_pattern")
+
+    def __init__(
+            self,
+            origin: tuple[str, list[str]],
+            content: set[str],
+            compact: bool,
+            compact_pattern: TPattern,
+    ):
+        self.origin = origin  # type: ignore
+        self.content = content  # type: ignore
+        self.compact = compact
+        self.compact_pattern = compact_pattern  # type: ignore
+
+    def __repr__(self):
+        if not self.origin[1]:
+            return self.origin[0]
+        if self.origin[0]:
+            return f"[{'│'.join(self.origin[1])}]{self.origin[0]}" if len(
+                self.content) > 1 else f"{next(iter(self.content))}"  # noqa: E501
+        return '│'.join(self.origin[1])
+
+    def is_intersect(self, header: Header) -> bool:
+        """判断是否与另一个头部有交集
+
+        Args:
+            header (Header): 另一个头部
+
+        Returns:
+            bool: 是否有交集
+        """
+        return bool(self.content & header.content)
+
+    @classmethod
+    def generate(
+        cls,
+        command: str,
+        prefixes: list[str],
+        compact: bool,
+    ):
+        if not prefixes:
+            return cls((command, prefixes), {command}, compact, re.compile(f"^{command}"))
+        prf = "|".join(re.escape(h) for h in prefixes)
+        compp = re.compile(f"^(?:{prf}){command}")
+        return cls((command, prefixes), {f"{h}{command}" for h in prefixes}, compact, compp)
 
 
 def _handle_default(node: CommandNode):
