@@ -116,6 +116,8 @@ class CommandNode:
     """命令节点响应动作"""
     help_text: str
     """命令节点帮助信息"""
+    soft_keyword: bool
+    "是否为软关键字"
 
     def __init__(
         self,
@@ -127,6 +129,7 @@ class CommandNode:
         action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
+        soft_keyword: bool = False
     ):
         """
         初始化命令节点
@@ -139,6 +142,7 @@ class CommandNode:
             action (Action | None, optional): 命令节点响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             help_text (str | None, optional): 命令帮助信息
+            soft_keyword (bool, optional): 是否为软关键字
         """
         self.separators = " " if separators is None else "".join(separators)
         aliases = list(alias or [])
@@ -162,6 +166,7 @@ class CommandNode:
         self.dest = dest or self.name
         self.dest = self.dest.lstrip("-") or self.dest
         self.help_text = help_text or self.dest
+        self.soft_keyword = soft_keyword
         self._hash = self._calc_hash()
 
     nargs: int
@@ -212,8 +217,6 @@ class Option(CommandNode):
     """命令选项别名"""
     compact: bool
     "是否允许名称与后随参数之间无分隔符"
-    soft_keyword: bool = False
-    "是否为软关键字；仅 Sistana 支持该特性。"
 
     def __init__(
         self,
@@ -225,9 +228,8 @@ class Option(CommandNode):
         action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
-        compact: bool = False,
-        priority: int = 0,
-        soft_keyword: bool = False
+        soft_keyword: bool = False,
+        compact: bool = False
     ):
         """初始化命令选项
 
@@ -241,16 +243,13 @@ class Option(CommandNode):
             separators (str | Sequence[str] | Set[str] | None, optional): 命令分隔符
             help_text (str | None, optional): 命令选项帮助信息
             compact (bool, optional): 是否允许名称与后随参数之间无分隔符
-            priority (int, optional): 命令选项优先级
-            soft_keyword (bool, optional): 是否为软关键字；仅 Sistana 支持该特性。
+            soft_keyword (bool, optional): 是否为软关键字
         """
 
-        self.priority = priority
         self.compact = compact
-        self.soft_keyword = soft_keyword
         if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
             default = OptionResult(default)
-        super().__init__(name, args, alias, dest, default, action, separators, help_text)
+        super().__init__(name, args, alias, dest, default, action, separators, help_text, soft_keyword)
         if not self.args.empty:
             if default is not Empty and not self.default.args:
                 self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
@@ -320,8 +319,6 @@ class Subcommand(CommandNode):
     """子命令默认值"""
     options: list[Option | Subcommand]
     """子命令包含的选项与子命令"""
-    soft_keyword: bool = False
-    "是否为软关键字；仅 Sistana 支持该特性。"
 
     def __init__(
         self,
@@ -344,6 +341,7 @@ class Subcommand(CommandNode):
             action (Action | None, optional): 子命令选项响应动作
             separators (str | Sequence[str] | Set[str] | None, optional): 子命令分隔符
             help_text (str | None, optional): 子命令选项帮助信息
+            soft_keyword (bool, optional): 是否为软关键字
         """
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         for li in args:
@@ -354,7 +352,7 @@ class Subcommand(CommandNode):
         super().__init__(
             name,
             reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
-            alias, dest, default, None, separators, help_text
+            alias, dest, default, None, separators, help_text, soft_keyword
         )
         if not self.args.empty and default is not Empty and not self.default.args:
             self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
@@ -362,7 +360,6 @@ class Subcommand(CommandNode):
         if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}):
             self.default = SubcommandResult(args=defaults)
         self._hash = self._calc_hash()
-        self.soft_keyword = soft_keyword
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:
         """连接子命令与命令选项或命令节点
@@ -420,15 +417,25 @@ class Subcommand(CommandNode):
 
 
 class Help(Option):
+    soft_keyword = False
+
     def _calc_hash(self):
         return hash("$ALCONNA_BUILTIN_OPTION_HELP")
 
 
 class Shortcut(Option):
+    soft_keyword = False
+
     def _calc_hash(self):
         return hash("$ALCONNA_BUILTIN_OPTION_SHORTCUT")
 
 
 class Completion(Option):
+    soft_keyword = False
+
     def _calc_hash(self):
         return hash("$ALCONNA_BUILTIN_OPTION_COMPLETION")
+
+
+SPECIAL_OPTIONS = (Help, Shortcut, Completion)
+"""内置选项"""

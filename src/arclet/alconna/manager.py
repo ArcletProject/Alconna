@@ -125,9 +125,9 @@ class CommandManager:
             raise ExceedMaxCount
         cmd_hash = command._hash
         self.__argv.pop(cmd_hash, None)
-        argv = self.__argv[cmd_hash] = __argv_type__.get()(command.meta, command.namespace_config, command.separators)  # type: ignore
+        self.__argv[cmd_hash] = __argv_type__.get()(command.meta, command.namespace_config, command.separators)  # type: ignore
         self.__analysers.pop(cmd_hash, None)
-        self.__analysers[cmd_hash] = command.compile(param_ids=argv.param_ids)
+        self.__analysers[cmd_hash] = command.compile()
 
     def _resolve(self, cmd_hash: int) -> Alconna:
         return self.__analysers[cmd_hash].command
@@ -172,15 +172,14 @@ class CommandManager:
         argv = self.__argv.pop(cmd_hash)
         analyser = self.__analysers.pop(cmd_hash)
         yield
-        name = f"{command.command or command.prefixes[0]}"  # type: ignore
+        name = next(iter(command._header.content), command.command or command.prefixes[0])
         command.path = f"{command.namespace}::{name}"
         cmd_hash = command._hash = command._calc_hash()
         argv.namespace = command.namespace_config
         argv.separators = command.separators
         argv.__post_init__(command.meta)
-        argv.param_ids.clear()
-        analyser.compile(argv.param_ids)
         self.__argv[cmd_hash] = argv
+        analyser.compile()
         self.__analysers[cmd_hash] = analyser
         command.formatter.add(command)
 

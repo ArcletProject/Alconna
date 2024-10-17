@@ -30,7 +30,6 @@ from .exceptions import (
 )
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .output import output_manager
 from .typing import TDC, CommandMeta, InnerShortcutArgs, ShortcutRegWrapper
 
 T = TypeVar("T")
@@ -48,17 +47,18 @@ def handle_argv():
 
 def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> None:
     if "help" not in ns.disable_builtin_options:
-        options.append(Help("|".join(ns.builtin_option_name["help"]), help_text=lang.require("builtin", "option_help")))  # noqa: E501
+        options.append(Help("|".join(ns.builtin_option_name["help"]), dest="$help", help_text=lang.require("builtin", "option_help")))  # noqa: E501
     if "shortcut" not in ns.disable_builtin_options:
         options.append(
             Shortcut(
                 "|".join(ns.builtin_option_name["shortcut"]),
                 Args["action?", "delete|list"]["name?", str]["command", str, "$"],
+                dest="$shortcut",
                 help_text=lang.require("builtin", "option_shortcut"),
             )
         )
     if "completion" not in ns.disable_builtin_options:
-        options.append(Completion("|".join(ns.builtin_option_name["completion"]), help_text=lang.require("builtin", "option_completion")))  # noqa: E501
+        options.append(Completion("|".join(ns.builtin_option_name["completion"]), dest="$completion", help_text=lang.require("builtin", "option_completion")))  # noqa: E501
 
 
 @dataclass(init=True, unsafe_hash=True)
@@ -125,9 +125,9 @@ class Alconna(Subcommand):
     behaviors: list[ArparmaBehavior]
     """命令行为器"""
 
-    def compile(self, compiler: TCompile | None = None, param_ids: set[str] | None = None) -> Analyser:
+    def compile(self, compiler: TCompile | None = None) -> Analyser:
         """编译 `Alconna` 为对应的解析器"""
-        return Analyser(self, compiler).compile(set() if param_ids is None else param_ids)
+        return Analyser(self, compiler).compile()
 
     def __init__(
         self,

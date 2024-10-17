@@ -1,3 +1,28 @@
+from typing import Generic, TypeVar
+
+T = TypeVar("T")
+
+
+class ChainMap(Generic[T]):
+    def __init__(self):
+        self.maps: "list[dict[str, T]]" = []
+
+    def enter(self, map: dict):
+        self.maps.insert(0, map)
+
+    def __contains__(self, item: str):
+        return any(item in m for m in self.maps)
+
+    def __getitem__(self, item: str) -> T:
+        for m in self.maps:
+            if item in m:
+                return m[item]
+        raise KeyError(item)
+
+    def leave(self):
+        self.maps.pop(0)
+
+
 def levenshtein(source: str, target: str) -> float:
     """`编辑距离算法`_, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似
 

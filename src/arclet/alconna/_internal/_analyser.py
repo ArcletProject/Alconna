@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Set
+from typing import TYPE_CHECKING, Any, Callable
 from typing_extensions import Self, TypeAlias
 
 from tarina import Empty, lang
@@ -18,20 +18,15 @@ from ..exceptions import (
     InvalidParam,
     ParamsUnmatched,
     PauseTriggered,
-    SpecialOptionTriggered,
 )
 from ..manager import command_manager
 from ..model import HeadResult, OptionResult, SubcommandResult
-from ..output import output_manager
 from ..typing import TDC
 from ._handlers import (
     analyse_header,
     analyse_args,
     analyse_param,
-    handle_completion,
-    handle_help,
     handle_opt_default,
-    handle_shortcut,
     prompt,
 )
 from ._util import levenshtein
@@ -40,15 +35,12 @@ if TYPE_CHECKING:
     from ..core import Alconna
     from ._argv import Argv
 
-_SPECIAL = {"help": handle_help, "shortcut": handle_shortcut, "completion": handle_completion}
 
-
-def default_compiler(analyser: SubAnalyser, pids: set[str]):
+def default_compiler(analyser: SubAnalyser):
     """默认的编译方法
 
     Args:
         analyser (SubAnalyser): 任意子解析器
-        pids (set[str]): 节点名集合
     """
     for opts in analyser.command.options:
         if isinstance(opts, Option) and not isinstance(opts, (Help, Shortcut, Completion)):
@@ -58,13 +50,11 @@ def default_compiler(analyser: SubAnalyser, pids: set[str]):
                 analyser.compile_params[alias] = opts
             if opts.default is not Empty:
                 analyser.default_opt_result[opts.dest] = (opts.default, opts.action)
-            pids.update(opts.aliases)
         elif isinstance(opts, Subcommand):
             sub = SubAnalyser(opts)
             for alias in opts.aliases:
                 analyser.compile_params[alias] = sub
-            pids.update(opts.aliases)
-            default_compiler(sub, pids)
+            default_compiler(sub)
             if not set(analyser.command.separators).issuperset(opts.separators):
                 analyser.compact_params.append(sub)
             if sub.command.default is not Empty:
@@ -103,6 +93,7 @@ class SubAnalyser:
     """默认子命令的解析结果"""
     extra_allow: bool = field(default=False)
     """是否允许额外的参数"""
+    soft_keyword: bool = field(default=False)
 
     def _clr(self):
         """清除自身的解析结果"""
@@ -113,6 +104,7 @@ class SubAnalyser:
 
     def __post_init__(self):
         self.reset()
+        self.soft_keyword = self.command.soft_keyword
         self.__calc_args__()
 
     def __calc_args__(self):
@@ -147,11 +139,12 @@ class SubAnalyser:
         self.value_result = None
         self.header_result = None
 
-    def process(self, argv: Argv[TDC]) -> Self:
+    def process(self, argv: Argv[TDC], name_validated: bool = True) -> Self:
         """处理传入的参数集合
 
         Args:
             argv (Argv[TDC]): 命令行参数
+            name_validated (bool, optional): 是否已经验证过名称. Defaults to True.
 
         Returns:
             Self: 自身
@@ -161,20 +154,21 @@ class SubAnalyser:
             FuzzyMatchSuccess: 模糊匹配成功
         """
         sub = argv.current_node = self.command
-        name, _ = argv.next(sub.separators)
-        if name not in sub.aliases:
-            argv.rollback(name)
-            if not argv.fuzzy_match:
+        if not name_validated:
+            name, _ = argv.next(sub.separators)
+            if name not in sub.aliases:
+                argv.rollback(name)
+                if not argv.fuzzy_match:
+                    raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
+                for al in sub.aliases:
+                    if levenshtein(name, al) >= argv.fuzzy_threshold:
+                        raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name))
                 raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
-            for al in sub.aliases:
-                if levenshtein(name, al) >= argv.fuzzy_threshold:
-                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name))
-            raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
 
         self.value_result = sub.action.value
-
+        argv.stack_params.enter(self.compile_params)
         while analyse_param(self, argv, self.command.separators):
-            argv.current_node = None
+            pass
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)
         if not self.args_result and self.need_main_args:
@@ -183,6 +177,7 @@ class SubAnalyser:
                     lang.require("subcommand", "args_missing").format(name=self.command.dest)
                 )
             )
+        argv.stack_params.leave()
         return self
 
     def get_sub_analyser(self, target: Subcommand) -> SubAnalyser | None:
@@ -217,22 +212,23 @@ class Analyser(SubAnalyser):
         super().__init__(alconna)
         self._compiler = compiler or default_compiler
 
-    def compile(self, param_ids: set[str]):
+    def compile(self):
         self.extra_allow = not self.command.meta.strict or not self.command.namespace_config.strict
-        self._compiler(self, param_ids)
+        self._compiler(self)
+        command_manager.resolve(self.command).stack_params.enter(self.compile_params)
         return self
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
-    def process(self, argv: Argv[TDC]) -> Exception | None:
+    def process(self, argv: Argv[TDC], name_validated: bool = True) -> Exception | None:
         """主体解析函数, 应针对各种情况进行解析
 
         Args:
             argv (Argv[TDC]): 命令行参数
-
+            name_validated (bool, optional): 是否已经验证过名称. Defaults to True.
         """
-        if not self.header_result:
+        if not self.header_result or not name_validated:
             try:
                 self.header_result = analyse_header(self.command._header, argv)
             except InvalidHeader as e:
@@ -243,19 +239,18 @@ class Analyser(SubAnalyser):
 
         try:
             while analyse_param(self, argv) and argv.current_index != argv.ndata:
-                argv.current_node = None
+                pass
         except FuzzyMatchSuccess as e:
-            output_manager.send(self.command.name, lambda: str(e))
             return e
-        except SpecialOptionTriggered as sot:
-            return _SPECIAL[sot.args[0]](self, argv)
+        # except SpecialOptionTriggered as sot:
+        #     return _SPECIAL[sot.args[0]](self, argv)
         except (InvalidParam, ArgumentMissing) as e1:
-            if (rest := argv.release()) and isinstance(rest[-1], str):
-                if rest[-1] in argv.completion_names and "completion" not in argv.namespace.disable_builtin_options:
-                    argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
-                    return handle_completion(self, argv)
-                if (handler := argv.special.get(rest[-1])) and handler not in argv.namespace.disable_builtin_options:
-                    return _SPECIAL[handler](self, argv)
+            # if (rest := argv.release()) and isinstance(rest[-1], str):
+            #     if rest[-1] in argv.completion_names and "completion" not in argv.namespace.disable_builtin_options:
+            #         argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
+            #         return handle_completion(self, argv)
+            #     if (handler := argv.special.get(rest[-1])) and handler not in argv.namespace.disable_builtin_options:
+            #         return _SPECIAL[handler](self, argv)
             if comp_ctx.get(None):
                 if isinstance(e1, InvalidParam):
                     argv.free(argv.current_node.separators if argv.current_node else None)
@@ -265,14 +260,14 @@ class Analyser(SubAnalyser):
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)
 
-        if argv.done and (not self.need_main_args or self.args_result):
+        if argv.current_index == argv.ndata and (not self.need_main_args or self.args_result):
             return
 
         rest = argv.release()
         if len(rest) > 0:
-            if isinstance(rest[-1], str) and rest[-1] in argv.completion_names:
-                argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
-                return handle_completion(self, argv, rest[-2])
+            # if isinstance(rest[-1], str) and rest[-1] in argv.completion_names:
+            #     argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
+            #     return handle_completion(self, argv, rest[-2])
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next(move=False)[0]))
         else:
             exc = ArgumentMissing(
@@ -316,4 +311,4 @@ class Analyser(SubAnalyser):
         return result  # type: ignore
 
 
-TCompile: TypeAlias = Callable[[SubAnalyser, Set[str]], None]
+TCompile: TypeAlias = Callable[[SubAnalyser], None]

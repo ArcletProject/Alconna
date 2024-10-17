@@ -905,6 +905,7 @@ def test_conflict():
         "core26",
         Option("--foo", Args["bar", str]),
         Option("--bar"),
+        Option("--bar1", soft_keyword=True),
         Option("--baz", Args["qux?", str]),
         Option("--qux"),
     )
@@ -912,10 +913,11 @@ def test_conflict():
     assert res1.matched
     assert res1.find("options.bar")
 
-    res2 = core26.parse("core26 --foo --bar")
+    assert not core26.parse("core26 --foo --bar").matched
+    res2 = core26.parse("core26 --foo --bar1")
     assert res2.matched
-    assert res2.query[str]("foo.bar") == "--bar"
-    assert not res2.find("options.bar")
+    assert res2.query[str]("foo.bar") == "--bar1"
+    assert not res2.find("options.bar1")
 
     res3 = core26.parse("core26 --foo bar --baz qux")
     assert res3.matched

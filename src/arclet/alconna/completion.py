@@ -8,7 +8,6 @@ from tarina import ContextModel, lang
 from .arparma import Arparma
 from .exceptions import InvalidParam, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
 from .manager import command_manager
-from .output import output_manager
 
 if TYPE_CHECKING:
     from .core import Alconna
@@ -195,10 +194,6 @@ class CompSession:
         node = lang.require('completion', 'node')
         node = f"{node}\n" if node else ""
         return node + "\n".join(self.lines())
-
-    def send_prompt(self):
-        """打印补全文本。"""
-        return output_manager.send(self.source.command.name, self.__repr__)
 
     def __enter__(self):
         self._token = comp_ctx.set(self)

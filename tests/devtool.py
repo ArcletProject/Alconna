@@ -95,12 +95,12 @@ def analyse_option(
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(option)
-    default_compiler(_analyser, argv.param_ids)
+    default_compiler(_analyser)
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
         argv.build(command)
-        alo(_analyser, argv, option)
+        alo(_analyser, argv, option, False)
         return _analyser.options_result[option.dest]
     except Exception as e:
         if raise_exception:
@@ -122,7 +122,7 @@ def analyse_subcommand(
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(subcommand)
-    default_compiler(_analyser, argv.param_ids)
+    default_compiler(_analyser)
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)

@@ -38,7 +38,6 @@ from .manager import command_manager as command_manager
 from .model import HeadResult as HeadResult
 from .model import OptionResult as OptionResult
 from .model import SubcommandResult as SubcommandResult
-from .output import output_manager as output_manager
 from .typing import AllParam as AllParam
 from .typing import CommandMeta as CommandMeta
 from .typing import KeyWordVar as KeyWordVar

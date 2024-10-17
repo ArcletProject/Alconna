@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import InitVar, dataclass, field, fields
-from typing import Any, Callable, ClassVar, Generic, Iterable, Literal
+from typing import Any, Callable, ClassVar, Generic, Iterable, Literal, TYPE_CHECKING
 from typing_extensions import Self
 
 from tarina import lang, split, split_once
@@ -12,6 +13,10 @@ from ..config import Namespace, config
 from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
 from ..typing import TDC, CommandMeta
+from ._util import ChainMap
+
+if TYPE_CHECKING:
+    from ._analyser import SubAnalyser
 
 
 @dataclass(repr=True)
@@ -30,8 +35,6 @@ class Argv(Generic[TDC]):
     """需要过滤掉的命令元素"""
     checker: Callable[[Any], bool] | None = field(default=None)
     """检查传入命令"""
-    param_ids: set[str] = field(default_factory=set)
-    """节点名集合"""
 
     fuzzy_match: bool = field(init=False)
     """当前命令是否模糊匹配"""
@@ -52,6 +55,7 @@ class Argv(Generic[TDC]):
     """当前节点"""
     current_index: int = field(init=False)
     """当前数据的索引"""
+    stack_params: ChainMap["SubAnalyser | Option"] = field(init=False, default_factory=ChainMap)
     ndata: int = field(init=False)
     """原始数据的长度"""
     bak_data: list[str | Any] = field(init=False)
@@ -63,8 +67,8 @@ class Argv(Generic[TDC]):
     origin: TDC = field(init=False)
     """原始命令"""
     context: dict[str, Any] = field(init=False, default_factory=dict)
-    special: dict[str, str] = field(init=False, default_factory=dict)
-    completion_names: set[str] = field(init=False, default_factory=set)
+    # special: dict[str, str] = field(init=False, default_factory=dict)
+    # completion_names: set[str] = field(init=False, default_factory=set)
     _sep: str | None = field(init=False)
 
     _cache: ClassVar[dict[type, dict[str, Any]]] = {}
@@ -87,13 +91,13 @@ class Argv(Generic[TDC]):
         self.message_cache = self.namespace.enable_message_cache
         self.filter_crlf = not meta.keep_crlf
         self.context_style = meta.context_style
-        self.special = {}
-        self.special.update(
-            [(i, "help") for i in self.namespace.builtin_option_name["help"]]
-            + [(i, "completion") for i in self.namespace.builtin_option_name["completion"]]
-            + [(i, "shortcut") for i in self.namespace.builtin_option_name["shortcut"]]
-        )
-        self.completion_names = self.namespace.builtin_option_name["completion"]
+        # self.special = {}
+        # self.special.update(
+        #     [(i, "help") for i in self.namespace.builtin_option_name["help"]]
+        #     + [(i, "completion") for i in self.namespace.builtin_option_name["completion"]]
+        #     + [(i, "shortcut") for i in self.namespace.builtin_option_name["shortcut"]]
+        # )
+        # self.completion_names = self.namespace.builtin_option_name["completion"]
 
     def reset(self):
         """重置命令行参数"""
@@ -101,6 +105,7 @@ class Argv(Generic[TDC]):
         self.ndata = 0
         self.bak_data = []
         self.raw_data = []
+        self.stack_params.maps = []
         self.token = 0
         self.origin = "None"  # type: ignore
         self._sep = None
@@ -225,9 +230,12 @@ class Argv(Generic[TDC]):
             return
         if self._sep:
             _current_data = self.raw_data[self.current_index]
-            if self._sep[0] in data and data[0] not in ("'", '"'):
-                data = f"\'{data}\'"
-            self.raw_data[self.current_index] = f"{data}{self._sep[0]}{_current_data}"
+            if not _current_data:
+                self.raw_data[self.current_index] = data
+            else:
+                if self._sep[0] in data and data[0] not in ("'", '"'):
+                    data = f"\'{data}\'"
+                self.raw_data[self.current_index] = f"{data}{self._sep[0]}{_current_data}"
             return
         if self.current_index >= 1:
             self.current_index -= 1
