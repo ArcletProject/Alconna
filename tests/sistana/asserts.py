@@ -39,6 +39,7 @@ class LoopflowTest:
     def expect_uncompleted(self):
         assert self.exit_reason != LoopflowExitReason.completed
 
+
 @dataclass
 class SnapshotTest:
     snapshot: AnalyzeSnapshot
@@ -64,12 +65,12 @@ class BufferTest:
     def expect_empty(self):
         with pytest.raises(OutOfData):
             self.buffer.next("")
-    
+
     def expect_non_empty(self):
         v = None
         with suppress(OutOfData):
             v = self.buffer.next()
-        
+
         assert v is not None
 
     def expect_ahead(self):
@@ -124,7 +125,7 @@ class TrackTest:
 
     def expect_emitted(self, expected: bool = True):
         assert self.track.emitted == expected
-    
+
     def expect_cursor(self, expected: int):
         assert self.track.cursor == expected
 
@@ -152,6 +153,7 @@ class TrackTest:
 
         return FragmentTest(self.mix, self.track, self.track.header)
 
+
 @dataclass
 class FragmentTest:
     mix: Mix
@@ -161,14 +163,14 @@ class FragmentTest:
     @property
     def assigned(self):
         return self.fragment.name in self.mix.assignes
-    
+
     def expect_assigned(self, expected: bool = True):
         assert self.assigned == expected
 
     @property
     def value(self):
         return self.mix.assignes[self.fragment.name]
-    
+
     def expect_value(self, expected):
         assert self.value == expected
 

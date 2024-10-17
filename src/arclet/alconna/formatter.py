@@ -22,7 +22,7 @@ def ensure_node(targets: list[str], options: list[Option | Subcommand], record: 
         if isinstance(opt, Option) and pf in opt.aliases:
             record.append(pf)
             return opt
-        if isinstance(opt, Subcommand) and pf == opt.name:
+        if isinstance(opt, Subcommand) and pf in opt.aliases:
             record.append(pf)
             if not targets:
                 return opt
@@ -110,11 +110,11 @@ class TextFormatter:
                 prefix += trace.separators[0] + trace.separators[0].join(rec[:-1])
             if isinstance(end, Option):
                 return self.format(
-                    Trace({"name": prefix + trace.separators[0] + "│".join(end.aliases), "description": end.help_text, 'example': None, 'usage': None}, end.args, end.separators, [], {})  # noqa: E501
+                    Trace({"name": prefix + trace.separators[0] + "│".join(sorted(end.aliases)), "description": end.help_text, 'example': None, 'usage': None}, end.args, end.separators, [], {})  # noqa: E501
                 )
             if isinstance(end, Subcommand):
                 return self.format(
-                    Trace({"name": prefix + trace.separators[0] + "│".join(end.aliases), "description": end.help_text, 'example': None, 'usage': None}, end.args, end.separators, end.options, {})  # noqa: E501
+                    Trace({"name": prefix + trace.separators[0] + "│".join(sorted(end.aliases)), "description": end.help_text, 'example': None, 'usage': None}, end.args, end.separators, end.options, {})  # noqa: E501
                 )
             return self.format(trace)
 

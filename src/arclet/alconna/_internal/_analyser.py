@@ -9,10 +9,11 @@ from tarina import Empty, lang
 from ..action import Action
 from ..args import Args
 from ..arparma import Arparma
-from ..base import Completion, Help, Option, Shortcut, Subcommand
-from ..completion import comp_ctx
+from ..base import Option, Subcommand
+from ..completion import comp_ctx, prompt
 from ..exceptions import (
     ArgumentMissing,
+    AnalyseException,
     FuzzyMatchSuccess,
     InvalidHeader,
     InvalidParam,
@@ -27,7 +28,6 @@ from ._handlers import (
     analyse_args,
     analyse_param,
     handle_opt_default,
-    prompt,
 )
 from ._util import levenshtein
 
@@ -43,7 +43,7 @@ def default_compiler(analyser: SubAnalyser):
         analyser (SubAnalyser): 任意子解析器
     """
     for opts in analyser.command.options:
-        if isinstance(opts, Option) and not isinstance(opts, (Help, Shortcut, Completion)):
+        if isinstance(opts, Option):
             if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):  # noqa: E501
                 analyser.compact_params.append(opts)
             for alias in opts.aliases:
@@ -153,21 +153,21 @@ class SubAnalyser:
             ParamsUnmatched: 名称不匹配
             FuzzyMatchSuccess: 模糊匹配成功
         """
-        sub = argv.current_node = self.command
+        sub = self.command
         if not name_validated:
             name, _ = argv.next(sub.separators)
             if name not in sub.aliases:
                 argv.rollback(name)
                 if not argv.fuzzy_match:
-                    raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
+                    raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
                 for al in sub.aliases:
                     if levenshtein(name, al) >= argv.fuzzy_threshold:
-                        raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name))
-                raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
+                        raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name), sub)
+                raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
 
         self.value_result = sub.action.value
         argv.stack_params.enter(self.compile_params)
-        while analyse_param(self, argv, self.command.separators):
+        while analyse_param(self, argv, self.command.separators) and argv.current_index != argv.ndata:
             pass
         if self.default_main_only and not self.args_result:
             self.args_result = analyse_args(argv, self.self_args)
@@ -175,25 +175,11 @@ class SubAnalyser:
             raise ArgumentMissing(
                 self.self_args.argument[0].field.get_missing_tips(
                     lang.require("subcommand", "args_missing").format(name=self.command.dest)
-                )
+                ),
+                sub
             )
         argv.stack_params.leave()
         return self
-
-    def get_sub_analyser(self, target: Subcommand) -> SubAnalyser | None:
-        """获取子解析器
-
-        Args:
-            target (Subcommand): 目标子命令
-
-        Returns:
-            SubAnalyser[TDC] | None: 子解析器
-        """
-        if target == self.command:
-            return self
-        for param in self.compile_params.values():
-            if isinstance(param, SubAnalyser):
-                return param.get_sub_analyser(target)
 
 
 class Analyser(SubAnalyser):
@@ -215,7 +201,7 @@ class Analyser(SubAnalyser):
     def compile(self):
         self.extra_allow = not self.command.meta.strict or not self.command.namespace_config.strict
         self._compiler(self)
-        command_manager.resolve(self.command).stack_params.enter(self.compile_params)
+        command_manager.resolve(self.command).stack_params.base = self.compile_params
         return self
 
     def __repr__(self):
@@ -242,39 +228,43 @@ class Analyser(SubAnalyser):
                 pass
         except FuzzyMatchSuccess as e:
             return e
-        # except SpecialOptionTriggered as sot:
-        #     return _SPECIAL[sot.args[0]](self, argv)
         except (InvalidParam, ArgumentMissing) as e1:
-            # if (rest := argv.release()) and isinstance(rest[-1], str):
-            #     if rest[-1] in argv.completion_names and "completion" not in argv.namespace.disable_builtin_options:
-            #         argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
-            #         return handle_completion(self, argv)
-            #     if (handler := argv.special.get(rest[-1])) and handler not in argv.namespace.disable_builtin_options:
-            #         return _SPECIAL[handler](self, argv)
             if comp_ctx.get(None):
                 if isinstance(e1, InvalidParam):
-                    argv.free(argv.current_node.separators if argv.current_node else None)
-                return PauseTriggered(prompt(self, argv), e1, argv)
+                    argv.free(e1.context_node.separators if e1.context_node else None)
+                return PauseTriggered(
+                    prompt(self.command, argv, [*self.args_result.keys()], [*self.options_result.keys(), *self.subcommands_result.keys()], e1.context_node),
+                    e1,
+                    argv
+                )
             return e1
 
         if self.default_main_only and not self.args_result:
-            self.args_result = analyse_args(argv, self.self_args)
+            try:
+                self.args_result = analyse_args(argv, self.self_args)
+            except FuzzyMatchSuccess as e1:
+                return e1
+            except AnalyseException as e2:
+                e2.context_node = None
+                if not argv.error:
+                    argv.error = e2
 
         if argv.current_index == argv.ndata and (not self.need_main_args or self.args_result):
             return
 
         rest = argv.release()
         if len(rest) > 0:
-            # if isinstance(rest[-1], str) and rest[-1] in argv.completion_names:
-            #     argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
-            #     return handle_completion(self, argv, rest[-2])
-            exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next(move=False)[0]))
+            exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next()[0]))
         else:
             exc = ArgumentMissing(
                 self.self_args.argument[0].field.get_missing_tips(lang.require("analyser", "param_missing"))
             )
-        if comp_ctx.get(None) and isinstance(exc, ArgumentMissing):
-            return PauseTriggered(prompt(self, argv), exc, argv)
+            if comp_ctx.get(None):
+                return PauseTriggered(
+                    prompt(self.command, argv, [*self.args_result.keys()], [*self.options_result.keys(), *self.subcommands_result.keys()]),
+                    exc,
+                    argv
+                )
         return exc
 
     def export(
@@ -290,23 +280,30 @@ class Analyser(SubAnalyser):
             fail (bool, optional): 是否解析失败. Defaults to False.
             exception (Exception | None, optional): 解析失败时的异常. Defaults to None.
         """
+        if argv.error:
+            fail = True
+            exception = argv.error
         result = Arparma(self.command._hash, argv.origin, not fail, self.header_result, ctx=argv.exit())
         if fail:
+            if self.command.meta.raise_exception and not isinstance(exception, FuzzyMatchSuccess):
+                raise exception
             result.error_info = exception
             result.error_data = argv.release()
-        else:
-            if self.default_opt_result:
-                handle_opt_default(self.default_opt_result, self.options_result)
-            if self.default_sub_result:
-                for k, v in self.default_sub_result.items():
-                    if k not in self.subcommands_result:
-                        self.subcommands_result[k] = v
-            result.main_args = self.args_result
-            result.options = self.options_result
-            result.subcommands = self.subcommands_result
-            result.unpack()
-            if argv.message_cache:
-                command_manager.record(argv.token, result)
+            if isinstance(exception, FuzzyMatchSuccess):
+                result.output = str(exception)
+
+        if self.default_opt_result:
+            handle_opt_default(self.default_opt_result, self.options_result)
+        if self.default_sub_result:
+            for k, v in self.default_sub_result.items():
+                if k not in self.subcommands_result:
+                    self.subcommands_result[k] = v
+        result.main_args = self.args_result
+        result.options = self.options_result
+        result.subcommands = self.subcommands_result
+        result.unpack()
+        if not fail and argv.message_cache:
+            command_manager.record(argv.token, result)
         self.reset()
         return result  # type: ignore
 

@@ -1,7 +1,6 @@
 """Alconna 主体"""
 from __future__ import annotations
 
-import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -10,24 +9,26 @@ from typing_extensions import Self
 from weakref import WeakSet
 
 from nepattern import TPattern
-from tarina import init_spec, lang
+from tarina import init_spec, lang, Empty
 
+from .model import OptionResult
 from ._internal._analyser import Analyser, TCompile
 from ._internal._handlers import handle_head_fuzzy, analyse_header
 from ._internal._shortcut import shortcut as _shortcut
 from .args import Arg, Args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
-from .base import Completion, Help, Option, Shortcut, Subcommand, Header
+from .base import Completion, Help, Option, Shortcut, Subcommand, Header, SPECIAL_OPTIONS
 from .config import Namespace, config
 from .constraint import SHORTCUT_ARGS, SHORTCUT_REGEX_MATCH, SHORTCUT_REST, SHORTCUT_TRIGGER
 from .exceptions import (
     AlconnaException,
+    AnalyseException,
     ExecuteFailed,
     FuzzyMatchSuccess,
     InvalidHeader,
     PauseTriggered,
-    SpecialOptionTriggered,
 )
+from .completion import prompt, comp_ctx
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
 from .typing import TDC, CommandMeta, InnerShortcutArgs, ShortcutRegWrapper
@@ -45,20 +46,70 @@ def handle_argv():
     return head
 
 
-def add_builtin_options(options: list[Option | Subcommand], ns: Namespace) -> None:
+def add_builtin_options(options: list[Option | Subcommand], cmd: Alconna, ns: Namespace) -> None:
     if "help" not in ns.disable_builtin_options:
         options.append(Help("|".join(ns.builtin_option_name["help"]), dest="$help", help_text=lang.require("builtin", "option_help")))  # noqa: E501
+
+        @cmd.route("$help")
+        def _(command: Alconna, arp: Arparma):
+            argv = command_manager.resolve(cmd)
+            _help_param = [str(i) for i in argv.release(recover=True) if str(i) not in ns.builtin_option_name["help"]]
+            arp.output = command.formatter.format_node(_help_param)
+            return True
+
     if "shortcut" not in ns.disable_builtin_options:
         options.append(
             Shortcut(
                 "|".join(ns.builtin_option_name["shortcut"]),
-                Args["action?", "delete|list"]["name?", str]["command", str, "$"],
+                Args["action?", "delete|list"]["name?", str]["command?", str],
                 dest="$shortcut",
                 help_text=lang.require("builtin", "option_shortcut"),
             )
         )
+
+        @cmd.route("$shortcut")
+        def _(command: Alconna, arp: Arparma):
+            res = arp.query[OptionResult]("$shortcut", force_return=True)
+            if res.args.get("action") == "list":
+                data = command.get_shortcuts()
+                arp.output = "\n".join(data)
+                return True
+            if not res.args.get("name"):
+                raise ValueError(lang.require("shortcut", "name_require"))
+            if res.args.get("action") == "delete":
+                msg = command.shortcut(res.args["name"], delete=True)
+            else:
+                msg = command.shortcut(res.args["name"], fuzzy=True, command=res.args.get("command"))
+            arp.output = msg
+            return True
+
     if "completion" not in ns.disable_builtin_options:
         options.append(Completion("|".join(ns.builtin_option_name["completion"]), dest="$completion", help_text=lang.require("builtin", "option_completion")))  # noqa: E501
+
+        @cmd.route("$completion")
+        def _(command: Alconna, arp: Arparma):
+            argv = command_manager.resolve(cmd)
+            rest = argv.release()
+            trigger = None
+            if rest and isinstance(rest[-1], str) and rest[-1] in ns.builtin_option_name["completion"]:
+                argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
+                trigger = rest[-2]
+            elif isinstance(arp.error_info, AnalyseException):
+                trigger = arp.error_info.context_node
+            if res := prompt(
+                command,
+                argv,
+                list(arp.main_args.keys()),
+                [*arp.options.keys(), *arp.subcommands.keys()],
+                trigger
+            ):
+                if comp_ctx.get(None):
+                    raise PauseTriggered(res, trigger, argv)
+                prompt_other = lang.require("completion", "prompt_other")
+                node = lang.require('completion', 'node')
+                node = f"{node}\n" if node else ""
+                arp.output = f"{node}{prompt_other}" + f"\n{prompt_other}".join([i.text for i in res])
+                return True
 
 
 @dataclass(init=True, unsafe_hash=True)
@@ -87,6 +138,21 @@ class ArparmaExecutor(Generic[T]):
             return arps[0].call(self.target)
         except Exception as e:
             raise ExecuteFailed(e) from e
+
+
+class Router:
+    def __init__(self):
+        self._routes = {}
+
+    def execute(self, cmd: Alconna, arp: Arparma):
+        for route, target in self._routes.items():
+            if arp.query(route, Empty) is not Empty:
+                try:
+                    res = target(cmd, arp)
+                    if res is True:
+                        return
+                except Exception as e:
+                    return e
 
 
 class Alconna(Subcommand):
@@ -161,6 +227,7 @@ class Alconna(Subcommand):
             self.command = next(i for i in args if not isinstance(i, (list, Option, Subcommand, Args, Arg, CommandMeta, ArparmaBehavior)))
         except StopIteration:
             self.command = "" if self.prefixes else handle_argv()
+        self.router = Router()
         self.namespace = ns_config.name
         self.formatter = (formatter_type or ns_config.formatter_type or TextFormatter)()
         self.meta = meta or next((i for i in args if isinstance(i, CommandMeta)), CommandMeta())
@@ -172,7 +239,7 @@ class Alconna(Subcommand):
         self.meta.context_style = self.meta.context_style or ns_config.context_style
         self._header = Header.generate(self.command, self.prefixes, self.meta.compact)
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
-        add_builtin_options(options, ns_config)
+        add_builtin_options(options, self, ns_config)
         name = next(iter(self._header.content), self.command or self.prefixes[0])
         self.path = f"{self.namespace}::{name}"
         _args = sum((i for i in args if isinstance(i, (Args, Arg))), Args())
@@ -211,8 +278,8 @@ class Alconna(Subcommand):
                 self.dest = name
                 self.path = f"{self.namespace}::{name}"
                 self.aliases = frozenset((name,))
-            self.options = [opt for opt in self.options if not isinstance(opt, (Help, Completion, Shortcut))]
-            add_builtin_options(self.options, namespace)
+            self.options = [opt for opt in self.options if not isinstance(opt, SPECIAL_OPTIONS)]
+            add_builtin_options(self.options, self, namespace)
             self.meta.fuzzy_match = namespace.fuzzy_match or self.meta.fuzzy_match
             self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
         return self
@@ -236,6 +303,12 @@ class Alconna(Subcommand):
     def _get_shortcuts(self):
         """返回该命令注册的快捷命令"""
         return command_manager.get_shortcut(self)
+
+    def route(self, path: str):
+        def wrapper(target: Callable[[Alconna, Arparma], Any]):
+            self.router._routes[path] = target
+            return target
+        return wrapper
 
     @overload
     def shortcut(self, key: str | TPattern, args: ShortcutArgs) -> str:
@@ -307,6 +380,8 @@ class Alconna(Subcommand):
             if kwargs and not args:
                 kwargs["args"] = kwargs.pop("arguments", None)
                 kwargs = {k: v for k, v in kwargs.items() if v is not None}
+                if kwargs.get("command") == "$":
+                    del kwargs["command"]
                 args = cast(ShortcutArgs, kwargs)
             if args is not None:
                 return command_manager.add_shortcut(self, key, args)
@@ -356,7 +431,7 @@ class Alconna(Subcommand):
         if not (exc := analyser.process(argv)):
             return analyser.export(argv)
         if isinstance(exc, InvalidHeader):
-            trigger = exc.args[1]
+            trigger = exc.context_node
             if trigger.__class__ is str and trigger:
                 argv.context[SHORTCUT_TRIGGER] = trigger
                 try:
@@ -371,13 +446,10 @@ class Alconna(Subcommand):
                         return analyser.export(argv)
                 except ValueError:
                     if argv.fuzzy_match and (res := handle_head_fuzzy(self._header, trigger, argv.fuzzy_threshold)):
-                        output_manager.send(self.name, lambda: res)
                         exc = FuzzyMatchSuccess(res)
                 except AlconnaException as e:
                     exc = e
         if isinstance(exc, PauseTriggered):
-            raise exc
-        if self.meta.raise_exception and not isinstance(exc, (FuzzyMatchSuccess, SpecialOptionTriggered)):
             raise exc
         return analyser.export(argv, True, exc)
 
@@ -395,9 +467,11 @@ class Alconna(Subcommand):
         arp = self._parse(message, ctx)
         if arp.matched:
             arp = arp.execute(self.behaviors)
-            if self._executors:
-                for ext in self._executors:
-                    self._executors[ext] = arp.call(ext.target)
+        if arp.matched and self._executors:
+            for ext in self._executors:
+                self._executors[ext] = arp.call(ext.target)
+        if err := self.router.execute(self, arp):
+            return arp.fail(err)
         return arp
 
     def bind(self, active: bool = True):
@@ -448,12 +522,16 @@ class Alconna(Subcommand):
 
     def __call__(self, *args):
         if args:
-            return self.parse(list(args))  # type: ignore
-        head = handle_argv()
-        argv = [(f"\"{arg}\"" if any(arg.count(sep) for sep in self.separators) else arg) for arg in sys.argv[1:]]
-        if head != self.command:
-            return self.parse(argv)  # type: ignore
-        return self.parse([head, *argv])  # type: ignore
+            res = self.parse(list(args))  # type: ignore
+        else:
+            head = handle_argv()
+            argv = [(f"\"{arg}\"" if any(arg.count(sep) for sep in self.separators) else arg) for arg in sys.argv[1:]]
+            if head != self.command:
+                return self.parse(argv)  # type: ignore
+            res = self.parse([head, *argv])  # type: ignore
+        if res.output:
+            print(res.output)
+        return res
 
     @property
     def header_display(self):

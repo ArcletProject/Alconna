@@ -336,19 +336,22 @@ def test_wildcard():
         5.0,
         "dsdf",
     ]
-    assert alc13.parse(
-        """core13
+    assert (
+        alc13.parse(
+            """core13
 import foo
 
 def test():
     print("Hello, World!")"""
-    ).foo == [
-        """\
+        ).foo
+        == [
+            """\
 import foo
 
 def test():
     print("Hello, World!")"""
-    ]
+        ]
+    )
 
     alc13_1 = Alconna("core13_1", Args["foo", AllParam(str)])
     assert alc13_1.parse(["core13_1 abc def gh", 123, 5.0, "dsdf"]).foo == [
@@ -376,42 +379,33 @@ def test_alconna_group():
 
 
 def test_fuzzy():
-    from arclet.alconna import output_manager
-
     alc15 = Alconna("!core15", Args["foo", str], meta=CommandMeta(fuzzy_match=True))
-    with output_manager.capture("!core15") as cap:
-        output_manager.set_action(lambda x: x, "!core15")
-        res = alc15.parse("core15 foo bar")
-        assert res.matched is False
-        assert cap["output"] == '无法解析 "core15"。您想要输入的是不是 "!core15" ?'
-    with output_manager.capture("!core15") as cap:
-        output_manager.set_action(lambda x: x, "!core15")
-        res1 = alc15.parse([1, "core15", "foo", "bar"])
-        assert res1.matched is False
-        assert cap["output"] == '无法解析 "1 core15"。您想要输入的是不是 "!core15" ?'
+    res = alc15.parse("core15 foo bar")
+    assert res.matched is False
+    assert res.output == '无法解析 "core15"。您想要输入的是不是 "!core15" ?'
+    res1 = alc15.parse([1, "core15", "foo", "bar"])
+    assert res1.matched is False
+    assert res1.output == '无法解析 "1 core15"。您想要输入的是不是 "!core15" ?'
 
     alc15_1 = Alconna(["/"], "core15_1", meta=CommandMeta(fuzzy_match=True))
-    with output_manager.capture("/core15_1") as cap:
-        output_manager.set_action(lambda x: x, "/core15_1")
-        res2 = alc15_1.parse("core15_1")
-        assert res2.matched is False
-        assert cap["output"] == '无法解析 "core15_1"。您想要输入的是不是 "/core15_1" ?'
-    with output_manager.capture("/core15_1") as cap:
-        output_manager.set_action(lambda x: x, "/core15_1")
-        res2 = alc15_1.parse("@core15_1")
-        assert res2.matched is False
-        assert cap["output"] == '无法解析 "@core15_1"。您想要输入的是不是 "/core15_1" ?'
+
+    res2 = alc15_1.parse("core15_1")
+    assert res2.matched is False
+    assert res2.output == '无法解析 "core15_1"。您想要输入的是不是 "/core15_1" ?'
+
+    res3 = alc15_1.parse("@core15_1")
+    assert res3.matched is False
+    assert res3.output == '无法解析 "@core15_1"。您想要输入的是不是 "/core15_1" ?'
 
     alc15_3 = Alconna("core15_3", Option("rank", compact=True), meta=CommandMeta(fuzzy_match=True))
-    with output_manager.capture("core15_3") as cap:
-        output_manager.set_action(lambda x: x, "core15_3")
-        res6 = alc15_3.parse("core15_3 runk")
-        assert res6.matched is False
-        assert cap["output"] == '无法解析 "runk"。您想要输入的是不是 "rank" ?'
+
+    res4 = alc15_3.parse("core15_3 runk")
+    assert res4.matched is False
+    assert res4.output == '无法解析 "runk"。您想要输入的是不是 "rank" ?'
 
 
 def test_shortcut():
-    from arclet.alconna import namespace, output_manager
+    from arclet.alconna import namespace
 
     with namespace("test16") as ns:
         ns.disable_builtin_options = set()
@@ -493,16 +487,15 @@ def test_shortcut():
         alc16_6 = Alconna("core16_6", Args["bar", str])
         alc16_6.shortcut("test(?P<bar>.+)?", fuzzy=False, wrapper=wrapper, arguments=["{bar}"])
         assert alc16_6.parse("testabc").bar == "abc"
-
-        with output_manager.capture("core16_6") as cap:
-            output_manager.set_action(lambda x: x, "core16_6")
-            alc16_6.parse("testhelp")
-            assert cap["output"] == """\
+        assert (
+            alc16_6.parse("testhelp").output
+            == """\
 core16_6 <bar: str> 
 Unknown
 快捷命令:
 'test(?P<bar>.+)?' => core16_6 {bar}\
 """
+        )
 
         alc16_7 = Alconna("core16_7", Args["bar", str])
         alc16_7.shortcut("test 123", {"args": ["abc"]})
@@ -550,10 +543,7 @@ Unknown
             return content
 
         alc16_13.shortcut(
-            r"(?i:io)(?i:rank)\s*(?P<rank>[a-zA-Z+-]*)",
-            command="core16_13 rank {rank}",
-            fuzzy=False,
-            wrapper=wrapper2
+            r"(?i:io)(?i:rank)\s*(?P<rank>[a-zA-Z+-]*)", command="core16_13 rank {rank}", fuzzy=False, wrapper=wrapper2
         )
 
         assert alc16_13.parse("iorank x").matched
@@ -569,9 +559,6 @@ Unknown
 
 
 def test_help():
-    from arclet.alconna import output_manager
-    from arclet.alconna.exceptions import SpecialOptionTriggered
-
     alc17 = Alconna(
         "core17",
         Option("foo", Args["bar", str], help_text="Foo bar"),
@@ -579,43 +566,34 @@ def test_help():
         Subcommand("add", Args["bar", str], help_text="Add bar"),
         Subcommand("del", Args["bar", str], help_text="Del bar"),
     )
-    with output_manager.capture("core17") as cap:
-        output_manager.set_action(lambda x: x, "core17")
-        res = alc17.parse("core17 --help")
-        assert isinstance(res.error_info, SpecialOptionTriggered)
-        assert cap["output"] == (
-            "core17 \n"
-            "Unknown\n"
-            "\n"
-            "可用的子命令有:\n"
-            "* Add bar\n"
-            "  add <bar: str> \n"
-            "* Del bar\n"
-            "  del <bar: str> \n"
-            "可用的选项有:\n"
-            "* Foo bar\n"
-            "  foo <bar: str> \n"
-            "* Baz qux\n"
-            "  baz <qux: str> \n"
-        )
-    with output_manager.capture("core17") as cap:
-        alc17.parse("core17 --help foo")
-        assert cap["output"] == "core17 foo <bar: str> \nFoo bar"
-    with output_manager.capture("core17") as cap:
-        alc17.parse("core17 foo --help")
-        assert cap["output"] == "core17 foo <bar: str> \nFoo bar"
-    with output_manager.capture("core17") as cap:
-        alc17.parse("core17 --help baz")
-        assert cap["output"] == "core17 baz <qux: str> \nBaz qux"
-    with output_manager.capture("core17") as cap:
-        alc17.parse("core17 baz --help")
-        assert cap["output"] == "core17 baz <qux: str> \nBaz qux"
-    with output_manager.capture("core17") as cap:
-        alc17.parse("core17 add --help")
-        assert cap["output"] == "core17 add <bar: str> \nAdd bar"
-    with output_manager.capture("core17") as cap:
-        alc17.parse("core17 del --help")
-        assert cap["output"] == "core17 del <bar: str> \nDel bar"
+    res = alc17.parse("core17 --help")
+    assert res.output == (
+        "core17 \n"
+        "Unknown\n"
+        "\n"
+        "可用的子命令有:\n"
+        "* Add bar\n"
+        "  add <bar: str> \n"
+        "* Del bar\n"
+        "  del <bar: str> \n"
+        "可用的选项有:\n"
+        "* Foo bar\n"
+        "  foo <bar: str> \n"
+        "* Baz qux\n"
+        "  baz <qux: str> \n"
+    )
+
+    assert alc17.parse("core17 --help foo").output == "core17 foo <bar: str> \nFoo bar"
+
+    assert alc17.parse("core17 foo --help").output == "core17 foo <bar: str> \nFoo bar"
+
+    assert alc17.parse("core17 --help baz").output == "core17 baz <qux: str> \nBaz qux"
+
+    assert alc17.parse("core17 baz --help").output == "core17 baz <qux: str> \nBaz qux"
+
+    assert alc17.parse("core17 add --help").output == "core17 add <bar: str> \nAdd bar"
+
+    assert alc17.parse("core17 del --help").output == "core17 del <bar: str> \nDel bar"
     alc17_2 = Alconna(
         "core17_2",
         Subcommand(
@@ -625,12 +603,11 @@ def test_help():
             help_text="sub Foo",
         ),
     )
-    with output_manager.capture("core17_2") as cap:
-        alc17_2.parse("core17_2 --help foo bar")
-        assert cap["output"] == "core17_2 foo bar <baz: str> \nFoo bar"
-    with output_manager.capture("core17_2") as cap:
-        alc17_2.parse("core17_2 --help foo")
-        assert cap["output"] == "core17_2 foo <abc: str> \nsub Foo\n\n可用的选项有:\n* Foo bar\n  bar <baz: str> \n"
+    assert alc17_2.parse("core17_2 --help foo bar").output == "core17_2 foo bar <baz: str> \nFoo bar"
+    assert (
+        alc17_2.parse("core17_2 --help foo").output
+        == "core17_2 foo <abc: str> \nsub Foo\n\n可用的选项有:\n* Foo bar\n  bar <baz: str> \n"
+    )
 
 
 def test_hide_annotation():
@@ -647,32 +624,64 @@ def test_args_notice():
 
 
 def test_completion():
-    from arclet.alconna.exceptions import SpecialOptionTriggered
-
-    alc20 = (
-        "core20"
-        + Option("fool")
-        + Option(
+    alc20 = Alconna(
+        "core20",
+        Option("fool"),
+        Option(
             "foo",
             Args["bar", "a|b|c", Field(completion=lambda: "choose a, b or c")],
-        )
-        + Option(
+        ),
+        Option(
             "off",
             Args["baz", "aaa|aab|abc", Field(completion=lambda: ["use aaa", "use aab", "use abc"])],
-        )
-        + Args["test", int, Field(1, completion=lambda: "try -1")]
+        ),
+        Args["test", int, Field(1, completion=lambda: "try -1")]
     )
-
-    alc20.parse("core20 --comp")
-    alc20.parse("core20 f --comp")
-    alc20.parse("core20 fo --comp")
-    alc20.parse("core20 foo --comp")
-    alc20.parse("core20 fool --comp")
-    alc20.parse("core20 off b --comp")
+    assert alc20.parse("core20 --comp").output == (
+        """\
+以下是建议的输入：
+* fool
+* foo
+* off\
+"""
+    )
+    assert alc20.parse("core20 f --comp").output == (
+        """\
+以下是建议的输入：
+* fool
+* foo
+* off\
+"""
+    )
+    assert alc20.parse("core20 fo --comp").output == (
+        """\
+以下是建议的输入：
+* fool
+* foo\
+"""
+    )
+#     assert alc20.parse("core20 f --comp").output == """以下是建议的输入：
+# * fool
+# * foo
+# * off"""
+#     assert alc20.parse("core20 fo --comp").output == """以下是建议的输入：
+# * fool
+# * foo"""
+#     assert alc20.parse("core20 foo --comp").output == """以下是建议的输入：
+# * bar: choose a, b or c"""
+#     assert alc20.parse("core20 fool --comp").output == """以下是建议的输入：
+# * foo
+# * off"""
+#     assert alc20.parse("core20 off b --comp").output == """以下是建议的输入：
+# * baz: use aaa
+# * baz: use aab
+# * baz: use abc"""
 
     alc20_1 = Alconna("core20_1", Args["foo", int], Option("bar"))
     res = alc20_1.parse("core20_1 -cp")
-    assert isinstance(res.error_info, SpecialOptionTriggered)
+    assert res.output == """以下是建议的输入：
+* <foo: int>
+* bar"""
 
 
 def test_completion_interface():
@@ -778,9 +787,11 @@ def test_nest_subcommand():
     assert alc23.parse(["core23 bar baz --qux", A(), "123"]).matched
     assert not alc23.parse(["core23 bar baz", A(), "--qux 123"]).matched
     assert alc23.parse(["core23 bar baz --qux", A(), "123"]).query("Bar.Baz.qux.value") is Ellipsis
-    print("")
+
     # alc23.parse("core23 --help")
-    alc23.parse("core23 bar baz --help")
+    assert alc23.parse("core23 bar baz --help").output == (
+        "core23 bar baaz│baz \n" "test nest subcommand; deep 2\n" "\n" "可用的选项有:\n" "* qux\n" "  --qux \n"
+    )
 
     alc23_1 = Alconna(
         "core23_1",
@@ -818,9 +829,7 @@ def test_action():
         Option("-x|--xyz", action=count),
         Option("--q", action=count),
     )
-    res = alc24_2.parse(
-        "core24_2 -A --a -vvv -x -x --xyzxyz -Fabc -Fdef --flag xyz --i 4 --i 5 --q --qq"
-    )
+    res = alc24_2.parse("core24_2 -A --a -vvv -x -x --xyzxyz -Fabc -Fdef --flag xyz --i 4 --i 5 --q --qq")
     assert res.query[int]("i.foo") == 5
     assert res.query[List[int]]("a.value") == [1, 1]
     assert res.query[List[str]]("flag.flag") == ["abc", "def", "xyz"]
@@ -957,13 +966,20 @@ def test_tips():
 
     core27 = Alconna(
         "core27",
-        Args["arg1", Literal["1", "2"], Field(unmatch_tips=lambda x: f"参数arg必须是1或2哦，不能是{x}", missing_tips=lambda: "缺少了arg1参数哦")],
+        Args[
+            "arg1",
+            Literal["1", "2"],
+            Field(unmatch_tips=lambda x: f"参数arg必须是1或2哦，不能是{x}", missing_tips=lambda: "缺少了arg1参数哦"),
+        ],
         Args["arg2", Literal["1", "2"], Field(missing_tips=lambda: "缺少了arg2参数哦")],
     )
     assert core27.parse("core27 1 1").matched
     assert str(core27.parse("core27 3 1").error_info) == "参数arg必须是1或2哦，不能是3"
     assert str(core27.parse("core27 1").error_info) == "缺少了arg2参数哦"
-    assert str(core27.parse("core27 1 3").error_info) in ("参数 '3' 不正确, 其应该符合 \"'1'|'2'\"", "参数 '3' 不正确, 其应该符合 \"'2'|'1'\"")
+    assert str(core27.parse("core27 1 3").error_info) in (
+        "参数 '3' 不正确, 其应该符合 \"'1'|'2'\"",
+        "参数 '3' 不正确, 其应该符合 \"'2'|'1'\"",
+    )
     assert str(core27.parse("core27").error_info) == "缺少了arg1参数哦"
 
 

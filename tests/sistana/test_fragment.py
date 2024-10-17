@@ -10,7 +10,11 @@ from .asserts import analyze
 
 
 def test_assert_fragments_order_valid():
-    fragments = [_Fragment(name="frag1"), _Fragment(name="frag2", default=Value("default")), _Fragment(name="frag3", variadic=True)]
+    fragments = [
+        _Fragment(name="frag1"),
+        _Fragment(name="frag2", default=Value("default")),
+        _Fragment(name="frag3", variadic=True),
+    ]
     assert_fragments_order(fragments)
 
 

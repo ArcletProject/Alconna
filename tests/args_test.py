@@ -169,8 +169,7 @@ def test_callable():
         d: int = 1,
         e: bool = False,
         **kwargs: str,
-    ):
-        ...
+    ): ...
 
     arg16, _ = Args.from_callable(test)
     assert len(arg16.argument) == 7
@@ -247,7 +246,9 @@ def test_multi_multi():
 def test_contextval():
     arg21 = Args["foo", str]
     assert analyse_args(arg21, ["$(bar)"], context_style="parentheses", bar="baz") == {"foo": "baz"}
-    assert analyse_args(arg21, ["{bar}"], context_style="parentheses", raise_exception=False, bar="baz") != {"foo": "baz"}
+    assert analyse_args(arg21, ["{bar}"], context_style="parentheses", raise_exception=False, bar="baz") != {
+        "foo": "baz"
+    }
 
     assert analyse_args(arg21, ["{bar}"], context_style="bracket", bar="baz") == {"foo": "baz"}
     assert analyse_args(arg21, ["$(bar)"], context_style="bracket", raise_exception=False, bar="baz") != {"foo": "baz"}
@@ -265,7 +266,9 @@ def test_contextval():
     arg21_1 = Args["foo", int]
     assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", bar=123) == {"foo": 123}
     assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", bar="123") == {"foo": 123}
-    assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", raise_exception=False, bar="baz") != {"foo": 123}
+    assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", raise_exception=False, bar="baz") != {
+        "foo": 123
+    }
 
 
 if __name__ == "__main__":

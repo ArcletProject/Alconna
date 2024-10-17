@@ -6,10 +6,13 @@ from typing import TYPE_CHECKING
 from tarina import ContextModel, lang
 
 from .arparma import Arparma
-from .exceptions import InvalidParam, ParamsUnmatched, PauseTriggered, SpecialOptionTriggered
+from .exceptions import InvalidParam, ParamsUnmatched, PauseTriggered
 from .manager import command_manager
+from .base import Subcommand, SPECIAL_OPTIONS, Option
+from .args import Arg
 
 if TYPE_CHECKING:
+    from .argv import Argv
     from .core import Alconna
 
 
@@ -124,7 +127,7 @@ class CompSession:
                 return EnterResult(exception=ValueError(lang.require("completion", "prompt_unavailable")))
             if prompt.removal_prefix:
                 argv.bak_data[-1] = argv.bak_data[-1][: -len(prompt.removal_prefix)]
-                argv.next(move=True)
+                argv.next()
             input_ = [prompt.text]
         if isinstance(self.trigger, InvalidParam):
             argv.raw_data = argv.bak_data[: max(self.current_index, 1)]
@@ -144,7 +147,7 @@ class CompSession:
                 self.exit()
                 return EnterResult(res)
         if exc := self.source.process(argv):
-            if isinstance(exc, (ParamsUnmatched, SpecialOptionTriggered)):
+            if isinstance(exc, ParamsUnmatched):
                 self.exit()
                 return EnterResult(self.source.export(argv, True, exc))
             if isinstance(exc, PauseTriggered):
@@ -212,8 +215,8 @@ class CompSession:
         """
         self.clear()
         self.push(*exc.args[0])
-        self.trigger = exc.args[1]
-        argv = exc.args[2]
+        self.trigger = exc.context_node
+        argv = exc.argv
         self.raw_data = argv.raw_data
         self.bak_data = argv.bak_data
         self.current_index = argv.current_index
@@ -221,3 +224,53 @@ class CompSession:
 
 
 comp_ctx: ContextModel[CompSession] = ContextModel("comp_ctx")
+
+
+def _prompt_unit(command: Alconna, argv: Argv, trig: Arg):
+    if not (comp := trig.field.get_completion()):
+        return [Prompt(command.formatter.param(trig), False)]
+    if isinstance(comp, str):
+        return [Prompt(f"{trig.name}: {comp}", False)]
+    releases = argv.release(recover=True)
+    target = str(releases[-1]) or str(releases[-2])
+    o = list(filter(lambda x: target in x, comp)) or comp
+    return [Prompt(f"{trig.name}: {i}", False, target) for i in o]
+
+
+def _prompt_none(command: Alconna, args_got: list[str], opts_got: list[str]):
+    res: list[Prompt] = []
+    if unit := next((arg for arg in command.args if arg.name not in args_got), None):
+        if not (comp := unit.field.get_completion()):
+            res.append(Prompt(command.formatter.param(unit), False))
+        elif isinstance(comp, str):
+            res.append(Prompt(f"{unit.name}: {comp}", False))
+        else:
+            res.extend(Prompt(f"{unit.name}: {i}", False) for i in comp)
+    for opt in command.options:
+        if isinstance(opt, SPECIAL_OPTIONS):
+            continue
+        if opt.dest not in opts_got:
+            res.extend([Prompt(al) for al in opt.aliases] if isinstance(opt, Option) else [Prompt(opt.name)])
+    return res
+
+
+def prompt(command: Alconna, argv: Argv, args_got: list[str], opts_got: list[str], trigger: str | Arg | Subcommand | None = None):
+    """获取补全列表"""
+    if isinstance(trigger, Arg):
+        return _prompt_unit(command, argv, trigger)
+    elif isinstance(trigger, Subcommand):
+        return [Prompt(i) for i in argv.stack_params.stack[-1]]
+    elif isinstance(trigger, str):
+        res = list(filter(lambda x: trigger in x, argv.stack_params.base))
+        if not res:
+            return []
+        out = [i for i in res if i not in opts_got]
+        return [Prompt(i, True, trigger) for i in (out or res)]
+    releases = argv.release(recover=True)
+    target = str(releases[-1])
+    if isinstance(releases[-1], str) and releases[-1] in command.namespace_config.builtin_option_name["completion"]:
+        target = str(releases[-2])
+    if _res := list(filter(lambda x: target in x and target != x, argv.stack_params.base)):
+        out = [i for i in _res if i not in opts_got]
+        return [Prompt(i, True, target) for i in (out or _res)]
+    return _prompt_none(command, args_got, opts_got)

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from collections import deque
 from dataclasses import InitVar, dataclass, field, fields
 from typing import Any, Callable, ClassVar, Generic, Iterable, Literal, TYPE_CHECKING
 from typing_extensions import Self
 
 from tarina import lang, split, split_once
 
-from ..args import Arg
-from ..base import Option, Subcommand
+from ..base import Option
 from ..config import Namespace, config
 from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
@@ -51,11 +49,10 @@ class Argv(Generic[TDC]):
     context_style: Literal["bracket", "parentheses"] | None = field(init=False)
     "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
 
-    current_node: Arg | Subcommand | Option | None = field(init=False)
-    """当前节点"""
     current_index: int = field(init=False)
     """当前数据的索引"""
-    stack_params: ChainMap["SubAnalyser | Option"] = field(init=False, default_factory=ChainMap)
+    stack_params: ChainMap[SubAnalyser | Option] = field(init=False, default_factory=lambda: ChainMap())
+    error: Exception | None = field(init=False)
     ndata: int = field(init=False)
     """原始数据的长度"""
     bak_data: list[str | Any] = field(init=False)
@@ -67,8 +64,6 @@ class Argv(Generic[TDC]):
     origin: TDC = field(init=False)
     """原始命令"""
     context: dict[str, Any] = field(init=False, default_factory=dict)
-    # special: dict[str, str] = field(init=False, default_factory=dict)
-    # completion_names: set[str] = field(init=False, default_factory=set)
     _sep: str | None = field(init=False)
 
     _cache: ClassVar[dict[type, dict[str, Any]]] = {}
@@ -91,13 +86,6 @@ class Argv(Generic[TDC]):
         self.message_cache = self.namespace.enable_message_cache
         self.filter_crlf = not meta.keep_crlf
         self.context_style = meta.context_style
-        # self.special = {}
-        # self.special.update(
-        #     [(i, "help") for i in self.namespace.builtin_option_name["help"]]
-        #     + [(i, "completion") for i in self.namespace.builtin_option_name["completion"]]
-        #     + [(i, "shortcut") for i in self.namespace.builtin_option_name["shortcut"]]
-        # )
-        # self.completion_names = self.namespace.builtin_option_name["completion"]
 
     def reset(self):
         """重置命令行参数"""
@@ -105,11 +93,11 @@ class Argv(Generic[TDC]):
         self.ndata = 0
         self.bak_data = []
         self.raw_data = []
-        self.stack_params.maps = []
+        self.error = None
+        self.stack_params.stack = []
         self.token = 0
         self.origin = "None"  # type: ignore
         self._sep = None
-        self.current_node = None
 
     @staticmethod
     def generate_token(data: list) -> int:
@@ -190,12 +178,11 @@ class Argv(Generic[TDC]):
             self.token = self.generate_token(self.raw_data)
         return self
 
-    def next(self, separate: str | None = None, move: bool = True) -> tuple[str | Any, bool]:
+    def next(self, separate: str | None = None) -> tuple[str | Any, bool]:
         """获取解析需要的下个数据
 
         Args:
             separate (str | None, optional): 分隔符.
-            move (bool, optional): 是否移动指针.
 
         Returns:
             tuple[str | Any, bool]: 下个数据, 是否是字符串.
@@ -208,15 +195,13 @@ class Argv(Generic[TDC]):
         _current_data = self.raw_data[self.current_index]
         if _current_data.__class__ is str:
             _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)  # type: ignore
-            if move:
-                if _rest_text:
-                    self._sep = separate
-                    self.raw_data[self.current_index] = _rest_text
-                else:
-                    self.current_index += 1
+            if _rest_text:
+                self._sep = separate
+                self.raw_data[self.current_index] = _rest_text
+            else:
+                self.current_index += 1
             return _text, True
-        if move:
-            self.current_index += 1
+        self.current_index += 1
         return _current_data, False
 
     def rollback(self, data: str | Any, replace: bool = False):

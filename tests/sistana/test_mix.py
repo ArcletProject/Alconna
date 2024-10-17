@@ -44,10 +44,11 @@ def test_assignable():
 
 def test_header_edge_case():
     class DoNothingRx(Rx):
-        def receive(self, fetch, prev, put):
-            ...
-    
-    pat = SubcommandPattern.build("test", header_fragment=Fragment("arg1", receiver=DoNothingRx(), default=Value("default")))
+        def receive(self, fetch, prev, put): ...
+
+    pat = SubcommandPattern.build(
+        "test", header_fragment=Fragment("arg1", receiver=DoNothingRx(), default=Value("default"))
+    )
 
     a, sn, bf = analyze(pat, Buffer(["test"]))
     a.expect_completed()

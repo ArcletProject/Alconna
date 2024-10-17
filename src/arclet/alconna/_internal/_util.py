@@ -1,26 +1,34 @@
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Optional
 
 T = TypeVar("T")
 
 
 class ChainMap(Generic[T]):
-    def __init__(self):
-        self.maps: "list[dict[str, T]]" = []
+    def __init__(self, base: Optional[dict[str, T]] = None, *maps: dict[str, T]):
+        self.base: dict[str, T] = base or {}
+        self.stack: "list[dict[str, T]]" = list(maps)
 
     def enter(self, map: dict):
-        self.maps.insert(0, map)
+        self.stack.insert(0, map)
 
     def __contains__(self, item: str):
-        return any(item in m for m in self.maps)
+        return item in self.base or any(item in m for m in self.stack)
 
     def __getitem__(self, item: str) -> T:
-        for m in self.maps:
+        for m in self.stack:
             if item in m:
                 return m[item]
+        if item in self.base:
+            return self.base[item]
         raise KeyError(item)
 
+    def parents(self):
+        if not self.stack:
+            return ChainMap()
+        return ChainMap(self.base, *self.stack[1:])
+
     def leave(self):
-        self.maps.pop(0)
+        self.stack.pop(0)
 
 
 def levenshtein(source: str, target: str) -> float:

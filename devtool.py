@@ -43,7 +43,7 @@ def analyse_args(
     command: list[str | Any],
     raise_exception: bool = True,
     context_style: Literal["bracket", "parentheses"] | None = None,
-    **kwargs
+    **kwargs,
 ):
     meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
     argv: Argv[DataCollection] = Argv(meta, dev_space)
@@ -66,7 +66,7 @@ def analyse_header(
     compact: bool = False,
     raise_exception: bool = True,
     context_style: Literal["bracket", "parentheses"] | None = None,
-    **kwargs
+    **kwargs,
 ):
     meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
     argv: Argv[DataCollection] = Argv(meta, dev_space, separators=sep)
@@ -86,7 +86,7 @@ def analyse_option(
     command: DataCollection[str | Any],
     raise_exception: bool = True,
     context_style: Literal["bracket", "parentheses"] | None = None,
-    **kwargs
+    **kwargs,
 ):
     meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
     argv: Argv[DataCollection] = Argv(meta, dev_space)
@@ -95,12 +95,12 @@ def analyse_option(
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(option)
-    default_compiler(_analyser, argv.param_ids)
+    default_compiler(_analyser)
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
         argv.build(command)
-        alo(_analyser, argv, option)
+        alo(_analyser, argv, option, False)
         return _analyser.options_result[option.dest]
     except Exception as e:
         if raise_exception:
@@ -113,7 +113,7 @@ def analyse_subcommand(
     command: DataCollection[str | Any],
     raise_exception: bool = True,
     context_style: Literal["bracket", "parentheses"] | None = None,
-    **kwargs
+    **kwargs,
 ):
     meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
     argv: Argv[DataCollection] = Argv(meta, dev_space)
@@ -122,7 +122,7 @@ def analyse_subcommand(
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(subcommand)
-    default_compiler(_analyser, argv.param_ids)
+    default_compiler(_analyser)
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)

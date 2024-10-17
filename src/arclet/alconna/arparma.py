@@ -5,7 +5,7 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 from functools import lru_cache
 from types import MappingProxyType
-from typing import Any, Callable, ClassVar, Generic, TypeVar, cast, overload
+from typing import Any, Callable, ClassVar, Generic, TypeVar, cast, overload, Literal
 from typing_extensions import Self
 
 from tarina import Empty, generic_isinstance, lang, safe_eval
@@ -75,22 +75,42 @@ class _Query(Generic[T]):
         ...
 
     @overload
+    def __call__(self, path: str, *, force_return: Literal[True]) -> T:
+        ...
+
+    @overload
     def __call__(self, path: str, default: D) -> T | D:
         ...
 
-    def __call__(self, path: str, default: D | None = None) -> T | D | None:
+    def __call__(self, path: str, default: D | None = None, *, force_return: bool = False) -> T | D | None:
         """查询 `Arparma` 中的数据
 
         Args:
             path (str): 要查询的路径
             default (T | None, optional): 如果查询失败, 则返回该值
+            force_return (bool, optional): 是否强制返回值, 默认为 False; 如果为 True, 则查询失败时抛出异常
         """
         source, endpoint = self.source.__require__(path.split("."))
         if source is None:
+            if force_return:
+                raise KeyError(path)
             return default
         if isinstance(source, dict):
-            return source.get(endpoint, default) if endpoint else MappingProxyType(source)  # type: ignore
-        return getattr(source, endpoint, default) if endpoint else source  # type: ignore
+            if endpoint:
+                if endpoint in source:
+                    return source[endpoint]
+                if force_return:
+                    raise KeyError(path)
+                return default
+            return MappingProxyType(source)  # type: ignore
+        if endpoint:
+            try:
+                return getattr(source, endpoint)
+            except AttributeError:
+                if force_return:
+                    raise
+                return default
+        return source  # type: ignore
 
 
 class Arparma(Generic[TDC]):
@@ -106,11 +126,14 @@ class Arparma(Generic[TDC]):
         other_args (dict[str, Any]): 其他参数匹配结果
         options (dict[str, OptionResult]): 选项匹配结果
         subcommands (dict[str, SubcommandResult]): 子命令匹配结果
+        context (dict[str, Any]): 上下文
+        output (str | None): 输出信息
     """
 
     header_match: HeadResult
     options: dict[str, OptionResult]
     subcommands: dict[str, SubcommandResult]
+    output: str | None
 
     def __init__(
         self,
@@ -149,6 +172,7 @@ class Arparma(Generic[TDC]):
         self.options = options or {}
         self.subcommands = subcommands or {}
         self.context = ctx or {}
+        self.output = None
 
     _additional: ClassVar[dict[str, Callable[[], Any]]] = {}
     query = _Query[Any]()
@@ -234,8 +258,6 @@ class Arparma(Generic[TDC]):
         """
         if not behaviors:
             return self
-        for b in behaviors:
-            b.before_operate(self)
         for b in behaviors:
             try:
                 b.operate(self)
@@ -391,29 +413,8 @@ class ArparmaBehavior(metaclass=ABCMeta):
         requires (list[ArparmaBehavior]): 该行为器所依赖的行为器
     """
 
-    record: dict[int, dict[str, tuple[Any, Any]]] = field(default_factory=dict, init=False, repr=False, hash=False)
     requires: list[ArparmaBehavior] = field(init=False, hash=False, repr=False)
 
-    def before_operate(self, interface: Arparma):
-        """在操作前调用, 用于准备数据"""
-        if not self.record:
-            return
-        if not (_record := self.record.get(interface.token)):
-            return
-        for path, (past, current) in _record.items():
-            source, end = interface.__require__(path.split("."))
-            if source is None:
-                continue
-            if isinstance(source, dict):
-                if past != Empty:
-                    source[end] = past
-                elif source.get(end, Empty) != current:
-                    source.pop(end)
-            elif past != Empty:
-                setattr(source, end, past)
-            elif getattr(source, end, Empty) != current:
-                delattr(source, end)
-        _record.clear()
 
     @abstractmethod
     def operate(self, interface: Arparma):
@@ -430,12 +431,9 @@ class ArparmaBehavior(metaclass=ABCMeta):
         """
 
         def _update(tkn, src, pth, ep, val):
-            _record = self.record.setdefault(tkn, {})
             if isinstance(src, dict):
-                _record[pth] = (src.get(ep, Empty), val)
                 src[ep] = val
             else:
-                _record[pth] = (getattr(src, ep, Empty), val)
                 setattr(src, ep, val)
 
         source, end = interface.__require__(path.split("."))
