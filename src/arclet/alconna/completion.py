@@ -113,7 +113,7 @@ class CompSession:
         Raises:
             ValueError: 当前没有可用的补全选项, 或者当前补全选项不可用。
         """
-        argv = command_manager.resolve(self.source.command)
+        argv = command_manager.require(self.source.command).argv
         argv.raw_data = self.raw_data.copy()
         argv.bak_data = self.bak_data.copy()
         argv.current_index = self.current_index
@@ -226,17 +226,6 @@ class CompSession:
 comp_ctx: ContextModel[CompSession] = ContextModel("comp_ctx")
 
 
-def _prompt_unit(command: Alconna, argv: Argv, trig: Arg):
-    if not (comp := trig.field.get_completion()):
-        return [Prompt(command.formatter.param(trig), False)]
-    if isinstance(comp, str):
-        return [Prompt(f"{trig.name}: {comp}", False)]
-    releases = argv.release(recover=True)
-    target = str(releases[-1]) or str(releases[-2])
-    o = list(filter(lambda x: target in x, comp)) or comp
-    return [Prompt(f"{trig.name}: {i}", False, target) for i in o]
-
-
 def _prompt_none(command: Alconna, args_got: list[str], opts_got: list[str]):
     res: list[Prompt] = []
     if unit := next((arg for arg in command.args if arg.name not in args_got), None):
@@ -256,21 +245,22 @@ def _prompt_none(command: Alconna, args_got: list[str], opts_got: list[str]):
 
 def prompt(command: Alconna, argv: Argv, args_got: list[str], opts_got: list[str], trigger: str | Arg | Subcommand | None = None):
     """获取补全列表"""
-    if isinstance(trigger, Arg):
-        return _prompt_unit(command, argv, trigger)
-    elif isinstance(trigger, Subcommand):
-        return [Prompt(i) for i in argv.stack_params.stack[-1]]
-    elif isinstance(trigger, str):
-        res = list(filter(lambda x: trigger in x, argv.stack_params.base))
-        if not res:
-            return []
-        out = [i for i in res if i not in opts_got]
-        return [Prompt(i, True, trigger) for i in (out or res)]
     releases = argv.release(recover=True)
     target = str(releases[-1])
     if isinstance(releases[-1], str) and releases[-1] in command.namespace_config.builtin_option_name["completion"]:
         target = str(releases[-2])
-    if _res := list(filter(lambda x: target in x and target != x, argv.stack_params.base)):
+    if isinstance(trigger, Arg):
+        if not (comp := trigger.field.get_completion()):
+            return [Prompt(command.formatter.param(trigger), False)]
+        if isinstance(comp, str):
+            return [Prompt(f"{trigger.name}: {comp}", False)]
+        o = list(filter(lambda x: target in x, comp)) or comp
+        return [Prompt(f"{trigger.name}: {i}", False, target) for i in o]
+    elif isinstance(trigger, Subcommand):
+        return [Prompt(i) for i in argv.stack_params.stack[-1]]
+    if isinstance(trigger, str):
+        target = trigger
+    if _res := list(filter(lambda x: target in x, argv.stack_params.base)):
         out = [i for i in _res if i not in opts_got]
         return [Prompt(i, True, target) for i in (out or _res)]
     return _prompt_none(command, args_got, opts_got)

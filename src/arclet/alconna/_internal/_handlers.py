@@ -11,12 +11,13 @@ from ..args import Arg, Args
 from ..base import Option, Header
 from ..config import config
 from ..exceptions import (
-    AlconnaException,
+    AnalyseException,
     ArgumentMissing,
     FuzzyMatchSuccess,
     InvalidHeader,
     InvalidParam,
-    PauseTriggered, ParamsUnmatched,
+    PauseTriggered,
+    ParamsUnmatched,
 )
 from ..model import HeadResult, OptionResult
 from ..typing import KWBool, MultiKeyWordVar, MultiVar, _AllParamPattern, _StrMulti
@@ -353,13 +354,12 @@ def analyse_option(analyser: SubAnalyser, argv: Argv, opt: Option, name_validate
         analyser.options_result[opt_n] = handle_action(opt, analyser.options_result[opt_n], opt_v)
 
 
-def analyse_compact_params(analyser: SubAnalyser, argv: Argv, prefix: str):
+def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
     """分析紧凑参数
 
     Args:
         analyser (SubAnalyser): 当前解析器
         argv (Argv): 命令行参数
-        prefix (str): 参数前缀
     """
     exc = None
     for param in analyser.compact_params:
@@ -381,7 +381,7 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv, prefix: str):
                     else:
                         analyser.subcommands_result[sparam.command.dest] = sparam.result()
                     raise
-                except AlconnaException:
+                except AnalyseException:
                     analyser.subcommands_result[sparam.command.dest] = sparam.result()
                     raise
                 else:
@@ -417,17 +417,22 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: str | None = None):
         argv (Argv): 命令行参数
         seps (str, optional): 指定的分隔符.
     """
+    # 每次调用都会尝试解析一个参数
     _text, _str = argv.next(seps)
+    # analyser.compile_params 有命中，说明在当前子命令内有对应的选项/子命令
     if _str and _text and (_param := analyser.compile_params.get(_text)):
-        if Option in _param.__class__.__mro__:
+        # Help 之类的选项是 Option 子类, 得加上 __base__ 判断
+        if _param.__class__ is Option or _param.__class__.__base__ is Option:
             oparam: Option = _param  # type: ignore
             try:
+                # 因为 _text 已经被确定为选项名，所以 name_validated 为 True
                 analyse_option(analyser, argv, oparam, True)
-            except AlconnaException as e:
+            except AnalyseException as e:
                 if not argv.error:
                     argv.error = e
             return True
         sparam: SubAnalyser = _param  # type: ignore
+        # 禁止子命令重复解析
         if sparam.command.dest not in analyser.subcommands_result:
             try:
                 sparam.process(argv)
@@ -441,26 +446,31 @@ def analyse_param(analyser: SubAnalyser, argv: Argv, seps: str | None = None):
                     analyser.subcommands_result[sparam.command.dest] = sparam.result()
                 if not argv.error:
                     argv.error = e
-            except AlconnaException as e1:
+            except AnalyseException as e1:
                 analyser.subcommands_result[sparam.command.dest] = sparam.result()
                 if not argv.error:
                     argv.error = e1
             else:
                 analyser.subcommands_result[sparam.command.dest] = sparam.result()
             return True
+    # 如果没有命中，则说明当前参数可能存在自定义分隔符，或者属于子命令的主参数，那么需要重新解析
     argv.rollback(_text)
-    if _str and _text and analyser.compact_params and analyse_compact_params(analyser, argv, _text):
+    # 尝试以紧凑参数解析
+    if _str and _text and analyser.compact_params and analyse_compact_params(analyser, argv):
         return True
+    # 主参数同样只允许解析一次
     if analyser.command.nargs and not analyser.args_result:
         analyser.args_result = analyse_args(argv, analyser.self_args)
         if analyser.args_result:
             return True
+    # 若参数属于该子命令的同级/上级选项或子命令，则终止解析
     if _str and _text and _text in argv.stack_params.parents():
         return False
     if analyser.extra_allow:
         analyser.args_result.setdefault("$extra", []).append(_text)
         argv.next()
         return True
+    # 给 Completion 打的洞，若此时 analyser 属于主命令, 则让其先解析完主命令
     elif _str and _text and not argv.stack_params.stack:
         if not argv.error:
             argv.error = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=_text))

@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, cast, overload
+from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, cast, overload, TYPE_CHECKING
 from typing_extensions import Self
 from weakref import WeakSet
 
@@ -16,6 +16,7 @@ from ._internal._analyser import Analyser, TCompile
 from ._internal._handlers import handle_head_fuzzy, analyse_header
 from ._internal._shortcut import shortcut as _shortcut
 from .args import Arg, Args
+from .argv import Argv, __argv_type__
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Completion, Help, Option, Shortcut, Subcommand, Header, SPECIAL_OPTIONS
 from .config import Namespace, config
@@ -48,11 +49,11 @@ def handle_argv():
 
 def add_builtin_options(options: list[Option | Subcommand], cmd: Alconna, ns: Namespace) -> None:
     if "help" not in ns.disable_builtin_options:
-        options.append(Help("|".join(ns.builtin_option_name["help"]), dest="$help", help_text=lang.require("builtin", "option_help")))  # noqa: E501
+        options.append(Help("|".join(ns.builtin_option_name["help"]), dest="$help", help_text=lang.require("builtin", "option_help"), soft_keyword=False))  # noqa: E501
 
         @cmd.route("$help")
         def _(command: Alconna, arp: Arparma):
-            argv = command_manager.resolve(cmd)
+            argv = command_manager.require(cmd).argv
             _help_param = [str(i) for i in argv.release(recover=True) if str(i) not in ns.builtin_option_name["help"]]
             arp.output = command.formatter.format_node(_help_param)
             return True
@@ -64,6 +65,7 @@ def add_builtin_options(options: list[Option | Subcommand], cmd: Alconna, ns: Na
                 Args["action?", "delete|list"]["name?", str]["command?", str],
                 dest="$shortcut",
                 help_text=lang.require("builtin", "option_shortcut"),
+                soft_keyword=False,
             )
         )
 
@@ -84,11 +86,11 @@ def add_builtin_options(options: list[Option | Subcommand], cmd: Alconna, ns: Na
             return True
 
     if "completion" not in ns.disable_builtin_options:
-        options.append(Completion("|".join(ns.builtin_option_name["completion"]), dest="$completion", help_text=lang.require("builtin", "option_completion")))  # noqa: E501
+        options.append(Completion("|".join(ns.builtin_option_name["completion"]), dest="$completion", help_text=lang.require("builtin", "option_completion"), soft_keyword=False))  # noqa: E501
 
         @cmd.route("$completion")
         def _(command: Alconna, arp: Arparma):
-            argv = command_manager.resolve(cmd)
+            argv = command_manager.require(cmd).argv
             rest = argv.release()
             trigger = None
             if rest and isinstance(rest[-1], str) and rest[-1] in ns.builtin_option_name["completion"]:
@@ -193,7 +195,12 @@ class Alconna(Subcommand):
 
     def compile(self, compiler: TCompile | None = None) -> Analyser:
         """编译 `Alconna` 为对应的解析器"""
-        return Analyser(self, compiler).compile()
+        if TYPE_CHECKING:
+            argv_type = Argv
+        else:
+            argv_type: type[Argv] = __argv_type__.get()
+        argv = argv_type(self.meta, self.namespace_config, self.separators)
+        return Analyser(self, argv, compiler)
 
     def __init__(
         self,
@@ -424,7 +431,7 @@ class Alconna(Subcommand):
                 if (res := alc._parse(message, ctx)).matched:
                     return res
         analyser = command_manager.require(self)
-        argv = command_manager.resolve(self)
+        argv = analyser.argv
         argv.enter(ctx).build(message)
         if argv.message_cache and (res := command_manager.get_record(argv.token)):
             return res

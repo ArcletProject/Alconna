@@ -17,6 +17,7 @@ from tarina import LRU, lang
 
 from .argv import Argv, __argv_type__
 from .arparma import Arparma
+from .base import Header
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
 from .typing import TDC, CommandMeta, DataCollection, InnerShortcutArgs, ShortcutArgs
@@ -41,7 +42,6 @@ class CommandManager:
         return config.command_max_count
 
     __analysers: dict[int, Analyser]
-    __argv: dict[int, Argv]
     __abandons: list[int]
     __record: LRU[int, Arparma]
     __shortcuts: dict[str, tuple[dict[str, InnerShortcutArgs], dict[str, InnerShortcutArgs]]]
@@ -50,7 +50,6 @@ class CommandManager:
         self.sign = "ALCONNA::"
         self.current_count = 0
 
-        self.__argv = {}
         self.__analysers = {}
         self.__abandons = []
         self.__shortcuts = {}
@@ -124,22 +123,11 @@ class CommandManager:
         if self.current_count >= self.max_count:
             raise ExceedMaxCount
         cmd_hash = command._hash
-        self.__argv.pop(cmd_hash, None)
-        self.__argv[cmd_hash] = __argv_type__.get()(command.meta, command.namespace_config, command.separators)  # type: ignore
         self.__analysers.pop(cmd_hash, None)
         self.__analysers[cmd_hash] = command.compile()
 
     def _resolve(self, cmd_hash: int) -> Alconna:
         return self.__analysers[cmd_hash].command
-
-    def resolve(self, command: Alconna) -> Argv:
-        """获取命令解析器的参数解析器"""
-        cmd_hash = command._hash
-        try:
-            return self.__argv[cmd_hash]
-        except KeyError as e:
-            namespace, name = self._command_part(command.path)
-            raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
 
     def require(self, command: Alconna) -> Analyser:
         """获取命令解析器"""
@@ -155,7 +143,6 @@ class CommandManager:
         cmd_hash = command._hash
         try:
             command.formatter.remove(command)
-            del self.__argv[cmd_hash]
             del self.__analysers[cmd_hash]
             self.current_count -= 1
         except KeyError:
@@ -165,22 +152,19 @@ class CommandManager:
     def update(self, command: Alconna):
         """同步命令更改"""
         cmd_hash = command._hash
-        if cmd_hash not in self.__argv:
+        if cmd_hash not in self.__analysers:
             raise ValueError(lang.require("manager", "undefined_command").format(target=command.path))
         self.clear_result(command)
         command.formatter.remove(command)
-        argv = self.__argv.pop(cmd_hash)
-        analyser = self.__analysers.pop(cmd_hash)
+        del self.__analysers[cmd_hash]
         yield
+        command._header = Header.generate(command.command, command.prefixes, command.meta.compact)
         name = next(iter(command._header.content), command.command or command.prefixes[0])
         command.path = f"{command.namespace}::{name}"
+        command.dest = command.name = name
+        command.aliases = frozenset(command._header.content)
         cmd_hash = command._hash = command._calc_hash()
-        argv.namespace = command.namespace_config
-        argv.separators = command.separators
-        argv.__post_init__(command.meta)
-        self.__argv[cmd_hash] = argv
-        analyser.compile()
-        self.__analysers[cmd_hash] = analyser
+        self.__analysers[cmd_hash] = command.compile()
         command.formatter.add(command)
 
     def is_disable(self, command: Alconna) -> bool:
@@ -205,7 +189,7 @@ class CommandManager:
             source (ShortcutArgs): 快捷命令的参数
         """
         namespace, name = self._command_part(target.path)
-        argv = self.resolve(target)
+        argv = self.require(target).argv
         _shortcut = self.__shortcuts.setdefault(f"{namespace}.{name}", ({}, {}))
         if isinstance(key, str):
             _key = key

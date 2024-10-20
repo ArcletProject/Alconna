@@ -15,7 +15,7 @@ from arclet.alconna import (
     MultiVar,
     Option,
     Subcommand,
-    namespace,
+    namespace, command_manager,
 )
 
 
@@ -660,22 +660,6 @@ def test_completion():
 * foo\
 """
     )
-#     assert alc20.parse("core20 f --comp").output == """以下是建议的输入：
-# * fool
-# * foo
-# * off"""
-#     assert alc20.parse("core20 fo --comp").output == """以下是建议的输入：
-# * fool
-# * foo"""
-#     assert alc20.parse("core20 foo --comp").output == """以下是建议的输入：
-# * bar: choose a, b or c"""
-#     assert alc20.parse("core20 fool --comp").output == """以下是建议的输入：
-# * foo
-# * off"""
-#     assert alc20.parse("core20 off b --comp").output == """以下是建议的输入：
-# * baz: use aaa
-# * baz: use aab
-# * baz: use abc"""
 
     alc20_1 = Alconna("core20_1", Args["foo", int], Option("bar"))
     res = alc20_1.parse("core20_1 -cp")
@@ -1013,6 +997,20 @@ def test_extra_allow():
     assert res.matched
     assert res.query[str]("foo.bar") == "--bar"
     assert res.all_matched_args.get("$extra", []) == ["--baz", "--qux"]
+
+
+def test_update():
+    core30 = Alconna("core30", Option("--foo", Args["bar", str]), Option("--baz", Args["qux", str]))
+    res = core30.parse("core30 --foo bar --baz qux")
+    assert res.matched
+    assert res.query[str]("foo.bar") == "bar"
+
+    with command_manager.update(core30):
+        core30.command = "core30_1"
+
+    res1 = core30.parse("core30_1 --foo bar --baz qux")
+    assert res1.matched
+    assert res1.query[str]("foo.bar") == "bar"
 
 
 if __name__ == "__main__":

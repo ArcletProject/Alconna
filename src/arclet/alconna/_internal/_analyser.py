@@ -139,11 +139,11 @@ class SubAnalyser:
         self.value_result = None
         self.header_result = None
 
-    def process(self, argv: Argv[TDC], name_validated: bool = True) -> Self:
+    def process(self, argv: Argv, name_validated: bool = True) -> Self:
         """处理传入的参数集合
 
         Args:
-            argv (Argv[TDC]): 命令行参数
+            argv (Argv): 命令行参数
             name_validated (bool, optional): 是否已经验证过名称. Defaults to True.
 
         Returns:
@@ -187,31 +187,31 @@ class Analyser(SubAnalyser):
 
     command: Alconna
     """命令实例"""
+    argv: Argv
+    """命令行参数"""
 
-    def __init__(self, alconna: Alconna, compiler: TCompile | None = None):
+    def __init__(self, alconna: Alconna, argv: Argv, compiler: TCompile | None = None):
         """初始化解析器
 
         Args:
             alconna (Alconna): 命令实例
+            argv (Argv): 命令行参数
             compiler (TCompile | None, optional): 编译器方法
         """
         super().__init__(alconna)
-        self._compiler = compiler or default_compiler
-
-    def compile(self):
+        self.argv = argv
         self.extra_allow = not self.command.meta.strict or not self.command.namespace_config.strict
-        self._compiler(self)
-        command_manager.resolve(self.command).stack_params.base = self.compile_params
-        return self
+        (compiler or default_compiler)(self)
+        self.argv.stack_params.base = self.compile_params
 
     def __repr__(self):
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
-    def process(self, argv: Argv[TDC], name_validated: bool = True) -> Exception | None:
+    def process(self, argv: Argv, name_validated: bool = True) -> Exception | None:
         """主体解析函数, 应针对各种情况进行解析
 
         Args:
-            argv (Argv[TDC]): 命令行参数
+            argv (Argv): 命令行参数
             name_validated (bool, optional): 是否已经验证过名称. Defaults to True.
         """
         if not self.header_result or not name_validated:

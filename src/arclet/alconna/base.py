@@ -417,22 +417,16 @@ class Subcommand(CommandNode):
 
 
 class Help(Option):
-    soft_keyword = False
-
     def _calc_hash(self):
         return hash("$ALCONNA_BUILTIN_OPTION_HELP")
 
 
 class Shortcut(Option):
-    soft_keyword = False
-
     def _calc_hash(self):
         return hash("$ALCONNA_BUILTIN_OPTION_SHORTCUT")
 
 
 class Completion(Option):
-    soft_keyword = False
-
     def _calc_hash(self):
         return hash("$ALCONNA_BUILTIN_OPTION_COMPLETION")
 
