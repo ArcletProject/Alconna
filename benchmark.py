@@ -35,8 +35,8 @@ with namespace("test") as np:
         Args["bar", ANY]
     )
 
-argv = command_manager.resolve(alc)
 analyser = command_manager.require(alc)
+argv = analyser.argv
 print(alc)
 msg = [Plain(".test"), At(124)]
 count = 20000

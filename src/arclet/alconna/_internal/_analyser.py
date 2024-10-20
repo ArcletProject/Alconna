@@ -200,7 +200,7 @@ class Analyser(SubAnalyser):
         """
         super().__init__(alconna)
         self.argv = argv
-        self.extra_allow = not self.command.meta.strict or not self.command.namespace_config.strict
+        self.extra_allow = not self.command.config.strict or not self.command.namespace_config.strict
         (compiler or default_compiler)(self)
         self.argv.stack_params.base = self.compile_params
 
@@ -285,7 +285,7 @@ class Analyser(SubAnalyser):
             exception = argv.error
         result = Arparma(self.command._hash, argv.origin, not fail, self.header_result, ctx=argv.exit())
         if fail:
-            if self.command.meta.raise_exception and not isinstance(exception, FuzzyMatchSuccess):
+            if self.command.config.raise_exception and not isinstance(exception, FuzzyMatchSuccess):
                 raise exception
             result.error_info = exception
             result.error_data = argv.release()

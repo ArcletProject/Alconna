@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import re
-from dataclasses import replace
+from dataclasses import replace, dataclass, field
 from functools import reduce
-from typing import Any, Iterable, Sequence, overload
+from typing import Any, Iterable, Sequence, overload, Literal
 
 from nepattern import TPattern
 from typing_extensions import Self
@@ -433,3 +433,47 @@ class Completion(Option):
 
 SPECIAL_OPTIONS = (Help, Shortcut, Completion)
 """内置选项"""
+
+
+@dataclass(unsafe_hash=True)
+class Metadata:
+    """命令元数据"""
+
+    description: str = field(default="Unknown")
+    "命令的描述"
+    usage: str | None = field(default=None)
+    "命令的用法"
+    example: str | None = field(default=None)
+    "命令的使用样例"
+    author: str | None = field(default=None)
+    "命令的作者"
+    version: str | None = field(default=None)
+    "命令的版本"
+    extra: dict[str, Any] = field(default_factory=dict, hash=False)
+    "命令的自定义额外信息"
+
+
+@dataclass(unsafe_hash=True)
+class Config:
+    """命令配置"""
+
+    fuzzy_match: bool = field(default=False)
+    "命令是否开启模糊匹配"
+    fuzzy_threshold: float = field(default=0.6)
+    """模糊匹配阈值"""
+    raise_exception: bool = field(default=False)
+    "命令是否抛出异常"
+    hide: bool = field(default=False)
+    "命令是否对manager隐藏"
+    hide_shortcut: bool = field(default=False)
+    "命令的快捷指令是否在help信息中隐藏"
+    keep_crlf: bool = field(default=False)
+    "命令是否保留换行字符"
+    compact: bool = field(default=False)
+    "命令是否允许第一个参数紧随头部"
+    strict: bool = field(default=True)
+    "命令是否严格匹配，若为 False 则未知参数将作为名为 $extra 的参数"
+    context_style: Literal["bracket", "parentheses"] | None = field(default=None)
+    "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
+    extra: dict[str, Any] = field(default_factory=dict, hash=False)
+    "命令的自定义额外配置"

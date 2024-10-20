@@ -20,6 +20,8 @@ from .arparma import Arparma as Arparma
 from .arparma import ArparmaBehavior as ArparmaBehavior
 from .base import Option as Option
 from .base import Subcommand as Subcommand
+from .base import Metadata as Metadata
+from .base import Config as Config
 from .builtin import conflict as conflict
 from .builtin import set_default as set_default
 from .completion import CompSession as CompSession
@@ -39,7 +41,6 @@ from .model import HeadResult as HeadResult
 from .model import OptionResult as OptionResult
 from .model import SubcommandResult as SubcommandResult
 from .typing import AllParam as AllParam
-from .typing import CommandMeta as CommandMeta
 from .typing import KeyWordVar as KeyWordVar
 from .typing import Kw as Kw
 from .typing import MultiVar as MultiVar

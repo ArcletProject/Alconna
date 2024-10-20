@@ -18,7 +18,7 @@ from ._internal._shortcut import shortcut as _shortcut
 from .args import Arg, Args
 from .argv import Argv, __argv_type__
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
-from .base import Completion, Help, Option, Shortcut, Subcommand, Header, SPECIAL_OPTIONS
+from .base import Completion, Help, Option, Shortcut, Subcommand, Header, SPECIAL_OPTIONS, Config, Metadata
 from .config import Namespace, config
 from .constraint import SHORTCUT_ARGS, SHORTCUT_REGEX_MATCH, SHORTCUT_REST, SHORTCUT_TRIGGER
 from .exceptions import (
@@ -32,7 +32,7 @@ from .exceptions import (
 from .completion import prompt, comp_ctx
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDC, CommandMeta, InnerShortcutArgs, ShortcutRegWrapper
+from .typing import TDC, InnerShortcutArgs, ShortcutRegWrapper
 
 T = TypeVar("T")
 
@@ -188,8 +188,10 @@ class Alconna(Subcommand):
     """文本格式化器"""
     namespace: str
     """命名空间"""
-    meta: CommandMeta
+    meta: Metadata
     """命令元数据"""
+    config: Config
+    """命令配置"""
     behaviors: list[ArparmaBehavior]
     """命令行为器"""
 
@@ -199,13 +201,12 @@ class Alconna(Subcommand):
             argv_type = Argv
         else:
             argv_type: type[Argv] = __argv_type__.get()
-        argv = argv_type(self.meta, self.namespace_config, self.separators)
+        argv = argv_type(self.config, self.namespace_config, self.separators)
         return Analyser(self, argv, compiler)
 
     def __init__(
         self,
-        *args: Option | Subcommand | str | list[str] | Args | Arg | CommandMeta | ArparmaBehavior | Any,
-        meta: CommandMeta | None = None,
+        *args: Option | Subcommand | str | list[str] | Args | Arg | Metadata | Config | ArparmaBehavior | Any,
         namespace: str | Namespace | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
         behaviors: list[ArparmaBehavior] | None = None,
@@ -215,9 +216,7 @@ class Alconna(Subcommand):
         以标准形式构造 `Alconna`
 
         Args:
-            *args (Option | Subcommand | str | TPrefixes | Any | Args | Arg): 命令选项、主参数、命令名称或命令头
-            action (ArgAction | Callable | None, optional): 命令解析后针对主参数的回调函数
-            meta (CommandMeta | None, optional): 命令元信息
+            *args (Option | Subcommand | str | list[str] | Args | Arg | Metadata | Config | ArparmaBehavior | Any): 命令选项、主参数、命令名称或命令头等
             namespace (str | Namespace | None, optional): 命令命名空间, 默认为 'Alconna'
             separators (str | set[str] | Sequence[str] | None, optional): 命令参数分隔符, 默认为 `' '`
             behaviors (list[ArparmaBehavior] | None, optional): 命令解析行为器
@@ -231,20 +230,21 @@ class Alconna(Subcommand):
             ns_config = namespace
         self.prefixes = next((i for i in args if isinstance(i, list)), ns_config.prefixes.copy())  # type: ignore
         try:
-            self.command = next(i for i in args if not isinstance(i, (list, Option, Subcommand, Args, Arg, CommandMeta, ArparmaBehavior)))
+            self.command = next(i for i in args if not isinstance(i, (list, Option, Subcommand, Args, Arg, Metadata, Config, ArparmaBehavior)))
         except StopIteration:
             self.command = "" if self.prefixes else handle_argv()
         self.router = Router()
         self.namespace = ns_config.name
         self.formatter = (formatter_type or ns_config.formatter_type or TextFormatter)()
-        self.meta = meta or next((i for i in args if isinstance(i, CommandMeta)), CommandMeta())
+        self.meta = next((i for i in args if isinstance(i, Metadata)), Metadata())
+        self.config = next((i for i in args if isinstance(i, Config)), Config())
         if self.meta.example:
             self.meta.example = self.meta.example.replace("$", self.prefixes[0] if self.prefixes else "")
-        self.meta.fuzzy_match = self.meta.fuzzy_match or ns_config.fuzzy_match
-        self.meta.raise_exception = self.meta.raise_exception or ns_config.raise_exception
-        self.meta.compact = self.meta.compact or ns_config.compact
-        self.meta.context_style = self.meta.context_style or ns_config.context_style
-        self._header = Header.generate(self.command, self.prefixes, self.meta.compact)
+        self.config.fuzzy_match = self.config.fuzzy_match or ns_config.fuzzy_match
+        self.config.raise_exception = self.config.raise_exception or ns_config.raise_exception
+        self.config.compact = self.config.compact or ns_config.compact
+        self.config.context_style = self.config.context_style or ns_config.context_style
+        self._header = Header.generate(self.command, self.prefixes, self.config.compact)
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
         add_builtin_options(options, self, ns_config)
         name = next(iter(self._header.content), self.command or self.prefixes[0])
@@ -287,8 +287,8 @@ class Alconna(Subcommand):
                 self.aliases = frozenset((name,))
             self.options = [opt for opt in self.options if not isinstance(opt, SPECIAL_OPTIONS)]
             add_builtin_options(self.options, self, namespace)
-            self.meta.fuzzy_match = namespace.fuzzy_match or self.meta.fuzzy_match
-            self.meta.raise_exception = namespace.raise_exception or self.meta.raise_exception
+            self.config.fuzzy_match = namespace.fuzzy_match or self.config.fuzzy_match
+            self.config.raise_exception = namespace.raise_exception or self.config.raise_exception
         return self
 
     def get_help(self) -> str:
@@ -395,7 +395,7 @@ class Alconna(Subcommand):
             else:
                 raise ValueError(args)
         except Exception as e:
-            if self.meta.raise_exception:
+            if self.config.raise_exception:
                 raise e
             return str(e)
 
@@ -509,8 +509,10 @@ class Alconna(Subcommand):
         with command_manager.update(self):
             if isinstance(other, Alconna):
                 self.options.extend(other.options)
-            elif isinstance(other, CommandMeta):
+            elif isinstance(other, Metadata):
                 self.meta = other
+            elif isinstance(other, Config):
+                self.config = other
             elif isinstance(other, Option):
                 self.options.append(other)
             elif isinstance(other, Args):

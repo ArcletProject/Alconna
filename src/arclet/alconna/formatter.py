@@ -76,14 +76,14 @@ class TextFormatter:
             base.args,
             base.separators,
             base.options.copy(),
-            {} if base.meta.hide_shortcut else base._get_shortcuts(),
+            {} if base.config.hide_shortcut else base._get_shortcuts(),
         )
         self.data[base._hash] = res
         return self
 
     def update_shortcut(self, base: Alconna):
         """更新目标命令的快捷指令"""
-        if not base.meta.hide_shortcut:
+        if not base.config.hide_shortcut:
             self.data[base._hash].shortcuts = base._get_shortcuts()
         return self
 

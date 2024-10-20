@@ -8,10 +8,11 @@ from arclet.alconna import (
     AllParam,
     Arg,
     Args,
-    CommandMeta,
+    Config,
     CompSession,
     Field,
     KeyWordVar,
+    Metadata,
     MultiVar,
     Option,
     Subcommand,
@@ -49,7 +50,7 @@ def test_alconna_multi_match():
         Option("--num", Args["count", int, 123], help_text="输入数字"),
         Option("-u", Args["id", int], help_text="输入需要At的用户"),
         Args["IP", IP],
-        meta=CommandMeta(description="测试指令1"),
+        Metadata(description="测试指令1"),
     )
     assert len(alc1.options) == 5
     assert (
@@ -127,7 +128,7 @@ def test_formatter():
         Option("-t|--timeout", Args["sec", int], help_text="设置超时时间"),
         Option("--exists-action", Args["action", str], help_text="添加行为"),
         Option("--trusted-host", Args["host", str], help_text="选择可信赖地址"),
-        meta=CommandMeta(description="简单的pip指令"),
+        Metadata(description="简单的pip指令"),
     )
     print("")
     print(alc3.get_help())
@@ -153,7 +154,7 @@ def test_alconna_special_help():
             Args["num_a", int]["num_b", int],
             help_text="除法计算",
         ),
-        meta=CommandMeta(description="计算器", usage="Cal <expression>", example="Cal -sum 1 2"),
+        Metadata(description="计算器", usage="Cal <expression>", example="Cal -sum 1 2"),
     )
     print("")
     print(alc4.get_help())
@@ -258,11 +259,11 @@ def test_alconna_multi_header():
     # assert alc6_11.parse([b]).head_matched is False
     # assert alc6_11.parse([b, "abc"]).head_matched is False
     # 开启 compact 后
-    alc6_12 = Alconna("core6_12", Args["foo", str], meta=CommandMeta(compact=True))
+    alc6_12 = Alconna("core6_12", Args["foo", str], Config(compact=True))
     assert alc6_12.parse("core6_12 abc").matched is True
     assert alc6_12.parse("core6_12abc").matched is True
     assert alc6_12.parse("core6_1abc").matched is False
-    alc6_13 = Alconna("core6_13", ["/", "?"], Args["foo", str], meta=CommandMeta(compact=True))
+    alc6_13 = Alconna("core6_13", ["/", "?"], Args["foo", str], Config(compact=True))
     assert alc6_13.parse("/core6_13 abc").matched is True
     assert alc6_13.parse("/core6_13abc").matched is True
 
@@ -379,7 +380,7 @@ def test_alconna_group():
 
 
 def test_fuzzy():
-    alc15 = Alconna("!core15", Args["foo", str], meta=CommandMeta(fuzzy_match=True))
+    alc15 = Alconna("!core15", Args["foo", str], Config(fuzzy_match=True))
     res = alc15.parse("core15 foo bar")
     assert res.matched is False
     assert res.output == '无法解析 "core15"。您想要输入的是不是 "!core15" ?'
@@ -387,7 +388,7 @@ def test_fuzzy():
     assert res1.matched is False
     assert res1.output == '无法解析 "1 core15"。您想要输入的是不是 "!core15" ?'
 
-    alc15_1 = Alconna(["/"], "core15_1", meta=CommandMeta(fuzzy_match=True))
+    alc15_1 = Alconna(["/"], "core15_1", Config(fuzzy_match=True))
 
     res2 = alc15_1.parse("core15_1")
     assert res2.matched is False
@@ -397,7 +398,7 @@ def test_fuzzy():
     assert res3.matched is False
     assert res3.output == '无法解析 "@core15_1"。您想要输入的是不是 "/core15_1" ?'
 
-    alc15_3 = Alconna("core15_3", Option("rank", compact=True), meta=CommandMeta(fuzzy_match=True))
+    alc15_3 = Alconna("core15_3", Option("rank", compact=True), Config(fuzzy_match=True))
 
     res4 = alc15_3.parse("core15_3 runk")
     assert res4.matched is False
@@ -764,7 +765,7 @@ def test_nest_subcommand():
             dest="Bar",
             help_text="test nest subcommand; deep 1",
         ),
-        meta=CommandMeta("test nest subcommand"),
+        Metadata("test nest subcommand"),
     )
     assert alc23.parse("core23 123").matched
     assert alc23.parse(["core23 bar baz", A(), "123"]).matched
@@ -991,7 +992,7 @@ def test_disable_builtin_option():
 
 
 def test_extra_allow():
-    core29 = Alconna("core29", Option("--foo", Args["bar", str]), meta=CommandMeta(strict=False))
+    core29 = Alconna("core29", Option("--foo", Args["bar", str]), Config(strict=False))
     assert core29.parse("core29 --foo bar").matched
     res = core29.parse("core29 --foo --bar --baz --qux")
     assert res.matched

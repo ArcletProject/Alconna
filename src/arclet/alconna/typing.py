@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import inspect
 import re
-from dataclasses import dataclass, field, fields, is_dataclass
+from dataclasses import fields, is_dataclass
 from typing import (
     Any,
     Callable,
@@ -132,40 +132,6 @@ class DataCollection(Protocol[DataUnit]):
     def __repr__(self) -> str: ...
     def __iter__(self) -> Iterator[DataUnit]: ...
     def __len__(self) -> int: ...
-
-
-@dataclass(unsafe_hash=True)
-class CommandMeta:
-    """命令元数据"""
-
-    description: str = field(default="Unknown")
-    "命令的描述"
-    usage: str | None = field(default=None)
-    "命令的用法"
-    example: str | None = field(default=None)
-    "命令的使用样例"
-    author: str | None = field(default=None)
-    "命令的作者"
-    fuzzy_match: bool = field(default=False)
-    "命令是否开启模糊匹配"
-    fuzzy_threshold: float = field(default=0.6)
-    """模糊匹配阈值"""
-    raise_exception: bool = field(default=False)
-    "命令是否抛出异常"
-    hide: bool = field(default=False)
-    "命令是否对manager隐藏"
-    hide_shortcut: bool = field(default=False)
-    "命令的快捷指令是否在help信息中隐藏"
-    keep_crlf: bool = field(default=False)
-    "命令是否保留换行字符"
-    compact: bool = field(default=False)
-    "命令是否允许第一个参数紧随头部"
-    strict: bool = field(default=True)
-    "命令是否严格匹配，若为 False 则未知参数将作为名为 $extra 的参数"
-    context_style: Literal["bracket", "parentheses"] | None = field(default=None)
-    "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
-    extra: Dict[str, Any] = field(default_factory=dict, hash=False)
-    "命令的自定义额外信息"
 
 
 TDC = TypeVar("TDC", bound=DataCollection[Any])

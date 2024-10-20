@@ -4,6 +4,7 @@
 class AlconnaException(Exception):
     """Alconna 异常基类"""
 
+
 class ExecuteFailed(AlconnaException):
     """执行失败"""
 

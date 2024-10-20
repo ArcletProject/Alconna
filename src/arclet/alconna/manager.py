@@ -15,12 +15,11 @@ from weakref import WeakValueDictionary
 from nepattern import TPattern
 from tarina import LRU, lang
 
-from .argv import Argv, __argv_type__
 from .arparma import Arparma
-from .base import Header
+from .base import Header, Metadata
 from .config import Namespace, config
 from .exceptions import ExceedMaxCount
-from .typing import TDC, CommandMeta, DataCollection, InnerShortcutArgs, ShortcutArgs
+from .typing import TDC, DataCollection, InnerShortcutArgs, ShortcutArgs
 
 if TYPE_CHECKING:
     from ._internal._analyser import Analyser
@@ -158,7 +157,7 @@ class CommandManager:
         command.formatter.remove(command)
         del self.__analysers[cmd_hash]
         yield
-        command._header = Header.generate(command.command, command.prefixes, command.meta.compact)
+        command._header = Header.generate(command.command, command.prefixes, command.config.compact)
         name = next(iter(command._header.content), command.command or command.prefixes[0])
         command.path = f"{command.namespace}::{name}"
         command.dest = command.name = name
@@ -348,7 +347,7 @@ class CommandManager:
             page (int, optional): 当前页码. Defaults to 1.
         """
         pages = pages or lang.require("manager", "help_pages")
-        cmds = [cmd for cmd in self.get_commands(namespace or "") if not cmd.meta.hide]
+        cmds = [cmd for cmd in self.get_commands(namespace or "") if not cmd.config.hide]
         slots = [(cmd.header_display, cmd.meta.description) for cmd in cmds]
         header = header or lang.require("manager", "help_header")
         if max_length < 1:
@@ -376,9 +375,9 @@ class CommandManager:
         footer = footer or lang.require("manager", "help_footer").format(help="|".join(help_names))
         return f"{header}\n{command_string}\n{footer}"
 
-    def all_command_raw_help(self, namespace: str | Namespace | None = None) -> dict[str, CommandMeta]:
+    def all_command_raw_help(self, namespace: str | Namespace | None = None) -> dict[str, Metadata]:
         """获取所有命令的原始帮助信息"""
-        cmds = list(filter(lambda x: not x.meta.hide, self.get_commands(namespace or "")))
+        cmds = list(c for c in self.get_commands(namespace or "") if not c.config.hide)
         return {cmd.path: copy(cmd.meta) for cmd in cmds}
 
     def command_help(self, command: str) -> str | None:
@@ -395,7 +394,7 @@ class CommandManager:
         if token in self.__record:
             return self.__record[token]
 
-    def get_token(self, result: Arparma[Any]) -> int:
+    def get_token(self, result: Arparma) -> int:
         """获取某个命令的 `token`"""
         return next((token for token, res in self.__record.items() if res == result), 0)
 

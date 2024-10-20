@@ -6,11 +6,11 @@ from typing_extensions import Self
 
 from tarina import lang, split, split_once
 
-from ..base import Option
+from ..base import Option, Config
 from ..config import Namespace, config
 from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
-from ..typing import TDC, CommandMeta
+from ..typing import TDC
 from ._util import ChainMap
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class Argv(Generic[TDC]):
     """命令行参数"""
 
-    meta: InitVar[CommandMeta]
+    conf: InitVar[Config]
     namespace: Namespace = field(default=config.default_namespace)
     """命名空间"""
     separators: str = field(default=" ")
@@ -68,9 +68,9 @@ class Argv(Generic[TDC]):
 
     _cache: ClassVar[dict[type, dict[str, Any]]] = {}
 
-    def __post_init__(self, meta: CommandMeta):
+    def __post_init__(self, conf: Config):
         self.reset()
-        self.compile(meta)
+        self.compile(conf)
         if __cache := self.__class__._cache.get(self.__class__, {}):
             self.preprocessors.update(__cache.get("preprocessors") or {})
             self.filter_out.extend(__cache.get("filter_out") or [])
@@ -78,14 +78,14 @@ class Argv(Generic[TDC]):
             self.checker = __cache.get("checker") or self.checker
             self.converter = __cache.get("converter") or self.converter
 
-    def compile(self, meta: CommandMeta):
-        self.fuzzy_match = meta.fuzzy_match
-        self.fuzzy_threshold = meta.fuzzy_threshold
+    def compile(self, conf: Config):
+        self.fuzzy_match = conf.fuzzy_match
+        self.fuzzy_threshold = conf.fuzzy_threshold
         self.to_text = self.namespace.to_text
         self.converter = self.namespace.converter or self.converter  # type: ignore
         self.message_cache = self.namespace.enable_message_cache
-        self.filter_crlf = not meta.keep_crlf
-        self.context_style = meta.context_style
+        self.filter_crlf = not conf.keep_crlf
+        self.context_style = conf.context_style
 
     def reset(self):
         """重置命令行参数"""

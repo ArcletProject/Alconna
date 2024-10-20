@@ -10,9 +10,9 @@ from arclet.alconna._internal._handlers import analyse_args as ala
 from arclet.alconna._internal._handlers import analyse_option as alo
 from arclet.alconna.args import Args
 from arclet.alconna.argv import Argv
-from arclet.alconna.base import Option, Subcommand, Header
+from arclet.alconna.base import Option, Subcommand, Header, Config
 from arclet.alconna.config import Namespace
-from arclet.alconna.typing import CommandMeta, DataCollection
+from arclet.alconna.typing import DataCollection
 
 
 class AnalyseError(Exception):
@@ -27,7 +27,7 @@ class _DummyAnalyser(Analyser):
 
     class _DummyALC:
         options = []
-        meta = namedtuple("Meta", ["keep_crlf", "fuzzy_match", "raise_exception"])(False, False, True)
+        config = namedtuple("Config", ["keep_crlf", "fuzzy_match", "raise_exception"])(False, False, True)
         namespace_config = dev_space
 
     def __new__(cls, *args, **kwargs):
@@ -45,8 +45,8 @@ def analyse_args(
     context_style: Literal["bracket", "parentheses"] | None = None,
     **kwargs,
 ):
-    meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
-    argv: Argv[DataCollection] = Argv(meta, dev_space)
+    conf = Config(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
+    argv: Argv[DataCollection] = Argv(conf, dev_space)
     try:
         argv.enter(kwargs)
         argv.build(["test"] + command)
@@ -68,8 +68,8 @@ def analyse_header(
     context_style: Literal["bracket", "parentheses"] | None = None,
     **kwargs,
 ):
-    meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
-    argv: Argv[DataCollection] = Argv(meta, dev_space, separators=sep)
+    conf = Config(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
+    argv: Argv[DataCollection] = Argv(conf, dev_space, separators=sep)
     command_header = Header.generate(command_name, headers, compact=compact)
     try:
         argv.enter(kwargs)
@@ -88,14 +88,15 @@ def analyse_option(
     context_style: Literal["bracket", "parentheses"] | None = None,
     **kwargs,
 ):
-    meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
-    argv: Argv[DataCollection] = Argv(meta, dev_space)
+    conf = Config(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
+    argv: Argv[DataCollection] = Argv(conf, dev_space)
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(option)
     default_compiler(_analyser)
+    argv.stack_params.base = _analyser.compile_params
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
@@ -115,14 +116,15 @@ def analyse_subcommand(
     context_style: Literal["bracket", "parentheses"] | None = None,
     **kwargs,
 ):
-    meta = CommandMeta(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
-    argv: Argv[DataCollection] = Argv(meta, dev_space)
+    conf = Config(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
+    argv: Argv[DataCollection] = Argv(conf, dev_space)
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(subcommand)
     default_compiler(_analyser)
+    argv.stack_params.base = _analyser.compile_params
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
