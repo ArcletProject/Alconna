@@ -11,15 +11,14 @@ from weakref import WeakSet
 from nepattern import TPattern
 from tarina import init_spec, lang, Empty
 
-from .model import OptionResult
 from ._internal._analyser import Analyser, TCompile
 from ._internal._handlers import handle_head_fuzzy, analyse_header
 from ._internal._shortcut import shortcut as _shortcut
 from .args import Arg, Args
 from .argv import Argv, __argv_type__
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
-from .base import Completion, Help, Option, Shortcut, Subcommand, Header, SPECIAL_OPTIONS, Config, Metadata
-from .config import Namespace, config
+from .base import Completion, Help, Option, OptionResult, Shortcut, Subcommand, Header, SPECIAL_OPTIONS, Config, Metadata
+from .config import Namespace, global_config
 from .constraint import SHORTCUT_ARGS, SHORTCUT_REGEX_MATCH, SHORTCUT_REST, SHORTCUT_TRIGGER
 from .exceptions import (
     AlconnaException,
@@ -47,21 +46,23 @@ def handle_argv():
     return head
 
 
-def add_builtin_options(options: list[Option | Subcommand], cmd: Alconna, ns: Namespace) -> None:
-    if "help" not in ns.disable_builtin_options:
-        options.append(Help("|".join(ns.builtin_option_name["help"]), dest="$help", help_text=lang.require("builtin", "option_help"), soft_keyword=False))  # noqa: E501
+def add_builtin_options(options: list[Option | Subcommand], router: Router, conf: Config) -> None:
+    if "help" not in conf.disable_builtin_options:
+        options.append(Help("|".join(conf.builtin_option_name["help"]), dest="$help", help_text=lang.require("builtin", "option_help"), soft_keyword=False))  # noqa: E501
 
-        @cmd.route("$help")
+        @router.route("$help")
         def _(command: Alconna, arp: Arparma):
-            argv = command_manager.require(cmd).argv
-            _help_param = [str(i) for i in argv.release(recover=True) if str(i) not in ns.builtin_option_name["help"]]
+            argv = command_manager.require(command).argv
+            _help_param = [str(i) for i in argv.release(recover=True) if str(i) not in conf.builtin_option_name["help"]]
             arp.output = command.formatter.format_node(_help_param)
             return True
+    else:
+        router._routes.pop("$help", None)
 
-    if "shortcut" not in ns.disable_builtin_options:
+    if "shortcut" not in conf.disable_builtin_options:
         options.append(
             Shortcut(
-                "|".join(ns.builtin_option_name["shortcut"]),
+                "|".join(conf.builtin_option_name["shortcut"]),
                 Args["action?", "delete|list"]["name?", str]["command?", str],
                 dest="$shortcut",
                 help_text=lang.require("builtin", "option_shortcut"),
@@ -69,7 +70,7 @@ def add_builtin_options(options: list[Option | Subcommand], cmd: Alconna, ns: Na
             )
         )
 
-        @cmd.route("$shortcut")
+        @router.route("$shortcut")
         def _(command: Alconna, arp: Arparma):
             res = arp.query[OptionResult]("$shortcut", force_return=True)
             if res.args.get("action") == "list":
@@ -84,16 +85,18 @@ def add_builtin_options(options: list[Option | Subcommand], cmd: Alconna, ns: Na
                 msg = command.shortcut(res.args["name"], fuzzy=True, command=res.args.get("command"))
             arp.output = msg
             return True
+    else:
+        router._routes.pop("$shortcut", None)
 
-    if "completion" not in ns.disable_builtin_options:
-        options.append(Completion("|".join(ns.builtin_option_name["completion"]), dest="$completion", help_text=lang.require("builtin", "option_completion"), soft_keyword=False))  # noqa: E501
+    if "completion" not in conf.disable_builtin_options:
+        options.append(Completion("|".join(conf.builtin_option_name["completion"]), dest="$completion", help_text=lang.require("builtin", "option_completion"), soft_keyword=False))  # noqa: E501
 
-        @cmd.route("$completion")
+        @router.route("$completion")
         def _(command: Alconna, arp: Arparma):
-            argv = command_manager.require(cmd).argv
+            argv = command_manager.require(command).argv
             rest = argv.release()
             trigger = None
-            if rest and isinstance(rest[-1], str) and rest[-1] in ns.builtin_option_name["completion"]:
+            if rest and isinstance(rest[-1], str) and rest[-1] in conf.builtin_option_name["completion"]:
                 argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
                 trigger = rest[-2]
             elif isinstance(arp.error_info, AnalyseException):
@@ -112,6 +115,8 @@ def add_builtin_options(options: list[Option | Subcommand], cmd: Alconna, ns: Na
                 node = f"{node}\n" if node else ""
                 arp.output = f"{node}{prompt_other}" + f"\n{prompt_other}".join([i.text for i in res])
                 return True
+    else:
+        router._routes.pop("$completion", None)
 
 
 @dataclass(init=True, unsafe_hash=True)
@@ -145,6 +150,12 @@ class ArparmaExecutor(Generic[T]):
 class Router:
     def __init__(self):
         self._routes = {}
+
+    def route(self, path: str):
+        def wrapper(target: Callable[[Alconna, Arparma], Any]):
+            self._routes[path] = target
+            return target
+        return wrapper
 
     def execute(self, cmd: Alconna, arp: Arparma):
         for route, target in self._routes.items():
@@ -223,9 +234,9 @@ class Alconna(Subcommand):
             formatter_type (type[TextFormatter] | None, optional): 指定的命令帮助文本格式器类型
         """
         if not namespace:
-            ns_config = config.default_namespace
+            ns_config = global_config.default_namespace
         elif isinstance(namespace, str):
-            ns_config = config.namespaces.setdefault(namespace, Namespace(namespace))
+            ns_config = global_config.namespaces.setdefault(namespace, Namespace(namespace))
         else:
             ns_config = namespace
         self.prefixes = next((i for i in args if isinstance(i, list)), ns_config.prefixes.copy())  # type: ignore
@@ -237,16 +248,12 @@ class Alconna(Subcommand):
         self.namespace = ns_config.name
         self.formatter = (formatter_type or ns_config.formatter_type or TextFormatter)()
         self.meta = next((i for i in args if isinstance(i, Metadata)), Metadata())
-        self.config = next((i for i in args if isinstance(i, Config)), Config())
         if self.meta.example:
             self.meta.example = self.meta.example.replace("$", self.prefixes[0] if self.prefixes else "")
-        self.config.fuzzy_match = self.config.fuzzy_match or ns_config.fuzzy_match
-        self.config.raise_exception = self.config.raise_exception or ns_config.raise_exception
-        self.config.compact = self.config.compact or ns_config.compact
-        self.config.context_style = self.config.context_style or ns_config.context_style
-        self._header = Header.generate(self.command, self.prefixes, self.config.compact)
+        self.config = Config.merge(next((i for i in args if isinstance(i, Config)), Config()), ns_config.config)
+        self._header = Header.generate(self.command, self.prefixes, bool(self.config.compact))
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
-        add_builtin_options(options, self, ns_config)
+        add_builtin_options(options, self.router, self.config)
         name = next(iter(self._header.content), self.command or self.prefixes[0])
         self.path = f"{self.namespace}::{name}"
         _args = sum((i for i in args if isinstance(i, (Args, Arg))), Args())
@@ -265,7 +272,7 @@ class Alconna(Subcommand):
 
     @property
     def namespace_config(self) -> Namespace:
-        return config.namespaces[self.namespace]
+        return global_config.namespaces[self.namespace]
 
     def reset_namespace(self, namespace: Namespace | str, header: bool = True) -> Self:
         """重新设置命名空间
@@ -276,19 +283,13 @@ class Alconna(Subcommand):
         """
         with command_manager.update(self):
             if isinstance(namespace, str):
-                namespace = config.namespaces.setdefault(namespace, Namespace(namespace))
+                namespace = global_config.namespaces.setdefault(namespace, Namespace(namespace))
             self.namespace = namespace.name
-            self.path = f"{self.namespace}::{self.name}"
             if header:
                 self.prefixes = namespace.prefixes.copy()
-                name = f"{self.command or self.prefixes[0]}"  # type: ignore
-                self.dest = name
-                self.path = f"{self.namespace}::{name}"
-                self.aliases = frozenset((name,))
+            self.config = Config.merge(self.config, namespace.config)
             self.options = [opt for opt in self.options if not isinstance(opt, SPECIAL_OPTIONS)]
-            add_builtin_options(self.options, self, namespace)
-            self.config.fuzzy_match = namespace.fuzzy_match or self.config.fuzzy_match
-            self.config.raise_exception = namespace.raise_exception or self.config.raise_exception
+            add_builtin_options(self.options, self.router, self.config)
         return self
 
     def get_help(self) -> str:
@@ -310,12 +311,6 @@ class Alconna(Subcommand):
     def _get_shortcuts(self):
         """返回该命令注册的快捷命令"""
         return command_manager.get_shortcut(self)
-
-    def route(self, path: str):
-        def wrapper(target: Callable[[Alconna, Arparma], Any]):
-            self.router._routes[path] = target
-            return target
-        return wrapper
 
     @overload
     def shortcut(self, key: str | TPattern, args: ShortcutArgs) -> str:

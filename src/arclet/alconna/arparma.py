@@ -11,7 +11,7 @@ from typing_extensions import Self
 from tarina import Empty, generic_isinstance, lang, safe_eval
 
 from .exceptions import BehaveCancelled, OutBoundsBehave
-from .model import HeadResult, OptionResult, SubcommandResult
+from .base import HeadResult, OptionResult, SubcommandResult
 from .typing import TDC
 
 T = TypeVar("T")

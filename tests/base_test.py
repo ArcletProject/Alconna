@@ -1,6 +1,5 @@
 from arclet.alconna.args import Arg, Args
-from arclet.alconna.base import CommandNode, Option, Subcommand
-from arclet.alconna.model import OptionResult, SubcommandResult
+from arclet.alconna.base import CommandNode, Option, Subcommand, OptionResult, SubcommandResult
 from devtool import analyse_option, analyse_subcommand
 
 

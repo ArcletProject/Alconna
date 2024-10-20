@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import inspect
 import re
+import enum
 from dataclasses import fields, is_dataclass
 from typing import (
     Any,
@@ -26,6 +27,34 @@ from typing_extensions import NotRequired, TypeAlias
 
 from nepattern import BasePattern, MatchFailed, MatchMode, parser
 from tarina import generic_isinstance, lang
+
+
+@final
+class _UNSET_TYPE(enum.Enum):
+    _UNSET = "<UNSET>"
+
+    def __repr__(self) -> str:
+        return "<UNSET>"
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def __bool__(self) -> Literal[False]:
+        return False
+
+    def __copy__(self):
+        return self._UNSET
+
+    def __deepcopy__(self, memo: dict[int, Any]):
+        return self._UNSET
+
+
+UNSET = _UNSET_TYPE._UNSET
+
+_T = TypeVar("_T")
+
+Unset: TypeAlias = Union[_T, Literal[_UNSET_TYPE._UNSET]]
+
 
 DataUnit = TypeVar("DataUnit", covariant=True)
 

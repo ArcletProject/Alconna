@@ -8,8 +8,8 @@ from tarina import Empty, lang, safe_eval, split_once
 
 from ..action import Action
 from ..args import Arg, Args
-from ..base import Option, Header
-from ..config import config
+from ..base import Option, Header, HeadResult, OptionResult
+from ..config import global_config
 from ..exceptions import (
     AnalyseException,
     ArgumentMissing,
@@ -19,7 +19,6 @@ from ..exceptions import (
     PauseTriggered,
     ParamsUnmatched,
 )
-from ..model import HeadResult, OptionResult
 from ..typing import KWBool, MultiKeyWordVar, MultiVar, _AllParamPattern, _StrMulti
 
 from ._util import levenshtein
@@ -87,7 +86,7 @@ def step_varpos(argv: Argv, args: Args, slot: tuple[MultiVar, Arg], result: dict
         if not may_arg or (_str and may_arg in argv.stack_params and not argv.stack_params[may_arg].soft_keyword):
             argv.rollback(may_arg)
             break
-        if _str and may_arg in config.remainders:
+        if _str and may_arg in global_config.remainders:
             break
         if _str and kwonly_seps and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.argument.keyword_only:  # noqa: E501  # type: ignore
             argv.rollback(may_arg)
@@ -128,7 +127,7 @@ def step_varkey(argv: Argv, slot: tuple[MultiKeyWordVar, Arg], result: dict[str,
         if not may_arg or (_str and may_arg in argv.stack_params and not argv.stack_params[may_arg].soft_keyword) or not _str:
             argv.rollback(may_arg)
             break
-        if _str and may_arg in config.remainders:
+        if _str and may_arg in global_config.remainders:
             break
         if not (_kwarg := re.match(rf"^(-*[^{value.base.sep}]+){value.base.sep}(.*?)$", may_arg)):
             argv.rollback(may_arg)
@@ -167,7 +166,7 @@ def step_keyword(argv: Argv, args: Args, result: dict[str, Any]):
         if not may_arg or not _str:
             argv.rollback(may_arg)
             break
-        if _str and may_arg in config.remainders:
+        if _str and may_arg in global_config.remainders:
             break
         key, _m_arg = split_once(may_arg, kwonly_seps1, argv.filter_crlf)
         _key = pat.match(key)["name"]  # type: ignore

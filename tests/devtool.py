@@ -19,7 +19,7 @@ class AnalyseError(Exception):
     """分析时发生错误"""
 
 
-dev_space = Namespace("devtool", enable_message_cache=False)
+dev_space = Namespace("devtool", Config(enable_message_cache=False))
 
 
 class _DummyAnalyser(Analyser):
@@ -129,7 +129,7 @@ def analyse_subcommand(
     try:
         argv.enter(kwargs)
         argv.build(command)
-        return _analyser.compile_params[subcommand.name].process(argv).result()  # type: ignore
+        return _analyser.compile_params[subcommand.name].process(argv, False).result()  # type: ignore
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

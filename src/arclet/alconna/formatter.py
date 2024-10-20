@@ -63,9 +63,9 @@ class TextFormatter:
 
     def add(self, base: Alconna):
         """添加目标命令"""
-        self.ignore_names.update(base.namespace_config.builtin_option_name["help"])
-        self.ignore_names.update(base.namespace_config.builtin_option_name["shortcut"])
-        self.ignore_names.update(base.namespace_config.builtin_option_name["completion"])
+        self.ignore_names.update(base.config.builtin_option_name["help"])
+        self.ignore_names.update(base.config.builtin_option_name["shortcut"])
+        self.ignore_names.update(base.config.builtin_option_name["completion"])
         res = Trace(
             {
                 "name": base.header_display,

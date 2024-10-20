@@ -9,7 +9,7 @@ from tarina import Empty, lang
 from ..action import Action
 from ..args import Args
 from ..arparma import Arparma
-from ..base import Option, Subcommand
+from ..base import Option, Subcommand, HeadResult, OptionResult, SubcommandResult
 from ..completion import comp_ctx, prompt
 from ..exceptions import (
     ArgumentMissing,
@@ -21,7 +21,6 @@ from ..exceptions import (
     PauseTriggered,
 )
 from ..manager import command_manager
-from ..model import HeadResult, OptionResult, SubcommandResult
 from ..typing import TDC
 from ._handlers import (
     analyse_header,
@@ -165,7 +164,7 @@ class SubAnalyser:
                         raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name), sub)
                 raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
 
-        self.value_result = sub.action.value
+        # self.value_result = sub.action.value
         argv.stack_params.enter(self.compile_params)
         while analyse_param(self, argv, self.command.separators) and argv.current_index != argv.ndata:
             pass
@@ -200,7 +199,7 @@ class Analyser(SubAnalyser):
         """
         super().__init__(alconna)
         self.argv = argv
-        self.extra_allow = not self.command.config.strict or not self.command.namespace_config.strict
+        self.extra_allow = not self.command.config.strict
         (compiler or default_compiler)(self)
         self.argv.stack_params.base = self.compile_params
 

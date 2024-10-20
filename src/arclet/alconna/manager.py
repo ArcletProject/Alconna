@@ -17,7 +17,7 @@ from tarina import LRU, lang
 
 from .arparma import Arparma
 from .base import Header, Metadata
-from .config import Namespace, config
+from .config import Namespace, global_config
 from .exceptions import ExceedMaxCount
 from .typing import TDC, DataCollection, InnerShortcutArgs, ShortcutArgs
 
@@ -38,7 +38,7 @@ class CommandManager:
 
     @property
     def max_count(self) -> int:
-        return config.command_max_count
+        return global_config.command_max_count
 
     __analysers: dict[int, Analyser]
     __abandons: list[int]
@@ -114,7 +114,7 @@ class CommandManager:
         """获取命令的组成部分"""
         command_parts = command.split("::", maxsplit=1)[-2:]
         if len(command_parts) != 2:
-            command_parts.insert(0, config.default_namespace.name)
+            command_parts.insert(0, global_config.default_namespace.name)
         return command_parts[0], command_parts[1]
 
     def register(self, command: Alconna) -> None:
@@ -157,7 +157,7 @@ class CommandManager:
         command.formatter.remove(command)
         del self.__analysers[cmd_hash]
         yield
-        command._header = Header.generate(command.command, command.prefixes, command.config.compact)
+        command._header = Header.generate(command.command, command.prefixes, bool(command.config.compact))
         name = next(iter(command._header.content), command.command or command.prefixes[0])
         command.path = f"{command.namespace}::{name}"
         command.dest = command.name = name
@@ -307,7 +307,7 @@ class CommandManager:
         if not namespace:
             return [ana.command for ana in self.__analysers.values()]
         if isinstance(namespace, Namespace):
-            namespace = Namespace.name
+            namespace = namespace.name
         return [ana.command for ana in self.__analysers.values() if ana.command.namespace == namespace]
 
     def test(self, message: TDC, namespace: str | Namespace = "") -> Arparma[TDC] | None:
@@ -371,7 +371,7 @@ class CommandManager:
             )
         help_names = set()
         for i in cmds:
-            help_names.update(i.namespace_config.builtin_option_name["help"])
+            help_names.update(i.config.builtin_option_name["help"])
         footer = footer or lang.require("manager", "help_footer").format(help="|".join(help_names))
         return f"{header}\n{command_string}\n{footer}"
 

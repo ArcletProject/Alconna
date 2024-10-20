@@ -1,6 +1,6 @@
 from arclet.alconna import Alconna, Args, Arparma, ArparmaBehavior, Option, Subcommand
 from arclet.alconna.builtin import conflict, set_default
-from arclet.alconna.model import OptionResult
+from arclet.alconna.base import OptionResult
 
 
 def test_behavior():

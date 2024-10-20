@@ -409,7 +409,7 @@ def test_shortcut():
     from arclet.alconna import namespace
 
     with namespace("test16") as ns:
-        ns.disable_builtin_options = set()
+        ns.config.disable_builtin_options = set()
         # 原始命令
         alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
         assert alc16.parse("core16 123 bar abcd").matched is True
@@ -969,10 +969,8 @@ def test_tips():
 
 
 def test_disable_builtin_option():
-    with namespace("test"):
-        core28 = Alconna("core28")
-        core28_1 = Alconna("core28_1", Args["text", MultiVar(str)])
-    core28.namespace_config.disable_builtin_options.add("shortcut")
+    core28 = Alconna("core28")
+    core28_1 = Alconna("core28_1", Args["text", MultiVar(str)])
 
     res = core28.parse("core28 --shortcut 123 test")
     assert not res.matched
@@ -983,7 +981,7 @@ def test_disable_builtin_option():
     assert res1.query("text") == ("--shortcut", "123", "test")
 
     with namespace("test1") as ns:
-        ns.disable_builtin_options.add("help")
+        ns.config.disable_builtin_options.add("help")
         core28_2 = Alconna("core28_2", Option("--help"))
 
     res2 = core28_2.parse("core28_2 --help")

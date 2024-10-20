@@ -7,7 +7,7 @@ from typing_extensions import Self
 from tarina import lang, split, split_once
 
 from ..base import Option, Config
-from ..config import Namespace, config
+from ..config import Namespace, global_config
 from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
 from ..typing import TDC
@@ -22,7 +22,7 @@ class Argv(Generic[TDC]):
     """命令行参数"""
 
     conf: InitVar[Config]
-    namespace: Namespace = field(default=config.default_namespace)
+    namespace: Namespace = field(default=global_config.default_namespace)
     """命名空间"""
     separators: str = field(default=" ")
     """命令分隔符"""
@@ -79,13 +79,13 @@ class Argv(Generic[TDC]):
             self.converter = __cache.get("converter") or self.converter
 
     def compile(self, conf: Config):
-        self.fuzzy_match = conf.fuzzy_match
-        self.fuzzy_threshold = conf.fuzzy_threshold
+        self.fuzzy_match = bool(conf.fuzzy_match)
+        self.fuzzy_threshold = conf.fuzzy_threshold  # type: ignore
         self.to_text = self.namespace.to_text
         self.converter = self.namespace.converter or self.converter  # type: ignore
-        self.message_cache = self.namespace.enable_message_cache
+        self.message_cache = bool(conf.enable_message_cache)
         self.filter_crlf = not conf.keep_crlf
-        self.context_style = conf.context_style
+        self.context_style = conf.context_style  # type: ignore
 
     def reset(self):
         """重置命令行参数"""

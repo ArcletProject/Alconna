@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import re
-from dataclasses import replace, dataclass, field
+from dataclasses import replace, dataclass, field, asdict, fields
 from functools import reduce
-from typing import Any, Iterable, Sequence, overload, Literal
+from typing import Any, Iterable, Sequence, overload, Literal, TypedDict
 
 from nepattern import TPattern
 from typing_extensions import Self
@@ -14,7 +14,89 @@ from tarina import Empty, lang
 from .action import Action, store
 from .args import Arg, Args
 from .exceptions import InvalidArgs
-from .model import OptionResult, SubcommandResult
+from .typing import Unset, UNSET
+
+_repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__]) + ")"
+
+
+@dataclass(init=False, eq=True)
+class OptionResult:
+    """选项解析结果
+
+    Attributes:
+        value (Any): 选项值
+        args (dict[str, Any]): 选项参数解析结果
+    """
+
+    __slots__ = ("value", "args")
+    __repr__ = _repr_
+
+    value: Any
+    args: dict[str, Any]
+
+    def __init__(self, value: Any = Ellipsis, args: dict[str, Any] | None = None) -> None:
+        self.value = value
+        self.args = args or {}
+
+
+@dataclass(init=False, eq=True)
+class SubcommandResult:
+    """子命令解析结果
+
+    Attributes:
+        value (Any): 子命令值
+        args (dict[str, Any]): 子命令参数解析结果
+        options (dict[str, OptionResult]): 子命令的子选项解析结果
+        subcommands (dict[str, SubcommandResult]): 子命令的子子命令解析结果
+    """
+
+    __slots__ = ("value", "args", "options", "subcommands")
+    __repr__ = _repr_
+
+    value: Any
+    args: dict[str, Any]
+    options: dict[str, OptionResult]
+    subcommands: dict[str, SubcommandResult]
+
+    def __init__(
+        self,
+        value: Any = Ellipsis,
+        args: dict[str, Any] | None = None,
+        options: dict[str, OptionResult] | None = None,
+        subcommands: dict[str, SubcommandResult] | None = None
+    ) -> None:
+        self.value = value
+        self.args = args or {}
+        self.options = options or {}
+        self.subcommands = subcommands or {}
+
+
+@dataclass(init=False, eq=True)
+class HeadResult:
+    """命令头解析结果
+
+    Attributes:
+        origin (Any): 命令头原始值
+        result (Any): 命令头解析结果
+        matched (bool): 命令头是否匹配
+    """
+
+    __slots__ = ("origin", "result", "matched")
+    __repr__ = _repr_
+
+    origin: Any
+    result: Any
+    matched: bool
+
+    def __init__(
+        self,
+        origin: Any = None,
+        result: Any = None,
+        matched: bool = False,
+    ) -> None:
+        self.origin = origin
+        self.result = result
+        self.matched = matched
 
 
 class Header:
@@ -453,27 +535,87 @@ class Metadata:
     "命令的自定义额外信息"
 
 
+class OptionNames(TypedDict):
+    help: set[str]
+    """帮助选项的名称"""
+    shortcut: set[str]
+    """快捷选项的名称"""
+    completion: set[str]
+    """补全选项的名称"""
+
+
 @dataclass(unsafe_hash=True)
 class Config:
     """命令配置"""
-
-    fuzzy_match: bool = field(default=False)
+    disable_builtin_options: set[str] = field(default_factory=lambda : {"shortcut"})
+    """禁用的内置选项"""
+    builtin_option_name: OptionNames = field(
+        default_factory=lambda: {
+            "help": {"--help", "-h"},
+            "shortcut": {"--shortcut", "-sct"},
+            "completion": {"--comp", "-cp", "?"},
+        }
+    )
+    """内置选项的名称"""
+    enable_message_cache: Unset[bool] = field(default=UNSET, metadata={"default": True})
+    """默认是否启用消息缓存"""
+    fuzzy_match: Unset[bool] = field(default=UNSET, metadata={"default": False})
     "命令是否开启模糊匹配"
-    fuzzy_threshold: float = field(default=0.6)
+    fuzzy_threshold: Unset[float] = field(default=UNSET, metadata={"default": 0.6})
     """模糊匹配阈值"""
-    raise_exception: bool = field(default=False)
+    raise_exception: Unset[bool] = field(default=UNSET, metadata={"default": False})
     "命令是否抛出异常"
-    hide: bool = field(default=False)
+    hide: Unset[bool] = field(default=UNSET, metadata={"default": False})
     "命令是否对manager隐藏"
-    hide_shortcut: bool = field(default=False)
+    hide_shortcut: Unset[bool] = field(default=UNSET, metadata={"default": False})
     "命令的快捷指令是否在help信息中隐藏"
-    keep_crlf: bool = field(default=False)
+    keep_crlf: Unset[bool] = field(default=UNSET, metadata={"default": False})
     "命令是否保留换行字符"
-    compact: bool = field(default=False)
+    compact: Unset[bool] = field(default=UNSET, metadata={"default": False})
     "命令是否允许第一个参数紧随头部"
-    strict: bool = field(default=True)
+    strict: Unset[bool] = field(default=UNSET, metadata={"default": True})
     "命令是否严格匹配，若为 False 则未知参数将作为名为 $extra 的参数"
-    context_style: Literal["bracket", "parentheses"] | None = field(default=None)
+    context_style: Unset[Literal["bracket", "parentheses"] | None] = field(default=UNSET, metadata={"default": None})
     "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
     extra: dict[str, Any] = field(default_factory=dict, hash=False)
     "命令的自定义额外配置"
+
+    @classmethod
+    def merge(cls, self: Config, other: Config) -> Config:
+        """合并命令配置
+
+        Args:
+            self (Config): 当前命令配置
+            other (Config): 另一个命令配置
+
+        Returns:
+            Config: 合并后的命令配置
+        """
+        result = {}
+        self_data = asdict(self)
+        other_data = asdict(other)
+        for fld in fields(Config):
+            if fld.name == "extra":
+                result[fld.name] = {**other_data[fld.name], **self_data[fld.name]}
+                continue
+            if fld.name == "disable_builtin_options":
+                default = fld.default_factory()  # type: ignore
+                if self_data[fld.name] != default and other_data[fld.name] != default:
+                    result[fld.name] = self_data[fld.name] | other_data[fld.name]
+                else:
+                    result[fld.name] = self_data[fld.name] if self_data[fld.name] != default else other_data[fld.name]
+                continue
+            if fld.name == "builtin_option_name":
+                names = {}
+                default = fld.default_factory()  # type: ignore
+                for k in ("help", "shortcut", "completion"):
+                    if self_data[fld.name][k] != default[k] and other_data[fld.name][k] != default[k]:
+                        names[k] = self_data[fld.name][k] | other_data[fld.name][k]
+                    else:
+                        names[k] = self_data[fld.name][k] if self_data[fld.name][k] != default[k] else other_data[fld.name][k]
+                result[fld.name] = names
+                # result[fld.name] = {k: other_data[fld.name][k] | self_data[fld.name][k] for k in other_data[fld.name]}
+                continue
+            default = fld.metadata["default"]
+            result[fld.name] = self_data[fld.name] if self_data[fld.name] is not UNSET else other_data[fld.name] if other_data[fld.name] is not UNSET else default
+        return cls(**result)

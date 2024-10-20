@@ -22,11 +22,14 @@ from .base import Option as Option
 from .base import Subcommand as Subcommand
 from .base import Metadata as Metadata
 from .base import Config as Config
+from .base import HeadResult as HeadResult
+from .base import OptionResult as OptionResult
+from .base import SubcommandResult as SubcommandResult
 from .builtin import conflict as conflict
 from .builtin import set_default as set_default
 from .completion import CompSession as CompSession
 from .config import Namespace as Namespace
-from .config import config as config
+from .config import global_config as global_config
 from .config import namespace as namespace
 from .core import Alconna as Alconna
 from .exceptions import AlconnaException as AlconnaException
@@ -37,9 +40,6 @@ from .exceptions import ParamsUnmatched as ParamsUnmatched
 from .formatter import TextFormatter as TextFormatter
 from .manager import ShortcutArgs as ShortcutArgs
 from .manager import command_manager as command_manager
-from .model import HeadResult as HeadResult
-from .model import OptionResult as OptionResult
-from .model import SubcommandResult as SubcommandResult
 from .typing import AllParam as AllParam
 from .typing import KeyWordVar as KeyWordVar
 from .typing import Kw as Kw

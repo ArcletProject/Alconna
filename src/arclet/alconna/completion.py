@@ -247,7 +247,7 @@ def prompt(command: Alconna, argv: Argv, args_got: list[str], opts_got: list[str
     """获取补全列表"""
     releases = argv.release(recover=True)
     target = str(releases[-1])
-    if isinstance(releases[-1], str) and releases[-1] in command.namespace_config.builtin_option_name["completion"]:
+    if isinstance(releases[-1], str) and releases[-1] in command.config.builtin_option_name["completion"]:
         target = str(releases[-2])
     if isinstance(trigger, Arg):
         if not (comp := trigger.field.get_completion()):

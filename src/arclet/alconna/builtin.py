@@ -8,7 +8,7 @@ from tarina import Empty
 from .arparma import Arparma, ArparmaBehavior
 from .config import lang
 from .exceptions import BehaveCancelled
-from .model import OptionResult, SubcommandResult
+from .base import OptionResult, SubcommandResult
 
 __all__ = ["set_default", "conflict"]
 

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, ContextManager, Literal, TypedDict
 
 from .i18n import lang as lang
+from .base import Config
 from .typing import DataCollection
 
 if TYPE_CHECKING:
@@ -22,40 +23,20 @@ class OptionNames(TypedDict):
 @dataclass(init=True, repr=True)
 class Namespace:
     """命名空间配置, 用于规定同一命名空间下的选项的默认配置"""
-
     name: str
     """命名空间名称"""
+    config: Config = field(default_factory=Config)
+    """默认配置"""
     prefixes: list[str] = field(default_factory=list)
     """默认前缀配置"""
-    separators: tuple[str, ...] = field(default_factory=lambda: (" ",))
+    separators: str = field(default=" ")
     """默认分隔符配置"""
     formatter_type: type[TextFormatter] | None = field(default=None)  # type: ignore
     """默认格式化器类型"""
-    fuzzy_match: bool = field(default=False)
-    """默认是否开启模糊匹配"""
-    raise_exception: bool = field(default=False)
-    """默认是否抛出异常"""
-    enable_message_cache: bool = field(default=True)
-    """默认是否启用消息缓存"""
-    disable_builtin_options: set[Literal["help", "shortcut", "completion"]] = field(default_factory=lambda : {"shortcut"})
-    builtin_option_name: OptionNames = field(
-        default_factory=lambda: {
-            "help": {"--help", "-h"},
-            "shortcut": {"--shortcut", "-sct"},
-            "completion": {"--comp", "-cp", "?"},
-        }
-    )
-    """默认的内置选项名称"""
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
     """默认的选项转文本函数"""
     converter: Callable[[str | list], DataCollection[Any]] | None = field(default=lambda x: x)
     """默认的文本转选项函数"""
-    compact: bool = field(default=False)
-    """默认是否开启紧凑模式"""
-    strict: bool = field(default=True)
-    "命令是否严格匹配，若为 False 则未知参数将作为名为 $extra 的参数"
-    context_style: Literal["bracket", "parentheses"] | None = field(default=None)
-    "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
 
     def __eq__(self, other):
         return isinstance(other, Namespace) and other.name == self.name
@@ -88,24 +69,24 @@ class namespace(ContextManager[Namespace]):
         if isinstance(name, Namespace):
             self.np = name
             self.name = name.name
-            if name.name not in config.namespaces:
-                config.namespaces[name.name] = name
-        elif name in config.namespaces:
-            self.np = config.namespaces[name]
+            if name.name not in global_config.namespaces:
+                global_config.namespaces[name.name] = name
+        elif name in global_config.namespaces:
+            self.np = global_config.namespaces[name]
             self.name = name
         else:
             self.np = Namespace(name)
             self.name = name
-            config.namespaces[name] = self.np
-        self.old = config.default_namespace
-        config.default_namespace = self.np
+            global_config.namespaces[name] = self.np
+        self.old = global_config.default_namespace
+        global_config.default_namespace = self.np
 
     def __enter__(self) -> Namespace:
         return self.np
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        config.default_namespace = self.old
-        config.namespaces[self.name] = self.np
+        global_config.default_namespace = self.old
+        global_config.namespaces[self.name] = self.np
         del self.old
         del self.np
         if exc_type or exc_val or exc_tb:
@@ -140,6 +121,6 @@ class _AlconnaConfig:
             self.namespaces[np.name] = np
 
 
-config = _AlconnaConfig()
+global_config = _AlconnaConfig()
 
-__all__ = ["config", "Namespace", "namespace", "lang"]
+__all__ = ["global_config", "Namespace", "namespace", "lang"]
