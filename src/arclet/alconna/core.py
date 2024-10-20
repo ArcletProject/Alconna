@@ -12,9 +12,9 @@ from weakref import WeakSet
 from nepattern import TPattern
 from tarina import init_spec, lang, Empty
 
-from .guneth._analyser import Analyser, TCompile
-from .guneth._handlers import handle_head_fuzzy, analyse_header
-from .guneth._shortcut import shortcut as _shortcut
+from .ingedia._analyser import Analyser, TCompile
+from .ingedia._handlers import handle_head_fuzzy, analyse_header
+from .ingedia._shortcut import shortcut as _shortcut
 from .args import Arg, Args
 from .argv import Argv, __argv_type__
 from .arparma import Arparma, ArparmaBehavior, requirement_handler

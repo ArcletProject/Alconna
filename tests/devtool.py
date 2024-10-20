@@ -4,10 +4,10 @@ import traceback
 from collections import namedtuple
 from typing import Any, Literal
 
-from arclet.alconna.guneth._analyser import Analyser, default_compiler
-from arclet.alconna.guneth._handlers import analyse_header as alh
-from arclet.alconna.guneth._handlers import analyse_args as ala
-from arclet.alconna.guneth._handlers import analyse_option as alo
+from arclet.alconna.ingedia._analyser import Analyser, default_compiler
+from arclet.alconna.ingedia._handlers import analyse_header as alh
+from arclet.alconna.ingedia._handlers import analyse_args as ala
+from arclet.alconna.ingedia._handlers import analyse_option as alo
 from arclet.alconna.args import Args
 from arclet.alconna.argv import Argv
 from arclet.alconna.base import Option, Subcommand, Header, Config
