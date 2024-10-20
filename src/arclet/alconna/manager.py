@@ -22,7 +22,7 @@ from .exceptions import ExceedMaxCount
 from .typing import TDC, DataCollection, InnerShortcutArgs, ShortcutArgs
 
 if TYPE_CHECKING:
-    from ._internal._analyser import Analyser
+    from .guneth._analyser import Analyser
     from .core import Alconna
 
 

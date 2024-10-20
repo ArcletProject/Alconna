@@ -1,6 +1,7 @@
 """Alconna 主体"""
 from __future__ import annotations
 
+import warnings
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,9 +12,9 @@ from weakref import WeakSet
 from nepattern import TPattern
 from tarina import init_spec, lang, Empty
 
-from ._internal._analyser import Analyser, TCompile
-from ._internal._handlers import handle_head_fuzzy, analyse_header
-from ._internal._shortcut import shortcut as _shortcut
+from .guneth._analyser import Analyser, TCompile
+from .guneth._handlers import handle_head_fuzzy, analyse_header
+from .guneth._shortcut import shortcut as _shortcut
 from .args import Arg, Args
 from .argv import Argv, __argv_type__
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
@@ -222,6 +223,7 @@ class Alconna(Subcommand):
         separators: str | set[str] | Sequence[str] | None = None,
         behaviors: list[ArparmaBehavior] | None = None,
         formatter_type: type[TextFormatter] | None = None,
+        meta: tuple[Metadata, Config] | None = None,
     ):
         """
         以标准形式构造 `Alconna`
@@ -233,6 +235,9 @@ class Alconna(Subcommand):
             behaviors (list[ArparmaBehavior] | None, optional): 命令解析行为器
             formatter_type (type[TextFormatter] | None, optional): 指定的命令帮助文本格式器类型
         """
+        if meta:
+            warnings.warn("The `meta` parameter is deprecated, please use `Metadata` and `Config` instead.", DeprecationWarning, stacklevel=2)
+            args += meta
         if not namespace:
             ns_config = global_config.default_namespace
         elif isinstance(namespace, str):
