@@ -1,8 +1,6 @@
 """Alconna 参数相关"""
 from __future__ import annotations
 
-import inspect
-import re
 import enum
 from dataclasses import fields, is_dataclass
 from typing import (
@@ -15,15 +13,13 @@ from typing import (
     Literal,
     Protocol,
     Type,
-    TypedDict,
     TypeVar,
     Union,
-    cast,
     final,
     overload,
     runtime_checkable,
 )
-from typing_extensions import NotRequired, TypeAlias
+from typing_extensions import TypeAlias
 
 from nepattern import BasePattern, MatchFailed, MatchMode, parser
 from tarina import generic_isinstance, lang
@@ -57,102 +53,6 @@ Unset: TypeAlias = Union[_T, Literal[_UNSET_TYPE._UNSET]]
 
 
 DataUnit = TypeVar("DataUnit", covariant=True)
-
-
-class _ShortcutRegWrapper(Protocol):
-    def __call__(self, slot: int | str, content: str | None, context: dict[str, Any]) -> Any: ...
-
-
-class _OldShortcutRegWrapper(Protocol):
-    def __call__(self, slot: int | str, content: str | None) -> Any: ...
-
-
-ShortcutRegWrapper: TypeAlias = "_ShortcutRegWrapper | _OldShortcutRegWrapper"
-
-
-class ShortcutArgs(TypedDict):
-    """快捷指令参数"""
-
-    command: NotRequired[str]
-    """快捷指令的命令"""
-    args: NotRequired[list[Any]]
-    """快捷指令的附带参数"""
-    fuzzy: NotRequired[bool]
-    """是否允许命令后随参数"""
-    prefix: NotRequired[bool]
-    """是否调用时保留指令前缀"""
-    wrapper: NotRequired[ShortcutRegWrapper]
-    """快捷指令的正则匹配结果的额外处理函数"""
-    humanized: NotRequired[str]
-    """快捷指令的人类可读描述"""
-
-
-DEFAULT_WRAPPER = lambda slot, content, context: content
-
-
-class InnerShortcutArgs:
-    command: str
-    args: list[Any]
-    fuzzy: bool
-    prefix: bool
-    prefixes: list[str]
-    wrapper: _ShortcutRegWrapper
-    flags: int | re.RegexFlag
-
-    __slots__ = ("command", "args", "fuzzy", "prefix", "prefixes", "wrapper", "flags")
-
-    def __init__(
-        self,
-        command: str,
-        args: list[Any] | None = None,
-        fuzzy: bool = True,
-        prefix: bool = False,
-        prefixes: list[str] | None = None,
-        wrapper: ShortcutRegWrapper | None = None,
-        flags: int | re.RegexFlag = 0,
-    ):
-        self.command = command
-        self.args = args or []
-        self.fuzzy = fuzzy
-        self.prefix = prefix
-        self.prefixes = prefixes or []
-        if not wrapper:
-            self.wrapper = DEFAULT_WRAPPER
-        else:
-            params = inspect.signature(wrapper).parameters
-            if len(params) > 3:
-                self.wrapper = cast(_ShortcutRegWrapper, wrapper)
-            elif len(params) < 3 or "self" in params:
-                wrapper = cast(_OldShortcutRegWrapper, wrapper)
-                self.wrapper = cast(_ShortcutRegWrapper, lambda slot, content, context: wrapper(slot, content))
-            else:
-                self.wrapper = cast(_ShortcutRegWrapper, wrapper)
-        self.flags = flags
-
-    def __repr__(self):
-        return f"ShortcutArgs({self.command!r}, args={self.args!r}, fuzzy={self.fuzzy}, prefix={self.prefix})"
-
-    def dump(self):
-        return {
-            "command": self.command,
-            "args": self.args,
-            "fuzzy": self.fuzzy,
-            "prefix": self.prefix,
-            "prefixes": self.prefixes,
-            "flags": self.flags,
-        }
-
-    @classmethod
-    def load(cls, data: dict[str, Any]) -> InnerShortcutArgs:
-        return cls(
-            data["command"],
-            data.get("args"),
-            data.get("fuzzy", True),
-            data.get("prefix", False),
-            data.get("prefixes"),
-            data.get("wrapper"),
-            data.get("flags", 0),
-        )
 
 
 @runtime_checkable

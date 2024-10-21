@@ -19,7 +19,8 @@ from .arparma import Arparma
 from .base import Header, Metadata
 from .config import Namespace, global_config
 from .exceptions import ExceedMaxCount
-from .typing import TDC, DataCollection, InnerShortcutArgs, ShortcutArgs
+from .typing import TDC, DataCollection
+from .shortcut import InnerShortcutArgs, ShortcutArgs, find_shortcut as _find_shortcut
 
 if TYPE_CHECKING:
     from .ingedia._analyser import Analyser
@@ -253,26 +254,10 @@ class CommandManager:
         namespace, name = self._command_part(target.path)
         if not (_shortcut := self.__shortcuts.get(f"{namespace}.{name}")):
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
-        query: str = data.pop(0)
-        while True:
-            if query in _shortcut[1]:
-                return data, _shortcut[1][query], None
-            for key, args in _shortcut[1].items():
-                if args.fuzzy and (mat := re.match(f"^{key}", query, args.flags)):
-                    if len(query) > mat.span()[1]:
-                        data.insert(0, query[mat.span()[1]:])
-                    return data, args, mat
-                elif mat := re.fullmatch(key, query, args.flags):
-                    if not (not args.fuzzy and data):
-                        return data, _shortcut[1][key], mat
-            if not data:
-                break
-            next_data = data.pop(0)
-            if not isinstance(next_data, str):
-                break
-            query += f"{target.separators[0]}{next_data}"
+        if res := _find_shortcut(_shortcut[1], data.copy(), target.separators):
+            return res
         raise ValueError(
-            lang.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=query)
+            lang.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=data)
         )
 
     def delete_shortcut(self, target: Alconna, key: str | TPattern | None = None):

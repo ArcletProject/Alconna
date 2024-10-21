@@ -28,11 +28,11 @@ from .exceptions import (
     InvalidHeader,
     PauseTriggered,
 )
-from .shortcut import wrap_shortcut
+from .shortcut import wrap_shortcut, InnerShortcutArgs, ShortcutRegWrapper
 from .completion import prompt, comp_ctx
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDC, InnerShortcutArgs, ShortcutRegWrapper
+from .typing import TDC
 
 T = TypeVar("T")
 

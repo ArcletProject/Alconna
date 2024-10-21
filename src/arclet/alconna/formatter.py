@@ -8,7 +8,8 @@ from tarina import Empty, lang
 
 from .args import Arg, Args
 from .base import Option, Subcommand
-from .typing import AllParam, InnerShortcutArgs
+from .typing import AllParam
+from .shortcut import InnerShortcutArgs
 
 if TYPE_CHECKING:
     from .core import Alconna
