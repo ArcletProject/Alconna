@@ -44,7 +44,7 @@ class CommandManager:
     __analysers: dict[int, Analyser]
     __abandons: list[int]
     __record: LRU[int, Arparma]
-    __shortcuts: dict[str, tuple[dict[str, InnerShortcutArgs], dict[str, InnerShortcutArgs]]]
+    _shortcuts: dict[str, tuple[dict[str, InnerShortcutArgs], dict[str, InnerShortcutArgs]]]
 
     def __init__(self):
         self.sign = "ALCONNA::"
@@ -52,7 +52,7 @@ class CommandManager:
 
         self.__analysers = {}
         self.__abandons = []
-        self.__shortcuts = {}
+        self._shortcuts = {}
         self.__record = LRU(128)
 
         def _del():
@@ -63,7 +63,7 @@ class CommandManager:
             for arp in self.__record.values():
                 arp._clr()
             self.__record.clear()
-            self.__shortcuts.clear()
+            self._shortcuts.clear()
 
         weakref.finalize(self, _del)
 
@@ -74,7 +74,7 @@ class CommandManager:
             with shelve.open(path.resolve().as_posix()) as db:
                 data: dict[str, tuple[dict, dict]] = dict(db["shortcuts"])  # type: ignore
             for cmd, shorts in data.items():
-                _data = self.__shortcuts.setdefault(cmd, ({}, {}))
+                _data = self._shortcuts.setdefault(cmd, ({}, {}))
                 for key, short in shorts[0].items():
                     if isinstance(short, dict):
                         _data[0][key] = InnerShortcutArgs.load(short)
@@ -91,7 +91,7 @@ class CommandManager:
     def dump_shortcuts(self, file: str | Path | None = None) -> None:
         """保存缓存"""
         data = {}
-        for cmd, shorts in self.__shortcuts.items():
+        for cmd, shorts in self._shortcuts.items():
             _data = data.setdefault(cmd, ({}, {}))
             for key, short in shorts[0].items():
                 if isinstance(short, InnerShortcutArgs):
@@ -190,7 +190,7 @@ class CommandManager:
         """
         namespace, name = self._command_part(target.path)
         argv = self.require(target).argv
-        _shortcut = self.__shortcuts.setdefault(f"{namespace}.{name}", ({}, {}))
+        _shortcut = self._shortcuts.setdefault(f"{namespace}::{name}", ({}, {}))
         if isinstance(key, str):
             _key = key
             _flags = 0
@@ -234,7 +234,7 @@ class CommandManager:
         cmd_hash = target._hash
         if cmd_hash not in self.__analysers:
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
-        shortcuts = self.__shortcuts.get(f"{namespace}.{name}", {})
+        shortcuts = self._shortcuts.get(f"{namespace}::{name}", {})
         if not shortcuts:
             return {}
         return shortcuts[0]
@@ -252,7 +252,7 @@ class CommandManager:
             tuple[list, InnerShortcutArgs, re.Match[str]]: 返回匹配的快捷命令
         """
         namespace, name = self._command_part(target.path)
-        if not (_shortcut := self.__shortcuts.get(f"{namespace}.{name}")):
+        if not (_shortcut := self._shortcuts.get(f"{namespace}::{name}")):
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
         if res := _find_shortcut(_shortcut[1], data.copy(), target.separators):
             return res
@@ -263,7 +263,7 @@ class CommandManager:
     def delete_shortcut(self, target: Alconna, key: str | TPattern | None = None):
         """删除快捷命令"""
         namespace, name = self._command_part(target.path)
-        if not (_shortcut := self.__shortcuts.get(f"{namespace}.{name}")):
+        if not (_shortcut := self._shortcuts.get(f"{namespace}::{name}")):
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
         if key:
             _key = key if isinstance(key, str) else key.pattern
@@ -276,7 +276,7 @@ class CommandManager:
                     lang.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=_key)
                 ) from e
         else:
-            self.__shortcuts.pop(f"{namespace}.{name}")
+            self._shortcuts.pop(f"{namespace}.{name}")
             return lang.require("shortcut", "delete_success").format(shortcut="all", target=target.path)
 
     def get_command(self, command: str) -> Alconna:
@@ -426,7 +426,7 @@ class CommandManager:
             + "Commands:\n"
             + f"[{', '.join([cmd.path for cmd in self.get_commands()])}]"
             + "\nShortcuts:\n"
-            + "\n".join([f" {k} => {v}" for short in self.__shortcuts.values() for k, v in short[0].items()])
+            + "\n".join([f" {k} => {v}" for short in self._shortcuts.values() for k, v in short[0].items()])
             + "\nRecords:\n"
             + "\n".join([f" [{k}]: {v[1].origin}" for k, v in enumerate(self.__record.items()[:20])])
             + "\nDisabled Commands:\n"

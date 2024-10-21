@@ -300,6 +300,6 @@ def execute_shortcut(table: dict[str, InnerShortcutArgs], data: list, separators
     Returns:
         list: 处理后的参数列表
     """
-    if res := find_shortcut(table, data, separators):
+    if res := find_shortcut(table, data.copy(), separators):
         return wrap_shortcut(*res, ctx=ctx or {})
     return data
