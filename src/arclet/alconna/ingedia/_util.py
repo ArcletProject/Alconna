@@ -52,21 +52,3 @@ def levenshtein(source: str, target: str) -> float:
             matrix[i][j] = min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, sub_distance)
 
     return 1 - float(matrix[l_s][l_t]) / max(l_s, l_t)
-
-
-ESCAPE = {"\\": "\x00", "[": "\x01", "]": "\x02", "{": "\x03", "}": "\x04", "|": "\x05"}
-R_ESCAPE = {v: k for k, v in ESCAPE.items()}
-
-
-def escape(string: str) -> str:
-    """转义字符串"""
-    for k, v in ESCAPE.items():
-        string = string.replace("\\" + k, v)
-    return string
-
-
-def unescape(string: str) -> str:
-    """逆转义字符串, 自动去除空白符"""
-    for k, v in R_ESCAPE.items():
-        string = string.replace(k, v)
-    return string.strip()

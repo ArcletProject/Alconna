@@ -4,7 +4,7 @@ from typing import Any, Union
 from nepattern import BasePattern, MatchMode
 
 from arclet.alconna import Alconna, Args, Option
-from arclet.alconna.argv import argv_config
+from arclet.alconna.ingedia._argv import argv_config
 
 
 @dataclass

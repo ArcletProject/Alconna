@@ -13,9 +13,9 @@ from arclet.alconna.args import Arg as Arg  # noqa: F401
 from arclet.alconna.args import ArgFlag as ArgFlag  # noqa: F401
 from arclet.alconna.args import Args as Args  # noqa: F401
 from arclet.alconna.args import Field as Field  # noqa: F401
-from arclet.alconna.argv import Argv as Argv  # noqa: F401
-from arclet.alconna.argv import argv_config as argv_config  # noqa: F401
-from arclet.alconna.argv import set_default_argv_type as set_default_argv_type  # noqa: F401
+from arclet.alconna.ingedia._argv import Argv as Argv  # noqa: F401
+from arclet.alconna.ingedia._argv import argv_config as argv_config  # noqa: F401
+from arclet.alconna.ingedia._argv import set_default_argv_type as set_default_argv_type  # noqa: F401
 from arclet.alconna.arparma import Arparma as Arparma  # noqa: F401
 from arclet.alconna.arparma import ArparmaBehavior as ArparmaBehavior  # noqa: F401
 from arclet.alconna.base import Option as Option  # noqa: F401

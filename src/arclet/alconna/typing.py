@@ -91,7 +91,7 @@ DEFAULT_WRAPPER = lambda slot, content, context: content
 
 
 class InnerShortcutArgs:
-    command: DataCollection[Any]
+    command: str
     args: list[Any]
     fuzzy: bool
     prefix: bool
@@ -103,7 +103,7 @@ class InnerShortcutArgs:
 
     def __init__(
         self,
-        command: DataCollection[Any],
+        command: str,
         args: list[Any] | None = None,
         fuzzy: bool = True,
         prefix: bool = False,

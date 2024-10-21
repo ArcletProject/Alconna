@@ -442,18 +442,18 @@ def test_shortcut():
         assert res5.header_match.origin == "echo"
         assert res5.content == "print(123)"
         assert not alc16_1.parse("echo 123 456").matched
-        res6 = alc16_1.parse(["echo1", "123", "456 789"])
+        res6 = alc16_1.parse("echo1 123 456 789")
         assert res6.header_match.origin == "echo1"
-        assert res6.content == "print('123\n456\n789')"
+        assert res6.content == "print('123 456 789')"
         res7 = alc16_1.parse([123])
         assert not res7.matched
-        res8 = alc16_1.parse("echo \\'123\\'")
+        res8 = alc16_1.parse("echo '123'")
         assert res8.content == "print('123')"
         assert not alc16_1.parse("echo").matched
         assert alc16_1.parse("echo1").content == "print('')"
 
         alc16_2 = Alconna(["/", "."], "core16_2", Args["foo", bool])
-        alc16_2.shortcut("test", {"command": ["/core16_2 True"]})  # type: ignore
+        alc16_2.shortcut("test", {"command": "/core16_2 True"})
         assert alc16_2.parse("/core16_2 True").matched
         res9 = alc16_2.parse("test")
         assert res9.foo is True

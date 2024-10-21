@@ -14,9 +14,8 @@ from tarina import init_spec, lang, Empty
 
 from .ingedia._analyser import Analyser, TCompile
 from .ingedia._handlers import handle_head_fuzzy, analyse_header
-from .ingedia._shortcut import shortcut as _shortcut
+from .ingedia._argv import Argv, __argv_type__
 from .args import Arg, Args
-from .argv import Argv, __argv_type__
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Completion, Help, Option, OptionResult, Shortcut, Subcommand, Header, SPECIAL_OPTIONS, Config, Metadata
 from .config import Namespace, global_config
@@ -29,6 +28,7 @@ from .exceptions import (
     InvalidHeader,
     PauseTriggered,
 )
+from .shortcut import wrap_shortcut
 from .completion import prompt, comp_ctx
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
@@ -442,11 +442,12 @@ class Alconna(Subcommand):
             if trigger.__class__ is str and trigger:
                 argv.context[SHORTCUT_TRIGGER] = trigger
                 try:
-                    rest, short, mat = command_manager.find_shortcut(self, [trigger] + argv.release())
+                    rest, short, mat = command_manager.find_shortcut(self, [trigger] + argv.release(no_split=True))
                     argv.context[SHORTCUT_ARGS] = short
                     argv.context[SHORTCUT_REST] = rest
                     argv.context[SHORTCUT_REGEX_MATCH] = mat
-                    _shortcut(argv, rest, short, mat)
+                    argv.reset()
+                    argv.addon(wrap_shortcut(rest, short, mat, argv.context), merge_str=False)
                     analyser.header_result = analyse_header(self._header, argv)
                     analyser.header_result.origin = trigger
                     if not (exc := analyser.process(argv)):
