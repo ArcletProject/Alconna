@@ -267,18 +267,20 @@ def wrap_shortcut(
 
 
 def find_shortcut(table: dict[str, InnerShortcutArgs], data: list, separators: str = " "):
-    query: str = data.pop(0)
+    query = data.pop(0)
+    if not isinstance(query, str):
+        return
     while True:
         if query in table:
-            return data, table[query], None
+            return query, data, table[query], None
         for key, args in table.items():
             if args.fuzzy and (mat := re.match(f"^{key}", query, args.flags)):
                 if len(query) > mat.span()[1]:
-                    data.insert(0, query[mat.span()[1]:])
-                return data, args, mat
+                    data.insert(0, query[mat.span()[1]:].lstrip(separators))
+                return query, data, args, mat
             elif mat := re.fullmatch(key, query, args.flags):
                 if not (not args.fuzzy and data):
-                    return data, table[key], mat
+                    return query, data, table[key], mat
         if not data:
             break
         next_data = data.pop(0)
@@ -301,5 +303,5 @@ def execute_shortcut(table: dict[str, InnerShortcutArgs], data: list, separators
         list: 处理后的参数列表
     """
     if res := find_shortcut(table, data.copy(), separators):
-        return wrap_shortcut(*res, ctx=ctx or {})
+        return wrap_shortcut(*res[1:], ctx=ctx or {})
     return data

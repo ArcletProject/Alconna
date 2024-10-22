@@ -28,7 +28,7 @@ from .exceptions import (
     InvalidHeader,
     PauseTriggered,
 )
-from .shortcut import wrap_shortcut, InnerShortcutArgs, ShortcutRegWrapper, find_shortcut
+from .shortcut import wrap_shortcut, InnerShortcutArgs, ShortcutRegWrapper
 from .completion import prompt, comp_ctx
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
@@ -440,16 +440,18 @@ class Alconna(Subcommand):
         if isinstance(exc, InvalidHeader):
             trigger = exc.context_node
             if trigger.__class__ is str and trigger:
-                argv.context[SHORTCUT_TRIGGER] = trigger
                 try:
-                    rest, short, mat = command_manager.find_shortcut(self, [trigger] + argv.release(no_split=True))
+                    key, rest, short, mat = command_manager.find_shortcut(self, [trigger] + argv.release(no_split=True))
+                    argv.context[SHORTCUT_TRIGGER] = key
                     argv.context[SHORTCUT_ARGS] = short
                     argv.context[SHORTCUT_REST] = rest
                     argv.context[SHORTCUT_REGEX_MATCH] = mat
+                    _origin = argv.origin
                     argv.reset()
+                    argv.origin = _origin
                     argv.addon(wrap_shortcut(rest, short, mat, argv.context), merge_str=False)
                     analyser.header_result = analyse_header(self._header, argv)
-                    analyser.header_result.origin = trigger
+                    analyser.header_result.origin = key
                     if not (exc := analyser.process(argv)):
                         return analyser.export(argv)
                 except ValueError:

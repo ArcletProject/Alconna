@@ -414,7 +414,7 @@ def test_shortcut():
         alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
         assert alc16.parse("core16 123 bar abcd").matched is True
         # 构造体缩写传入；{i} 将被可能的正则匹配替换
-        alc16.shortcut(r"TEST(\d+)(.+)", {"args": ["{0}", "bar {1}"]})
+        alc16.shortcut(r"TEST(\d+)(\w+)", {"args": ["{0}", "bar {1}"]})
         res = alc16.parse("TEST123aa")
         assert res.header_match.origin == "TEST123aa"
         assert res.matched is True

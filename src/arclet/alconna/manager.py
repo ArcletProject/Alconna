@@ -241,7 +241,7 @@ class CommandManager:
 
     def find_shortcut(
         self, target: Alconna, data: list
-    ) -> tuple[list, InnerShortcutArgs, Match[str] | None]:
+    ) -> tuple[str, list, InnerShortcutArgs, Match[str] | None]:
         """查找快捷命令
 
         Args:
@@ -249,7 +249,7 @@ class CommandManager:
             data (list): 传入的命令数据
 
         Returns:
-            tuple[list, InnerShortcutArgs, re.Match[str]]: 返回匹配的快捷命令
+            tuple[str, list, InnerShortcutArgs, re.Match[str]]: 返回匹配的快捷命令
         """
         namespace, name = self._command_part(target.path)
         if not (_shortcut := self._shortcuts.get(f"{namespace}::{name}")):
