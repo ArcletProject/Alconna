@@ -11,7 +11,6 @@ from arclet.alconna import (
     Config,
     CompSession,
     Field,
-    KeyWordVar,
     Metadata,
     MultiVar,
     Option,
@@ -30,11 +29,11 @@ def test_alconna_create():
     assert alc.path == "Alconna::!core"
     assert alc.parse("!core abc bar 123").matched is True
 
-    alc_1 = Alconna("core_1", Args["foo", str]["bar;!", int])
-    assert alc_1.parse("core_1 abc 123").matched is False
-    assert alc_1.parse("core_1 abc abc").matched is True
-    query = alc_1.parse("core_1 abc abc").query[str]
-    assert query("bar") == "abc"
+    alc_1 = Alconna("core_1", Args["foo", str]["bar", int])
+    assert alc_1.parse("core_1 abc 123").matched is True
+    assert alc_1.parse("core_1 abc abc").matched is False
+    query = alc_1.parse("core_1 abc 123").query[str]
+    assert query("foo") == "abc"
 
 
 def test_alconna_multi_match():
@@ -286,15 +285,15 @@ def test_alconna_add_option():
     assert len(alc8_2.options) == 3
 
 
-def test_from_callable():
-    def test(wild, text: str, num: int, boolean: bool = False):
-        assert wild == "abc"
-        assert text == "def"
-        assert num == 123
-        assert not boolean
-
-    alc9 = Alconna("core9", Args.from_callable(test)[0])
-    alc9.parse("core9 abc def 123 False").call(test)
+# def test_from_callable():
+#     def test(wild, text: str, num: int, boolean: bool = False):
+#         assert wild == "abc"
+#         assert text == "def"
+#         assert num == 123
+#         assert not boolean
+#
+#     alc9 = Alconna("core9", Args.from_callable(test)[0])
+#     alc9.parse("core9 abc def 123 False").call(test)
 
 
 def test_alconna_synthesise():
@@ -307,7 +306,7 @@ def test_alconna_synthesise():
         Arg("min", cnt, seps="到"),
         Arg("max;?", cnt),
         ["发涩图", "来点涩图", "来点好康的"],
-        Option("从", Args["tags", MultiVar(str, 5)] / ("和", "与"), compact=True),
+        Option("从", Args.tags(MultiVar(str, 5), seps="和与"), compact=True),
     )
     res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
     assert res.matched is True
@@ -619,7 +618,7 @@ def test_hide_annotation():
 
 
 def test_args_notice():
-    alc19 = Alconna("core19", Args["foo#A TEST;?", int]) + Option("bar", Args["baz#ANOTHER TEST", KeyWordVar(str)])
+    alc19 = Alconna("core19", Args["foo#A TEST;?", int]) + Option("bar", Args.baz(str, notice="ANOTHER TEST", kw_only=True))
     print("")
     print(alc19.get_help())
 

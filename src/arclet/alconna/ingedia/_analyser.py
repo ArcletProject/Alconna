@@ -7,7 +7,7 @@ from typing_extensions import Self, TypeAlias
 from tarina import Empty, lang
 
 from ..action import Action
-from ..args import Args
+from ..args import _Args
 from ..arparma import Arparma
 from ..base import Option, Subcommand, HeadResult, OptionResult, SubcommandResult
 from ..completion import comp_ctx, prompt
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 def default_compiler(analyser: SubAnalyser):
     """默认的编译方法
 
-    Args:
+    _Args:
         analyser (SubAnalyser): 任意子解析器
     """
     for opts in analyser.command.options:
@@ -74,7 +74,7 @@ class SubAnalyser:
     """编译的节点"""
     compact_params: list[Option | SubAnalyser] = field(default_factory=list)
     """可能紧凑的需要逐个解析的节点"""
-    self_args: Args = field(init=False)
+    self_args: _Args = field(init=False)
     """命令自身参数"""
     subcommands_result: dict[str, SubcommandResult] = field(init=False)
     """子命令的解析结果"""
@@ -110,7 +110,7 @@ class SubAnalyser:
         self.self_args = self.command.args
         if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = sum(arg.field.default is not None for arg in self.self_args.argument)
+        _de_count = sum(arg.field.get_default() is not Empty for arg in self.self_args.data)
         if _de_count and _de_count == self.command.nargs:
             self.default_main_only = True
 
@@ -141,7 +141,7 @@ class SubAnalyser:
     def process(self, argv: Argv, name_validated: bool = True) -> Self:
         """处理传入的参数集合
 
-        Args:
+        _Args:
             argv (Argv): 命令行参数
             name_validated (bool, optional): 是否已经验证过名称. Defaults to True.
 
@@ -172,7 +172,7 @@ class SubAnalyser:
             self.args_result = analyse_args(argv, self.self_args)
         if not self.args_result and self.need_main_args:
             raise ArgumentMissing(
-                self.self_args.argument[0].field.get_missing_tips(
+                self.self_args.data[0].field.get_missing_tips(
                     lang.require("subcommand", "args_missing").format(name=self.command.dest)
                 ),
                 sub
@@ -192,7 +192,7 @@ class Analyser(SubAnalyser):
     def __init__(self, alconna: Alconna, argv: Argv, compiler: TCompile | None = None):
         """初始化解析器
 
-        Args:
+        _Args:
             alconna (Alconna): 命令实例
             argv (Argv): 命令行参数
             compiler (TCompile | None, optional): 编译器方法
@@ -209,7 +209,7 @@ class Analyser(SubAnalyser):
     def process(self, argv: Argv, name_validated: bool = True) -> Exception | None:
         """主体解析函数, 应针对各种情况进行解析
 
-        Args:
+        _Args:
             argv (Argv): 命令行参数
             name_validated (bool, optional): 是否已经验证过名称. Defaults to True.
         """
@@ -256,7 +256,7 @@ class Analyser(SubAnalyser):
             exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next()[0]))
         else:
             exc = ArgumentMissing(
-                self.self_args.argument[0].field.get_missing_tips(lang.require("analyser", "param_missing"))
+                self.self_args.data[0].field.get_missing_tips(lang.require("analyser", "param_missing"))
             )
             if comp_ctx.get(None):
                 return PauseTriggered(
@@ -274,7 +274,7 @@ class Analyser(SubAnalyser):
     ) -> Arparma[TDC]:
         """创建 `Arparma` 解析结果, 其一定是一次解析的最后部分
 
-        Args:
+        _Args:
             argv (Argv[TDC]): 命令行参数
             fail (bool, optional): 是否解析失败. Defaults to False.
             exception (Exception | None, optional): 解析失败时的异常. Defaults to None.

@@ -1,19 +1,18 @@
 from __future__ import annotations
 
+import warnings
 import dataclasses as dc
-import inspect
 import re
-from enum import Enum
-from functools import partial
-from typing import Any, Callable, Generic, Iterable, List, Sequence, TypeVar, Union, cast, overload
-from typing_extensions import Self, dataclass_transform, ParamSpec, Concatenate
+import typing
+from typing import Any, Callable, Generic, TypeVar, ClassVar, ForwardRef, Final
+from typing_extensions import dataclass_transform, ParamSpec, Concatenate, TypeAlias
 
-from nepattern import ANY, NONE, AntiPattern, BasePattern, MatchMode, RawStr, UnionPattern, parser
-from tarina import Empty, get_signature, lang
+from nepattern import NONE, BasePattern, RawStr, UnionPattern, parser
+from tarina import Empty, lang
 
 from ._dcls import safe_dcls_kw
 from .exceptions import InvalidArgs
-from .typing import AllParam, KeyWordVar, KWBool, MultiKeyWordVar, MultiVar, TAValue
+from .typing import MultiVar, TAValue, parent_frame_namespace, merge_cls_and_parent_ns
 
 _T = TypeVar("_T")
 
@@ -104,6 +103,7 @@ class Arg(Generic[_T]):
         name: str,
         type_: TAValue[_T] | None = None,
         field: Field[_T] | _T | type[Empty] = Empty,
+        **kwargs,
     ):
         if not isinstance(name, str) or name.startswith("$"):
             raise InvalidArgs(lang.require("args", "name_error"))
@@ -116,7 +116,7 @@ class Arg(Generic[_T]):
             default.default = None if default.default is Empty else default.default  # type: ignore
         if _value == NONE:
             raise InvalidArgs(lang.require("args", "value_error").format(target=name))
-        self.value = _value  # type: ignore
+        self.type_ = _value  # type: ignore
         self.field = default
 
         if res := re.match(r"^(?P<name>.+?)#(?P<notice>[^;?/#]+)", name):
@@ -129,14 +129,27 @@ class Arg(Generic[_T]):
                 self.field.hidden = True
             self.name = res["name"]
 
+        if kwargs:
+            for k, v in kwargs.items():
+                if hasattr(self.field, k):
+                    warnings.warn(f"Arg(..., {k}={v}) is deprecated, use Field({k}={v}) instead", DeprecationWarning, stacklevel=2)
+                    setattr(self.field, k, v)
+
     def __str__(self):
-        n, v = f"'{self.name}'", str(self.value)
+        n, v = f"'{self.name}'", str(self.type_)
         return (n if n == v else f"{n}: {v}") + (f" = '{self.field.display}'" if self.field.display is not Empty else "")
 
     def __add__(self, other) -> "ArgsBuilder":
         if isinstance(other, Arg):
             return ArgsBuilder() << self << other
         raise TypeError(f"unsupported operand type(s) for +: 'Arg' and '{other.__class__.__name__}'")
+
+    def __iter__(self):
+        return iter((self.name, self.type_, self.field))
+
+    @property
+    def separators(self):
+        return self.field.seps
 
 
 class _Args:
@@ -147,7 +160,7 @@ class _Args:
         self.normal: list[Arg[Any]] = []
         self.keyword_only: dict[str, Arg[Any]] = {}
         self.vars_positional: list[tuple[MultiVar, Arg[Any]]] = []
-        self.vars_keyword: list[tuple[MultiKeyWordVar, Arg[Any]]] = []
+        self.vars_keyword: list[tuple[MultiVar, Arg[Any]]] = []
         self._visit = set()
         self.optional_count = 0
         self.__check_vars__()
@@ -168,18 +181,18 @@ class _Args:
             if arg.name in self._visit:
                 continue
             self._visit.add(arg.name)
-            if isinstance(arg.value, MultiVar):
-                if isinstance(arg.value.base, KeyWordVar):
-                    for slot in self.vars_positional:
-                        _, a = slot
-                        if arg.value.base.sep in a.field.seps:
-                            raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
-                    self.vars_keyword.append((cast(MultiKeyWordVar, arg.value), arg))
+            if isinstance(arg.type_, MultiVar):
+                if arg.field.kw_only:
+                    # for slot in self.vars_positional:
+                    #     _, a = slot
+                    #     if arg.type_.base.sep in a.field.seps:
+                    #         raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
+                    self.vars_keyword.append((arg.type_, arg))
                 elif self.keyword_only:
                     raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                 else:
-                    self.vars_positional.append((arg.value, arg))
-            elif isinstance(arg.value, KeyWordVar):
+                    self.vars_positional.append((arg.type_, arg))
+            elif arg.field.kw_only:
                 if self.vars_keyword:
                     raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                 self.keyword_only[arg.name] = arg
@@ -194,33 +207,92 @@ class _Args:
         del _tmp
         del _visit
 
+    def __iter__(self):
+        return iter(self.data)
+
+    def __str__(self):
+        return f"Args({', '.join([f'{arg}' for arg in self.data])})" if self.data else "Empty"
+
+    def __len__(self):
+        return len(self.data)
+
+    def __eq__(self, other):
+        return self.data == other.data
+
+    def __repr__(self):
+        return repr(self.data)
+
 
 _P = ParamSpec("_P")
 
 
-def _arg_init_wrapper(func: Callable[Concatenate[str, _P], Arg[Any]]) -> Callable[[str, ArgsBuilder], Callable[_P, ArgsBuilder]]:
-    return lambda name, builder: lambda *args, **kwargs: builder.__lshift__(func(name, *args, **kwargs))
+def _arg_init_wrapper(func: Callable[_P, Field[_T]]) -> Callable[[ArgsBuilder, str], Callable[Concatenate[TAValue[_T], _P], ArgsBuilder]]:
+    return lambda builder, name: lambda type_, *args, **kwargs: builder.__lshift__(Arg(name, type_, func(*args, **kwargs)))
+
+
+wrapper = _arg_init_wrapper(Field)
 
 
 class ArgsBuilder:
-    def __init__(self):
-        self._args = []
+    def __init__(self, *origin: Arg):
+        self._args = list(origin)
 
     def __lshift__(self, arg: Arg):
         self._args.append(arg)
         return self
 
     def __getattr__(self, item: str):
-        return _arg_init_wrapper(Arg)(item, self)
+        return wrapper(self, item)
+
+    def __getitem__(self, item):
+        # warnings.warn("Args[...] is deprecated, use Args.xxx(...) instead", DeprecationWarning, stacklevel=2)
+        data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
+        if isinstance(data[0], Arg):
+            self._args.extend(data)
+        else:
+            self._args.append(Arg(*data))
+        return self
 
     def build(self):
         return _Args(self._args)
 
+    def __iter__(self):
+        return iter(self._args)
 
-@dataclass_transform(kw_only_default=True, field_specifiers=(arg_field,))
+    def __len__(self):
+        return len(self._args)
+
+
+class __ArgsBuilderInstance:
+    __slots__ = ()
+
+    def __getattr__(self, item: str):
+        return ArgsBuilder().__getattr__(item)
+
+    def __getitem__(self, item):
+        # warnings.warn("Args[...] is deprecated, use Args.xxx(...) instead", DeprecationWarning, stacklevel=2)
+        data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
+        if isinstance(data[0], Arg):
+            return ArgsBuilder(*data)
+        else:
+            return ArgsBuilder(Arg(*data))
+
+
+Args: Final = __ArgsBuilderInstance()
+
+
+def _is_classvar(a_type):
+    # This test uses a typing internal class, but it's the best way to
+    # test if this is a ClassVar.
+    return (a_type is typing.ClassVar
+            or (type(a_type) is typing._GenericAlias  # type: ignore
+                and a_type.__origin__ is typing.ClassVar))
+
+
+@dataclass_transform(field_specifiers=(arg_field,))
 class ArgsMeta(type):
     def __new__(
-        cls,
+        mcs,
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
@@ -228,17 +300,59 @@ class ArgsMeta(type):
         merge: bool = False,
         **kwargs,
     ):
-        return super().__new__(cls, name, bases, namespace, **kwargs)
-
-    def __getattr__(self, item: str):
-        return ArgsBuilder().__getattr__(item)
+        cls: type[ArgsBase] = super().__new__(mcs, name, bases, namespace, **kwargs)  # type: ignore
+        cls.__args_mergable__ = merge
+        data_args = []
+        for b in cls.__mro__[-1:0:-1]:
+            base_args: _Args | None = b.__dict__.get("__args_data__")
+            if base_args is not None:
+                data_args.extend(base_args.data)
+        types_namespace = merge_cls_and_parent_ns(cls, parent_frame_namespace())
+        cls_annotations = cls.__dict__.get("__annotations__", {})
+        cls_args: list[Arg] = []
+        for name, typ in cls_annotations.items():
+            if isinstance(typ, str):  # future annotations
+                typ = ForwardRef(typ, is_class=True)._evaluate(types_namespace, types_namespace, recursive_guard=frozenset())
+            if _is_classvar(typ):
+                continue
+            if name not in cls.__dict__:
+                field = Field()
+            else:
+                field = cls.__dict__[name]
+                if not isinstance(field, Field):
+                    field = Field(field)
+                if field.default is Empty and field.default_factory is Empty:
+                    delattr(cls, name)
+            cls_args.append(Arg(name, typ, field))
+        for name, value in cls.__dict__.items():
+            if isinstance(value, Field) and name not in cls_annotations:
+                raise TypeError(f"{name!r} is a Field but has no type annotation")
+        cls.__args_data__ = _Args(data_args + cls_args)
+        return cls
 
 
 class ArgsBase(metaclass=ArgsMeta):
-    def __init__(self, **kwargs):
+    __args_mergable__: ClassVar[bool]
+    __args_data__: ClassVar[_Args]
+
+    def __init__(self, *args, **kwargs):
         ...
 
 
-class Foo(ArgsBase):
-    foo: str = arg_field()
-    bar: int
+def handle_args(arg: Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | _Args | None) -> _Args:
+    if arg is None:
+        return _Args([])
+    if isinstance(arg, _Args):
+        return arg
+    if isinstance(arg, Arg):
+        return _Args([arg])
+    if isinstance(arg, list):
+        return _Args(arg)
+    if isinstance(arg, ArgsBuilder):
+        return arg.build()
+    if isinstance(arg, ArgsMeta):
+        return arg.__args_data__
+    raise TypeError(f"unsupported operand type(s) for +: 'Arg' and '{arg.__class__.__name__}'")
+
+
+ARGS_PARAM: TypeAlias = "Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | _Args"

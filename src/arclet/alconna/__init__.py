@@ -10,7 +10,7 @@ from .action import store_false as store_false
 from .action import store_true as store_true
 from .action import store_value as store_value
 from .args import Arg as Arg
-from .args import ArgFlag as ArgFlag
+from .args import ArgsBase as ArgsBase
 from .args import Args as Args
 from .args import Field as Field
 from .arparma import Arparma as Arparma
@@ -38,13 +38,9 @@ from .formatter import TextFormatter as TextFormatter
 from .manager import ShortcutArgs as ShortcutArgs
 from .manager import command_manager as command_manager
 from .typing import AllParam as AllParam
-from .typing import KeyWordVar as KeyWordVar
-from .typing import Kw as Kw
 from .typing import MultiVar as MultiVar
 from .typing import Nargs as Nargs
 from .typing import StrMulti as StrMulti
-from .typing import UnpackVar as UnpackVar
-from .typing import Up as Up
 
 __version__ = "1.8.31"
 

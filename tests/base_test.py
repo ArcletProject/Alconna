@@ -10,11 +10,6 @@ def test_node_create():
     assert node.nargs == 1
 
 
-def test_single_args():
-    node1 = CommandNode("foo", Arg("bar", int))
-    assert node1.args == Args["bar", int]
-
-
 def test_option_aliases():
     opt = Option("test|T|t")
     assert opt.aliases == {"test", "T", "t"}

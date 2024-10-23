@@ -6,6 +6,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Generic, Literal, Sequence, TypeVar, cast, overload, TYPE_CHECKING
+
 from typing_extensions import Self
 from weakref import WeakSet
 
@@ -15,7 +16,7 @@ from tarina import init_spec, lang, Empty
 from .ingedia._analyser import Analyser, TCompile
 from .ingedia._handlers import handle_head_fuzzy, analyse_header
 from .ingedia._argv import Argv, __argv_type__
-from .args import Arg, Args
+from .args import Arg, ArgsBuilder, ArgsBase, Args, ArgsMeta
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Completion, Help, Option, OptionResult, Shortcut, Subcommand, Header, SPECIAL_OPTIONS, Config, Metadata
 from .config import Namespace, global_config
@@ -64,7 +65,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
         options.append(
             Shortcut(
                 "|".join(conf.builtin_option_name["shortcut"]),
-                Args["action?", "delete|list"]["name?", str]["command?", str],
+                Args.action("delete|list", optional=True).name(str, optional=True).command(str, optional=True),
                 dest="$shortcut",
                 help_text=lang.require("builtin", "option_shortcut"),
                 soft_keyword=False,
@@ -218,7 +219,7 @@ class Alconna(Subcommand):
 
     def __init__(
         self,
-        *args: Option | Subcommand | str | list[str] | Args | Arg | Metadata | Config | ArparmaBehavior | Any,
+        *args: Option | Subcommand | str | list[str] | ArgsBuilder | type[ArgsBase] | Arg | Metadata | Config | ArparmaBehavior,
         namespace: str | Namespace | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
         behaviors: list[ArparmaBehavior] | None = None,
@@ -229,7 +230,7 @@ class Alconna(Subcommand):
         以标准形式构造 `Alconna`
 
         Args:
-            *args (Option | Subcommand | str | list[str] | Args | Arg | Metadata | Config | ArparmaBehavior | Any): 命令选项、主参数、命令名称或命令头等
+            *args (Option | Subcommand | str | list[str] | ArgsBuilder | type[ArgsBase] | Arg | Metadata | Config | ArparmaBehavior): 命令选项、主参数、命令名称或命令头等
             namespace (str | Namespace | None, optional): 命令命名空间, 默认为 'Alconna'
             separators (str | set[str] | Sequence[str] | None, optional): 命令参数分隔符, 默认为 `' '`
             behaviors (list[ArparmaBehavior] | None, optional): 命令解析行为器
@@ -246,7 +247,7 @@ class Alconna(Subcommand):
             ns_config = namespace
         self.prefixes = next((i for i in args if isinstance(i, list)), ns_config.prefixes.copy())  # type: ignore
         try:
-            self.command = next(i for i in args if not isinstance(i, (list, Option, Subcommand, Args, Arg, Metadata, Config, ArparmaBehavior)))
+            self.command = next(i for i in args if isinstance(i, str))
         except StopIteration:
             self.command = "" if self.prefixes else handle_argv()
         self.router = Router()
@@ -261,8 +262,15 @@ class Alconna(Subcommand):
         add_builtin_options(options, self.router, self.config)
         name = next(iter(self._header.content), self.command or self.prefixes[0])
         self.path = f"{self.namespace}::{name}"
-        _args = sum((i for i in args if isinstance(i, (Args, Arg))), Args())
-        super().__init__("ALCONNA::", _args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description)  # noqa: E501
+        _args = []
+        for i in args:
+            if isinstance(i, Arg):
+                _args.append(i)
+            elif isinstance(i, ArgsBuilder):
+                _args.extend(i.build())
+            elif isinstance(i, ArgsMeta):
+                _args.extend(i.__args_data__.data)
+        super().__init__("ALCONNA::", *_args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description)  # noqa: E501
         self.name = name
         self.aliases = frozenset(self._header.content)
         self.behaviors = []
@@ -518,9 +526,9 @@ class Alconna(Subcommand):
                 self.config = other
             elif isinstance(other, Option):
                 self.options.append(other)
-            elif isinstance(other, Args):
-                self.args += other
-                self.nargs = len(self.args)
+            elif isinstance(other, Arg):
+                self.args = (ArgsBuilder(*self.args.data) << other).build()
+                self.nargs = len(self.args.data)
             elif isinstance(other, str):
                 self.options.append(Option(other))
         return self

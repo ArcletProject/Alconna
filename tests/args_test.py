@@ -2,20 +2,15 @@ from typing import Union
 
 from nepattern import INTEGER, BasePattern, MatchMode, combine
 
-from arclet.alconna import ArgFlag, Args, KeyWordVar, Kw, Nargs, StrMulti
+from arclet.alconna import Args, Nargs, StrMulti
 from devtool import analyse_args
 
 
 def test_magic_create():
-    arg1 = Args["round", float]["test", bool]["aaa", str]
+    arg1 = Args.round(float).test(bool).aaa(str)
     assert len(arg1) == 3
-    arg1 <<= Args["perm", str, ...] + ["month", int]
-    assert len(arg1) == 5
-    arg1_1: Args = Args["baz", int]
-    arg1_1.add("foo", value=int, default=1)
-    assert len(arg1_1) == 2
-    assert analyse_args(arg1_1, ["0"]) == {"baz": 0, "foo": 1}
-    assert analyse_args(arg1_1, [0]) == {"baz": 0, "foo": 1}
+    arg1_1 = Args.baz(int)
+    assert analyse_args(arg1_1, ["0"]) == {"baz": 0}
 
 
 def test_type_convert():
@@ -46,7 +41,7 @@ def test_default():
 
 
 def test_separate():
-    arg6 = Args["foo", str]["bar", int] / ";"
+    arg6 = Args.foo(str, seps=";").bar(int)
     assert analyse_args(arg6, ["abc;123"]) == {"foo": "abc", "bar": 123}
 
 
@@ -60,19 +55,19 @@ def test_object():
 
 
 def test_multi():
-    arg8 = Args().add("multi", value=Nargs(str, "+"))
+    arg8 = Args.multi(Nargs(str, "+"))
     assert analyse_args(arg8, ["a b c d"]).get("multi") == ("a", "b", "c", "d")
     assert analyse_args(arg8, [], raise_exception=False) != {"multi": ()}
-    arg8_1 = Args().add("kwargs", value=Nargs(Kw @ str, "+"))
+    arg8_1 = Args.kwargs(Nargs(str, "+"), kw_only=True)
     assert analyse_args(arg8_1, ["a=b c=d"]).get("kwargs") == {"a": "b", "c": "d"}
-    arg8_2 = Args().add("multi", value=Nargs(int, "*"))
+    arg8_2 = Args.multi(Nargs(int, "*"))
     assert analyse_args(arg8_2, ["1 2 3 4"]).get("multi") == (1, 2, 3, 4)
     assert analyse_args(arg8_2, []).get("multi") == ()
-    arg8_3 = Args().add("multi", value=Nargs(int, 3))
+    arg8_3 = Args.multi(Nargs(int, 3))
     assert analyse_args(arg8_3, ["1 2 3"]).get("multi") == (1, 2, 3)
     assert analyse_args(arg8_3, ["1 2"]).get("multi") == (1, 2)
     assert analyse_args(arg8_3, ["1 2 3 4"]).get("multi") == (1, 2, 3)
-    arg8_4 = Args().add("multi", value=Nargs(str, "*")).add("kwargs", value=Nargs(Kw @ str, "*"))
+    arg8_4 = Args.multi(Nargs(str, "*")).kwargs(Nargs(str, "*"), kw_only=True)
     assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("multi") == ("1", "2", "3", "4")
     assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("kwargs") == {
         "a": "b",
@@ -80,12 +75,6 @@ def test_multi():
     }
     assert analyse_args(arg8_4, ["1 2 3 4"]).get("multi") == ("1", "2", "3", "4")
     assert analyse_args(arg8_4, ["a=b c=d"]).get("kwargs") == {"a": "b", "c": "d"}
-
-
-def test_anti():
-    arg9 = Args().add("anti", value=r"re:(.+?)/(.+?)\.py", flags=[ArgFlag.ANTI])
-    assert analyse_args(arg9, ["a/b.mp3"]) == {"anti": "a/b.mp3"}
-    assert analyse_args(arg9, ["a/b.py"], raise_exception=False) != {"anti": "a/b.py"}
 
 
 def test_choice():
@@ -109,7 +98,7 @@ def test_union():
 
 
 def test_optional():
-    arg13 = Args["foo", str].add("bar", value=int, flags=["?"])
+    arg13 = Args["foo", str].bar(int, optional=True)
     assert analyse_args(arg13, ["abc 123"]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg13, ["abc"]) == {"foo": "abc"}
     arg13_1 = Args["foo", str]["bar?", int]
@@ -121,7 +110,7 @@ def test_optional():
 
 
 def test_kwonly():
-    arg14 = Args["foo", str].add("bar", value=Kw[int])
+    arg14 = Args["foo", str].bar(int, kw_only=True)
     assert analyse_args(arg14, ["abc bar=123"]) == {
         "foo": "abc",
         "bar": 123,
@@ -130,7 +119,7 @@ def test_kwonly():
         "foo": "abc",
         "bar": 123,
     }
-    arg14_1 = Args["width;?", Kw[int], 1280]["height?", Kw[int], 960]
+    arg14_1 = Args.width(int, 1280, optional=True, kw_only=True).height(int, 960, optional=True, kw_only=True)
     assert analyse_args(arg14_1, ["--width=960 --height=960"]) == {
         "width": 960,
         "height": 960,
@@ -139,13 +128,14 @@ def test_kwonly():
         "width": 960,
         "height": 480,
     }
-    arg14_2 = Args["foo", str]["bar", KeyWordVar(int, " ")]["baz", KeyWordVar(bool, ":")]
-    assert analyse_args(arg14_2, ["abc -bar 123 baz:false"]) == {
-        "bar": 123,
-        "baz": False,
-        "foo": "abc",
-    }
-    assert analyse_args(arg14_2, ["abc baz:false -bar 456"]) == {
+    # arg14_2 = Args["foo", str]["bar", KeyWordVar(int, " ")]["baz", KeyWordVar(bool, ":")]
+    # assert analyse_args(arg14_2, ["abc baz:false -bar 123"]) == {
+    #     "bar": 123,
+    #     "baz": False,
+    #     "foo": "abc",
+    # }
+    arg14_3 = Args.foo(str).bar(int, kw_only=True).baz(bool, kw_only=True)
+    assert analyse_args(arg14_3, ["abc baz=false bar=456"]) == {
         "bar": 456,
         "baz": False,
         "foo": "abc",
@@ -154,43 +144,43 @@ def test_kwonly():
 
 def test_pattern():
     test_type = BasePattern("(.+?).py", MatchMode.REGEX_CONVERT, list, lambda _, x: x[1].split("/"), "test")
-    arg15 = Args().add("bar", value=test_type)
+    arg15 = Args.bar(test_type)
     assert analyse_args(arg15, ["abc.py"]) == {"bar": ["abc"]}
     assert analyse_args(arg15, ["abc/def.py"]) == {"bar": ["abc", "def"]}
     assert analyse_args(arg15, ["abc/def.mp3"], raise_exception=False) != {"bar": ["abc", "def"]}
 
 
-def test_callable():
-    def test(
-        a: int,
-        b: bool,
-        *args: str,
-        c: float = 1.0,
-        d: int = 1,
-        e: bool = False,
-        **kwargs: str,
-    ): ...
-
-    arg16, _ = Args.from_callable(test)
-    assert len(arg16.argument) == 7
-    assert analyse_args(arg16, ["1 True 2 3 4 c=5.0 d=6 -no-e f=g h=i"]) == {
-        "a": 1,
-        "args": ("2", "3", "4"),
-        "b": True,
-        "c": 5.0,
-        "d": 6,
-        "e": False,
-        "kwargs": {"f": "g", "h": "i"},
-    }
-    assert analyse_args(arg16, ["1 True 2 3 4 -no-e c=7.2 f=x h=y"]) == {
-        "a": 1,
-        "args": ("2", "3", "4"),
-        "b": True,
-        "c": 7.2,
-        "d": 1,
-        "e": False,
-        "kwargs": {"f": "x", "h": "y"},
-    }
+# def test_callable():
+#     def test(
+#         a: int,
+#         b: bool,
+#         *args: str,
+#         c: float = 1.0,
+#         d: int = 1,
+#         e: bool = False,
+#         **kwargs: str,
+#     ): ...
+#
+#     arg16, _ = Args.from_callable(test)
+#     assert len(arg16.data) == 7
+#     assert analyse_args(arg16, ["1 True 2 3 4 c=5.0 d=6 -no-e f=g h=i"]) == {
+#         "a": 1,
+#         "args": ("2", "3", "4"),
+#         "b": True,
+#         "c": 5.0,
+#         "d": 6,
+#         "e": False,
+#         "kwargs": {"f": "g", "h": "i"},
+#     }
+#     assert analyse_args(arg16, ["1 True 2 3 4 -no-e c=7.2 f=x h=y"]) == {
+#         "a": 1,
+#         "args": ("2", "3", "4"),
+#         "b": True,
+#         "c": 7.2,
+#         "d": 1,
+#         "e": False,
+#         "kwargs": {"f": "x", "h": "y"},
+#     }
 
 
 def test_func_anno():
@@ -211,21 +201,21 @@ def test_annotated():
     assert analyse_args(arg18, ["0 0"], raise_exception=False) != {"foo": 0, "bar": 0}
 
 
-def test_unpack():
-    from dataclasses import dataclass, field
-
-    from arclet.alconna.typing import UnpackVar
-
-    @dataclass
-    class People:
-        name: str
-        age: int = field(default=16)
-
-    arg19 = Args["people", UnpackVar(People)]
-    assert analyse_args(arg19, ["alice", 16]) == {"people": People("alice", 16)}
-    assert analyse_args(arg19, ["bob"]) == {"people": People("bob", 16)}
-    arg19_1 = Args["people", UnpackVar(People, kw_only=True)].separate("&")
-    assert analyse_args(arg19_1, ["name=alice&age=16"]) == {"people": People("alice", 16)}
+# def test_unpack():
+#     from dataclasses import dataclass, field
+#
+#     from arclet.alconna.typing import UnpackVar
+#
+#     @dataclass
+#     class People:
+#         name: str
+#         age: int = field(default=16)
+#
+#     arg19 = Args["people", UnpackVar(People)]
+#     assert analyse_args(arg19, ["alice", 16]) == {"people": People("alice", 16)}
+#     assert analyse_args(arg19, ["bob"]) == {"people": People("bob", 16)}
+#     arg19_1 = Args["people", UnpackVar(People, kw_only=True)].separate("&")
+#     assert analyse_args(arg19_1, ["name=alice&age=16"]) == {"people": People("alice", 16)}
 
 
 def test_multi_multi():

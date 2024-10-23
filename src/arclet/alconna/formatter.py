@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 from nepattern import ANY, AnyString
 from tarina import Empty, lang
 
-from .args import Arg, Args
+from .args import Arg, _Args
 from .base import Option, Subcommand
 from .typing import AllParam
 from .shortcut import InnerShortcutArgs
@@ -46,7 +46,7 @@ class Trace:
     """
 
     head: TraceHead
-    args: Args
+    args: _Args
     separators: str
     body: list[Option | Subcommand]
     shortcuts: dict[str, Any]
@@ -149,27 +149,27 @@ class TextFormatter:
             parameter (Arg): 参数单元
         """
         name = parameter.name
-        if str(parameter.value).strip("'\"") == name:
-            return f"[{name}]" if parameter.optional else name
-        if parameter.hidden:
-            return f"[{name}]" if parameter.optional else f"<{name}>"
-        if parameter.value is AllParam:
+        if str(parameter.type_).strip("'\"") == name:
+            return f"[{name}]" if parameter.field.optional else name
+        if parameter.field.hidden:
+            return f"[{name}]" if parameter.field.optional else f"<{name}>"
+        if parameter.type_ is AllParam:
             return f"<...{name}>"
-        arg = f"[{name}" if parameter.optional else f"<{name}"
-        if parameter.value not in (ANY, AnyString):
-            arg += f": {parameter.value}"
+        arg = f"[{name}" if parameter.field.optional else f"<{name}"
+        if parameter.type_ not in (ANY, AnyString):
+            arg += f": {parameter.type_}"
         if parameter.field.display is not Empty:
             arg += f" = {parameter.field.display}"
-        return f"{arg}]" if parameter.optional else f"{arg}>"
+        return f"{arg}]" if parameter.field.optional else f"{arg}>"
 
-    def parameters(self, args: Args) -> str:
+    def parameters(self, args: _Args) -> str:
         """参数列表的描述
 
         Args:
             args (Args): 参数列表
         """
         res = ""
-        for arg in args.argument:
+        for arg in args.data:
             if arg.name.startswith("_key_"):
                 continue
             if len(arg.separators) == 1:
@@ -177,7 +177,7 @@ class TextFormatter:
             else:
                 sep = f"[{'|'.join(arg.separators)!r}]"
             res += self.param(arg) + sep
-        notice = [(arg.name, arg.notice) for arg in args.argument if arg.notice]
+        notice = [(arg.name, arg.field.notice) for arg in args.data if arg.field.notice]
         return (
             (f"{res}\n## {lang.require('format', 'notice')}\n  " + "\n  ".join([f"{v[0]}: {v[1]}" for v in notice]))
             if notice

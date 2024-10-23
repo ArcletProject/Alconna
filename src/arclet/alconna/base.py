@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import replace, dataclass, field, asdict, fields
-from functools import reduce
 from typing import Any, Iterable, Sequence, overload, Literal, TypedDict
 
 from nepattern import TPattern
@@ -12,7 +11,7 @@ from typing_extensions import Self
 from tarina import Empty, lang
 
 from .action import Action, store
-from .args import Arg, Args
+from .args import ARGS_PARAM, Arg, ArgsBase, ArgsMeta, ArgsBuilder, _Args, handle_args
 from .exceptions import InvalidArgs
 from .typing import Unset, UNSET
 
@@ -105,11 +104,11 @@ class Header:
     __slots__ = ("origin", "content", "mapping", "compact", "compact_pattern")
 
     def __init__(
-            self,
-            origin: tuple[str, list[str]],
-            content: set[str],
-            compact: bool,
-            compact_pattern: TPattern,
+        self,
+        origin: tuple[str, list[str]],
+        content: set[str],
+        compact: bool,
+        compact_pattern: TPattern,
     ):
         self.origin = origin  # type: ignore
         self.content = content  # type: ignore
@@ -190,7 +189,7 @@ class CommandNode:
     """命令节点目标名称"""
     default: Any
     """命令节点默认值"""
-    args: Args
+    args: _Args
     """命令节点参数"""
     separators: str
     """命令节点分隔符"""
@@ -204,7 +203,7 @@ class CommandNode:
     def __init__(
         self,
         name: str,
-        args: Arg | Args | None = None,
+        args: ARGS_PARAM | None = None,
         alias: Iterable[str] | None = None,
         dest: str | None = None,
         default: Any = Empty,
@@ -218,7 +217,7 @@ class CommandNode:
 
         Args:
             name (str): 命令节点名称
-            args (Arg | Args | None, optional): 命令节点参数
+            args (Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | None, optional): 命令节点参数
             dest (str | None, optional): 命令节点目标名称
             default (Any, optional): 命令节点默认值
             action (Action | None, optional): 命令节点响应动作
@@ -239,12 +238,12 @@ class CommandNode:
         aliases.insert(0, name)
         self.name = name
         self.aliases = frozenset(aliases)
-        self.args = Args() + args
+        self.args = handle_args(args)
         self.default = default
         self.action = action or store
         _handle_default(self)
 
-        self.nargs = len(self.args.argument)
+        self.nargs = len(self.args.data)
         self.dest = dest or self.name
         self.dest = self.dest.lstrip("-") or self.dest
         self.help_text = help_text or self.dest
@@ -269,7 +268,7 @@ class CommandNode:
 
     def __repr__(self):
         data = {}
-        if not self.args.empty:
+        if self.args.data:
             data["args"] = self.args
         if self.default is not Empty:
             data["default"] = self.default
@@ -303,7 +302,7 @@ class Option(CommandNode):
     def __init__(
         self,
         name: str,
-        args: Arg | Args | None = None,
+        args: ARGS_PARAM | None = None,
         alias: Iterable[str] | None = None,
         dest: str | None = None,
         default: Any = Empty,
@@ -317,7 +316,7 @@ class Option(CommandNode):
 
         Args:
             name (str): 命令选项名称
-            args (Arg | Args | None, optional): 命令选项参数
+            args (Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | None, optional): 命令选项参数
             alias (Iterable[str] | None, optional): 命令选项别名
             dest (str | None, optional): 命令选项目标名称
             default (Any, optional): 命令选项默认值
@@ -332,11 +331,11 @@ class Option(CommandNode):
         if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
             default = OptionResult(default)
         super().__init__(name, args, alias, dest, default, action, separators, help_text, soft_keyword)
-        if not self.args.empty:
+        if self.args.data:
             if default is not Empty and not self.default.args:
-                self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
+                self.default.args = {self.args.data[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
                 self.default.value = ...
-            if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}):
+            if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.data if arg.field.default is not Empty}):
                 self.default = OptionResult(args=defaults)
         if not self.separators:
             self.compact = True
@@ -348,14 +347,14 @@ class Option(CommandNode):
         ...
 
     @overload
-    def __add__(self, other: Args | Arg) -> Option:
+    def __add__(self, other: ARGS_PARAM) -> Option:
         ...
 
-    def __add__(self, other: Option | Args | Arg) -> Subcommand | Option:
+    def __add__(self, other: Option | ARGS_PARAM) -> Subcommand | Option:
         """连接命令选项与命令节点或命令选项, 生成子命令
 
         Args:
-            other (Option | Args | Arg): 命令节点或命令选项
+            other (Option | ARGS_PARAM): 命令节点或命令选项
 
         Returns:
             Option | Subcommand: 如果other为命令选项, 则返回生成的子命令, 否则返回自己
@@ -364,13 +363,15 @@ class Option(CommandNode):
             TypeError: 如果other不是命令选项或命令节点, 则抛出此异常
         """
         if isinstance(other, Option):
-            return Subcommand(self.name, other, self.args, dest=self.dest, separators=self.separators, help_text=self.help_text, soft_keyword=self.soft_keyword)  # noqa: E501
-        if isinstance(other, (Arg, Args)):
-            self.args += other
-            self.nargs = len(self.args)
+            return Subcommand(self.name, *self.args.data, other, dest=self.dest, separators=self.separators, help_text=self.help_text, soft_keyword=self.soft_keyword)  # noqa: E501
+        try:
+            _args = handle_args(other)
+            self.args = _Args([*self.args.data, *_args.data])
+            self.nargs = len(self.args.data)
             self._hash = self._calc_hash()
             return self
-        raise TypeError(f"unsupported operand type(s) for +: 'Option' and '{other.__class__.__name__}'")
+        except TypeError:
+            raise TypeError(f"unsupported operand type(s) for +: 'Option' and '{other.__class__.__name__}'") from None
 
     def __radd__(self, other: str):
         """与字符串连接, 生成 `Alconna` 对象
@@ -405,7 +406,7 @@ class Subcommand(CommandNode):
     def __init__(
         self,
         name: str,
-        *args: Args | Arg | Option | Subcommand | list[Option | Subcommand],
+        *args: Arg | ArgsBuilder | type[ArgsBase] | Option | Subcommand | list[Option | Subcommand],
         alias: Iterable[str] | None = None,
         dest: str | None = None,
         default: Any = Empty,
@@ -417,7 +418,7 @@ class Subcommand(CommandNode):
 
         Args:
             name (str): 子命令名称
-            *args (Args | Arg | Option | Subcommand | list[Option | Subcommand]): 参数, 选项或子命令
+            *args (Arg | ArgsBuilder | type[ArgsBase] | Option | Subcommand | list[Option | Subcommand]): 参数, 选项或子命令
             dest (str | None, optional): 子命令选项目标名称
             default (Any, optional): 子命令默认值
             action (Action | None, optional): 子命令选项响应动作
@@ -427,27 +428,35 @@ class Subcommand(CommandNode):
         """
         self.options = [i for i in args if isinstance(i, (Option, Subcommand))]
         for li in args:
-            if isinstance(li, list):
+            if isinstance(li, list) :
                 self.options.extend(li)
         if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
             default = SubcommandResult(default)
+        _args = []
+        for i in args:
+            if isinstance(i, Arg):
+                _args.append(i)
+            elif isinstance(i, ArgsBuilder):
+                _args.extend(i.build())
+            elif isinstance(i, ArgsMeta):
+                _args.extend(i.__args_data__.data)
         super().__init__(
             name,
-            reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
+            _args,
             alias, dest, default, None, separators, help_text, soft_keyword
         )
-        if not self.args.empty and default is not Empty and not self.default.args:
-            self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
+        if self.args.data and default is not Empty and not self.default.args:
+            self.default.args = {self.args.data[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
             self.default.value = ...
-        if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}):
+        if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.data if arg.field.default is not Empty}):
             self.default = SubcommandResult(args=defaults)
         self._hash = self._calc_hash()
 
-    def __add__(self, other: Option | Args | Arg | str) -> Self:
+    def __add__(self, other: Option | ARGS_PARAM | str) -> Self:
         """连接子命令与命令选项或命令节点
 
         Args:
-            other (Option | Args | Arg | str): 命令选项或命令节点
+            other (Option | Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | str): 命令选项或命令节点
 
         Returns:
             Self: 返回子命令自身
@@ -459,12 +468,14 @@ class Subcommand(CommandNode):
             self.options.append(Option(other) if isinstance(other, str) else other)
             self._hash = self._calc_hash()
             return self
-        if isinstance(other, (Arg, Args)):
-            self.args += other
-            self.nargs = len(self.args)
+        try:
+            _args = handle_args(other)
+            self.args = _Args([*self.args.data, *_args.data])
+            self.nargs = len(self.args.data)
             self._hash = self._calc_hash()
             return self
-        raise TypeError(f"unsupported operand type(s) for +: 'Subcommand' and '{other.__class__.__name__}'")
+        except TypeError:
+            raise TypeError(f"unsupported operand type(s) for +: 'Subcommand' and '{other.__class__.__name__}'") from None
 
     def __radd__(self, other: str):
         """与字符串连接, 生成 `Alconna` 对象
