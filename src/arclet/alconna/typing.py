@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import enum
-from dataclasses import fields, is_dataclass
 from typing import (
     Any,
     Callable,
@@ -178,33 +177,6 @@ Kw = _Kw()
 
 class KWBool(BasePattern):
     """对布尔参数的包装"""
-
-
-class UnpackVar(BasePattern):
-    """特殊参数，利用dataclass 的 field 生成 arg 信息，并返回dcls"""
-
-    def __init__(self, dcls: Any, kw_only: bool = False, kw_sep: str = "="):
-        """构建一个可变参数
-
-        Args:
-            dcls: dataclass 类
-        """
-        if not is_dataclass(dcls):
-            raise TypeError(dcls)
-        self.kw_only = kw_only
-        self.kw_sep = kw_sep
-        self.fields = fields(dcls)  # can override if other use Pydantic?
-        super().__init__(mode=MatchMode.KEEP, origin=dcls, alias=f"{dcls.__name__}")  # type: ignore
-
-
-class _Up:
-    __slots__ = ()
-
-    def __mul__(self, other):
-        return UnpackVar(other)
-
-
-Up = _Up()
 
 
 class _StrMulti(MultiVar[str]):
