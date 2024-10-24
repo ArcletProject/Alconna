@@ -3,20 +3,20 @@ from io import StringIO
 
 from nepattern import AnyString
 
-from arclet.alconna import Alconna, Args, Arparma, CommandMeta, Field, MultiVar, Option
+from arclet.alconna import Alconna, Args, Arparma, Metadata, Option
 
 alc = Alconna(
     "exec",
-    Args["code", MultiVar(AnyString), Field(completion=lambda: "print(1+1)")] / "\n",
+    Args.code(AnyString, multiple=True, completion=lambda: "print(1+1)", seps="\n"),
     Option("--pure-text"),
     Option("--no-output"),
-    Option("--out", Args["name", str, "res"]),
-    meta=CommandMeta("exec python code", example="exec\\nprint(1+1)"),
+    Option("--out", Args.name(str, "res")),
+    Metadata("exec python code", example="exec\\nprint(1+1)"),
 )
 
 alc.shortcut(
     "echo",
-    {"command": "exec --pure-text\nprint(\\'{*}\\')"},
+    {"command": "exec --pure-text\nprint('{*}')"},
 )
 
 alc.shortcut(
@@ -58,6 +58,7 @@ def exec_code(result: Arparma):
         return str(e)
     finally:
         sys.stdout = _to
+
 
 print(exec_code(alc.parse("echo 1234")))
 print(exec_code(alc.parse("sin30")))

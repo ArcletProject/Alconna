@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import warnings
 import dataclasses as dc
 import re
@@ -325,6 +326,9 @@ class ArgsMeta(type):
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
+        *,
+        kw_only: bool | None = None,
+        seps: str | None = None,
         **kwargs,
     ):
         cls: type[ArgsBase] = super().__new__(mcs, name, bases, namespace, **kwargs)  # type: ignore
@@ -333,6 +337,7 @@ class ArgsMeta(type):
             base_args: _Args | None = b.__dict__.get("__args_data__")
             if base_args is not None:
                 data_args.extend(base_args.data)
+        data_args = deepcopy(data_args)
         types_namespace = merge_cls_and_parent_ns(cls, parent_frame_namespace())
         cls_annotations = cls.__dict__.get("__annotations__", {})
         cls_args: list[Arg] = []
@@ -361,7 +366,13 @@ class ArgsMeta(type):
         for name, value in cls.__dict__.items():
             if isinstance(value, Field) and name not in cls_annotations:
                 raise TypeError(f"{name!r} is a Field but has no type annotation")
-        cls.__args_data__ = _Args(data_args + cls_args, cls)
+        all_args = data_args + cls_args
+        for arg in all_args:
+            if kw_only is not None:
+                arg.field.kw_only = kw_only
+            if seps is not None:
+                arg.field.seps = seps
+        cls.__args_data__ = _Args(all_args, cls)
 
         dcls = dc.make_dataclass(cls.__name__, [(arg.name, arg.type_, arg.field.to_dc_field()) for arg in cls.__args_data__.data], namespace=types_namespace, repr=True)
         cls.__init__ = dcls.__init__  # type: ignore
@@ -376,6 +387,9 @@ class ArgsBase(metaclass=ArgsMeta):
     if not TYPE_CHECKING:
         def __init__(self, *args, **kwargs):  # for pycharm type check
             pass
+
+    def dump(self):
+        return {arg.name: getattr(self, arg.name) for arg in self.__args_data__.data}
 
 
 def handle_args(arg: Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | _Args | None) -> _Args:

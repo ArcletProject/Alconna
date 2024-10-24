@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlite3 import connect
 from typing import Optional
 
-from arclet.alconna import Alconna, Arg, KeyWordVar, MultiVar, Option
+from arclet.alconna import Alconna, Args, Option
 
 db = connect('example.db')
 
@@ -12,9 +12,9 @@ cursor = db.cursor()
 
 select = Alconna(
     "SELECT",
-    Arg("columns", MultiVar(str)),
-    Option("FROM", Arg("table", str, field="UNKNOWN")),
-    Option("WHERE", Arg("conditions", MultiVar(KeyWordVar(str)))),
+    Args.columns(str, multiple=True),
+    Option("FROM", Args.table(str, "UNKNOWN")),
+    Option("WHERE", Args.conditions(str, multiple=True, kw_only=True)),
 )
 
 

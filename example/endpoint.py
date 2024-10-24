@@ -1,10 +1,7 @@
-from dataclasses import asdict, dataclass
-
-from arclet.alconna import Alconna, Args, KeyWordVar, Option, UnpackVar
+from arclet.alconna import Alconna, ArgsBase, Args, Option
 
 
-@dataclass
-class User:
+class User(ArgsBase, kw_only=True, seps="&"):
     name: str
     age: int
 
@@ -12,8 +9,8 @@ class User:
 user_ = Alconna(
     "user",
     Option("list"),
-    Option("add", Args["user", UnpackVar(User, kw_only=True)].separate("&"), separators="?"),
-    Option("del", Args["name", KeyWordVar(str)], separators="?"),
+    Option("add", User, separators="?"),
+    Option("del", Args.name(str, kw_only=True), separators="?"),
     separators="/"
 )
 
@@ -33,9 +30,10 @@ def handle(send: str):
     if not res.matched:
         return {"result": "Err", "msg": res.error_info}
     if res.find("list"):
-        return {"result": "Ok", "msg": "", "data": [asdict(u) for u in users.values()]}
-    elif user := res.query[User]("add.user"):
-        users[user.name] = user
+        return {"result": "Ok", "msg": "", "data": [u.dump() for u in users.values()]}
+    elif user := res.query[dict]("add.args"):
+        _user = User(**user)
+        users[_user.name] = _user
         return {"result": "Ok", "msg": ""}
     elif name := res.query[str]("del.name"):
         if name not in users:
@@ -44,6 +42,7 @@ def handle(send: str):
         return {"result": "Ok", "msg": ""}
     else:
         return {"result": "Err", "msg": "Unknown API"}
+
 
 for s in sends:
     print(handle(s))

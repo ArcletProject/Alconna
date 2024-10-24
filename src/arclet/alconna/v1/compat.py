@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Literal, Any, Callable
-from typing import ContextManager
+from typing import Literal, Any, Callable, ContextManager
+from typing_extensions import deprecated
 from arclet.alconna import Metadata, Config, global_config
 from arclet.alconna import Namespace as _Namespace
 
 
+@deprecated("CommandMeta is deprecated, use Metadata and Config instead", category=DeprecationWarning, stacklevel=1)
 def CommandMeta(
     description: str = "Unknown",
     usage: str | None = None,

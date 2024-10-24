@@ -41,7 +41,7 @@ from arclet.alconna import Alconna, Option, Subcommand, Args
 
 cmd = Alconna(
     "/pip",
-    Subcommand("install", Option("-U|--upgrade"), Args["pak", str]),
+    Subcommand("install", Option("-U|--upgrade"), Args.pak(str)),
     Option("list")
 )
 
@@ -73,15 +73,19 @@ QQ 交流群: [链接](https://jq.qq.com/?_wv=1027&k=PUPOnCSH)
 执行回调示范:
 ```python
 # callback.py
-from arclet.alconna import Alconna, Args
+from arclet.alconna import Alconna, ArgsBase
 
-alc = Alconna("callback", Args["foo", int]["bar", str])
+class CallbackArgs(ArgsBase):
+    foo: int
+    bar: str
+
+alc = Alconna("callback", CallbackArgs)
 
 @alc.bind()
-def cb(foo: int, bar: str):
-    print(f"foo: {foo}")
-    print(f"bar: {bar}")
-    print(bar * foo)
+def cb(args: CallbackArgs):
+    print(f"foo: {args.foo}")
+    print(f"bar: {args.bar}")
+    print(args.bar * args.foo)
 
 if __name__ == '__main__':
     alc()
@@ -100,7 +104,7 @@ hellohello
 from arclet.alconna import Alconna, Args
 from pathlib import Path
 
-read = Alconna("read", Args["data", bytes])
+read = Alconna("read", Args.data(bytes))
 
 @read.bind()
 def cb(data: bytes):
@@ -124,9 +128,9 @@ from arclet.alconna import Alconna, Args, Option, Subcommand, store_true, count,
 
 alc = Alconna(
     "component",
-    Args["path", str],
+    Args.path(str),
     Option("--verbose|-v", action=count),
-    Option("-f", Args["flag", str], compact=True, action=append),
+    Option("-f", Args.flag(str), compact=True, action=append),
     Subcommand("sub", Option("bar", action=store_true, default=False))
 )
 
@@ -151,7 +155,7 @@ $ python component.py /home/arclet -vvvv -f1 -f2 -f3 sub bar
 # shortcut.py
 from arclet.alconna import Alconna, Args
 
-alc = Alconna("eval", Args["content", str])
+alc = Alconna("eval", Args.content(str))
 alc.shortcut("echo", {"command": "eval print(\\'{*}\\')"})
 
 @alc.bind()
@@ -174,7 +178,7 @@ hello world!
 # complete.py
 from arclet.alconna import Alconna, Args, Option
 
-alc = Alconna("complete", Args["bar", int]) + Option("foo") + Option("fool")
+alc = Alconna("complete", Args.bar(int)) + Option("foo") + Option("fool")
 
 if __name__ == '__main__':
     alc()
@@ -195,7 +199,7 @@ typing 支持示范:
 from typing import Annotated  # or typing_extensions.Annotated
 from arclet.alconna import Alconna, Args
 
-alc = Alconna("test", Args.foo[Annotated[int, lambda x: x % 2 == 0]])
+alc = Alconna("test", Args.foo(Annotated[int, lambda x: x % 2 == 0]))
 alc.parse("test 2")
 alc.parse("test 3")
 
@@ -208,9 +212,9 @@ ParamsUnmatched: 参数 3 不正确
 模糊匹配示范:
 ```python
 # fuzzy.py
-from arclet.alconna import Alconna, CommandMeta, Arg
+from arclet.alconna import Alconna, Config, Arg
 
-alc = Alconna('!test_fuzzy', Arg("foo", str), CommandMeta(fuzzy_match=True))
+alc = Alconna('!test_fuzzy', Arg("foo", str), Config(fuzzy_match=True))
 
 if __name__ == '__main__':
     alc()

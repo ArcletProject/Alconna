@@ -163,7 +163,7 @@ def step_keyword(argv: Argv, args: _Args, result: dict[str, Any]):
     kwonly_seps = set()
     for arg in args.keyword_only.values():
         kwonly_seps.update(arg.field.seps)
-    kwonly_seps1 = "".join([arg.field.kw_sep for arg in args.keyword_only.values()])
+    kwonly_seps1 = "".join({arg.field.kw_sep for arg in args.keyword_only.values()})
     target = len(args.keyword_only)
     count = 0
     while count < target:
@@ -265,6 +265,9 @@ def analyse_args(argv: Argv, args: _Args) -> dict[str, Any]:
         step_keyword(argv, args, result)
     for slot in args.vars_keyword:
         step_varkey(argv, slot, result)
+    # TODO: let the user decide whether to return the Args model or raw data
+    # if args.origin:
+    #     return args.origin(**result)
     return result
 
 
@@ -360,7 +363,7 @@ def analyse_compact_params(analyser: SubAnalyser, argv: Argv):
     for param in analyser.compact_params:
         _data, _index = argv.data_set()
         try:
-            if param.__class__ is Option:
+            if param.__class__ is Option or param.__class__.__base__ is Option:
                 oparam: Option = param  # type: ignore
                 analyse_option(analyser, argv, oparam, False)
             else:

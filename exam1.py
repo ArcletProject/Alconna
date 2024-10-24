@@ -9,11 +9,11 @@ lang.set("completion", "prompt_select", "")
 api_list = ["saucenao", "ascii2d", "ehentai", "iqdb", "tracemoe"]
 alc = Alconna(
     "setu",
-    Args['content', str],
-    Option("use", Args['api', api_list], help_text="选择搜图使用的 API"),
+    Args.content(str),
+    Option("use", Args.api(api_list), help_text="选择搜图使用的 API"),
     Option("count", Arg("num", int), help_text="设置每次搜图展示的最多数量"),
-    Option("--similarity|-s", Args["val", float], help_text="设置相似度过滤的值", default=OptionResult(args={"val": 0.5})),
-    Option("--timeout|-t", Args["sec", int], help_text="设置超时时间", default=OptionResult(args={"sec": 60})),
+    Option("--similarity|-s", Args.val(float), help_text="设置相似度过滤的值", default=OptionResult(args={"val": 0.5})),
+    Option("--timeout|-t", Args.sec(int), help_text="设置超时时间", default=OptionResult(args={"sec": 60})),
     Metadata(
         "依据输入的图片寻找可能的原始图片来源",
         usage="可以传入图片, 也可以是图片的网络链接",

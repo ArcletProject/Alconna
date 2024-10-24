@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Any, Final, Iterable
 
 from tarina import Empty
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from arclet.alconna.args import ArgsBuilder, Arg
 from arclet.alconna.typing import TAValue
@@ -22,6 +22,8 @@ class ArgFlag(str, Enum):
 
 
 class _CompatArgsBuilder(ArgsBuilder):
+
+    @deprecated("Args[...] is deprecated, use Args.xxx(...) instead", category=DeprecationWarning, stacklevel=1)
     def __getitem__(self, item):
         data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
         if isinstance(data[0], Arg):
@@ -92,8 +94,8 @@ class __CompatArgsBuilderInstance:
     def __getattr__(self, item: str):
         return _CompatArgsBuilder().__getattr__(item)
 
+    @deprecated("Args[...] is deprecated, use Args.xxx(...) instead", category=DeprecationWarning, stacklevel=1)
     def __getitem__(self, item):
-        warnings.warn("Args[...] is deprecated, use Args.xxx(...) instead", DeprecationWarning, stacklevel=2)
         data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
         if isinstance(data[0], Arg):
             return _CompatArgsBuilder(*data)

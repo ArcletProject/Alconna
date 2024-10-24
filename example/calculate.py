@@ -29,9 +29,11 @@ alc = Alconna(
     Arg("b", NUMBER),
 )
 
+
 @alc.bind()
 def calc(a, action, b):
     print(action(a, b))
+
 
 alc.parse("calc 123 + 456")
 alc.parse("calc 4.56 mul 8")

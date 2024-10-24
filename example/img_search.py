@@ -39,8 +39,9 @@ with namespace("test") as np:
     np.to_text = lambda x: x.text if x.__class__ is Text else None
     alc = Alconna(
         "search",
-        Args["img?", Image]
+        Args.img(Image, optional=True),
     )
+
 
 @alc.bind()
 def search(img: Optional[Image] = None):
@@ -48,6 +49,7 @@ def search(img: Optional[Image] = None):
         print("Please input your image")
     else:
         print(f"Searching {img.src} ...")
+
 
 alc.parse([Text("search")])
 alc.parse([Text("search"), Image("https://www.example.com/img")])
