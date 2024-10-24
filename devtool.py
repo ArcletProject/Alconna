@@ -8,8 +8,8 @@ from arclet.alconna.ingedia._analyser import Analyser, default_compiler
 from arclet.alconna.ingedia._handlers import analyse_header as alh
 from arclet.alconna.ingedia._handlers import analyse_args as ala
 from arclet.alconna.ingedia._handlers import analyse_option as alo
-from arclet.alconna.args import Args
-from arclet.alconna.argv import Argv
+from arclet.alconna.args import ARGS_PARAM, handle_args
+from arclet.alconna.ingedia._argv import Argv
 from arclet.alconna.base import Option, Subcommand, Header, Config
 from arclet.alconna.config import Namespace
 from arclet.alconna.typing import DataCollection
@@ -39,7 +39,7 @@ class _DummyAnalyser(Analyser):
 
 
 def analyse_args(
-    args: Args,
+    args: ARGS_PARAM,
     command: list[str | Any],
     raise_exception: bool = True,
     context_style: Literal["bracket", "parentheses"] | None = None,
@@ -51,7 +51,7 @@ def analyse_args(
         argv.enter(kwargs)
         argv.build(["test"] + command)
         argv.next()
-        return ala(argv, args)
+        return ala(argv, handle_args(args))
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

@@ -13,6 +13,7 @@ from tarina import Empty, generic_isinstance, lang, safe_eval
 from .exceptions import BehaveCancelled, OutBoundsBehave
 from .base import HeadResult, OptionResult, SubcommandResult
 from .typing import TDC
+from .args import ArgsBase
 
 T = TypeVar("T")
 T1 = TypeVar("T1")

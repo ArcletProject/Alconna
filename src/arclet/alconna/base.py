@@ -432,14 +432,14 @@ class Subcommand(CommandNode):
                 self.options.extend(li)
         if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
             default = SubcommandResult(default)
-        _args = []
-        for i in args:
-            if isinstance(i, Arg):
-                _args.append(i)
-            elif isinstance(i, ArgsBuilder):
-                _args.extend(i.build())
-            elif isinstance(i, ArgsMeta):
-                _args.extend(i.__args_data__.data)
+        _args = next((i for i in args if isinstance(i, type) and issubclass(i, ArgsBase)), None)
+        if _args is None:
+            _args = []
+            for i in args:
+                if isinstance(i, Arg):
+                    _args.append(i)
+                elif isinstance(i, ArgsBuilder):
+                    _args.extend(i)
         super().__init__(
             name,
             _args,

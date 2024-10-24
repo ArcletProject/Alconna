@@ -12,7 +12,7 @@ from .base import Subcommand, SPECIAL_OPTIONS, Option
 from .args import Arg
 
 if TYPE_CHECKING:
-    from .argv import Argv
+    from .ingedia._argv import Argv
     from .core import Alconna
 
 

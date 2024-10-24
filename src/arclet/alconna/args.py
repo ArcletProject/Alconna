@@ -4,13 +4,13 @@ import warnings
 import dataclasses as dc
 import re
 import typing
-from typing import Any, Callable, Generic, TypeVar, ClassVar, ForwardRef, Final
+from typing import Any, Callable, Generic, TypeVar, ClassVar, ForwardRef, Final, TYPE_CHECKING
 from typing_extensions import dataclass_transform, ParamSpec, Concatenate, TypeAlias
 
 from nepattern import NONE, BasePattern, RawStr, UnionPattern, parser
 from tarina import Empty, lang
 
-from ._dcls import safe_dcls_kw
+from ._dcls import safe_dcls_kw, safe_field_kw
 from .exceptions import InvalidArgs
 from .typing import MultiVar, TAValue, parent_frame_namespace, merge_cls_and_parent_ns
 
@@ -67,6 +67,13 @@ class Field(Generic[_T]):
             return fallback
         gen = self.missing_tips()
         return gen or fallback
+    
+    def to_dc_field(self):
+        if self.default_factory is not Empty:
+            return dc.field(default_factory=self.default_factory, **safe_field_kw(kw_only=self.kw_only))
+        if self.default is not Empty:
+            return dc.field(default=self.default, **safe_field_kw(kw_only=self.kw_only))
+        return dc.field(**safe_field_kw(kw_only=self.kw_only))
 
 
 def arg_field(
@@ -153,9 +160,10 @@ class Arg(Generic[_T]):
 
 
 class _Args:
-    __slots__ = ("unpack", "vars_positional", "vars_keyword", "keyword_only", "normal", "data", "_visit", "optional_count")
+    __slots__ = ("unpack", "vars_positional", "vars_keyword", "keyword_only", "normal", "data", "_visit", "optional_count", "origin")
 
-    def __init__(self, args: list[Arg[Any]]):
+    def __init__(self, args: list[Arg[Any]], origin: type[ArgsBase] | None = None):
+        self.origin = origin
         self.data = args
         self.normal: list[Arg[Any]] = []
         self.keyword_only: dict[str, Arg[Any]] = {}
@@ -296,12 +304,9 @@ class ArgsMeta(type):
         name: str,
         bases: tuple[type, ...],
         namespace: dict[str, Any],
-        *,
-        merge: bool = False,
         **kwargs,
     ):
         cls: type[ArgsBase] = super().__new__(mcs, name, bases, namespace, **kwargs)  # type: ignore
-        cls.__args_mergable__ = merge
         data_args = []
         for b in cls.__mro__[-1:0:-1]:
             base_args: _Args | None = b.__dict__.get("__args_data__")
@@ -327,16 +332,21 @@ class ArgsMeta(type):
         for name, value in cls.__dict__.items():
             if isinstance(value, Field) and name not in cls_annotations:
                 raise TypeError(f"{name!r} is a Field but has no type annotation")
-        cls.__args_data__ = _Args(data_args + cls_args)
+        cls.__args_data__ = _Args(data_args + cls_args, cls)
+
+        dcls = dc.make_dataclass(cls.__name__, [((arg.name, arg.type_, arg.field.to_dc_field()) ) for arg in cls.__args_data__.data], namespace=types_namespace, repr=True)
+        cls.__init__ = dcls.__init__  # type: ignore
+        if "__repr__" not in cls.__dict__:
+            cls.__repr__ = dcls.__repr__  # type: ignore
         return cls
 
 
 class ArgsBase(metaclass=ArgsMeta):
-    __args_mergable__: ClassVar[bool]
     __args_data__: ClassVar[_Args]
 
-    def __init__(self, *args, **kwargs):
-        ...
+    if not TYPE_CHECKING:
+        def __init__(self, *args, **kwargs):  # for pycharm type check
+            pass
 
 
 def handle_args(arg: Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | _Args | None) -> _Args:
@@ -345,12 +355,12 @@ def handle_args(arg: Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | _Args | No
     if isinstance(arg, _Args):
         return arg
     if isinstance(arg, Arg):
-        return _Args([arg])
+        arg = [arg]
     if isinstance(arg, list):
-        return _Args(arg)
+        arg = ArgsBuilder(*arg)
     if isinstance(arg, ArgsBuilder):
         return arg.build()
-    if isinstance(arg, ArgsMeta):
+    if issubclass(arg, ArgsBase):
         return arg.__args_data__
     raise TypeError(f"unsupported operand type(s) for +: 'Arg' and '{arg.__class__.__name__}'")
 

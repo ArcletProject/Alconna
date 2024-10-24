@@ -181,7 +181,7 @@ def step_keyword(argv: Argv, args: _Args, result: dict[str, Any]):
             ):
                 break
             for arg in args.keyword_only.values():
-                if arg.type_.base.validate(may_arg).flag == "valid":  # type: ignore
+                if arg.type_.validate(may_arg).flag == "valid":  # type: ignore
                     raise InvalidParam(lang.require("args", "key_missing").format(target=may_arg, key=arg.name), arg)
             for name in args.keyword_only:
                 if levenshtein(_key, name) >= argv.fuzzy_threshold:

@@ -8,7 +8,7 @@ from typing_extensions import Self
 
 from nepattern import ANY, BasePattern
 
-from arclet.alconna.args import Args
+from arclet.alconna.args import _Args
 from arclet.alconna.base import Option, Subcommand, OptionResult, SubcommandResult
 from arclet.alconna.typing import AllParam
 
@@ -41,21 +41,21 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
 
 
 @dataclass(init=True)
-class ArgsStub(BaseStub[Args]):
+class ArgsStub(BaseStub[_Args]):
     """参数存根"""
 
     _value: dict[str, Any] = field(default_factory=dict)
     """解析结果"""
 
     def __post_init__(self):
-        for arg in self._origin.argument:
+        for arg in self._origin.data:
             key = arg.name
-            if arg.value in (AllParam, ANY):
+            if arg.type_ in (AllParam, ANY):
                 self.__annotations__[key] = Any
-            elif isinstance(arg.value, BasePattern):
-                self.__annotations__[key] = arg.value.origin
+            elif isinstance(arg.type_, BasePattern):
+                self.__annotations__[key] = arg.type_.origin
             else:
-                self.__annotations__[key] = arg.value
+                self.__annotations__[key] = arg.type_
             setattr(self, key, arg.field.default)
 
     def set_result(self, result: dict[str, Any]):

@@ -110,7 +110,7 @@ class SubAnalyser:
         self.self_args = self.command.args
         if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-        _de_count = sum(arg.field.get_default() is not Empty for arg in self.self_args.data)
+        _de_count = sum(arg.field.default is not Empty for arg in self.self_args.data)
         if _de_count and _de_count == self.command.nargs:
             self.default_main_only = True
 

@@ -16,7 +16,7 @@ from tarina import init_spec, lang, Empty
 from .ingedia._analyser import Analyser, TCompile
 from .ingedia._handlers import handle_head_fuzzy, analyse_header
 from .ingedia._argv import Argv, __argv_type__
-from .args import Arg, ArgsBuilder, ArgsBase, Args, ArgsMeta
+from .args import Arg, ArgsBuilder, ArgsBase, Args, ArgsMeta, handle_args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
 from .base import Completion, Help, Option, OptionResult, Shortcut, Subcommand, Header, SPECIAL_OPTIONS, Config, Metadata
 from .config import Namespace, global_config
@@ -262,14 +262,7 @@ class Alconna(Subcommand):
         add_builtin_options(options, self.router, self.config)
         name = next(iter(self._header.content), self.command or self.prefixes[0])
         self.path = f"{self.namespace}::{name}"
-        _args = []
-        for i in args:
-            if isinstance(i, Arg):
-                _args.append(i)
-            elif isinstance(i, ArgsBuilder):
-                _args.extend(i.build())
-            elif isinstance(i, ArgsMeta):
-                _args.extend(i.__args_data__.data)
+        _args = [i for i in args if isinstance(i, (Arg, ArgsBuilder, ArgsMeta))]
         super().__init__("ALCONNA::", *_args, *options, dest=name, separators=separators or ns_config.separators, help_text=self.meta.description)  # noqa: E501
         self.name = name
         self.aliases = frozenset(self._header.content)
@@ -527,7 +520,7 @@ class Alconna(Subcommand):
             elif isinstance(other, Option):
                 self.options.append(other)
             elif isinstance(other, Arg):
-                self.args = (ArgsBuilder(*self.args.data) << other).build()
+                self.args = handle_args(ArgsBuilder(*self.args.data) << other)
                 self.nargs = len(self.args.data)
             elif isinstance(other, str):
                 self.options.append(Option(other))
