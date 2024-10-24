@@ -7,7 +7,7 @@ import typing
 from typing import Any, Callable, Generic, Literal, TypeVar, ClassVar, ForwardRef, Final, TYPE_CHECKING, get_origin, get_args
 from typing_extensions import dataclass_transform, ParamSpec, Concatenate, TypeAlias
 
-from nepattern import NONE, BasePattern, RawStr, UnionPattern, parser, STRING
+from nepattern import NONE, BasePattern, RawStr, UnionPattern, parser
 from tarina import Empty, lang
 
 from ._dcls import safe_dcls_kw, safe_field_kw
@@ -147,7 +147,7 @@ class Arg(Generic[_T]):
                     setattr(self.field, k, v)
 
     def __str__(self):
-        n, v = f"'{self.name}'", str(self.type_)
+        n, v = f"'{self.name_display}'", self.type_display
         return (n if n == v else f"{n}: {v}") + (f" = '{self.field.display}'" if self.field.display is not Empty else "")
 
     def __add__(self, other) -> "ArgsBuilder":
@@ -162,6 +162,33 @@ class Arg(Generic[_T]):
     def separators(self):
         return self.field.seps
 
+    @property
+    def name_display(self):
+        n = self.name
+        if self.field.optional:
+            n = f"{n}?"
+        if self.field.notice:
+            n = f"{n}#{self.field.notice}"
+        return n
+
+    @property
+    def type_display(self):
+        if self.field.hidden:
+            return "***"
+        v = str(self.type_)
+        if self.field.kw_only:
+            v = f"{self.field.kw_sep}{v}"
+        if self.field.multiple is not False:
+            if self.field.multiple is True:
+                v = f"({v}+)"
+            elif self.field.multiple == "str":
+                v = f"{v}+"
+            elif isinstance(self.field.multiple, int):
+                v = f"({v}+)[:{self.field.multiple}]"
+            else:
+                v = f"({v}{self.field.multiple})"
+        return v
+
 
 class _Args:
     __slots__ = ("unpack", "vars_positional", "vars_keyword", "keyword_only", "normal", "data", "_visit", "optional_count", "origin")
@@ -172,7 +199,7 @@ class _Args:
         self.normal: list[Arg[Any]] = []
         self.keyword_only: dict[str, Arg[Any]] = {}
         self.vars_positional: list[tuple[int | Literal["+", "*", "str"], Arg[Any]]] = []
-        self.vars_keyword: list[tuple[str, Arg[Any]]] = []
+        self.vars_keyword: list[tuple[int | Literal["+", "*", "str"], Arg[Any]]] = []
         self._visit = set()
         self.optional_count = 0
         self.__check_vars__()
@@ -194,18 +221,18 @@ class _Args:
                 continue
             self._visit.add(arg.name)
             if arg.field.multiple is not False:
+                flag = arg.field.multiple
+                if flag is True:
+                    flag = "+"
                 if arg.field.kw_only:
                     for slot in self.vars_positional:
                         _, a = slot
                         if arg.field.kw_sep in a.field.seps:
                             raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
-                    self.vars_keyword.append((arg.field.kw_sep, arg))
+                    self.vars_keyword.append((flag, arg))
                 elif self.keyword_only:
                     raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                 else:
-                    flag = arg.field.multiple
-                    if flag is True:
-                        flag = "+"
                     self.vars_positional.append((flag, arg))
             elif arg.field.kw_only:
                 if self.vars_keyword:
@@ -239,9 +266,10 @@ class _Args:
 
 
 _P = ParamSpec("_P")
+_T1 = TypeVar("_T1", bound="ArgsBuilder")
 
 
-def _arg_init_wrapper(func: Callable[_P, Field[_T]]) -> Callable[[ArgsBuilder, str], Callable[Concatenate[TAValue[_T], _P], ArgsBuilder]]:
+def _arg_init_wrapper(func: Callable[_P, Field[_T]]) -> Callable[[_T1, str], Callable[Concatenate[TAValue[_T], _P], _T1]]:
     return lambda builder, name: lambda type_, *args, **kwargs: builder.__lshift__(Arg(name, type_, func(*args, **kwargs)))
 
 
@@ -259,15 +287,6 @@ class ArgsBuilder:
     def __getattr__(self, item: str):
         return wrapper(self, item)
 
-    def __getitem__(self, item):
-        # warnings.warn("Args[...] is deprecated, use Args.xxx(...) instead", DeprecationWarning, stacklevel=2)
-        data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
-        if isinstance(data[0], Arg):
-            self._args.extend(data)
-        else:
-            self._args.append(Arg(*data))
-        return self
-
     def build(self):
         return _Args(self._args)
 
@@ -284,13 +303,8 @@ class __ArgsBuilderInstance:
     def __getattr__(self, item: str):
         return ArgsBuilder().__getattr__(item)
 
-    def __getitem__(self, item):
-        # warnings.warn("Args[...] is deprecated, use Args.xxx(...) instead", DeprecationWarning, stacklevel=2)
-        data: tuple[Arg, ...] | tuple[Any, ...] = item if isinstance(item, tuple) else (item,)
-        if isinstance(data[0], Arg):
-            return ArgsBuilder(*data)
-        else:
-            return ArgsBuilder(Arg(*data))
+    def __lshift__(self, other):
+        return ArgsBuilder() << other
 
 
 Args: Final = __ArgsBuilderInstance()
@@ -349,7 +363,7 @@ class ArgsMeta(type):
                 raise TypeError(f"{name!r} is a Field but has no type annotation")
         cls.__args_data__ = _Args(data_args + cls_args, cls)
 
-        dcls = dc.make_dataclass(cls.__name__, [((arg.name, arg.type_, arg.field.to_dc_field()) ) for arg in cls.__args_data__.data], namespace=types_namespace, repr=True)
+        dcls = dc.make_dataclass(cls.__name__, [(arg.name, arg.type_, arg.field.to_dc_field()) for arg in cls.__args_data__.data], namespace=types_namespace, repr=True)
         cls.__init__ = dcls.__init__  # type: ignore
         if "__repr__" not in cls.__dict__:
             cls.__repr__ = dcls.__repr__  # type: ignore

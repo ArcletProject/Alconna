@@ -46,28 +46,28 @@ At = gen_unit("at")
 
 def test_filter_out():
     argv_config(filter_out=[int])
-    ana = Alconna("ana", Args["foo", str])
+    ana = Alconna("ana", Args.foo(str))
     assert ana.parse(["ana", 123, "bar"]).matched is True
     assert ana.parse("ana bar").matched is True
     argv_config(filter_out=[])
-    ana_1 = Alconna("ana", Args["foo", str])
+    ana_1 = Alconna("ana", Args.foo(str))
     assert ana_1.parse(["ana", 123, "bar"]).matched is False
 
 
 def test_preprocessor():
     argv_config(preprocessors={list: len})
-    ana1 = Alconna("ana1", Args["bar", int])
+    ana1 = Alconna("ana1", Args.bar(int))
     assert ana1.parse(["ana1", [1, 2, 3]]).matched is True
     assert ana1.parse(["ana1", [1, 2, 3]]).bar == 3
     argv_config(preprocessors={})
-    ana1_1 = Alconna("ana1", Args["bar", int])
+    ana1_1 = Alconna("ana1", Args.bar(int))
     assert ana1_1.parse(["ana1", [1, 2, 3]]).matched is False
 
 
 def test_with_set_unit():
     argv_config(preprocessors={Segment: lambda x: str(x) if x.type == "text" else None})
 
-    ana2 = Alconna("ana2", Args["foo", At]["bar", Face])
+    ana2 = Alconna("ana2", Args.foo(At).bar(Face))
     res = ana2.parse([Segment.text("ana2"), Segment.at(123456), Segment.face(103)])
     assert res.matched is True
     assert res.foo.data["qq"] == "123456"
@@ -78,11 +78,11 @@ def test_with_set_unit():
 def test_unhashable_unit():
     argv_config(preprocessors={Segment: lambda x: str(x) if x.type == "text" else None})
 
-    ana3 = Alconna("ana3", Args["foo", At])
+    ana3 = Alconna("ana3", Args.foo(At))
     print(ana3.parse(["ana3", Segment.at(123)]))
     print(ana3.parse(["ana3", Segment.face(123)]))
 
-    ana3_1 = Alconna("ana3_1", Option("--foo", Args["bar", int]))
+    ana3_1 = Alconna("ana3_1", Option("--foo", Args.bar(int)))
     print(ana3_1.parse(["ana3_1 --foo 123"]))
     print(ana3_1.parse(["ana3_1", Segment.face(123)]))
     print(ana3_1.parse(["ana3_1", "--foo", "--comp", Segment.at(123)]))
@@ -91,7 +91,7 @@ def test_unhashable_unit():
 
 def test_checker():
     argv_config(checker=lambda x: isinstance(x, list))
-    ana4 = Alconna("ana4", Args["foo", int])
+    ana4 = Alconna("ana4", Args.foo(int))
     print(ana4.parse(["ana4", "123"]))
     try:
         print(ana4.parse("ana4 123"))

@@ -21,7 +21,7 @@ from typing import (
 )
 from typing_extensions import TypeAlias
 
-from nepattern import BasePattern, MatchFailed, MatchMode, parser
+from nepattern import BasePattern, MatchFailed, MatchMode
 from tarina import generic_isinstance, lang
 
 

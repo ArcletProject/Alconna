@@ -2,7 +2,7 @@ from typing import Union
 
 from nepattern import INTEGER, BasePattern, MatchMode, combine
 
-from arclet.alconna import Args
+from arclet.alconna import Args, Arg
 from devtool import analyse_args
 
 
@@ -14,7 +14,7 @@ def test_magic_create():
 
 
 def test_type_convert():
-    arg2 = Args["round", float]["test", bool]
+    arg2 = Args.round(float).test(bool)
     assert analyse_args(arg2, ["1.2 False"]) != {"round": "1.2", "test": "False"}
     assert analyse_args(arg2, ["1.2 False"]) == {"round": 1.2, "test": False}
     assert analyse_args(arg2, ["a False"], raise_exception=False) != {
@@ -24,18 +24,18 @@ def test_type_convert():
 
 
 def test_regex():
-    arg3 = Args["foo", "re:abc[0-9]{3}"]
+    arg3 = Args.foo("re:abc[0-9]{3}")
     assert analyse_args(arg3, ["abc123"]) == {"foo": "abc123"}
     assert analyse_args(arg3, ["abc"], raise_exception=False) != {"foo": "abc"}
 
 
 def test_string():
-    arg4 = Args["foo"]["bar"]
+    arg4 = Args.foo("foo").bar("bar")
     assert analyse_args(arg4, ["foo bar"]) == {"foo": "foo", "bar": "bar"}
 
 
 def test_default():
-    arg5 = Args["foo", int]["de", bool, True]
+    arg5 = Args.foo(int).de(bool, True)
     assert analyse_args(arg5, ["123 False"]) == {"foo": 123, "de": False}
     assert analyse_args(arg5, ["123"]) == {"foo": 123, "de": True}
 
@@ -46,7 +46,7 @@ def test_separate():
 
 
 def test_object():
-    arg7 = Args["foo", str]["bar", 123]
+    arg7 = Args.foo(str).bar(123)
     assert analyse_args(arg7, ["abc", 123]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg7, ["abc", 124], raise_exception=False) != {
         "foo": "abc",
@@ -78,39 +78,39 @@ def test_multi():
 
 
 def test_choice():
-    arg10 = Args["choice", ("a", "b", "c")]
+    arg10 = Args.choice(("a", "b", "c"))
     assert analyse_args(arg10, ["a"]) == {"choice": "a"}
     assert analyse_args(arg10, ["d"], raise_exception=False) != {"choice": "d"}
-    arg10_1 = Args["mapping", {"a": 1, "b": 2, "c": 3}]
+    arg10_1 = Args.mapping({"a": 1, "b": 2, "c": 3})
     assert analyse_args(arg10_1, ["a"]) == {"mapping": 1}
     assert analyse_args(arg10_1, ["d"], raise_exception=False) != {"mapping": "d"}
 
 
 def test_union():
-    arg11 = Args["bar", Union[int, float]]
+    arg11 = Args.bar(Union[int, float])
     assert analyse_args(arg11, ["1.2"]) == {"bar": 1.2}
     assert analyse_args(arg11, ["1"]) == {"bar": 1}
     assert analyse_args(arg11, ["abc"], raise_exception=False) != {"bar": "abc"}
-    arg11_1 = Args["bar", [int, float, "abc"]]
+    arg11_1 = Args.bar([int, float, "abc"])
     assert analyse_args(arg11_1, ["1.2"]) == analyse_args(arg11, ["1.2"])
     assert analyse_args(arg11_1, ["abc"]) == {"bar": "abc"}
     assert analyse_args(arg11_1, ["cba"], raise_exception=False) != {"bar": "cba"}
 
 
 def test_optional():
-    arg13 = Args["foo", str].bar(int, optional=True)
+    arg13 = Args.foo(str).bar(int, optional=True)
     assert analyse_args(arg13, ["abc 123"]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg13, ["abc"]) == {"foo": "abc"}
-    arg13_1 = Args["foo", str]["bar?", int]
+    arg13_1 = Args << Arg("foo", str) << Arg("bar?", int)
     assert analyse_args(arg13_1, ["abc 123"]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg13_1, ["abc"]) == {"foo": "abc"}
-    arg13_2 = Args["foo", str]["bar;?", int]
+    arg13_2 = Args << Arg("foo", str) << Arg("bar;?", int)
     assert analyse_args(arg13_2, ["abc 123"]) == {"foo": "abc", "bar": 123}
     assert analyse_args(arg13_2, ["abc"]) == {"foo": "abc"}
 
 
 def test_kwonly():
-    arg14 = Args["foo", str].bar(int, kw_only=True)
+    arg14 = Args.foo(str).bar(int, kw_only=True)
     assert analyse_args(arg14, ["abc bar=123"]) == {
         "foo": "abc",
         "bar": 123,
@@ -189,14 +189,14 @@ def test_func_anno():
     def test(time: Union[int, str]) -> datetime:
         return datetime.fromtimestamp(time) if isinstance(time, int) else datetime.fromisoformat(time)
 
-    arg17 = Args["time", test]
+    arg17 = Args.time(test)
     assert analyse_args(arg17, ["1145-05-14"]) == {"time": datetime.fromisoformat("1145-05-14")}
 
 
 def test_annotated():
     from typing_extensions import Annotated
 
-    arg18 = Args["foo", Annotated[int, lambda x: x > 0]]["bar", combine(INTEGER, validators=[lambda x: x < 0])]
+    arg18 = Args.foo(Annotated[int, lambda x: x > 0]).bar(combine(INTEGER, validators=[lambda x: x < 0]))
     assert analyse_args(arg18, ["123 -123"]) == {"foo": 123, "bar": -123}
     assert analyse_args(arg18, ["0 0"], raise_exception=False) != {"foo": 0, "bar": 0}
 
@@ -232,7 +232,7 @@ def test_multi_multi():
 
 
 def test_contextval():
-    arg21 = Args["foo", str]
+    arg21 = Args.foo(str)
     assert analyse_args(arg21, ["$(bar)"], context_style="parentheses", bar="baz") == {"foo": "baz"}
     assert analyse_args(arg21, ["{bar}"], context_style="parentheses", raise_exception=False, bar="baz") != {
         "foo": "baz"
@@ -251,7 +251,7 @@ def test_contextval():
     assert analyse_args(arg21, ["$(a.b.c)"], context_style="parentheses", a=A()) == {"foo": "baz"}
     assert analyse_args(arg21, ["$(a.b.d.get(e))"], context_style="parentheses", a=A()) == {"foo": "baz"}
 
-    arg21_1 = Args["foo", int]
+    arg21_1 = Args.foo(int)
     assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", bar=123) == {"foo": 123}
     assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", bar="123") == {"foo": 123}
     assert analyse_args(arg21_1, ["$(bar)"], context_style="parentheses", raise_exception=False, bar="baz") != {

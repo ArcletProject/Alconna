@@ -22,13 +22,13 @@ def test_alconna_create():
     alc = Alconna(
         ["!"],
         "core",
-        Args["foo", str],
-        Option("bar", Args["num", int]),
+        Args.foo(str),
+        Option("bar", Args.num(int)),
     )
     assert alc.path == "Alconna::!core"
     assert alc.parse("!core abc bar 123").matched is True
 
-    alc_1 = Alconna("core_1", Args["foo", str]["bar", int])
+    alc_1 = Alconna("core_1", Args.foo(str).bar(int))
     assert alc_1.parse("core_1 abc 123").matched is True
     assert alc_1.parse("core_1 abc abc").matched is False
     query = alc_1.parse("core_1 abc 123").query[str]
@@ -41,13 +41,13 @@ def test_alconna_multi_match():
         "core1",
         Subcommand(
             "test",
-            Option("-u", Args["username", str], help_text="输入用户名"),
-            Args["test", "Test"],
+            Option("-u", Args.username(str), help_text="输入用户名"),
+            Args.test("Test"),
             help_text="测试用例",
         ),
-        Option("--num", Args["count", int, 123], help_text="输入数字"),
-        Option("-u", Args["id", int], help_text="输入需要At的用户"),
-        Args["IP", IP],
+        Option("--num", Args.count(int, 123), help_text="输入数字"),
+        Option("-u", Args.id(int), help_text="输入需要At的用户"),
+        Args.IP(IP),
         Metadata(description="测试指令1"),
     )
     assert len(alc1.options) == 5
@@ -80,7 +80,7 @@ def test_alconna_multi_match():
     assert res3.matched is False
     assert res3.head_matched is True
 
-    alc1_1 = Alconna("core1_1", Subcommand("foo", Option("bar"), Subcommand("foo"), Args["qux", str]))
+    alc1_1 = Alconna("core1_1", Subcommand("foo", Option("bar"), Subcommand("foo"), Args.qux(str)))
     assert alc1_1.parse("core1_1 foo abc").matched
     assert alc1_1.parse("core1_1 foo foo abc").matched
     assert alc1_1.parse("core1_1 foo bar abc").matched
@@ -88,7 +88,7 @@ def test_alconna_multi_match():
     assert alc1_1.parse("core1_1 foo foo bar abc").matched
     assert not alc1_1.parse("core1_1 foo abc def bar").matched
 
-    alc1_2 = Alconna("core1_2", Option("test"), Args["foo;?", int]["bar;?", str])
+    alc1_2 = Alconna("core1_2", Option("test"), Args.foo(int, optional=True).bar(str, optional=True))
     assert alc1_2.parse("core1_2 test 123").matched
     assert alc1_2.parse("core1_2 123").matched
     assert alc1_2.parse("core1_2 test").matched
@@ -98,7 +98,7 @@ def test_alconna_multi_match():
     assert alc1_2.parse("core1_2 abc test").matched
     assert not alc1_2.parse("core1_2 test abc 123").matched
 
-    alc1_3 = Alconna("core1_3", Subcommand("foo", Option("bar"), Args["qux;?", int]), Option("baz"))
+    alc1_3 = Alconna("core1_3", Subcommand("foo", Option("bar"), Args.qux(int, optional=True)), Option("baz"))
     assert alc1_3.parse("core1_3 foo bar 123").matched
     assert alc1_3.parse("core1_3 foo 123").matched
     assert alc1_3.parse("core1_3 foo bar").matched
@@ -118,14 +118,14 @@ def test_formatter():
         Subcommand(
             "install",
             Option("--upgrade", help_text="升级包"),
-            Option("-i|--index-url", Args["url", URL]),
-            Args["pak", str],
+            Option("-i|--index-url", Args.url(URL)),
+            Args.pak(str),
             help_text="安装一个包",
         ),
-        Option("--retries", Args["retries", int], help_text="设置尝试次数"),
-        Option("-t|--timeout", Args["sec", int], help_text="设置超时时间"),
-        Option("--exists-action", Args["action", str], help_text="添加行为"),
-        Option("--trusted-host", Args["host", str], help_text="选择可信赖地址"),
+        Option("--retries", Args.retries(int), help_text="设置尝试次数"),
+        Option("-t|--timeout", Args.sec(int), help_text="设置超时时间"),
+        Option("--exists-action", Args.action(str), help_text="添加行为"),
+        Option("--trusted-host", Args.host(str), help_text="选择可信赖地址"),
         Metadata(description="简单的pip指令"),
     )
     print("")
@@ -148,8 +148,8 @@ def test_alconna_special_help():
         "Cal",
         Subcommand(
             "-div",
-            Option("--round|-r", Args["decimal", int], help_text="保留n位小数"),
-            Args["num_a", int]["num_b", int],
+            Option("--round|-r", Args.decimal(int), help_text="保留n位小数"),
+            Args.num_a(int).num_b(int),
             help_text="除法计算",
         ),
         Metadata(description="计算器", usage="Cal <expression>", example="Cal -sum 1 2"),
@@ -163,8 +163,8 @@ def test_alconna_special_help():
 def test_alconna_chain_option():
     alc5 = (
         Alconna("点歌")
-        .option("歌名", Args["song_name", str], separators="：")
-        .option("歌手", Args["singer_name", str], separators="：")
+        .option("歌名", Args.song_name(str), separators="：")
+        .option("歌手", Args.singer_name(str), separators="：")
     ).add(Subcommand("foo").add(Option("bar")))
 
     res = alc5.parse("点歌 歌名：Freejia")
@@ -211,7 +211,7 @@ def test_alconna_multi_header():
     # assert alc6_3.parse([b]).head_matched is True
     # assert alc6_3.parse("a").head_matched is False
     # 只有纯文字头
-    alc6_4 = Alconna(["/dd", "!cd"], Args["a;?", int])
+    alc6_4 = Alconna(["/dd", "!cd"], Args.a(int, optional=True))
     assert alc6_4.parse("/dd").head_matched is True
     assert alc6_4.parse("/dd 123").head_matched is True
     assert alc6_4.parse("!cd 123").head_matched is True
@@ -257,11 +257,11 @@ def test_alconna_multi_header():
     # assert alc6_11.parse([b]).head_matched is False
     # assert alc6_11.parse([b, "abc"]).head_matched is False
     # 开启 compact 后
-    alc6_12 = Alconna("core6_12", Args["foo", str], Config(compact=True))
+    alc6_12 = Alconna("core6_12", Args.foo(str), Config(compact=True))
     assert alc6_12.parse("core6_12 abc").matched is True
     assert alc6_12.parse("core6_12abc").matched is True
     assert alc6_12.parse("core6_1abc").matched is False
-    alc6_13 = Alconna("core6_13", ["/", "?"], Args["foo", str], Config(compact=True))
+    alc6_13 = Alconna("core6_13", ["/", "?"], Args.foo(str), Config(compact=True))
     assert alc6_13.parse("/core6_13 abc").matched is True
     assert alc6_13.parse("/core6_13abc").matched is True
 
@@ -276,7 +276,7 @@ def test_alconna_namespace():
 
 
 def test_alconna_add_option():
-    alc8 = "core8" + Option("foo", Args["foo", str]) + Option("bar")
+    alc8 = "core8" + Option("foo", Args.foo(str)) + Option("bar")
     assert len(alc8.options) == 4
     alc8_1 = Alconna("core8_1") + "foo/bar:str" + "baz"
     assert len(alc8_1.options) == 4
@@ -302,7 +302,7 @@ def test_alconna_synthesise():
 
     cnt = BasePattern(r".*(\d+)张.*", MatchMode.REGEX_CONVERT, int, lambda _, x: int(x[1]))
     alc10 = Alconna(
-        Arg("min", cnt, seps="到"),
+        Arg("min", cnt, Field(seps="到")),
         Arg("max;?", cnt),
         ["发涩图", "来点涩图", "来点好康的"],
         Option("从", Args.tags(str, multiple=5, seps="和与"), compact=True),
@@ -312,7 +312,7 @@ def test_alconna_synthesise():
     assert res.min == 3
     assert res.tags == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
 
-    alc10_1 = Alconna("cpp", Args.match(int, multiple=True), Arg("lines", AllParam, seps="\n"))
+    alc10_1 = Alconna("cpp", Args.match(int, multiple=True).lines(AllParam, seps="\n"))
     print("")
     print(msg := "cpp 1 2\n" "#include <iostream>\n" "int main() {...}")
     print((res := alc10_1.parse(msg)))
@@ -320,7 +320,7 @@ def test_alconna_synthesise():
 
 
 def test_simple_override():
-    alc11 = Alconna("core11") + Option("bar", Args["bar", str], dest="foo") + Option("foo", dest="foo")
+    alc11 = Alconna("core11") + Option("bar", Args.bar(str), dest="foo") + Option("foo", dest="foo")
     res = alc11.parse("core11 bar abc")
     res1 = alc11.parse("core11 foo")
     assert res.query("foo")
@@ -328,7 +328,7 @@ def test_simple_override():
 
 
 def test_wildcard():
-    alc13 = Alconna("core13", Args["foo", AllParam])
+    alc13 = Alconna("core13", Args.foo(AllParam))
     assert alc13.parse(["core13 abc def gh", 123, 5.0, "dsdf"]).foo == [
         "abc def gh",
         123,
@@ -352,12 +352,12 @@ def test():
         ]
     )
 
-    alc13_1 = Alconna("core13_1", Args["foo", AllParam(str)])
+    alc13_1 = Alconna("core13_1", Args.foo(AllParam(str)))
     assert alc13_1.parse(["core13_1 abc def gh", 123, 5.0, "dsdf"]).foo == [
         "abc def gh",
         "dsdf",
     ]
-    alc13_2 = Alconna("core13_2", Args["foo", AllParam(str, ignore=False)])
+    alc13_2 = Alconna("core13_2", Args.foo(AllParam(str, ignore=False)))
     assert not alc13_2.parse(["core13_2 abc def gh", 123, 5.0, "dsdf"]).matched
     assert alc13_2.parse(["core13_2 abc def gh", "123", "5.0", "dsdf"]).foo == [
         "abc def gh",
@@ -368,8 +368,8 @@ def test():
 
 
 def test_alconna_group():
-    alc14 = Alconna("core14", Option("--foo"), Option("--bar", Args["num", int])) | Alconna(
-        "core14", Option("--baz"), Option("--qux", Args["num", int])
+    alc14 = Alconna("core14", Option("--foo"), Option("--bar", Args.num(int))) | Alconna(
+        "core14", Option("--baz"), Option("--qux", Args.num(int))
     )
     assert alc14.parse("core14 --foo --bar 123").matched is True
     assert alc14.parse("core14 --baz --qux 123").matched is True
@@ -378,7 +378,7 @@ def test_alconna_group():
 
 
 def test_fuzzy():
-    alc15 = Alconna("!core15", Args["foo", str], Config(fuzzy_match=True))
+    alc15 = Alconna("!core15", Args.foo(str), Config(fuzzy_match=True))
     res = alc15.parse("core15 foo bar")
     assert res.matched is False
     assert res.output == '无法解析 "core15"。您想要输入的是不是 "!core15" ?'
@@ -409,7 +409,7 @@ def test_shortcut():
     with namespace("test16") as ns:
         ns.config.disable_builtin_options = set()
         # 原始命令
-        alc16 = Alconna("core16", Args["foo", int], Option("bar", Args["baz", str]))
+        alc16 = Alconna("core16", Args.foo(int), Option("bar", Args.baz(str)))
         assert alc16.parse("core16 123 bar abcd").matched is True
         # 构造体缩写传入；{i} 将被可能的正则匹配替换
         alc16.shortcut(r"TEST(\d+)(\w+)", {"args": ["{0}", "bar {1}"]})
@@ -433,7 +433,7 @@ def test_shortcut():
         alc16.shortcut("tTest", {})
         assert alc16.parse("tTest123").matched
 
-        alc16_1 = Alconna("exec", Args["content", str])
+        alc16_1 = Alconna("exec", Args.content(str))
         alc16_1.shortcut("echo", command="exec print({%0})")
         alc16_1.shortcut("echo1", command="exec \"print('{*\n}')\"")
         res5 = alc16_1.parse("echo 123")
@@ -450,7 +450,7 @@ def test_shortcut():
         assert not alc16_1.parse("echo").matched
         assert alc16_1.parse("echo1").content == "print('')"
 
-        alc16_2 = Alconna(["/", "."], "core16_2", Args["foo", bool])
+        alc16_2 = Alconna(["/", "."], "core16_2", Args.foo(bool))
         alc16_2.shortcut("test", {"command": "/core16_2 True"})
         assert alc16_2.parse("/core16_2 True").matched
         res9 = alc16_2.parse("test")
@@ -459,7 +459,7 @@ def test_shortcut():
 
         alc16.parse("core16 --shortcut list")
 
-        alc16_3 = Alconna(["/", "!"], "core16_3", Args["foo", bool])
+        alc16_3 = Alconna(["/", "!"], "core16_3", Args.foo(bool))
         print(alc16_3.shortcut("test", {"prefix": True, "args": ["False"]}))
         assert not alc16_3.parse("test").matched
         assert alc16_3.parse("/test").foo is False
@@ -473,7 +473,7 @@ def test_shortcut():
         alc16_4.parse("core16_4 --shortcut test1")
         assert alc16_4.parse("test1").matched
 
-        alc16_5 = Alconna(["*", "+"], "core16_5", Args["foo", bool])
+        alc16_5 = Alconna(["*", "+"], "core16_5", Args.foo(bool))
         alc16_5.shortcut("test", {"prefix": True, "args": ["True"]})
         assert alc16_5.parse("*core16_5 False").matched
         assert alc16_5.parse("+test").foo is True
@@ -483,7 +483,7 @@ def test_shortcut():
                 return "--help"
             return content
 
-        alc16_6 = Alconna("core16_6", Args["bar", str])
+        alc16_6 = Alconna("core16_6", Args.bar(str))
         alc16_6.shortcut("test(?P<bar>.+)?", fuzzy=False, wrapper=wrapper, arguments=["{bar}"])
         assert alc16_6.parse("testabc").bar == "abc"
         assert (
@@ -496,25 +496,25 @@ Unknown
 """
         )
 
-        alc16_7 = Alconna("core16_7", Args["bar", str])
+        alc16_7 = Alconna("core16_7", Args.bar(str))
         alc16_7.shortcut("test 123", {"args": ["abc"]})
         assert alc16_7.parse("test 123").bar == "abc"
 
-        alc16_8 = Alconna("core16_8", Args["bar", str])
+        alc16_8 = Alconna("core16_8", Args.bar(str))
         res11 = alc16_8.parse("core16_8 1234")
         assert res11.bar == "1234"
 
-        alc16_9 = Alconna("core16_9", Args["bar", str])
+        alc16_9 = Alconna("core16_9", Args.bar(str))
         alc16_9.shortcut("test(.+)?", command="core16_9 {0}")
         assert alc16_9.parse("test123").bar == "123"
         assert not alc16_9.parse("test").matched
 
-        alc16_10 = Alconna("core16_10", Args["bar", str]["baz", int])
+        alc16_10 = Alconna("core16_10", Args.bar(str).baz(int))
         alc16_10.shortcut("/qux", {"command": "core16_10"})
 
         assert alc16_10.parse(['/qux "abc def.zip"', 123]).bar == "abc def.zip"
 
-        alc16_11 = Alconna("core16_11", Args["bar", str])
+        alc16_11 = Alconna("core16_11", Args.bar(str))
         pat = re.compile("test", re.I)
         alc16_11.shortcut(pat, {"command": "core16_11"})
         assert alc16_11.parse("TeSt 123").bar == "123"
@@ -527,14 +527,14 @@ Unknown
                 return data
             return content
 
-        alc16_12 = Alconna("core16_12", Args["bar", int])
+        alc16_12 = Alconna("core16_12", Args.bar(int))
         alc16_12.shortcut("(.+)test", fuzzy=False, wrapper=wrapper1, arguments=["{0}"])
         assert alc16_12.parse("Atest").bar == 100
         assert alc16_12.parse("Atest", {"user": "456"}).bar == 100456
         assert alc16_12.parse("Btest").bar == 0
         assert alc16_12.parse("Btest", {"user": "456"}).bar == 456
 
-        alc16_13 = Alconna("core16_13", Option("rank", Args["rank", str]))
+        alc16_13 = Alconna("core16_13", Option("rank", Args.rank(str)))
 
         def wrapper2(slot, content):
             if slot == "rank" and not content:
@@ -549,7 +549,7 @@ Unknown
         assert alc16_13.parse("iorankx").rank == "x"
         assert alc16_13.parse("iorank").rank == "--all"
 
-    alc16_14 = Alconna("core16_14", Args["r", int]["e", int])
+    alc16_14 = Alconna("core16_14", Args.r(int).e(int))
     alc16_14.shortcut(r"RD(?P<r>\d+)==(?P<e>\d+)", {"command": "core16_14 {r} {e}"})
     res = alc16_14.parse("RD100==36")
     assert res.matched is True
@@ -560,10 +560,10 @@ Unknown
 def test_help():
     alc17 = Alconna(
         "core17",
-        Option("foo", Args["bar", str], help_text="Foo bar"),
-        Option("baz", Args["qux", str], help_text="Baz qux"),
-        Subcommand("add", Args["bar", str], help_text="Add bar"),
-        Subcommand("del", Args["bar", str], help_text="Del bar"),
+        Option("foo", Args.bar(str), help_text="Foo bar"),
+        Option("baz", Args.qux(str), help_text="Baz qux"),
+        Subcommand("add", Args.bar(str), help_text="Add bar"),
+        Subcommand("del", Args.bar(str), help_text="Del bar"),
     )
     res = alc17.parse("core17 --help")
     assert res.output == (
@@ -597,8 +597,8 @@ def test_help():
         "core17_2",
         Subcommand(
             "foo",
-            Args["abc", str],
-            Option("bar", Args["baz", str], help_text="Foo bar"),
+            Args.abc(str),
+            Option("bar", Args.baz(str), help_text="Foo bar"),
             help_text="sub Foo",
         ),
     )
@@ -610,14 +610,14 @@ def test_help():
 
 
 def test_hide_annotation():
-    alc18 = Alconna("core18", Args["foo", int])
-    print(alc18.get_help())
-    alc18_1 = Alconna("core18_1", Args["foo;/", int])
-    print(alc18_1.get_help())
+    alc18 = Alconna("core18", Args.foo(int))
+    assert alc18.get_help() == 'core18 <foo: int> \nUnknown'
+    alc18_1 = Alconna("core18_1", Args.foo(int, hidden=True))
+    assert alc18_1.get_help() == 'core18_1 <foo> \nUnknown'
 
 
 def test_args_notice():
-    alc19 = Alconna("core19", Args["foo#A TEST;?", int]) + Option("bar", Args.baz(str, notice="ANOTHER TEST", kw_only=True))
+    alc19 = Alconna("core19", Args.foo(int, optional=True, notice="A TEST")) + Option("bar", Args.baz(str, notice="ANOTHER TEST", kw_only=True))
     print("")
     print(alc19.get_help())
 
@@ -628,13 +628,13 @@ def test_completion():
         Option("fool"),
         Option(
             "foo",
-            Args["bar", "a|b|c", Field(completion=lambda: "choose a, b or c")],
+            Args.bar("a|b|c", completion=lambda: "choose a, b or c"),
         ),
         Option(
             "off",
-            Args["baz", "aaa|aab|abc", Field(completion=lambda: ["use aaa", "use aab", "use abc"])],
+            Args.baz("aaa|aab|abc", completion=lambda: ["use aaa", "use aab", "use abc"]),
         ),
-        Args["test", int, Field(1, completion=lambda: "try -1")]
+        Args.test(int, 1, completion=lambda: "try -1")
     )
     assert alc20.parse("core20 --comp").output == (
         """\
@@ -660,7 +660,7 @@ def test_completion():
 """
     )
 
-    alc20_1 = Alconna("core20_1", Args["foo", int], Option("bar"))
+    alc20_1 = Alconna("core20_1", Args.foo(int), Option("bar"))
     res = alc20_1.parse("core20_1 -cp")
     assert res.output == """以下是建议的输入：
 * <foo: int>
@@ -668,7 +668,7 @@ def test_completion():
 
 
 def test_completion_interface():
-    alc21 = Alconna("core21", Args["foo", int], Args["bar", str])
+    alc21 = Alconna("core21", Args.foo(int), Args.bar(str))
     assert not alc21.parse("core21").matched
     with CompSession(alc21) as comp:
         alc21.parse("core21")
@@ -681,7 +681,7 @@ def test_completion_interface():
     res1 = comp.enter(["a"])
     assert res1.result and res1.result.matched
 
-    alc21_1 = Alconna("core21_1", Args["foo", int], Args["bar", str])
+    alc21_1 = Alconna("core21_1", Args.foo(int), Args.bar(str))
     with CompSession(alc21_1) as comp:
         alc21_1.parse("core21_1 aaa bbb")
     assert comp.available
@@ -698,7 +698,7 @@ def test_completion_interface():
     res = comp.enter(["a"])
     assert res.result and res.result.matched
 
-    alc21_2 = Alconna("core21_2", Args["foo", int], Args["bar", str])
+    alc21_2 = Alconna("core21_2", Args.foo(int), Args.bar(str))
     with CompSession(alc21_2) as comp:
         alc21_2.parse(["core21_2", ..., "bbb"])
     assert comp.available
@@ -724,7 +724,7 @@ def test_completion_interface():
 def test_call():
     from dataclasses import dataclass
 
-    alc22 = Alconna("core22", Args["foo", int], Args["bar", str])
+    alc22 = Alconna("core22", Args.foo(int), Args.bar(str))
     alc22("core22 123 abc")
 
     @alc22.bind(False)
@@ -738,7 +738,7 @@ def test_call():
     alc22.parse("core22 321 abc")
     assert cb.result == 642
 
-    alc22_1 = Alconna("core22_1", Args["name", str])
+    alc22_1 = Alconna("core22_1", Args.name(str))
 
     @alc22_1.bind()
     @dataclass
@@ -755,11 +755,11 @@ def test_nest_subcommand():
 
     alc23 = Alconna(
         "core23",
-        Args["foo", int],
+        Args.foo(int),
         Subcommand(
             "bar|baar",
             Subcommand("baz|baaz", Option("--qux"), dest="Baz", help_text="test nest subcommand; deep 2"),
-            Args["abc", A],
+            Args.abc(A),
             dest="Bar",
             help_text="test nest subcommand; deep 1",
         ),
@@ -780,12 +780,12 @@ def test_nest_subcommand():
         "core23_1",
         Subcommand(
             "bar",
-            [Subcommand("qux", Args["def", bool]), Option("baz", Args["abc", str])],
+            [Subcommand("qux", Args.def_(bool)), Option("baz", Args.abc(str))],
         ),
     )
     assert alc23_1.parse("core23_1 bar baz abc qux True").matched
     assert not alc23_1.parse("core23_1 bar qux True 1 baz abc").matched
-    assert alc23_1.parse("core23_1 bar qux false baz hhh").query("bar.qux.def") is False
+    assert alc23_1.parse("core23_1 bar qux false baz hhh").query("bar.qux.def_") is False
 
 
 def test_action():
@@ -793,21 +793,21 @@ def test_action():
 
     from arclet.alconna import append, append_value, count, store_true
 
-    alc24 = Alconna("core24", Option("--yes|-y", action=store_true), Args["module", AllParam])
+    alc24 = Alconna("core24", Option("--yes|-y", action=store_true), Args.module(AllParam))
     res = alc24.parse("core24 -y abc def")
     assert res.query[bool]("yes.value") is True
     assert res.module == ["abc def"]
 
-    alc24_1 = Alconna("core24", Args["yes", {"--yes": True, "-y": True}, False]["module", AllParam])
+    alc24_1 = Alconna("core24", Args.yes({"--yes": True, "-y": True}, False).module(AllParam))
     assert alc24_1.parse("core24 -y abc def").yes
     assert not alc24_1.parse("core24 abc def").yes
     assert alc24_1.parse("core24 abc def").module == ["abc def"]
 
     alc24_2 = Alconna(
         "core24_2",
-        Option("--i", Args["foo", int]),
+        Option("--i", Args.foo(int)),
         Option("--a|-A", action=append_value(1)),
-        Option("--flag|-F", Args["flag", str], action=append, compact=True),
+        Option("--flag|-F", Args.flag(str), action=append, compact=True),
         Option("-v", action=count),
         Option("-x|--xyz", action=count),
         Option("--q", action=count),
@@ -830,7 +830,7 @@ def test_default():
     alc25 = Alconna(
         "core25",
         Option("--foo", action=store_value(123), default=423),
-        Option("bar", Args["baz;?", int]["qux", float, 1.0], default=OptionResult(args={"baz": 321})),
+        Option("bar", Args.baz(int, optional=True).qux(float, 1.0), default=OptionResult(args={"baz": 321})),
     )
 
     res1 = alc25.parse("core25")
@@ -853,8 +853,8 @@ def test_default():
 
     alc25_1 = Alconna(
         "core25_1",
-        Option("bar1", Args["baz1;?", int]["qux1", float, 1.0], default={"baz1": 123, "qux1": 2.0}),
-        Option("bar", Args["baz;?", int]["qux", float, 1.0], default=321),
+        Option("bar1", Args.baz1(int, optional=True).qux1(float, 1.0), default={"baz1": 123, "qux1": 2.0}),
+        Option("bar", Args.baz(int, optional=True).qux(float, 1.0), default=321),
     )
     res1_1 = alc25_1.parse("core25_1")
     assert res1_1.query("baz1") == 123
@@ -881,8 +881,8 @@ def test_default():
 
     alc25_3 = Alconna(
         "core25_3",
-        Option("bar", Args["baz;?", int, 321]["qux", float, 1.0]),
-        Option("bar1", Args["baz1;?", int]["qux1", float]),
+        Option("bar", Args.baz(int, 321, optional=True).qux(float, 1.0)),
+        Option("bar1", Args.baz1(int, optional=True).qux1(float)),
     )
     res8 = alc25_3.parse("core25_3")
     assert res8.query("bar.baz") == 321
@@ -895,10 +895,10 @@ def test_default():
 def test_conflict():
     core26 = Alconna(
         "core26",
-        Option("--foo", Args["bar", str]),
+        Option("--foo", Args.bar(str)),
         Option("--bar"),
         Option("--bar1", soft_keyword=True),
-        Option("--baz", Args["qux?", str]),
+        Option("--baz", Args.qux(str, optional=True)),
         Option("--qux"),
     )
     res1 = core26.parse("core26 --foo bar --bar")
@@ -924,9 +924,9 @@ def test_conflict():
 
     core26_1 = Alconna(
         "core26_1",
-        Option("--foo", Args["bar", int]),
+        Option("--foo", Args.bar(int)),
         Option("--bar"),
-        Option("--baz", Args["qux?", int]),
+        Option("--baz", Args.qux(str, optional=True)),
         Option("--qux"),
     )
     res5 = core26_1.parse("core26_1 --foo 123 --bar")
@@ -949,12 +949,12 @@ def test_tips():
 
     core27 = Alconna(
         "core27",
-        Args[
-            "arg1",
+        Args.arg1(
             Literal["1", "2"],
-            Field(unmatch_tips=lambda x: f"参数arg必须是1或2哦，不能是{x}", missing_tips=lambda: "缺少了arg1参数哦"),
-        ],
-        Args["arg2", Literal["1", "2"], Field(missing_tips=lambda: "缺少了arg2参数哦")],
+            unmatch_tips=lambda x: f"参数arg必须是1或2哦，不能是{x}",
+            missing_tips=lambda: "缺少了arg1参数哦",
+        ),
+        Args.arg2(Literal["1", "2"], missing_tips=lambda: "缺少了arg2参数哦"),
     )
     assert core27.parse("core27 1 1").matched
     assert str(core27.parse("core27 3 1").error_info) == "参数arg必须是1或2哦，不能是3"
@@ -988,7 +988,7 @@ def test_disable_builtin_option():
 
 
 def test_extra_allow():
-    core29 = Alconna("core29", Option("--foo", Args["bar", str]), Config(strict=False))
+    core29 = Alconna("core29", Option("--foo", Args.bar(str)), Config(strict=False))
     assert core29.parse("core29 --foo bar").matched
     res = core29.parse("core29 --foo --bar --baz --qux")
     assert res.matched
@@ -997,7 +997,7 @@ def test_extra_allow():
 
 
 def test_update():
-    core30 = Alconna("core30", Option("--foo", Args["bar", str]), Option("--baz", Args["qux", str]))
+    core30 = Alconna("core30", Option("--foo", Args.bar(str)), Option("--baz", Args.qux(str)))
     res = core30.parse("core30 --foo bar --baz qux")
     assert res.matched
     assert res.query[str]("foo.bar") == "bar"

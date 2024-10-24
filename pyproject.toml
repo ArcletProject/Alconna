@@ -63,7 +63,7 @@ dev = [
 ]
 
 [tool.pdm.scripts]
-test = "pytest -v -W ignore --ignore entry_test.py --durations=0 -s"
+test = "pytest -v --ignore entry_test.py --durations=0 -s"
 benchmark = "python benchmark.py"
 deps = "pydeps -o alconna.svg ./src/arclet/alconna --max-bacon=4 --cluster --keep-target-cluster --rmprefix alconna. "
 

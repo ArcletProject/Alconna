@@ -93,7 +93,7 @@ def step_varpos(argv: Argv, args: _Args, slot: tuple[int | Literal["+", "*", "st
         if _str and kwonly_seps and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.keyword_only:  # noqa: E501  # type: ignore
             argv.rollback(may_arg)
             break
-        if _str and args.vars_keyword and args.vars_keyword[0][0] in may_arg:
+        if _str and args.vars_keyword and args.vars_keyword[0][1].field.kw_sep in may_arg:
             argv.rollback(may_arg)
             break
         if (res := value.validate(may_arg)).flag != "valid":
@@ -118,13 +118,13 @@ def step_varpos(argv: Argv, args: _Args, slot: tuple[int | Literal["+", "*", "st
         result[key] = tuple(_result)
 
 
-def step_varkey(argv: Argv, slot: tuple[str, Arg], result: dict[str, Any]):
-    kw_sep, arg = slot
-    flag = arg.field.multiple
+def step_varkey(argv: Argv, slot: tuple[int | Literal["+", "*", "str"], Arg], result: dict[str, Any]):
+    flag, arg = slot
     length = int(flag) if flag.__class__ is int else -1
     value = arg.type_
     name = arg.name
     default_val = arg.field.default
+    kw_sep = arg.field.kw_sep
     _result = {}
     count = 0
     while argv.current_index != argv.ndata:

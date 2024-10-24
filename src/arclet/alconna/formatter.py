@@ -157,7 +157,7 @@ class TextFormatter:
             return f"<...{name}>"
         arg = f"[{name}" if parameter.field.optional else f"<{name}"
         if parameter.type_ not in (ANY, AnyString):
-            arg += f": {parameter.type_}"
+            arg += f": {parameter.type_display}"
         if parameter.field.display is not Empty:
             arg += f" = {parameter.field.display}"
         return f"{arg}]" if parameter.field.optional else f"{arg}>"

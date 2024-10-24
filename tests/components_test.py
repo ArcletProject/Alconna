@@ -4,7 +4,7 @@ from arclet.alconna.base import OptionResult
 
 
 def test_behavior():
-    com = Alconna("comp", Args["bar", int]) + Option("foo", default=321)
+    com = Alconna("comp", Args.bar(int)) + Option("foo", default=321)
 
     class Test(ArparmaBehavior):
         requires = [set_default(factory=lambda: OptionResult(321), path="option.baz")]
@@ -19,7 +19,7 @@ def test_behavior():
     com.behaviors.append(Test())
     assert com.parse("comp 123").matched is False
 
-    com1 = Alconna("comp1", Option("--foo", Args["bar", int]), Option("--baz", Args["qux", int]))
+    com1 = Alconna("comp1", Option("--foo", Args.bar(int)), Option("--baz", Args.qux(int)))
     com1.behaviors.append(conflict("foo", "baz"))
 
     assert com1.parse("comp1 --foo 1").matched
