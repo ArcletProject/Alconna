@@ -267,7 +267,7 @@ def analyse_args(argv: Argv, args: _Args) -> dict[str, Any]:
         step_varkey(argv, slot, result)
     # TODO: let the user decide whether to return the Args model or raw data
     # if args.origin:
-    #     return args.origin(**result)
+    #     return args.origin.load(result)
     return result
 
 

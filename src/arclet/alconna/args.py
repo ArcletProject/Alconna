@@ -391,6 +391,15 @@ class ArgsBase(metaclass=ArgsMeta):
     def dump(self):
         return {arg.name: getattr(self, arg.name) for arg in self.__args_data__.data}
 
+    @classmethod
+    def load(cls, data: dict):
+        for arg in cls.__args_data__.data:
+            if arg.name not in data:
+                if not arg.field.optional:
+                    raise InvalidArgs(f"missing required argument: {arg.name}")
+                data[arg.name] = None
+        return cls(**data)
+
 
 def handle_args(arg: Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | _Args | None) -> _Args:
     if arg is None:

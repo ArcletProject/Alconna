@@ -13,7 +13,7 @@ from tarina import Empty, generic_isinstance, lang, safe_eval
 from .exceptions import BehaveCancelled, OutBoundsBehave
 from .base import HeadResult, OptionResult, SubcommandResult
 from .typing import TDC
-from .args import ArgsMeta
+from .args import ArgsMeta, ArgsBase
 
 T = TypeVar("T")
 T1 = TypeVar("T1")
@@ -297,8 +297,8 @@ class Arparma(Generic[TDC]):
             if p.name not in data:
                 continue
             if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD):
-                if p.name == "args" and isinstance(p.annotation, ArgsMeta):
-                    pos_args.append(p.annotation(**data[p.name]))
+                if p.name == "args" and isinstance(p.annotation, ArgsMeta) and issubclass(p.annotation, ArgsBase):
+                    pos_args.append(p.annotation.load(data[p.name]))
                 else:
                     pos_args.append(data[p.name])
             elif p.kind == p.VAR_POSITIONAL:
@@ -306,8 +306,8 @@ class Arparma(Generic[TDC]):
             elif p.kind == p.VAR_KEYWORD:
                 kw_args = {**kw_args, **data[p.name]}
             else:
-                if p.name == "args" and isinstance(p.annotation, ArgsMeta):
-                    kw_args[p.name] = p.annotation(**data[p.name])
+                if p.name == "args" and isinstance(p.annotation, ArgsMeta) and issubclass(p.annotation, ArgsBase):
+                    kw_args[p.name] = p.annotation.load(data[p.name])
                 else:
                     kw_args[p.name] = data[p.name]
         bind = sig.bind(*pos_args, **kw_args)
