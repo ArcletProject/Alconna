@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, Literal
 
 from nepattern import ANY, STRING, AnyString, BasePattern
 from tarina import Empty, lang, safe_eval, split_once
@@ -19,7 +19,7 @@ from ..exceptions import (
     PauseTriggered,
     ParamsUnmatched,
 )
-from ..typing import KWBool, MultiVar, _AllParamPattern, _StrMulti
+from ..typing import KWBool, _AllParamPattern
 
 from ._util import levenshtein
 
@@ -74,12 +74,14 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any, Any, Any], r
     result[target.name] = res._value  # noqa
 
 
-def step_varpos(argv: Argv, args: _Args, slot: tuple[MultiVar, Arg], result: dict[str, Any]):
-    value, arg = slot
+def step_varpos(argv: Argv, args: _Args, slot: tuple[int | Literal["+", "*", "str"], Arg], result: dict[str, Any]):
+    flag, arg = slot
+    value = arg.type_
     key = arg.name
+    length = int(flag) if flag.__class__ is int else -1
     default_val = arg.field.default
     _result = []
-    kwonly_seps = "".join([arg.type_.sep for arg in args.keyword_only.values()])  # type: ignore
+    kwonly_seps = "".join([arg.field.kw_sep for arg in args.keyword_only.values()])
     count = 0
     while argv.current_index != argv.ndata:
         may_arg, _str = argv.next(arg.field.seps)
@@ -91,33 +93,36 @@ def step_varpos(argv: Argv, args: _Args, slot: tuple[MultiVar, Arg], result: dic
         if _str and kwonly_seps and split_once(pat.match(may_arg)["name"], kwonly_seps, argv.filter_crlf)[0] in args.keyword_only:  # noqa: E501  # type: ignore
             argv.rollback(may_arg)
             break
-        if _str and args.vars_keyword and "=" in may_arg: #args.vars_keyword[0][0].base.sep in may_arg:
+        if _str and args.vars_keyword and args.vars_keyword[0][0] in may_arg:
             argv.rollback(may_arg)
             break
-        if (res := value.base.validate(may_arg)).flag != "valid":
+        if (res := value.validate(may_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result.append(res._value)  # noqa
         count += 1
-        if 0 < value.length <= count:
+        if 0 < length <= count:
             break
     if not _result:
         if default_val is not Empty:
             _result = default_val if isinstance(default_val, Iterable) else ()
-        elif value.flag == "*":
+        elif flag == "*":
             _result = ()
         elif arg.field.optional:
             return
         else:
             raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)), arg)
-    if isinstance(value, _StrMulti):
+    if flag == "str":
         result[key] = arg.field.seps[0].join(_result)
     else:
         result[key] = tuple(_result)
 
 
-def step_varkey(argv: Argv, slot: tuple[MultiVar, Arg], result: dict[str, Any]):
-    value, arg = slot
+def step_varkey(argv: Argv, slot: tuple[str, Arg], result: dict[str, Any]):
+    kw_sep, arg = slot
+    flag = arg.field.multiple
+    length = int(flag) if flag.__class__ is int else -1
+    value = arg.type_
     name = arg.name
     default_val = arg.field.default
     _result = {}
@@ -129,23 +134,23 @@ def step_varkey(argv: Argv, slot: tuple[MultiVar, Arg], result: dict[str, Any]):
             break
         if _str and may_arg in global_config.remainders:
             break
-        if not (_kwarg := re.match(rf"^(-*[^{'='}]+){'='}(.*?)$", may_arg)):
+        if not (_kwarg := re.match(rf"^(-*[^{kw_sep}]+){kw_sep}(.*?)$", may_arg)):
             argv.rollback(may_arg)
             break
         key = _kwarg[1]
         if not (_m_arg := _kwarg[2]):
             _m_arg, _ = argv.next(arg.field.seps)
-        if (res := value.base.validate(_m_arg)).flag != "valid":
+        if (res := value.validate(_m_arg)).flag != "valid":
             argv.rollback(may_arg)
             break
         _result[key] = res._value  # noqa
         count += 1
-        if 0 < value.length <= count:
+        if 0 < length <= count:
             break
     if not _result:
         if default_val is not Empty:
             _result = default_val if isinstance(default_val, dict) else {}
-        elif value.flag == "*":
+        elif flag == "*":
             _result = {}
         elif arg.field.optional:
             return
@@ -158,8 +163,7 @@ def step_keyword(argv: Argv, args: _Args, result: dict[str, Any]):
     kwonly_seps = set()
     for arg in args.keyword_only.values():
         kwonly_seps.update(arg.field.seps)
-    # kwonly_seps1 = "".join([arg.type_.sep for arg in args.keyword_only.values()])  # type: ignore
-    kwonly_seps1 = "="
+    kwonly_seps1 = "".join([arg.field.kw_sep for arg in args.keyword_only.values()])
     target = len(args.keyword_only)
     count = 0
     while count < target:
@@ -181,7 +185,7 @@ def step_keyword(argv: Argv, args: _Args, result: dict[str, Any]):
             ):
                 break
             for arg in args.keyword_only.values():
-                if arg.type_.validate(may_arg).flag == "valid":  # type: ignore
+                if arg.type_.validate(may_arg).flag == "valid":
                     raise InvalidParam(lang.require("args", "key_missing").format(target=may_arg, key=arg.name), arg)
             for name in args.keyword_only:
                 if levenshtein(_key, name) >= argv.fuzzy_threshold:
@@ -193,7 +197,7 @@ def step_keyword(argv: Argv, args: _Args, result: dict[str, Any]):
             if isinstance(value, KWBool):
                 _m_arg = key
             else:
-                _m_arg, _ = argv.next("=")  # (args.keyword_only[_key].separators)
+                _m_arg, _ = argv.next(args.keyword_only[_key].separators)
         _validate(argv, arg, value, result, _m_arg, _str)
         count += 1
 

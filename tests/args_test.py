@@ -2,7 +2,7 @@ from typing import Union
 
 from nepattern import INTEGER, BasePattern, MatchMode, combine
 
-from arclet.alconna import Args, Nargs, StrMulti
+from arclet.alconna import Args
 from devtool import analyse_args
 
 
@@ -55,19 +55,19 @@ def test_object():
 
 
 def test_multi():
-    arg8 = Args.multi(Nargs(str, "+"))
+    arg8 = Args.multi(str, multiple=True)
     assert analyse_args(arg8, ["a b c d"]).get("multi") == ("a", "b", "c", "d")
     assert analyse_args(arg8, [], raise_exception=False) != {"multi": ()}
-    arg8_1 = Args.kwargs(Nargs(str, "+"), kw_only=True)
+    arg8_1 = Args.kwargs(str, multiple=True, kw_only=True)
     assert analyse_args(arg8_1, ["a=b c=d"]).get("kwargs") == {"a": "b", "c": "d"}
-    arg8_2 = Args.multi(Nargs(int, "*"))
+    arg8_2 = Args.multi(int, multiple="*")
     assert analyse_args(arg8_2, ["1 2 3 4"]).get("multi") == (1, 2, 3, 4)
     assert analyse_args(arg8_2, []).get("multi") == ()
-    arg8_3 = Args.multi(Nargs(int, 3))
+    arg8_3 = Args.multi(int, multiple=3)
     assert analyse_args(arg8_3, ["1 2 3"]).get("multi") == (1, 2, 3)
     assert analyse_args(arg8_3, ["1 2"]).get("multi") == (1, 2)
     assert analyse_args(arg8_3, ["1 2 3 4"]).get("multi") == (1, 2, 3)
-    arg8_4 = Args.multi(Nargs(str, "*")).kwargs(Nargs(str, "*"), kw_only=True)
+    arg8_4 = Args.multi(str, multiple="*").kwargs(str, multiple="*", kw_only=True)
     assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("multi") == ("1", "2", "3", "4")
     assert analyse_args(arg8_4, ["1 2 3 4 a=b c=d"]).get("kwargs") == {
         "a": "b",
@@ -128,13 +128,12 @@ def test_kwonly():
         "width": 960,
         "height": 480,
     }
-    # FIXME: kw_sep
-    # arg14_2 = Args["foo", str]["bar", KeyWordVar(int, " ")]["baz", KeyWordVar(bool, ":")]
-    # assert analyse_args(arg14_2, ["abc baz:false -bar 123"]) == {
-    #     "bar": 123,
-    #     "baz": False,
-    #     "foo": "abc",
-    # }
+    arg14_2 = Args.foo(str).bar(int, kw_only=True, kw_sep=" ").baz(bool, kw_only=True, kw_sep=":")
+    assert analyse_args(arg14_2, ["abc baz:false -bar 123"]) == {
+        "bar": 123,
+        "baz": False,
+        "foo": "abc",
+    }
     arg14_3 = Args.foo(str).bar(int, kw_only=True).baz(bool, kw_only=True)
     assert analyse_args(arg14_3, ["abc baz=false bar=456"]) == {
         "bar": 456,
@@ -220,16 +219,14 @@ def test_annotated():
 
 
 def test_multi_multi():
-    from arclet.alconna.typing import MultiVar
-
-    arg20 = Args["foo", MultiVar(str)]["bar", MultiVar(int)]
+    arg20 = Args.foo(str, multiple=True).bar(int, multiple=True)
     assert analyse_args(arg20, ["a b -- 1 2"]) == {"foo": ("a", "b"), "bar": (1, 2)}
 
-    arg20_1 = Args["foo", MultiVar(int)]["bar", MultiVar(str)]
+    arg20_1 = Args.foo(int, multiple=True).bar(str, multiple=True)
     assert analyse_args(arg20_1, ["1 2 -- a b"]) == {"foo": (1, 2), "bar": ("a", "b")}
     assert analyse_args(arg20_1, ["1 2 a b"]) == {"foo": (1, 2), "bar": ("a", "b")}
 
-    arg20_2 = Args["foo", str]["bar", StrMulti]
+    arg20_2 = Args.foo(str).bar(str, multiple="str")
     assert analyse_args(arg20_2, ["a b"]) == {"foo": "a", "bar": "b"}
     assert analyse_args(arg20_2, ["a b c"]) == {"foo": "a", "bar": "b c"}
 

@@ -12,7 +12,6 @@ from arclet.alconna import (
     CompSession,
     Field,
     Metadata,
-    MultiVar,
     Option,
     Subcommand,
     namespace, command_manager,
@@ -306,14 +305,14 @@ def test_alconna_synthesise():
         Arg("min", cnt, seps="到"),
         Arg("max;?", cnt),
         ["发涩图", "来点涩图", "来点好康的"],
-        Option("从", Args.tags(MultiVar(str, 5), seps="和与"), compact=True),
+        Option("从", Args.tags(str, multiple=5, seps="和与"), compact=True),
     )
     res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
     assert res.matched is True
     assert res.min == 3
     assert res.tags == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
 
-    alc10_1 = Alconna("cpp", Args["match", MultiVar(int, "+")], Arg("lines", AllParam, seps="\n"))
+    alc10_1 = Alconna("cpp", Args.match(int, multiple=True), Arg("lines", AllParam, seps="\n"))
     print("")
     print(msg := "cpp 1 2\n" "#include <iostream>\n" "int main() {...}")
     print((res := alc10_1.parse(msg)))
@@ -969,7 +968,7 @@ def test_tips():
 
 def test_disable_builtin_option():
     core28 = Alconna("core28")
-    core28_1 = Alconna("core28_1", Args["text", MultiVar(str)])
+    core28_1 = Alconna("core28_1", Args.text(str, multiple=True))
 
     res = core28.parse("core28 --shortcut 123 test")
     assert not res.matched

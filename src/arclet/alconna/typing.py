@@ -103,56 +103,8 @@ class _AllParamPattern(BasePattern[T, T, Literal[MatchMode.KEEP]], Generic[T]):
 AllParam: _AllParamPattern[Any] = _AllParamPattern()
 
 
-class MultiVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
-    """对可变参数的包装"""
-
-    base: BasePattern[T, Any, Any]
-    flag: Literal["+", "*"]
-    length: int
-
-    def __init__(self, value: TAValue[T], flag: int | Literal["+", "*"] = "+"):
-        """构建一个可变参数
-
-        Args:
-            value (type | BasePattern): 参数的值
-            flag (int | Literal["+", "*"]): 参数的标记
-        """
-        self.base = value if isinstance(value, BasePattern) else parser(value)  # type: ignore
-        assert isinstance(self.base, BasePattern)
-        if not isinstance(flag, int):
-            alias = f"({self.base}{flag})"
-            self.flag = flag
-            self.length = -1
-        elif flag > 1:
-            alias = f"({self.base}+)[:{flag}]"
-            self.flag = "+"
-            self.length = flag
-        else:  # pragma: no cover
-            alias = str(self.base)
-            self.flag = "+"
-            self.length = 1
-        super().__init__(mode=MatchMode.KEEP, origin=self.base.origin, alias=alias)
-
-    def __repr__(self):
-        return self.alias
-
-
-Nargs = MultiVar
-
-
 class KWBool(BasePattern):
     """对布尔参数的包装"""
-
-
-class _StrMulti(MultiVar[str]):
-    pass
-
-
-StrMulti = _StrMulti(str)
-"""特殊参数, 用于匹配多个字符串, 并将结果通过 `str.join` 合并"""
-
-StrMulti.alias = "str+"
-StrMulti.refresh()
 
 
 def parent_frame_namespace(*, parent_depth: int = 2, force: bool = False) -> dict[str, Any] | None:

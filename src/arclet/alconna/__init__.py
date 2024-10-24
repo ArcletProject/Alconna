@@ -38,9 +38,6 @@ from .formatter import TextFormatter as TextFormatter
 from .manager import ShortcutArgs as ShortcutArgs
 from .manager import command_manager as command_manager
 from .typing import AllParam as AllParam
-from .typing import MultiVar as MultiVar
-from .typing import Nargs as Nargs
-from .typing import StrMulti as StrMulti
 
 __version__ = "1.8.31"
 

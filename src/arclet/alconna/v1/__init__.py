@@ -39,9 +39,9 @@ from arclet.alconna.manager import command_manager as command_manager  # noqa: F
 from arclet.alconna.typing import AllParam as AllParam  # noqa: F401
 # from arclet.alconna.typing import KeyWordVar as KeyWordVar  # noqa: F401
 # from arclet.alconna.typing import Kw as Kw  # noqa: F401
-from arclet.alconna.typing import MultiVar as MultiVar  # noqa: F401
-from arclet.alconna.typing import Nargs as Nargs  # noqa: F401
-from arclet.alconna.typing import StrMulti as StrMulti  # noqa: F401
+# from arclet.alconna.typing import MultiVar as MultiVar  # noqa: F401
+# from arclet.alconna.typing import Nargs as Nargs  # noqa: F401
+# from arclet.alconna.typing import StrMulti as StrMulti  # noqa: F401
 # from arclet.alconna.typing import UnpackVar as UnpackVar  # noqa: F401
 # from arclet.alconna.typing import Up as Up  # noqa: F401
 

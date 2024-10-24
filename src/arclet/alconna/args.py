@@ -4,15 +4,15 @@ import warnings
 import dataclasses as dc
 import re
 import typing
-from typing import Any, Callable, Generic, TypeVar, ClassVar, ForwardRef, Final, TYPE_CHECKING
+from typing import Any, Callable, Generic, Literal, TypeVar, ClassVar, ForwardRef, Final, TYPE_CHECKING, get_origin, get_args
 from typing_extensions import dataclass_transform, ParamSpec, Concatenate, TypeAlias
 
-from nepattern import NONE, BasePattern, RawStr, UnionPattern, parser
+from nepattern import NONE, BasePattern, RawStr, UnionPattern, parser, STRING
 from tarina import Empty, lang
 
 from ._dcls import safe_dcls_kw, safe_field_kw
 from .exceptions import InvalidArgs
-from .typing import MultiVar, TAValue, parent_frame_namespace, merge_cls_and_parent_ns
+from .typing import TAValue, parent_frame_namespace, merge_cls_and_parent_ns
 
 _T = TypeVar("_T")
 
@@ -40,6 +40,8 @@ class Field(Generic[_T]):
     optional: bool = dc.field(default=False, compare=False, hash=False)
     hidden: bool = dc.field(default=False, compare=False, hash=False)
     kw_only: bool = dc.field(default=False, compare=False, hash=False)
+    multiple: bool | int | Literal["+", "*", "str"] = dc.field(default=False, compare=False, hash=False)
+    kw_sep: str = dc.field(default="=", compare=False, hash=False)
 
     @property
     def display(self):
@@ -87,11 +89,13 @@ def arg_field(
     missing_tips: Callable[[], str] | None = None,
     notice: str | None = None,
     seps: str = " ",
+    multiple: bool | int | Literal["+", "*", "str"] = False,
     kw_only: bool = False,
+    kw_sep: str = "=",
     optional: bool = False,
     hidden: bool = False,
 ) -> "Any":
-    return Field(default, default_factory, alias, completion, unmatch_tips, missing_tips, notice, seps, optional, hidden, kw_only)
+    return Field(default, default_factory, alias, completion, unmatch_tips, missing_tips, notice, seps, optional, hidden, kw_only, multiple, kw_sep)
 
 
 @dc.dataclass(**safe_dcls_kw(init=False, eq=True, unsafe_hash=True, slots=True))
@@ -167,8 +171,8 @@ class _Args:
         self.data = args
         self.normal: list[Arg[Any]] = []
         self.keyword_only: dict[str, Arg[Any]] = {}
-        self.vars_positional: list[tuple[MultiVar, Arg[Any]]] = []
-        self.vars_keyword: list[tuple[MultiVar, Arg[Any]]] = []
+        self.vars_positional: list[tuple[int | Literal["+", "*", "str"], Arg[Any]]] = []
+        self.vars_keyword: list[tuple[str, Arg[Any]]] = []
         self._visit = set()
         self.optional_count = 0
         self.__check_vars__()
@@ -189,17 +193,20 @@ class _Args:
             if arg.name in self._visit:
                 continue
             self._visit.add(arg.name)
-            if isinstance(arg.type_, MultiVar):
+            if arg.field.multiple is not False:
                 if arg.field.kw_only:
-                    # for slot in self.vars_positional:
-                    #     _, a = slot
-                    #     if arg.type_.base.sep in a.field.seps:
-                    #         raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
-                    self.vars_keyword.append((arg.type_, arg))
+                    for slot in self.vars_positional:
+                        _, a = slot
+                        if arg.field.kw_sep in a.field.seps:
+                            raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
+                    self.vars_keyword.append((arg.field.kw_sep, arg))
                 elif self.keyword_only:
                     raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
                 else:
-                    self.vars_positional.append((arg.type_, arg))
+                    flag = arg.field.multiple
+                    if flag is True:
+                        flag = "+"
+                    self.vars_positional.append((flag, arg))
             elif arg.field.kw_only:
                 if self.vars_keyword:
                     raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
@@ -328,6 +335,14 @@ class ArgsMeta(type):
                     field = Field(field)
                 if field.default is Empty and field.default_factory is Empty:
                     delattr(cls, name)
+            if field.multiple is not False:
+                if not field.kw_only:
+                    if get_origin(typ) is tuple:
+                        typ = get_args(typ)[0]
+                    elif field.multiple != "str" or typ is not str:
+                        raise TypeError(f"{name!r} is a varpos but does not have a tuple type annotation")
+                elif get_origin(typ) is not dict:
+                    raise TypeError(f"{name!r} is a varkey but does not have a dict type annotation")
             cls_args.append(Arg(name, typ, field))
         for name, value in cls.__dict__.items():
             if isinstance(value, Field) and name not in cls_annotations:
