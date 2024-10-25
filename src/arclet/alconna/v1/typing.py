@@ -6,6 +6,7 @@ from typing import (
     Literal,
     TypeVar,
 )
+from typing_extensions import deprecated
 
 from nepattern import BasePattern, MatchMode, parser
 
@@ -14,6 +15,7 @@ from arclet.alconna.typing import TAValue
 T = TypeVar("T")
 
 
+@deprecated("KeyWordVar is deprecated, use `Field(kw_only=True)` instead", category=DeprecationWarning, stacklevel=1)
 class KeyWordVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
     """对具名参数的包装"""
 
@@ -45,6 +47,7 @@ class _Kw:
     __rmatmul__ = __getitem__
 
 
+@deprecated("MultiVar is deprecated, use `Field(multiple=...)` instead", category=DeprecationWarning, stacklevel=1)
 class MultiVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
     """对可变参数的包装"""
 
@@ -87,6 +90,7 @@ class KWBool(BasePattern):
     """对布尔参数的包装"""
 
 
+@deprecated("UnpackVar is deprecated, use `ArgsBase` instead", category=DeprecationWarning, stacklevel=1)
 class UnpackVar(BasePattern):
     """特殊参数，利用dataclass 的 field 生成 arg 信息，并返回dcls"""
 
@@ -114,6 +118,7 @@ class _Up:
 Up = _Up()
 
 
+@deprecated("StrMulti is deprecated, use `Field(multiple=str)` instead", stacklevel=1)
 class _StrMulti(MultiVar[str]):
     pass
 

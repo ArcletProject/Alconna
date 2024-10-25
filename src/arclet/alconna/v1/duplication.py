@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from inspect import isclass
 from typing import cast
+from typing_extensions import deprecated
 
 from tarina import Empty
 
@@ -12,6 +13,7 @@ from arclet.alconna.base import Option, Subcommand
 from .stub import ArgsStub, BaseStub, OptionStub, SubcommandStub
 
 
+@deprecated("Duplication is removed", category=DeprecationWarning, stacklevel=1)
 class Duplication:
     """`副本`, 用以更方便的检查、调用解析结果的类。"""
 
@@ -47,6 +49,7 @@ class Duplication:
         return cast(SubcommandStub, getattr(self, name, None))
 
 
+@deprecated("generate_duplication is removed", category=DeprecationWarning, stacklevel=1)
 def generate_duplication(alc: Alconna) -> type[Duplication]:
     """依据给定的命令生成一个解析结果的检查类。"""
 

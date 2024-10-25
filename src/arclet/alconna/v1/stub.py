@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Any, Generic, TypeVar
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from nepattern import ANY, BasePattern
 
@@ -40,6 +40,7 @@ class BaseStub(Generic[T_Origin], metaclass=ABCMeta):
         return f"{{{', '.join([f'{k}={v}' for k, v in vars(self).items() if v and not k.startswith('_')])}}}"
 
 
+@deprecated("ArgsStub is removed, use `ArgsBase` instead", category=DeprecationWarning, stacklevel=1)
 @dataclass(init=True)
 class ArgsStub(BaseStub[_Args]):
     """参数存根"""
@@ -103,6 +104,7 @@ class ArgsStub(BaseStub[_Args]):
         return self._value[item]
 
 
+@deprecated("OptionStub is removed", category=DeprecationWarning, stacklevel=1)
 @dataclass(init=True)
 class OptionStub(BaseStub[Option]):
     """选项存根"""
@@ -130,6 +132,7 @@ class OptionStub(BaseStub[Option]):
         return self
 
 
+@deprecated("SubcommandStub is removed", category=DeprecationWarning, stacklevel=1)
 @dataclass(init=True)
 class SubcommandStub(BaseStub[Subcommand]):
     """子命令存根"""

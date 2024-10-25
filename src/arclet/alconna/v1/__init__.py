@@ -56,3 +56,7 @@ from .typing import Nargs as Nargs
 from .typing import StrMulti as StrMulti
 from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
+
+
+# backward compatibility
+AnyOne = ANY

@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Any, Union
+from typing import Union
+from collections import UserList
 
+import pytest
 from nepattern import BasePattern, MatchMode
 
 from arclet.alconna import Alconna, Args, Option
-from arclet.alconna.ingedia._argv import argv_config
+from arclet.alconna.ingedia._argv import argv_config, reset_argv_config
 
 
 @dataclass
@@ -49,7 +51,7 @@ def test_filter_out():
     ana = Alconna("ana", Args.foo(str))
     assert ana.parse(["ana", 123, "bar"]).matched is True
     assert ana.parse("ana bar").matched is True
-    argv_config(filter_out=[])
+    reset_argv_config()
     ana_1 = Alconna("ana", Args.foo(str))
     assert ana_1.parse(["ana", 123, "bar"]).matched is False
 
@@ -59,7 +61,7 @@ def test_preprocessor():
     ana1 = Alconna("ana1", Args.bar(int))
     assert ana1.parse(["ana1", [1, 2, 3]]).matched is True
     assert ana1.parse(["ana1", [1, 2, 3]]).bar == 3
-    argv_config(preprocessors={})
+    reset_argv_config()
     ana1_1 = Alconna("ana1", Args.bar(int))
     assert ana1_1.parse(["ana1", [1, 2, 3]]).matched is False
 
@@ -72,7 +74,7 @@ def test_with_set_unit():
     assert res.matched is True
     assert res.foo.data["qq"] == "123456"
     assert not ana2.parse([Segment.text("ana2"), Segment.face(103), Segment.at(123456)]).matched
-    argv_config()
+    reset_argv_config()
 
 
 def test_unhashable_unit():
@@ -88,15 +90,18 @@ def test_unhashable_unit():
     print(ana3_1.parse(["ana3_1", "--foo", "--comp", Segment.at(123)]))
     print(ana3_1.parse(["ana3_1", "--comp", Segment.at(123)]))
 
+    reset_argv_config()
+
 
 def test_checker():
-    argv_config(checker=lambda x: isinstance(x, list))
+    argv_config(checker=lambda x: isinstance(x, UserList))
     ana4 = Alconna("ana4", Args.foo(int))
-    print(ana4.parse(["ana4", "123"]))
-    try:
-        print(ana4.parse("ana4 123"))
-    except TypeError as e:
-        print(e)
+    assert ana4.parse(UserList(["ana4", "123"]))
+
+    with pytest.raises(TypeError):
+        ana4.parse("ana4 123")
+
+    reset_argv_config()
 
 
 if __name__ == "__main__":

@@ -723,6 +723,7 @@ def test_completion_interface():
 
 def test_call():
     from dataclasses import dataclass
+    from arclet.alconna import ArgsBase
 
     alc22 = Alconna("core22", Args.foo(int), Args.bar(str))
     alc22("core22 123 abc")
@@ -747,6 +748,18 @@ def test_call():
 
     alc22_1.parse("core22_1 abc")
     assert alc22_1.exec_result["A"] == A("abc")
+
+    class B(ArgsBase):
+        name: str
+
+    alc22_2 = Alconna("core22_2", B)
+
+    @alc22_2.bind(False)
+    def cb1(args: B):
+        return args.name
+
+    alc22_2.parse("core22_2 abc")
+    assert cb1.result == "abc"
 
 
 def test_nest_subcommand():

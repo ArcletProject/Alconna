@@ -120,15 +120,8 @@ class Argv(Generic[TDC]):
         """
         self.reset()
         if self.checker and not self.checker(data):
-            if not self.converter:
-                raise TypeError(data)
-            try:
-                data = self.converter(data)  # type: ignore
-            except Exception as e:
-                raise TypeError(data) from e
+            raise TypeError(data)
         self.origin = data
-        if data.__class__ is str:
-            data = [data]  # type: ignore
         i = 0
         raw_data = self.raw_data
         for unit in data:
@@ -320,3 +313,11 @@ def argv_config(
     Argv._cache.setdefault(target or __argv_type__.get(), {}).update(
         {k: v for k, v in locals().items() if v is not None}
     )
+
+
+def reset_argv_config(target: type[Argv] | None = None):
+    """重置命令行参数配置"""
+    if target:
+        Argv._cache.pop(target, None)
+    else:
+        Argv._cache.clear()

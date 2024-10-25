@@ -1,8 +1,10 @@
+import pytest
+
 from typing import Union
 
 from nepattern import INTEGER, BasePattern, MatchMode, combine
 
-from arclet.alconna import Args, Arg
+from arclet.alconna import Args, Arg, ArgsBase, arg_field
 from devtool import analyse_args
 
 
@@ -201,21 +203,27 @@ def test_annotated():
     assert analyse_args(arg18, ["0 0"], raise_exception=False) != {"foo": 0, "bar": 0}
 
 
-# def test_unpack():
-#     from dataclasses import dataclass, field
-#
-#     from arclet.alconna.typing import UnpackVar
-#
-#     @dataclass
-#     class People:
-#         name: str
-#         age: int = field(default=16)
-#
-#     arg19 = Args["people", UnpackVar(People)]
-#     assert analyse_args(arg19, ["alice", 16]) == {"people": People("alice", 16)}
-#     assert analyse_args(arg19, ["bob"]) == {"people": People("bob", 16)}
-#     arg19_1 = Args["people", UnpackVar(People, kw_only=True)].separate("&")
-#     assert analyse_args(arg19_1, ["name=alice&age=16"]) == {"people": People("alice", 16)}
+def test_args_model():
+    class People(ArgsBase):
+        name: str
+        age: int = arg_field(default=16)
+
+    assert analyse_args(People, ["abc"]) == {"name": "abc", "age": 16}
+
+    class Foo(ArgsBase):
+        foo: str
+
+    class Bar(ArgsBase):
+        bar: int = arg_field(42)
+
+    class Baz(Bar, Foo):
+        baz: bool = arg_field(True)
+
+    assert analyse_args(Baz, ["abc 123"]) == {"foo": "abc", "bar": 123, "baz": True}
+
+    with pytest.raises(TypeError, match="cannot create Args Model: non-default argument 'foo' follows default argument"):
+        class Baz1(Foo, Bar):
+            baz: bool = arg_field(True)
 
 
 def test_multi_multi():

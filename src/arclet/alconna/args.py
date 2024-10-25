@@ -373,8 +373,10 @@ class ArgsMeta(type):
             if seps is not None:
                 arg.field.seps = seps
         cls.__args_data__ = _Args(all_args, cls)
-
-        dcls = dc.make_dataclass(cls.__name__, [(arg.name, arg.type_, arg.field.to_dc_field()) for arg in cls.__args_data__.data], namespace=types_namespace, repr=True)
+        try:
+            dcls = dc.make_dataclass(cls.__name__, [(arg.name, arg.type_, arg.field.to_dc_field()) for arg in cls.__args_data__.data], namespace=types_namespace, repr=True)
+        except TypeError as e:
+            raise TypeError(f"cannot create Args Model: {e}") from None
         cls.__init__ = dcls.__init__  # type: ignore
         if "__repr__" not in cls.__dict__:
             cls.__repr__ = dcls.__repr__  # type: ignore

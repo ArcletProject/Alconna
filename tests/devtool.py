@@ -61,7 +61,7 @@ def analyse_args(
 def analyse_header(
     headers: list[str | Any] | list[tuple[Any, str]],
     command_name: str,
-    command: DataCollection[str | Any],
+    command: list[str | Any],
     sep: str = " ",
     compact: bool = False,
     raise_exception: bool = True,
@@ -83,7 +83,7 @@ def analyse_header(
 
 def analyse_option(
     option: Option,
-    command: DataCollection[str | Any],
+    command: list[str | Any],
     raise_exception: bool = True,
     context_style: Literal["bracket", "parentheses"] | None = None,
     **kwargs,
@@ -111,7 +111,7 @@ def analyse_option(
 
 def analyse_subcommand(
     subcommand: Subcommand,
-    command: DataCollection[str | Any],
+    command: list[str | Any],
     raise_exception: bool = True,
     context_style: Literal["bracket", "parentheses"] | None = None,
     **kwargs,

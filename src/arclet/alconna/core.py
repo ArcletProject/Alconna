@@ -433,6 +433,8 @@ class Alconna(Subcommand):
                     return res
         analyser = command_manager.require(self)
         argv = analyser.argv
+        if message.__class__ is str:
+            message = [message]  # type: ignore
         argv.enter(ctx).build(message)
         if argv.message_cache and (res := command_manager.get_record(argv.token)):
             return res

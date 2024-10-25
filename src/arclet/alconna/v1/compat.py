@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import Literal, Any, Callable, ContextManager
 from typing_extensions import deprecated
 from arclet.alconna import Metadata, Config, global_config
@@ -93,6 +94,7 @@ class _ProxyNamespace:
         elif key in ("name", "prefixes", "formatter_type", "to_text", "converter"):
             setattr(self.origin, key, value)
         else:
+            warnings.warn(f"Namespace.{key} is deprecated, use Namespace.config.{key} instead", DeprecationWarning, stacklevel=2)
             setattr(self.origin.config, key, value)
 
 
