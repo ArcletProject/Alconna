@@ -10,7 +10,7 @@ authors = [
 ]
 dependencies = [
     "typing-extensions>=4.5.0",
-    "nepattern<1.0.0,>=0.7.6",
+    "nepattern<1.1.0,>=1.0.0",
     "tarina<0.7.0,>=0.6.1",
     "elaina-segment>=0.4.0",
     "elaina-flywheel>=0.6.0",

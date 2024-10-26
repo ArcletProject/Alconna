@@ -4,6 +4,7 @@ import warnings
 from enum import Enum
 from typing import Any, Final, Iterable
 
+from nepattern import Pattern
 from tarina import Empty
 from typing_extensions import Self, deprecated
 
@@ -50,7 +51,7 @@ class _CompatArgsBuilder(ArgsBuilder):
                 arg.field.kw_sep = value.sep
                 arg.type_ = value.base
             elif isinstance(value, UnpackVar):
-                arg.type_ = value.of(value.origin)
+                arg.type_ = Pattern(value.origin)
         return super().build()
 
     def __truediv__(self, other) -> Self:

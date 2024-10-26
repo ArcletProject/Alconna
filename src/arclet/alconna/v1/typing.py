@@ -8,18 +8,19 @@ from typing import (
 )
 from typing_extensions import deprecated
 
-from nepattern import BasePattern, MatchMode, parser
+from nepattern import Pattern, parser
 
 from arclet.alconna.typing import TAValue
+from arclet.alconna.typing import KWBool as KWBool
 
 T = TypeVar("T")
 
 
 @deprecated("KeyWordVar is deprecated, use `Field(kw_only=True)` instead", category=DeprecationWarning, stacklevel=1)
-class KeyWordVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
+class KeyWordVar(Pattern[T]):
     """对具名参数的包装"""
 
-    base: BasePattern
+    base: Pattern[T]
 
     def __init__(self, value: TAValue[T], sep: str = "="):
         """构建一个具名参数
@@ -28,10 +29,10 @@ class KeyWordVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
             value (type | BasePattern): 参数的值
             sep (str, optional): 参数的分隔符
         """
-        self.base = value if isinstance(value, BasePattern) else parser(value)  # type: ignore
+        self.base = value if isinstance(value, Pattern) else parser(value)  # type: ignore
         self.sep = sep
-        assert isinstance(self.base, BasePattern)
-        super().__init__(mode=MatchMode.KEEP, origin=self.base.origin, alias=f"@{sep}{self.base}")
+        assert isinstance(self.base, Pattern)
+        super().__init__(origin=self.base.origin, alias=f"@{sep}{self.base}")
 
     def __repr__(self):
         return self.alias
@@ -40,7 +41,7 @@ class KeyWordVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
 class _Kw:
     __slots__ = ()
 
-    def __getitem__(self, item: BasePattern[T, Any, Any] | type[T] | Any):
+    def __getitem__(self, item: Pattern[T] | type[T] | Any):
         return KeyWordVar(item)
 
     __matmul__ = __getitem__
@@ -48,10 +49,10 @@ class _Kw:
 
 
 @deprecated("MultiVar is deprecated, use `Field(multiple=...)` instead", category=DeprecationWarning, stacklevel=1)
-class MultiVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
+class MultiVar(Pattern[T]):
     """对可变参数的包装"""
 
-    base: BasePattern[T, Any, Any]
+    base: Pattern[T]
     flag: Literal["+", "*"]
     length: int
 
@@ -62,8 +63,8 @@ class MultiVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
             value (type | BasePattern): 参数的值
             flag (int | Literal["+", "*"]): 参数的标记
         """
-        self.base = value if isinstance(value, BasePattern) else parser(value)  # type: ignore
-        assert isinstance(self.base, BasePattern)
+        self.base = value if isinstance(value, Pattern) else parser(value)  # type: ignore
+        assert isinstance(self.base, Pattern)
         if not isinstance(flag, int):
             alias = f"({self.base}{flag})"
             self.flag = flag
@@ -76,7 +77,7 @@ class MultiVar(BasePattern[T, Any, Literal[MatchMode.KEEP]]):
             alias = str(self.base)
             self.flag = "+"
             self.length = 1
-        super().__init__(mode=MatchMode.KEEP, origin=self.base.origin, alias=alias)
+        super().__init__(origin=self.base.origin, alias=alias)
 
     def __repr__(self):
         return self.alias
@@ -86,12 +87,8 @@ Nargs = MultiVar
 Kw = _Kw()
 
 
-class KWBool(BasePattern):
-    """对布尔参数的包装"""
-
-
 @deprecated("UnpackVar is deprecated, use `ArgsBase` instead", category=DeprecationWarning, stacklevel=1)
-class UnpackVar(BasePattern):
+class UnpackVar(Pattern):
     """特殊参数，利用dataclass 的 field 生成 arg 信息，并返回dcls"""
 
     def __init__(self, dcls: Any, kw_only: bool = False, kw_sep: str = "="):
@@ -127,4 +124,3 @@ StrMulti = _StrMulti(str)
 """特殊参数, 用于匹配多个字符串, 并将结果通过 `str.join` 合并"""
 
 StrMulti.alias = "str+"
-StrMulti.refresh()

@@ -298,9 +298,9 @@ def test_alconna_add_option():
 def test_alconna_synthesise():
     from typing import List
 
-    from nepattern import BasePattern, MatchMode
+    from nepattern import Pattern
 
-    cnt = BasePattern(r".*(\d+)张.*", MatchMode.REGEX_CONVERT, int, lambda _, x: int(x[1]))
+    cnt = Pattern.regex_convert(r".*(\d+)张.*", int, lambda mat: int(mat[1]))
     alc10 = Alconna(
         Arg("min", cnt, Field(seps="到")),
         Arg("max;?", cnt),

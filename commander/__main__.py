@@ -1,4 +1,4 @@
-from arclet.alconna import Alconna, Args, command_manager
+from arclet.alconna.v1 import Alconna, Args, command_manager
 from commander import Commands
 
 command = Commands()

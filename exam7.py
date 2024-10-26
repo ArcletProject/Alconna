@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional, overload
 from typing_extensions import Self
 
-from arclet.alconna import Args
+from arclet.alconna.args import ARGS_PARAM, Args, _Args, handle_args
 from arclet.alconna.action import Action, store, store_true
 
 
@@ -20,7 +20,7 @@ NodeMap: dict[str, Scope] = {}
 @dataclass(eq=True, unsafe_hash=True)
 class Node:
     name: str
-    args: Args = field(default_factory=Args)
+    args: _Args = field(default_factory=lambda : _Args([]))
     action: Action = field(default=store)
     help_text: str = field(default="unknown")
     dest: str = field(default="")
@@ -43,7 +43,7 @@ class Node:
         return f"{self.scope}.{self.name}" if self.scope != "$" else self.name
 
     @overload
-    def assign(self, path: Literal[":args"], *, args: Args) -> Self:
+    def assign(self, path: Literal[":args"], *, args: ARGS_PARAM) -> Self:
         ...
 
     @overload
@@ -59,7 +59,7 @@ class Node:
         ...
 
     @overload
-    def assign(self, path: str, spec: Literal[":args"], *, args: Args) -> Self:
+    def assign(self, path: str, spec: Literal[":args"], *, args: ARGS_PARAM) -> Self:
         ...
 
     @overload
@@ -79,7 +79,7 @@ class Node:
         self,
         path: str,
         *,
-        args: Optional[Args] = None,
+        args: Optional[ARGS_PARAM] = None,
         action: Optional[Action] = None,
         help_text: Optional[str] = None,
         dest: Optional[str] = None
@@ -90,7 +90,7 @@ class Node:
         self,
         path: str,
         spec: Optional[str] = None,
-        args: Optional[Args] = None,
+        args: Optional[ARGS_PARAM] = None,
         action: Optional[Action] = None,
         help_text: Optional[str] = None,
         dest: Optional[str] = None
@@ -112,7 +112,7 @@ class Node:
             if part not in NodeMap[prev.path].substance:
                 raise ValueError(f"Unknown node {part}")
             prev = NodeMap[prev.path].substance[part]
-        new = Node(parts[-1], args, action, help_text, dest, prev.path)
+        new = Node(parts[-1], handle_args(args), action, help_text, dest, prev.path)
         NodeMap[prev.path].substance[new.name] = new
         return self
 
@@ -131,7 +131,7 @@ class Node:
 
 node = Node("root")
 node.assign("foo")
-node.assign("foo", ":args", args=Args["foo", int]["bar", str])
+node.assign("foo", ":args", args=Args.foo(int).bar(str))
 foo = node.select("foo")
 foo.assign(":action", action=store_true)
 bar = foo.assign("bar", help_text="bar").select("bar")

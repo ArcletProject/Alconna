@@ -2,7 +2,7 @@ import pytest
 
 from typing import Union
 
-from nepattern import INTEGER, BasePattern, MatchMode, combine
+from nepattern import INTEGER, Pattern, combine
 
 from arclet.alconna import Args, Arg, ArgsBase, arg_field
 from devtool import analyse_args
@@ -145,7 +145,7 @@ def test_kwonly():
 
 
 def test_pattern():
-    test_type = BasePattern("(.+?).py", MatchMode.REGEX_CONVERT, list, lambda _, x: x[1].split("/"), "test")
+    test_type = Pattern.regex_convert("(.+?).py", list, lambda mat: mat[1].split("/"), "test")
     arg15 = Args.bar(test_type)
     assert analyse_args(arg15, ["abc.py"]) == {"bar": ["abc"]}
     assert analyse_args(arg15, ["abc/def.py"]) == {"bar": ["abc", "def"]}
@@ -198,7 +198,7 @@ def test_func_anno():
 def test_annotated():
     from typing_extensions import Annotated
 
-    arg18 = Args.foo(Annotated[int, lambda x: x > 0]).bar(combine(INTEGER, validators=[lambda x: x < 0]))
+    arg18 = Args.foo(Annotated[int, lambda x: x > 0]).bar(combine(INTEGER, validator=lambda x: x < 0))
     assert analyse_args(arg18, ["123 -123"]) == {"foo": 123, "bar": -123}
     assert analyse_args(arg18, ["0 0"], raise_exception=False) != {"foo": 0, "bar": 0}
 

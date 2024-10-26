@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, Iterable, Literal
 
-from nepattern import ANY, STRING, AnyString, BasePattern
+from nepattern import ANY, STRING, AnyString, Pattern
 from tarina import Empty, lang, safe_eval, split_once
 
 from ..action import Action
@@ -53,7 +53,7 @@ def _context(argv: Argv, target: Arg[Any], _arg: str):
         )
 
 
-def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any, Any, Any], result: dict[str, Any], arg: Any, _str: bool):
+def _validate(argv: Argv, target: Arg[Any], value: Pattern[Any], result: dict[str, Any], arg: Any, _str: bool):
     _arg = arg
     if _str and argv.context_style:
         _arg = _context(argv, target, _arg)
@@ -64,13 +64,15 @@ def _validate(argv: Argv, target: Arg[Any], value: BasePattern[Any, Any, Any], r
         result[target.name] = str(_arg)
         return
     default_val = target.field.default
-    res = value.validate(_arg, default_val)
-    if res.flag != "valid":
+    res = value.execute(_arg)
+    if res._value is Empty:
         argv.rollback(arg)
-    if res.flag == "error":
+        if default_val is not Empty:
+            result[target.name] = default_val
+            return
         if target.field.optional:
             return
-        raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]), target)
+        raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]), target)  # type: ignore
     result[target.name] = res._value  # noqa
 
 
@@ -96,7 +98,7 @@ def step_varpos(argv: Argv, args: _Args, slot: tuple[int | Literal["+", "*", "st
         if _str and args.vars_keyword and args.vars_keyword[0][1].field.kw_sep in may_arg:
             argv.rollback(may_arg)
             break
-        if (res := value.validate(may_arg)).flag != "valid":
+        if not (res := value.execute(may_arg)).success:
             argv.rollback(may_arg)
             break
         _result.append(res._value)  # noqa
@@ -140,7 +142,7 @@ def step_varkey(argv: Argv, slot: tuple[int | Literal["+", "*", "str"], Arg], re
         key = _kwarg[1]
         if not (_m_arg := _kwarg[2]):
             _m_arg, _ = argv.next(arg.field.seps)
-        if (res := value.validate(_m_arg)).flag != "valid":
+        if not (res := value.execute(_m_arg)).success:
             argv.rollback(may_arg)
             break
         _result[key] = res._value  # noqa
@@ -185,7 +187,7 @@ def step_keyword(argv: Argv, args: _Args, result: dict[str, Any]):
             ):
                 break
             for arg in args.keyword_only.values():
-                if arg.type_.validate(may_arg).flag == "valid":
+                if arg.type_.execute(may_arg).success:
                     raise InvalidParam(lang.require("args", "key_missing").format(target=may_arg, key=arg.name), arg)
             for name in args.keyword_only:
                 if levenshtein(_key, name) >= argv.fuzzy_threshold:
@@ -253,7 +255,7 @@ def analyse_args(argv: Argv, args: _Args) -> dict[str, Any]:
             else:
                 data = [
                     d for d in argv.release(no_split=True)
-                    if (res := value.validate(d)).flag == "valid" or (not value.ignore and _raise(arg, d, res))
+                    if (res := value.execute(d)).success or (not value.ignore and _raise(arg, d, res))
                 ]
                 result[arg.name] = argv.converter(data)
             argv.current_index = argv.ndata

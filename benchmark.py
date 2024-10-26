@@ -32,7 +32,7 @@ with namespace("test") as np:
     alc = Alconna(
         ["."],
         "test",
-        Args["bar", ANY]
+        Args.bar(ANY)
     )
 
 analyser = command_manager.require(alc)

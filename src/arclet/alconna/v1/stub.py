@@ -6,7 +6,7 @@ from inspect import isclass
 from typing import Any, Generic, TypeVar
 from typing_extensions import Self, deprecated
 
-from nepattern import ANY, BasePattern
+from nepattern import ANY, Pattern
 
 from arclet.alconna.args import _Args
 from arclet.alconna.base import Option, Subcommand, OptionResult, SubcommandResult
@@ -53,7 +53,7 @@ class ArgsStub(BaseStub[_Args]):
             key = arg.name
             if arg.type_ in (AllParam, ANY):
                 self.__annotations__[key] = Any
-            elif isinstance(arg.type_, BasePattern):
+            elif isinstance(arg.type_, Pattern):
                 self.__annotations__[key] = arg.type_.origin
             else:
                 self.__annotations__[key] = arg.type_

@@ -12,7 +12,7 @@ from .model.fragment import _Fragment
 from .some import Some
 
 if TYPE_CHECKING:
-    from nepattern import BasePattern
+    from nepattern import Pattern
 
 
 @dataclass(**safe_dcls_kw(slots=True))
@@ -62,14 +62,14 @@ class Fragment(_Fragment):
         
         return self
 
-    def apply_nepattern(self, pat: BasePattern | None = None, capture_mode: bool = False):
+    def apply_nepattern(self, pat: Pattern | None = None, capture_mode: bool = False):
         if pat is None:
             if self.type is None:
                 return self
 
-            from nepattern import BasePattern
+            from nepattern import parser
 
-            pat = BasePattern.to(self.type.value)
+            pat = parser(self.type.value)
             assert pat is not None
 
         def _validate(v: Segment):
@@ -78,7 +78,7 @@ class Fragment(_Fragment):
                     v = str(v)
                 else:
                     v = v.ref[0]
-            return pat.validate(v).success
+            return pat.execute(v).success
 
         self.validator = _validate
         if self.cast:
@@ -90,7 +90,7 @@ class Fragment(_Fragment):
                     else:
                         v = v.ref[0]
 
-                return pat.validate(v).value()
+                return pat.execute(v).value()
 
             self.transformer = _transform
         return self

@@ -8,7 +8,7 @@ import typing
 from typing import Any, Callable, Generic, Literal, TypeVar, ClassVar, ForwardRef, Final, TYPE_CHECKING, get_origin, get_args
 from typing_extensions import dataclass_transform, ParamSpec, Concatenate, TypeAlias
 
-from nepattern import NONE, BasePattern, RawStr, UnionPattern, parser
+from nepattern import NONE, Pattern, RawStr, UnionPattern, parser
 from tarina import Empty, lang
 
 from ._dcls import safe_dcls_kw, safe_field_kw
@@ -105,7 +105,7 @@ class Arg(Generic[_T]):
 
     name: str = dc.field(compare=True, hash=True)
     """参数单元的名称"""
-    type_: BasePattern[_T, Any, Any] = dc.field(compare=False, hash=True)
+    type_: Pattern[_T] = dc.field(compare=False, hash=True)
     """参数单元的类型"""
     field: Field[_T] = dc.field(compare=False, hash=False)
     """参数单元的字段"""

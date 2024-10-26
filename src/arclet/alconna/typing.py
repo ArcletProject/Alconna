@@ -21,7 +21,7 @@ from typing import (
 )
 from typing_extensions import TypeAlias
 
-from nepattern import BasePattern, MatchFailed, MatchMode
+from nepattern import Pattern, MatchFailed
 from tarina import generic_isinstance, lang
 
 
@@ -66,15 +66,15 @@ class DataCollection(Protocol[DataUnit]):
 TDC = TypeVar("TDC", bound=DataCollection[Any])
 T = TypeVar("T")
 T1 = TypeVar("T1")
-TAValue: TypeAlias = Union[BasePattern[T, Any, Any], Type[T], T, Callable[..., T], Dict[Any, T], List[T]]
+TAValue: TypeAlias = Union[Pattern[T], Type[T], T, Callable[..., T], Dict[Any, T], List[T]]
 
 
 @final
-class _AllParamPattern(BasePattern[T, T, Literal[MatchMode.KEEP]], Generic[T]):
+class _AllParamPattern(Pattern[T]):
     def __init__(self, types: tuple[type[T1], ...] = (), ignore: bool = True):
         self.types = types
         self.ignore = ignore
-        super().__init__(mode=MatchMode.KEEP, origin=Any, alias="*")
+        super().__init__(alias="*")
 
     def match(self, input_: Any) -> Any:  # pragma: no cover
         if not self.types:
@@ -96,14 +96,14 @@ class _AllParamPattern(BasePattern[T, T, Literal[MatchMode.KEEP]], Generic[T]):
     def __call__(self, *types: type[T1], ignore: bool = True) -> _AllParamPattern[T1]:
         return _AllParamPattern(types, ignore)
 
-    def __calc_eq__(self, other):  # pragma: no cover
+    def __eq__(self, other):  # pragma: no cover
         return other.__class__ is _AllParamPattern
 
 
 AllParam: _AllParamPattern[Any] = _AllParamPattern()
 
 
-class KWBool(BasePattern):
+class KWBool(Pattern):
     """对布尔参数的包装"""
 
 

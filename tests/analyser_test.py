@@ -3,7 +3,7 @@ from typing import Union
 from collections import UserList
 
 import pytest
-from nepattern import BasePattern, MatchMode
+from nepattern import Pattern
 
 from arclet.alconna import Alconna, Args, Option
 from arclet.alconna.ingedia._argv import argv_config, reset_argv_config
@@ -34,12 +34,7 @@ class Segment:
 
 
 def gen_unit(type_: str):
-    return BasePattern(
-        mode=MatchMode.VALUE_OPERATE,
-        origin=Segment,
-        converter=lambda _, seg: seg if seg.type == type_ else None,
-        alias=type_,
-    )
+    return Pattern(Segment, type_).convert(lambda _, seg: seg if seg.type == type_ else None)
 
 
 Face = gen_unit("face")
