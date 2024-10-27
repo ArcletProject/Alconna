@@ -4,7 +4,7 @@ import traceback
 from collections import namedtuple
 from typing import Any, Literal
 
-from arclet.alconna.ingedia._analyser import Analyser, default_compiler
+from arclet.alconna.ingedia._analyser import Analyser
 from arclet.alconna.ingedia._handlers import analyse_header as alh
 from arclet.alconna.ingedia._handlers import analyse_args as ala
 from arclet.alconna.ingedia._handlers import analyse_option as alo
@@ -95,7 +95,7 @@ def analyse_option(
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(option)
-    default_compiler(_analyser)
+    _analyser.compile()
     argv.stack_params.base = _analyser.compile_params
     _analyser.command.options.clear()
     try:
@@ -123,7 +123,7 @@ def analyse_subcommand(
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(subcommand)
-    default_compiler(_analyser)
+    _analyser.compile()
     argv.stack_params.base = _analyser.compile_params
     _analyser.command.options.clear()
     try:

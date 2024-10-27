@@ -9,6 +9,7 @@ from typing_extensions import NotRequired, TypeAlias
 
 from .exceptions import ArgumentMissing, ParamsUnmatched
 
+
 class _ShortcutRegWrapper(Protocol):
     def __call__(self, slot: int | str, content: str | None, context: dict[str, Any]) -> Any: ...
 

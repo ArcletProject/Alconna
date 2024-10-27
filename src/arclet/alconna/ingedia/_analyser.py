@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable
-from typing_extensions import Self, TypeAlias
+from typing import TYPE_CHECKING, Any
+from typing_extensions import Self
 
 from tarina import Empty, lang
 
@@ -33,31 +33,6 @@ from ._util import levenshtein
 if TYPE_CHECKING:
     from ..core import Alconna
     from ._argv import Argv
-
-
-def default_compiler(analyser: SubAnalyser):
-    """默认的编译方法
-
-    _Args:
-        analyser (SubAnalyser): 任意子解析器
-    """
-    for opts in analyser.command.options:
-        if isinstance(opts, Option):
-            if opts.compact or opts.action.type == 2 or not set(analyser.command.separators).issuperset(opts.separators):  # noqa: E501
-                analyser.compact_params.append(opts)
-            for alias in opts.aliases:
-                analyser.compile_params[alias] = opts
-            if opts.default is not Empty:
-                analyser.default_opt_result[opts.dest] = (opts.default, opts.action)
-        elif isinstance(opts, Subcommand):
-            sub = SubAnalyser(opts)
-            for alias in opts.aliases:
-                analyser.compile_params[alias] = sub
-            default_compiler(sub)
-            if not set(analyser.command.separators).issuperset(opts.separators):
-                analyser.compact_params.append(sub)
-            if sub.command.default is not Empty:
-                analyser.default_sub_result[opts.dest] = sub.command.default
 
 
 @dataclass
@@ -180,6 +155,26 @@ class SubAnalyser:
         argv.stack_params.leave()
         return self
 
+    def compile(self):
+        """默认的编译方法"""
+        for opts in self.command.options:
+            if isinstance(opts, Option):
+                if opts.compact or opts.action.type == 2 or not set(self.command.separators).issuperset(opts.separators):  # noqa: E501
+                    self.compact_params.append(opts)
+                for alias in opts.aliases:
+                    self.compile_params[alias] = opts
+                if opts.default is not Empty:
+                    self.default_opt_result[opts.dest] = (opts.default, opts.action)
+            elif isinstance(opts, Subcommand):
+                sub = SubAnalyser(opts)
+                for alias in opts.aliases:
+                    self.compile_params[alias] = sub
+                sub.compile()
+                if not set(self.command.separators).issuperset(opts.separators):
+                    self.compact_params.append(sub)
+                if sub.command.default is not Empty:
+                    self.default_sub_result[opts.dest] = sub.command.default
+
 
 class Analyser(SubAnalyser):
     """命令解析器"""
@@ -189,18 +184,17 @@ class Analyser(SubAnalyser):
     argv: Argv
     """命令行参数"""
 
-    def __init__(self, alconna: Alconna, argv: Argv, compiler: TCompile | None = None):
+    def __init__(self, alconna: Alconna, argv: Argv):
         """初始化解析器
 
         _Args:
             alconna (Alconna): 命令实例
             argv (Argv): 命令行参数
-            compiler (TCompile | None, optional): 编译器方法
         """
         super().__init__(alconna)
         self.argv = argv
         self.extra_allow = not self.command.config.strict
-        (compiler or default_compiler)(self)
+        self.compile()
         self.argv.stack_params.base = self.compile_params
 
     def __repr__(self):
@@ -232,7 +226,7 @@ class Analyser(SubAnalyser):
                 if isinstance(e1, InvalidParam):
                     argv.free(e1.context_node.separators if e1.context_node else None)
                 return PauseTriggered(
-                    prompt(self.command, argv, [*self.args_result.keys()], [*self.options_result.keys(), *self.subcommands_result.keys()], e1.context_node),
+                    prompt(self.command, argv.release(recover=True), [*self.args_result.keys()], [*self.options_result.keys(), *self.subcommands_result.keys()], e1.context_node),
                     e1,
                     argv
                 )
@@ -260,7 +254,7 @@ class Analyser(SubAnalyser):
             )
             if comp_ctx.get(None):
                 return PauseTriggered(
-                    prompt(self.command, argv, [*self.args_result.keys()], [*self.options_result.keys(), *self.subcommands_result.keys()]),
+                    prompt(self.command, argv.release(recover=True), [*self.args_result.keys()], [*self.options_result.keys(), *self.subcommands_result.keys()]),
                     exc,
                     argv
                 )
@@ -305,6 +299,3 @@ class Analyser(SubAnalyser):
             command_manager.record(argv.token, result)
         self.reset()
         return result  # type: ignore
-
-
-TCompile: TypeAlias = Callable[[SubAnalyser], None]

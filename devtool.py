@@ -4,7 +4,7 @@ import traceback
 from collections import namedtuple
 from typing import Any, Literal
 
-from arclet.alconna.ingedia._analyser import Analyser, default_compiler
+from arclet.alconna.ingedia._analyser import Analyser
 from arclet.alconna.ingedia._handlers import analyse_header as alh
 from arclet.alconna.ingedia._handlers import analyse_args as ala
 from arclet.alconna.ingedia._handlers import analyse_option as alo
@@ -61,7 +61,7 @@ def analyse_args(
 def analyse_header(
     headers: list[str | Any] | list[tuple[Any, str]],
     command_name: str,
-    command: DataCollection[str | Any],
+    command: list[str | Any],
     sep: str = " ",
     compact: bool = False,
     raise_exception: bool = True,
@@ -83,7 +83,7 @@ def analyse_header(
 
 def analyse_option(
     option: Option,
-    command: DataCollection[str | Any],
+    command: list[str | Any],
     raise_exception: bool = True,
     context_style: Literal["bracket", "parentheses"] | None = None,
     **kwargs,
@@ -95,7 +95,7 @@ def analyse_option(
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(option)
-    default_compiler(_analyser)
+    _analyser.compile()
     argv.stack_params.base = _analyser.compile_params
     _analyser.command.options.clear()
     try:
@@ -111,7 +111,7 @@ def analyse_option(
 
 def analyse_subcommand(
     subcommand: Subcommand,
-    command: DataCollection[str | Any],
+    command: list[str | Any],
     raise_exception: bool = True,
     context_style: Literal["bracket", "parentheses"] | None = None,
     **kwargs,
@@ -123,7 +123,7 @@ def analyse_subcommand(
     _analyser.command.separators = " "
     _analyser.need_main_args = False
     _analyser.command.options.append(subcommand)
-    default_compiler(_analyser)
+    _analyser.compile()
     argv.stack_params.base = _analyser.compile_params
     _analyser.command.options.clear()
     try:

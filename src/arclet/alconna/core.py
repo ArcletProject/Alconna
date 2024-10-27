@@ -13,7 +13,7 @@ from weakref import WeakSet
 from nepattern import TPattern
 from tarina import init_spec, lang, Empty
 
-from .ingedia._analyser import Analyser, TCompile
+from .ingedia._analyser import Analyser
 from .ingedia._handlers import handle_head_fuzzy, analyse_header
 from .ingedia._argv import Argv, __argv_type__
 from .args import Arg, ArgsBuilder, ArgsBase, Args, ArgsMeta, handle_args
@@ -105,7 +105,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
                 trigger = arp.error_info.context_node
             if res := prompt(
                 command,
-                argv,
+                argv.release(recover=True),
                 list(arp.main_args.keys()),
                 [*arp.options.keys(), *arp.subcommands.keys()],
                 trigger
@@ -208,14 +208,14 @@ class Alconna(Subcommand):
     behaviors: list[ArparmaBehavior]
     """命令行为器"""
 
-    def compile(self, compiler: TCompile | None = None) -> Analyser:
+    def compile(self) -> Analyser:
         """编译 `Alconna` 为对应的解析器"""
         if TYPE_CHECKING:
             argv_type = Argv
         else:
             argv_type: type[Argv] = __argv_type__.get()
         argv = argv_type(self.config, self.namespace_config, self.separators)
-        return Analyser(self, argv, compiler)
+        return Analyser(self, argv)
 
     def __init__(
         self,

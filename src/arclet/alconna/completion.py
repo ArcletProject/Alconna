@@ -12,7 +12,6 @@ from .base import Subcommand, SPECIAL_OPTIONS, Option
 from .args import Arg
 
 if TYPE_CHECKING:
-    from .ingedia._argv import Argv
     from .core import Alconna
 
 
@@ -243,12 +242,11 @@ def _prompt_none(command: Alconna, args_got: list[str], opts_got: list[str]):
     return res
 
 
-def prompt(command: Alconna, argv: Argv, args_got: list[str], opts_got: list[str], trigger: str | Arg | Subcommand | None = None):
+def prompt(command: Alconna, buffer: list, args_got: list[str], opts_got: list[str], trigger: str | Arg | Subcommand | None = None):
     """获取补全列表"""
-    releases = argv.release(recover=True)
-    target = str(releases[-1])
-    if isinstance(releases[-1], str) and releases[-1] in command.config.builtin_option_name["completion"]:
-        target = str(releases[-2])
+    target = str(buffer[-1])
+    if isinstance(buffer[-1], str) and buffer[-1] in command.config.builtin_option_name["completion"]:
+        target = str(buffer[-2])
     if isinstance(trigger, Arg):
         if not (comp := trigger.field.get_completion()):
             return [Prompt(command.formatter.param(trigger), False)]
@@ -257,10 +255,10 @@ def prompt(command: Alconna, argv: Argv, args_got: list[str], opts_got: list[str
         o = list(filter(lambda x: target in x, comp)) or comp
         return [Prompt(f"{trigger.name}: {i}", False, target) for i in o]
     elif isinstance(trigger, Subcommand):
-        return [Prompt(i) for i in argv.stack_params.stack[-1]]
+        return [Prompt(i, True) for opt in trigger.options for i in opt.aliases if target in i]
     if isinstance(trigger, str):
         target = trigger
-    if _res := list(filter(lambda x: target in x, argv.stack_params.base)):
+    if _res := [x for opt in command.options for x in opt.aliases if target in x]:
         out = [i for i in _res if i not in opts_got]
         return [Prompt(i, True, target) for i in (out or _res)]
     return _prompt_none(command, args_got, opts_got)
