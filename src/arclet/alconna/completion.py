@@ -255,10 +255,10 @@ def prompt(command: Alconna, buffer: list, args_got: list[str], opts_got: list[s
         o = list(filter(lambda x: target in x, comp)) or comp
         return [Prompt(f"{trigger.name}: {i}", False, target) for i in o]
     elif isinstance(trigger, Subcommand):
-        return [Prompt(i, True) for opt in trigger.options for i in opt.aliases if target in i]
+        return [Prompt(i, True) for i in trigger._lookup_map if target in i]
     if isinstance(trigger, str):
         target = trigger
-    if _res := [x for opt in command.options for x in opt.aliases if target in x]:
+    if _res := [x for x in command._lookup_map if target in x]:
         out = [i for i in _res if i not in opts_got]
         return [Prompt(i, True, target) for i in (out or _res)]
     return _prompt_none(command, args_got, opts_got)

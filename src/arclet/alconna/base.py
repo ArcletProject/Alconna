@@ -402,6 +402,8 @@ class Subcommand(CommandNode):
     """子命令默认值"""
     options: list[Option | Subcommand]
     """子命令包含的选项与子命令"""
+    _lookup_map: dict[str, Option | Subcommand]
+    """子命令选项与子命令的查找表"""
 
     def __init__(
         self,
@@ -451,6 +453,7 @@ class Subcommand(CommandNode):
         if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.data if arg.field.default is not Empty}):
             self.default = SubcommandResult(args=defaults)
         self._hash = self._calc_hash()
+        self._lookup_map = {al: opt for opt in self.options for al in opt.aliases}
 
     def __add__(self, other: Option | ARGS_PARAM | str) -> Self:
         """连接子命令与命令选项或命令节点

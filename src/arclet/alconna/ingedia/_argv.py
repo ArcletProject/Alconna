@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import InitVar, dataclass, field, fields
-from typing import Any, Callable, ClassVar, Generic, Iterable, Literal, TYPE_CHECKING
+from typing import Any, Callable, ClassVar, Generic, Iterable, Literal
 from typing_extensions import Self
 from contextvars import ContextVar
 from tarina import lang, split, split_once
 
-from ..base import Option, Config
+from ..base import Option, Subcommand, Config
 from ..config import Namespace, global_config
 from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
 from ..typing import TDC
 from ._util import ChainMap
-
-if TYPE_CHECKING:
-    from ._analyser import SubAnalyser
 
 
 @dataclass(repr=True)
@@ -51,7 +48,7 @@ class Argv(Generic[TDC]):
 
     current_index: int = field(init=False)
     """当前数据的索引"""
-    stack_params: ChainMap[SubAnalyser | Option] = field(init=False, default_factory=lambda: ChainMap())
+    stack_params: ChainMap[Subcommand | Option] = field(init=False, default_factory=lambda: ChainMap())
     error: Exception | None = field(init=False)
     ndata: int = field(init=False)
     """原始数据的长度"""
