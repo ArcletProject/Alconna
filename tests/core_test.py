@@ -14,7 +14,8 @@ from arclet.alconna import (
     Metadata,
     Option,
     Subcommand,
-    namespace, command_manager,
+    namespace,
+    command_manager,
 )
 
 
@@ -724,6 +725,9 @@ def test_completion_interface():
 def test_call():
     from dataclasses import dataclass
     from arclet.alconna import ArgsBase
+    from arclet.alconna.completion import comp_ctx
+
+    comp_ctx.set(None)  # type: ignore
 
     alc22 = Alconna("core22", Args.foo(int), Args.bar(str))
     alc22("core22 123 abc")
@@ -852,7 +856,7 @@ def test_default():
 
     res2 = alc25.parse("core25 bar")
     assert res2.query("foo.value") == 423
-    assert res2.query("bar.baz") == 321
+    assert res2.query("bar.baz") is None
     assert res2.query("bar.qux") == 1.0
 
     res3 = alc25.parse("core25 --foo")
@@ -882,7 +886,7 @@ def test_default():
 
     res5 = alc25_2.parse("core25_2")
     assert res5.query("foo.value") == [423]
-    assert res5.query("test.bar.value") is None
+    assert res5.query("test.bar.value") is False
 
     res6 = alc25_2.parse("core25_2 --foo test")
     assert res6.query("foo.value") == [423]
@@ -916,13 +920,13 @@ def test_conflict():
     )
     res1 = core26.parse("core26 --foo bar --bar")
     assert res1.matched
-    assert res1.find("options.bar")
+    assert res1.find("bar")
 
     assert not core26.parse("core26 --foo --bar").matched
     res2 = core26.parse("core26 --foo --bar1")
     assert res2.matched
     assert res2.query[str]("foo.bar") == "--bar1"
-    assert not res2.find("options.bar1")
+    assert not res2.find("bar1")
 
     res3 = core26.parse("core26 --foo bar --baz qux")
     assert res3.matched
@@ -931,9 +935,9 @@ def test_conflict():
 
     res4 = core26.parse("core26 --baz --qux")
     assert res4.matched
-    assert res4.find("options.baz")
+    assert res4.find("baz")
     assert res4.query[str]("baz.qux", "unknown") == "unknown"
-    assert res4.find("options.qux")
+    assert res4.find("qux")
 
     core26_1 = Alconna(
         "core26_1",
@@ -945,7 +949,7 @@ def test_conflict():
     res5 = core26_1.parse("core26_1 --foo 123 --bar")
     assert res5.matched
     assert res5.query[int]("foo.bar") == 123
-    assert res5.find("options.bar")
+    assert res5.find("bar")
 
     res6 = core26_1.parse("core26_1 --foo --bar")
     assert not res6.matched

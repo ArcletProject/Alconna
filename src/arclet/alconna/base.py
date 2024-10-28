@@ -11,7 +11,7 @@ from typing_extensions import Self
 from tarina import Empty, lang
 
 from .action import Action, store
-from .args import ARGS_PARAM, Arg, ArgsBase, ArgsMeta, ArgsBuilder, _Args, handle_args
+from .args import ARGS_PARAM, Arg, ArgsBase, ArgsBuilder, _Args, handle_args
 from .exceptions import InvalidArgs
 from .typing import Unset, UNSET
 

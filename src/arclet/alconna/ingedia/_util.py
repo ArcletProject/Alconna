@@ -1,36 +1,3 @@
-from typing import Generic, TypeVar, Optional
-
-T = TypeVar("T")
-
-
-class ChainMap(Generic[T]):
-    def __init__(self, base: Optional[dict[str, T]] = None, *maps: dict[str, T]):
-        self.base: dict[str, T] = base or {}
-        self.stack: "list[dict[str, T]]" = list(maps)
-
-    def enter(self, map: dict):
-        self.stack.insert(0, map)
-
-    def __contains__(self, item: str):
-        return item in self.base or any(item in m for m in self.stack)
-
-    def __getitem__(self, item: str) -> T:
-        for m in self.stack:
-            if item in m:
-                return m[item]
-        if item in self.base:
-            return self.base[item]
-        raise KeyError(item)
-
-    def parents(self):
-        if not self.stack:
-            return ChainMap()
-        return ChainMap(self.base, *self.stack[1:])
-
-    def leave(self):
-        self.stack.pop(0)
-
-
 def levenshtein(source: str, target: str) -> float:
     """`编辑距离算法`_, 计算源字符串与目标字符串的相似度, 取值范围[0, 1], 值越大越相似
 

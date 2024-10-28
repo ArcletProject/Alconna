@@ -41,14 +41,14 @@ Face = gen_unit("face")
 At = gen_unit("at")
 
 
-def test_filter_out():
-    argv_config(filter_out=[int])
-    ana = Alconna("ana", Args.foo(str))
-    assert ana.parse(["ana", 123, "bar"]).matched is True
-    assert ana.parse("ana bar").matched is True
-    reset_argv_config()
-    ana_1 = Alconna("ana", Args.foo(str))
-    assert ana_1.parse(["ana", 123, "bar"]).matched is False
+# def test_filter_out():
+#     argv_config(filter_out=[int])
+#     ana = Alconna("ana", Args.foo(str))
+#     assert ana.parse(["ana", 123, "bar"]).matched is True
+#     assert ana.parse("ana bar").matched is True
+#     reset_argv_config()
+#     ana_1 = Alconna("ana", Args.foo(str))
+#     assert ana_1.parse(["ana", 123, "bar"]).matched is False
 
 
 def test_preprocessor():

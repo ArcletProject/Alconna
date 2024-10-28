@@ -6,12 +6,11 @@ from typing_extensions import Self
 from contextvars import ContextVar
 from tarina import lang, split, split_once
 
-from ..base import Option, Subcommand, Config
+from ..base import Config
 from ..config import Namespace, global_config
 from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
 from ..typing import TDC
-from ._util import ChainMap
 
 
 @dataclass(repr=True)
@@ -26,8 +25,6 @@ class Argv(Generic[TDC]):
 
     preprocessors: dict[type, Callable[..., Any]] = field(default_factory=dict)
     """命令元素的预处理器"""
-    filter_out: list[type] = field(default_factory=list)
-    """需要过滤掉的命令元素"""
     checker: Callable[[Any], bool] | None = field(default=None)
     """检查传入命令"""
 
@@ -48,7 +45,7 @@ class Argv(Generic[TDC]):
 
     current_index: int = field(init=False)
     """当前数据的索引"""
-    stack_params: ChainMap[Subcommand | Option] = field(init=False, default_factory=lambda: ChainMap())
+    soft_kws: dict[tuple[str, ...], dict[str, bool]] = field(init=False, default_factory=dict)
     error: Exception | None = field(init=False)
     ndata: int = field(init=False)
     """原始数据的长度"""
@@ -70,7 +67,6 @@ class Argv(Generic[TDC]):
         self.compile(conf)
         if __cache := self.__class__._cache.get(self.__class__, {}):
             self.preprocessors.update(__cache.get("preprocessors") or {})
-            self.filter_out.extend(__cache.get("filter_out") or [])
             self.to_text = __cache.get("to_text") or self.to_text
             self.checker = __cache.get("checker") or self.checker
             self.converter = __cache.get("converter") or self.converter
@@ -91,7 +87,6 @@ class Argv(Generic[TDC]):
         self.bak_data = []
         self.raw_data = []
         self.error = None
-        self.stack_params.stack = []
         self.token = 0
         self.origin = "None"  # type: ignore
         self._sep = None
@@ -122,9 +117,7 @@ class Argv(Generic[TDC]):
         i = 0
         raw_data = self.raw_data
         for unit in data:
-            if (utype := unit.__class__) in self.filter_out:
-                continue
-            if (proc := self.preprocessors.get(utype)) and (res := proc(unit)):
+            if (proc := self.preprocessors.get(unit.__class__)) and (res := proc(unit)):
                 unit = res
             if (text := self.to_text(unit)) is None:
                 raw_data.append(unit)
@@ -293,7 +286,6 @@ def argv_config(
     target: type[Argv] | None = None,
     preprocessors: dict[type, Callable[..., Any]] | None = None,
     to_text: Callable[[Any], str | None] | None = None,
-    filter_out: list[type] | None = None,
     checker: Callable[[Any], bool] | None = None,
     converter: Callable[[str | list], TDC] | None = None,
 ):
@@ -303,7 +295,6 @@ def argv_config(
         target (type[Argv] | None, optional): 目标命令类型.
         preprocessors (dict[type, Callable[..., Any]] | None, optional): 命令元素的预处理器.
         to_text (Callable[[Any], str | None] | None, optional): 将命令元素转换为文本, 或者返回None以跳过该元素.
-        filter_out (list[type] | None, optional): 需要过滤掉的命令元素.
         checker (Callable[[Any], bool] | None, optional): 检查传入命令.
         converter (Callable[[str | list], TDC] | None, optional): 将字符串或列表转为目标命令类型.
     """

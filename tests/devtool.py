@@ -8,9 +8,10 @@ from arclet.alconna.ingedia._analyser import Analyser
 from arclet.alconna.ingedia._handlers import analyse_header as alh
 from arclet.alconna.ingedia._handlers import analyse_args as ala
 from arclet.alconna.ingedia._handlers import analyse_option as alo
+from arclet.alconna.ingedia._handlers import analyse_subcommand as als
 from arclet.alconna.args import ARGS_PARAM, handle_args
 from arclet.alconna.ingedia._argv import Argv
-from arclet.alconna.base import Option, Subcommand, Header, Config
+from arclet.alconna.base import Option, Subcommand, Header, Config, OptionResult, SubcommandResult
 from arclet.alconna.config import Namespace
 from arclet.alconna.typing import DataCollection
 
@@ -30,11 +31,17 @@ class _DummyAnalyser(Analyser):
         config = namedtuple("Config", ["keep_crlf", "fuzzy_match", "raise_exception"])(False, False, True)
         namespace_config = dev_space
 
+        @property
+        def _lookup_map(self):
+            return {al: opt for opt in self.options for al in opt.aliases}
+
     def __new__(cls, *args, **kwargs):
         cls.command = cls._DummyALC()  # type: ignore
-        cls.compile_params = {}
         cls.compact_params = []
-        cls.default_opt_result = {}
+        cls.default_value_result = {}
+        cls.default_main_only = {}
+        cls.need_main_args = {}
+        cls.args_result = {}
         return super().__new__(cls)
 
 
@@ -51,6 +58,7 @@ def analyse_args(
         argv.enter(kwargs)
         argv.build(["test"] + command)
         argv.next()
+        argv.soft_kws[()] = {}
         return ala(argv, handle_args(args))
     except Exception as e:
         if raise_exception:
@@ -93,16 +101,16 @@ def analyse_option(
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = " "
-    _analyser.need_main_args = False
+    _analyser.need_main_args[(option.dest,)] = False
+    _analyser.default_main_only[(option.dest,)] = False
     _analyser.command.options.append(option)
-    _analyser.compile()
-    argv.stack_params.base = _analyser.compile_params
+    argv.soft_kws[()] = {al: option.soft_keyword for al in option.aliases}
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
         argv.build(command)
-        alo(_analyser, argv, option, False)
-        return _analyser.options_result[option.dest]
+        alo(_analyser, option, argv, (), False)
+        return OptionResult(_analyser.value_result[(option.dest,)], _analyser.args_result[(option.dest,)])
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -121,15 +129,20 @@ def analyse_subcommand(
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = " "
-    _analyser.need_main_args = False
+    _analyser.need_main_args[(subcommand.dest,)] = False
+    _analyser.default_main_only[(subcommand.dest,)] = False
     _analyser.command.options.append(subcommand)
-    _analyser.compile()
-    argv.stack_params.base = _analyser.compile_params
+    argv.soft_kws[()] = {al: subcommand.soft_keyword for al in subcommand.aliases}
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
         argv.build(command)
-        return _analyser.compile_params[subcommand.name].process(argv, False).result()  # type: ignore
+        als(_analyser, subcommand, argv, (subcommand.dest,), False)
+        res = SubcommandResult(..., _analyser.args_result.get((subcommand.dest,)))
+        for k, v in _analyser.value_result.items():
+            if len(k) > 1 and k[0] == subcommand.dest:
+                res.subcommands[k[1]] = SubcommandResult(v, _analyser.args_result.get(k))
+        return res
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

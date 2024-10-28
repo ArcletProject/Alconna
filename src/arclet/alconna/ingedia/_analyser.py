@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
-from typing_extensions import Self
 
 from tarina import Empty, lang
 
 from ..action import Action
-from ..args import _Args
 from ..arparma import Arparma
-from ..base import Option, Subcommand, HeadResult, OptionResult, SubcommandResult
+from ..base import Option, Subcommand, HeadResult, SubcommandResult
 from ..completion import comp_ctx, prompt
 from ..exceptions import (
     ArgumentMissing,
@@ -27,157 +24,36 @@ from ._handlers import (
     analyse_args,
     analyse_param,
 )
-from ._util import levenshtein
 
 if TYPE_CHECKING:
     from ..core import Alconna
     from ._argv import Argv
 
-#
-# @dataclass
-# class SubAnalyser:
-#     """子解析器, 用于子命令的解析"""
-#
-#     command: Subcommand
-#     """子命令"""
-#     default_main_only: bool = field(default=False)
-#     """命令是否只有主参数"""
-#     need_main_args: bool = field(default=False)
-#     """是否需要主参数"""
-#     compile_params: dict[str, Option | SubAnalyser] = field(default_factory=dict)
-#     """编译的节点"""
-#     compact_params: list[Option | SubAnalyser] = field(default_factory=list)
-#     """可能紧凑的需要逐个解析的节点"""
-#     self_args: _Args = field(init=False)
-#     """命令自身参数"""
-#     subcommands_result: dict[str, SubcommandResult] = field(init=False)
-#     """子命令的解析结果"""
-#     options_result: dict[str, OptionResult] = field(init=False)
-#     """选项的解析结果"""
-#     args_result: dict[str, Any] = field(init=False)
-#     """参数的解析结果"""
-#     header_result: HeadResult | None = field(init=False)
-#     """头部的解析结果"""
-#     value_result: Any = field(init=False)
-#     """值的解析结果"""
-#     default_opt_result: dict[str, tuple[OptionResult, Action]] = field(default_factory=dict)
-#     """默认选项的解析结果"""
-#     default_sub_result: dict[str, SubcommandResult] = field(default_factory=dict)
-#     """默认子命令的解析结果"""
-#     extra_allow: bool = field(default=False)
-#     """是否允许额外的参数"""
-#     soft_keyword: bool = field(default=False)
-#
-#     def _clr(self):
-#         """清除自身的解析结果"""
-#         self.reset()
-#         ks = list(self.__dict__.keys())
-#         for k in ks:
-#             delattr(self, k)
-#
-#     def __post_init__(self):
-#         self.reset()
-#         self.soft_keyword = self.command.soft_keyword
-#         self.__calc_args__()
-#
-#     def __calc_args__(self):
-#         self.self_args = self.command.args
-#         if self.command.nargs > 0 and self.command.nargs > self.self_args.optional_count:
-#             self.need_main_args = True  # 如果need_marg那么match的元素里一定得有main_argument
-#         _de_count = sum(arg.field.default is not Empty for arg in self.self_args.data)
-#         if _de_count and _de_count == self.command.nargs:
-#             self.default_main_only = True
-#
-#     def result(self) -> SubcommandResult:
-#         """生成子命令解析结果
-#
-#         Returns:
-#             SubcommandResult: 子命令解析结果
-#         """
-#         if self.default_opt_result:
-#             handle_opt_default(self.default_opt_result, self.options_result)
-#         if self.default_sub_result:
-#             for k, v in self.default_sub_result.items():
-#                 if k not in self.subcommands_result:
-#                     self.subcommands_result[k] = v
-#         res = SubcommandResult(self.value_result, self.args_result, self.options_result, self.subcommands_result)
-#         self.reset()
-#         return res
-#
-#     def reset(self):
-#         """重置解析器"""
-#         self.args_result = {}
-#         self.options_result = {}
-#         self.subcommands_result = {}
-#         self.value_result = None
-#         self.header_result = None
-#
-#     def process(self, argv: Argv, name_validated: bool = True) -> Self:
-#         """处理传入的参数集合
-#
-#         _Args:
-#             argv (Argv): 命令行参数
-#             name_validated (bool, optional): 是否已经验证过名称. Defaults to True.
-#
-#         Returns:
-#             Self: 自身
-#
-#         Raises:
-#             ParamsUnmatched: 名称不匹配
-#             FuzzyMatchSuccess: 模糊匹配成功
-#         """
-#         sub = self.command
-#         if not name_validated:
-#             name, _ = argv.next(sub.separators)
-#             if name not in sub.aliases:
-#                 argv.rollback(name)
-#                 if not argv.fuzzy_match:
-#                     raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
-#                 for al in sub.aliases:
-#                     if levenshtein(name, al) >= argv.fuzzy_threshold:
-#                         raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name), sub)
-#                 raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
-#
-#         # self.value_result = sub.action.value
-#         argv.stack_params.enter(self.compile_params)
-#         while analyse_param(self, argv, self.command.separators) and argv.current_index != argv.ndata:
-#             pass
-#         if self.default_main_only and not self.args_result:
-#             self.args_result = analyse_args(argv, self.self_args)
-#         if not self.args_result and self.need_main_args:
-#             raise ArgumentMissing(
-#                 self.self_args.data[0].field.get_missing_tips(
-#                     lang.require("subcommand", "args_missing").format(name=self.command.dest)
-#                 ),
-#                 sub
-#             )
-#         argv.stack_params.leave()
-#         return self
-#
 
-def _compile(ana: Analyser, sub: Subcommand, prefixes: tuple[str, ...]):
-    path = prefixes + (sub.dest,)
-    if sub.nargs > 0 and sub.nargs > sub.args.optional_count:
-        ana.need_main_args[path] = True
+def _compile(ana: Analyser, sub: Subcommand, path: tuple[str, ...], upper_soft_kws: dict[str, bool] | None = None):
+    ana.need_main_args[path] = sub.nargs > 0 and sub.nargs > sub.args.optional_count
     _de_count = sum(arg.field.default is not Empty for arg in sub.args.data)
-    if _de_count and _de_count == sub.nargs:
-        ana.default_main_only[path] = True
+    ana.default_main_only[path] = bool(_de_count) and _de_count == sub.nargs
+    ana.argv.soft_kws[path] = {al: opt.soft_keyword for opt in sub.options for al in opt.aliases} | (upper_soft_kws or {})
     for opt in sub.options:
         if isinstance(opt, Option):
             if opt.compact or opt.action.type == 2 or not set(sub.separators).issuperset(opt.separators):
-                ana.compact_params[path].append(opt)
+                ana.compact_params.setdefault(path, []).append(opt)
             if opt.default is not Empty:
                 ana.default_value_result[path + (opt.dest,)] = (opt.default.value, opt.action)
-                ana.default_arg_result[path + (opt.dest,)] = (opt.default.args, opt.action)
+                if opt.default.args:
+                    ana.default_arg_result[path + (opt.dest,)] = (opt.default.args, opt.action)
         else:
             if not set(sub.separators).issuperset(opt.separators):
-                ana.compact_params[path].append(opt)
+                ana.compact_params.setdefault(path, []).append(opt)
             if opt.default is not Empty:
-                ana.default_arg_result[path + (opt.dest,)] = (opt.default.args, opt.action)
+                if opt.default.args:
+                    ana.default_arg_result[path + (opt.dest,)] = (opt.default.args, opt.action)
                 for key, result in opt.default.options.items():
                     ana.default_value_result[path + (opt.dest, key)] = (result.value, opt.action)
-                    ana.default_arg_result[path + (opt.dest, key)] = (result.args, opt.action)
-            _compile(ana, opt, path)
+                    if result.args:
+                        ana.default_arg_result[path + (opt.dest, key)] = (result.args, opt.action)
+            _compile(ana, opt, path + (opt.dest,), ana.argv.soft_kws[path])
 
 
 class Analyser:
@@ -207,7 +83,6 @@ class Analyser:
         self.default_value_result: dict[tuple[str, ...], tuple[Any, Action]] = {}
         self.default_arg_result: dict[tuple[str, ...], tuple[dict[str, Any], Action]] = {}
         _compile(self, alconna, ())
-        self.argv.stack_params.base = self.command._lookup_map
 
     def _clr(self):
         """清除自身的解析结果"""
@@ -241,9 +116,8 @@ class Analyser:
                 exc = InvalidParam(lang.require("header", "error").format(target=argv.release(recover=True)[0]))
                 return exc
 
-        path = (self.command.dest,)
         try:
-            while analyse_param(self, self.command,argv, path) and argv.current_index != argv.ndata:
+            while analyse_param(self, self.command, argv, ()) and argv.current_index != argv.ndata:
                 pass
         except FuzzyMatchSuccess as e:
             return e
@@ -252,15 +126,15 @@ class Analyser:
                 if isinstance(e1, InvalidParam):
                     argv.free(e1.context_node.separators if e1.context_node else None)
                 return PauseTriggered(
-                    prompt(self.command, argv.release(recover=True), [*self.args_result.keys()], [*self.options_result.keys(), *self.subcommands_result.keys()], e1.context_node),
+                    prompt(self.command, argv.release(recover=True), [*self.args_result.get((), {}).keys()], [*self.value_result.keys()], e1.context_node),
                     e1,
                     argv
                 )
             return e1
 
-        if self.default_main_only and not self.args_result:
+        if self.default_main_only[()] and () not in self.args_result:
             try:
-                self.args_result[path] = analyse_args(argv, self.command.args)
+                self.args_result[()] = analyse_args(argv, self.command.args, ())
             except FuzzyMatchSuccess as e1:
                 return e1
             except AnalyseException as e2:
@@ -268,7 +142,7 @@ class Analyser:
                 if not argv.error:
                     argv.error = e2
 
-        if argv.current_index == argv.ndata and (not self.need_main_args or self.args_result):
+        if argv.current_index == argv.ndata and (not self.need_main_args[()] or () in self.args_result):
             return
 
         rest = argv.release()
@@ -280,7 +154,7 @@ class Analyser:
             )
             if comp_ctx.get(None):
                 return PauseTriggered(
-                    prompt(self.command, argv.release(recover=True), [*self.args_result.keys()], [*self.options_result.keys(), *self.subcommands_result.keys()]),
+                    prompt(self.command, argv.release(recover=True), [*self.args_result.get((), {}).keys()], [*self.value_result.keys()]),
                     exc,
                     argv
                 )
@@ -316,7 +190,7 @@ class Analyser:
                     self.value_result[path] = v[0]
         if self.default_arg_result:
             for path, v in self.default_arg_result.items():
-                if path not in self.args_result:
+                if path not in self.args_result or not self.args_result[path]:
                     if v[1].value == 1:
                         self.args_result[path] = {k: [v] for k, v in v[0].items()}
                     else:
@@ -325,6 +199,40 @@ class Analyser:
         # result.options = self.options_result
         # result.subcommands = self.subcommands_result
         # result.unpack()
+        if () in self.args_result:
+            result.main_args = self.args_result[()]
+        for path, v in self.value_result.items():
+            if path == ():
+                continue
+            prefixes, key = path[:-1], path[-1]
+            if not prefixes:
+                if key in result.subcommands:
+                    result.subcommands[key].value = v
+                else:
+                    result.subcommands[key] = SubcommandResult(v)
+            else:
+                sub = result.subcommands.setdefault(prefixes[0], SubcommandResult())
+                for part in prefixes[1:]:
+                    sub = sub.subcommands.setdefault(part, SubcommandResult())
+                sub.subcommands[key] = SubcommandResult(v)
+        for path, v in self.args_result.items():
+            if path == ():
+                continue
+            prefixes, key = path[:-1], path[-1]
+            result.other_args.update(v)
+            if not prefixes:
+                if key in result.subcommands:
+                    result.subcommands[key].args = v
+                else:
+                    result.subcommands[key] = SubcommandResult(..., v)
+            else:
+                sub = result.subcommands.setdefault(prefixes[0], SubcommandResult())
+                for part in prefixes[1:]:
+                    sub = sub.subcommands.setdefault(part, SubcommandResult())
+                if key in sub.subcommands:
+                    sub.subcommands[key].args = v
+                else:
+                    sub.subcommands[key] = SubcommandResult(..., v)
         if not fail and argv.message_cache:
             command_manager.record(argv.token, result)
         self.reset()
