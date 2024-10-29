@@ -19,9 +19,7 @@ from ..exceptions import (
     PauseTriggered,
     ParamsUnmatched,
 )
-from ..typing import KWBool, _AllParamPattern
-
-from ._util import levenshtein
+from ..utils import KWBool, _AllParamPattern, levenshtein
 
 if TYPE_CHECKING:
     from ._analyser import Analyser
@@ -76,7 +74,7 @@ def _validate(argv: Argv, target: Arg[Any], value: Pattern[Any], result: dict[st
     result[target.name] = res._value  # noqa
 
 
-def step_varpos(argv: Argv, args: _Args, slot: tuple[int | Literal["+", "*", "str"], Arg], result: dict[str, Any], prefixes: tuple[str, ...] = ()):
+def step_varpos(ana: Analyser, argv: Argv, args: _Args, slot: tuple[int | Literal["+", "*", "str"], Arg], result: dict[str, Any]):
     flag, arg = slot
     value = arg.type_
     key = arg.name
@@ -87,7 +85,7 @@ def step_varpos(argv: Argv, args: _Args, slot: tuple[int | Literal["+", "*", "st
     count = 0
     while argv.current_index != argv.ndata:
         may_arg, _str = argv.next(arg.field.seps)
-        if not may_arg or (_str and may_arg in argv.soft_kws[prefixes] and not argv.soft_kws[prefixes][may_arg]):
+        if not may_arg or (_str and may_arg in ana._unvisited and ((_slot := ana._unvisited[may_arg])[1] not in ana.value_result and not _slot[0].soft_keyword)):
             argv.rollback(may_arg)
             break
         if _str and may_arg in global_config.remainders:
@@ -120,7 +118,7 @@ def step_varpos(argv: Argv, args: _Args, slot: tuple[int | Literal["+", "*", "st
         result[key] = tuple(_result)
 
 
-def step_varkey(argv: Argv, slot: tuple[int | Literal["+", "*", "str"], Arg], result: dict[str, Any], prefixes: tuple[str, ...] = ()):
+def step_varkey(ana: Analyser, argv: Argv, slot: tuple[int | Literal["+", "*", "str"], Arg], result: dict[str, Any]):
     flag, arg = slot
     length = int(flag) if flag.__class__ is int else -1
     value = arg.type_
@@ -131,7 +129,7 @@ def step_varkey(argv: Argv, slot: tuple[int | Literal["+", "*", "str"], Arg], re
     count = 0
     while argv.current_index != argv.ndata:
         may_arg, _str = argv.next(arg.field.seps)
-        if not may_arg or (_str and may_arg in argv.soft_kws[prefixes] and not argv.soft_kws[prefixes][may_arg]) or not _str:
+        if not may_arg or (_str and may_arg in ana._unvisited and ((_slot := ana._unvisited[may_arg])[1] not in ana.value_result and not _slot[0].soft_keyword)) or not _str:
             argv.rollback(may_arg)
             break
         if _str and may_arg in global_config.remainders:
@@ -161,7 +159,7 @@ def step_varkey(argv: Argv, slot: tuple[int | Literal["+", "*", "str"], Arg], re
     result[name] = _result
 
 
-def step_keyword(argv: Argv, args: _Args, result: dict[str, Any], prefixes: tuple[str, ...] = ()):
+def step_keyword(ana: Analyser, argv: Argv, args: _Args, result: dict[str, Any]):
     kwonly_seps = set()
     for arg in args.keyword_only.values():
         kwonly_seps.update(arg.field.seps)
@@ -182,7 +180,7 @@ def step_keyword(argv: Argv, args: _Args, result: dict[str, Any], prefixes: tupl
         if _key not in args.keyword_only:
             argv.rollback(may_arg)
             if args.vars_keyword or (
-                _str and may_arg in may_arg in argv.soft_kws[prefixes] and not argv.soft_kws[prefixes][may_arg]
+                _str and may_arg in ana._unvisited and ((slot := ana._unvisited[may_arg])[1] not in ana.value_result and not slot[0].soft_keyword)
             ):
                 break
             for arg in args.keyword_only.values():
@@ -216,14 +214,14 @@ def _raise(target: Arg, arg: Any, res: Any):
     raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]), arg)
 
 
-def analyse_args(argv: Argv, args: _Args, prefixes: tuple[str, ...] = ()) -> dict[str, Any]:
+def analyse_args(analyser: Analyser, argv: Argv, args: _Args) -> dict[str, Any]:
     """
     分析 `_Args` 部分
 
-    _Args:
+    Args:
+        analyser (SubAnalyser): 当前解析器
         argv (Argv): 命令行参数
         args (_Args): 目标 `_Args`
-        prefixes (tuple[str, ...], optional): 前缀. Defaults to ().
 
     Returns:
         dict[str, Any]: 解析结果
@@ -233,7 +231,7 @@ def analyse_args(argv: Argv, args: _Args, prefixes: tuple[str, ...] = ()) -> dic
         value = arg.type_
         field = arg.field
         may_arg, _str = argv.next(field.seps)
-        if _str and may_arg in argv.soft_kws[prefixes] and not argv.soft_kws[prefixes][may_arg]:
+        if _str and may_arg in analyser._unvisited and ((slot := analyser._unvisited[may_arg])[1] not in analyser.value_result and not slot[0].soft_keyword):
             argv.rollback(may_arg)
             if (de := arg.field.default) is not Empty:
                 result[arg.name] = de
@@ -261,26 +259,28 @@ def analyse_args(argv: Argv, args: _Args, prefixes: tuple[str, ...] = ()) -> dic
             argv.current_index = argv.ndata
             return result
         _validate(argv, arg, value, result, may_arg, _str)
-    for slot in args.vars_positional:
-        step_varpos(argv, args, slot, result, prefixes)
+    if args.vars_positional:
+        for slot in args.vars_positional:
+            step_varpos(analyser, argv, args, slot, result)
     if args.keyword_only:
-        step_keyword(argv, args, result, prefixes)
-    for slot in args.vars_keyword:
-        step_varkey(argv, slot, result, prefixes)
+        step_keyword(analyser, argv, args, result)
+    if args.vars_keyword:
+        for slot in args.vars_keyword:
+            step_varkey(analyser, argv, slot, result)
     # TODO: let the user decide whether to return the Args model or raw data
     # if args.origin:
     #     return args.origin.load(result)
     return result
 
 
-def handle_option(argv: Argv, opt: Option, prefixes: tuple[str, ...], name_validated: bool) -> tuple[Any, dict[str, Any]]:
+def handle_option(analyser: Analyser, argv: Argv, opt: Option, name_validated: bool) -> tuple[Any, dict[str, Any]]:
     """
     处理 `Option` 部分
 
-    _Args:
+    Args:
+        analyser (Analyser): 当前解析器
         argv (Argv): 命令行参数
         opt (Option): 目标 `Option`
-        prefixestuple[str, ...]): 前缀
         name_validated (bool): 是否已经验证过名称
     """
     _cnt = 0
@@ -309,7 +309,7 @@ def handle_option(argv: Argv, opt: Option, prefixes: tuple[str, ...], name_valid
                     raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name))
             raise InvalidParam(lang.require("option", "name_error").format(source=opt.dest, target=name), opt)
     if opt.nargs:
-        return ..., analyse_args(argv, opt.args, prefixes)
+        return ..., analyse_args(analyser, argv, opt.args)
     return _cnt or opt.action.value, {}
 
 
@@ -317,14 +317,14 @@ def analyse_option(analyser: Analyser, opt: Option, argv: Argv, prefixes: tuple[
     """
     分析 `Option` 部分
 
-    _Args:
+    Args:
         analyser (SubAnalyser): 当前解析器
         opt (Option): 目标 `Option`
         argv (Argv): 命令行参数
         prefixes (tuple[str, ...]): 前缀
         name_validated (bool): 是否已经验证过名称
     """
-    value, args = handle_option(argv, opt, prefixes, name_validated)
+    value, args = handle_option(analyser, argv, opt, name_validated)
     path = prefixes + (opt.dest,)
     if path not in analyser.value_result:
         if opt.action.type == 1:
@@ -358,9 +358,10 @@ def analyse_option(analyser: Analyser, opt: Option, argv: Argv, prefixes: tuple[
 def analyse_compact_params(analyser: Analyser, argv: Argv, prefixes: tuple[str, ...]):
     """分析紧凑参数
 
-    _Args:
+    Args:
         analyser (SubAnalyser): 当前解析器
         argv (Argv): 命令行参数
+        prefixes (tuple[str, ...]): 前缀
     """
     exc = None
     for param in analyser.compact_params[prefixes]:
@@ -379,12 +380,12 @@ def analyse_compact_params(analyser: Analyser, argv: Argv, prefixes: tuple[str, 
                 except InvalidParam as e:
                     if e.context_node is not sparam:
                         analyser.value_result[path] = ...
-                    if not argv.error:
-                        argv.error = e
+                    if not analyser._error:
+                        analyser._error = e
                 except AnalyseException as e1:
                     analyser.value_result[path] = ...
-                    if not argv.error:
-                        argv.error = e1
+                    if not analyser._error:
+                        analyser._error = e1
                 else:
                     analyser.value_result[path] = ...
             _data.clear()
@@ -395,8 +396,8 @@ def analyse_compact_params(analyser: Analyser, argv: Argv, prefixes: tuple[str, 
             else:
                 argv.data_reset(_data, _index)
     else:
-        if exc and not argv.error:
-            argv.error = exc
+        if exc and not analyser._error:
+            analyser._error = exc
         return False
 
 
@@ -411,11 +412,11 @@ def analyse_subcommand(analyser: Analyser, sub: Subcommand, argv: Argv, path: tu
                 if levenshtein(name, al) >= argv.fuzzy_threshold:
                     raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name), sub)
             raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
-
+    analyser.update(sub, path)
     while analyse_param(analyser, sub, argv, path, sub.separators) and argv.current_index != argv.ndata:
         pass
     if analyser.default_main_only[path] and not analyser.args_result.get(path):
-        analyser.args_result[path] = analyse_args(argv, sub.args, path)
+        analyser.args_result[path] = analyse_args(analyser, argv, sub.args)
     if path not in analyser.args_result and analyser.need_main_args[path]:
         raise ArgumentMissing(
             sub.args.data[0].field.get_missing_tips(
@@ -429,7 +430,7 @@ def analyse_subcommand(analyser: Analyser, sub: Subcommand, argv: Argv, path: tu
 def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes: tuple[str, ...], seps: str | None = None):
     """处理参数
 
-    _Args:
+    Args:
         analyser (SubAnalyser): 当前解析器
         current (Subcommand): 当前子命令
         argv (Argv): 命令行参数
@@ -447,8 +448,8 @@ def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes:
                 # 因为 _text 已经被确定为选项名，所以 name_validated 为 True
                 analyse_option(analyser, oparam, argv, prefixes, True)
             except AnalyseException as e:
-                if not argv.error:
-                    argv.error = e
+                if not analyser._error:
+                    analyser._error = e
             return True
         path = prefixes + (_param.dest,)
         sparam: Subcommand = _param  # type: ignore
@@ -461,12 +462,12 @@ def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes:
             except InvalidParam as e:
                 if e.context_node is not sparam:
                     analyser.value_result[path] = ...
-                if not argv.error:
-                    argv.error = e
+                if not analyser._error:
+                    analyser._error = e
             except AnalyseException as e1:
                 analyser.value_result[path] = ...
-                if not argv.error:
-                    argv.error = e1
+                if not analyser._error:
+                    analyser._error = e1
             else:
                 analyser.value_result[path] = ...
             return True
@@ -477,12 +478,12 @@ def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes:
         return True
     # 主参数同样只允许解析一次
     if current.nargs and prefixes not in analyser.args_result:
-        res = analyse_args(argv, current.args, prefixes)
+        res = analyse_args(analyser, argv, current.args)
         if res:
             analyser.args_result[prefixes] = res
             return True
     # 若参数属于该子命令的同级/上级选项或子命令，则终止解析
-    if _str and _text and _text in argv.soft_kws[prefixes]:
+    if _str and _text and _text in analyser._unvisited and analyser._unvisited[_text][1] not in analyser.value_result:
         return False
     if analyser.extra_allow:
         analyser.args_result.setdefault(prefixes, {}).setdefault("$extra", []).append(_text)
@@ -490,8 +491,8 @@ def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes:
         return True
     # 给 Completion 打的洞，若此时 analyser 属于主命令, 则让其先解析完主命令
     elif _str and _text and not prefixes:
-        if not argv.error:
-            argv.error = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=_text))
+        if not analyser._error:
+            analyser._error = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=_text))
         argv.next()
         return True
     return False
@@ -523,21 +524,3 @@ def analyse_header(header: "Header", argv: Argv):
         raise InvalidHeader(lang.require("header", "error").format(target=cmd), cmd)
     argv.rollback(may_cmd)
     raise InvalidHeader(lang.require("header", "error").format(target=head_text), None)
-
-
-def handle_head_fuzzy(header: Header, source: str, threshold: float):
-    command = header.origin[0]
-    if not header.origin[1]:
-        headers_text = [str(command)]
-    else:
-        headers_text = []
-        for prefix in header.origin[1]:
-            if isinstance(prefix, tuple):
-                headers_text.append(f"{prefix[0]} {prefix[1]}{command}")
-            elif isinstance(prefix, str):
-                headers_text.append(f"{prefix}{command}")
-            else:
-                headers_text.append(f"{prefix} {command}")
-    for ht in headers_text:
-        if levenshtein(source, ht) >= threshold:
-            return lang.require("fuzzy", "matched").format(target=source, source=ht)

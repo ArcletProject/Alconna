@@ -9,7 +9,7 @@ from tarina import Empty
 from typing_extensions import Self, deprecated
 
 from arclet.alconna.args import ArgsBuilder, Arg
-from arclet.alconna.typing import TAValue
+from arclet.alconna.utils import TAValue
 
 from .typing import KeyWordVar, MultiVar, _StrMulti, UnpackVar
 

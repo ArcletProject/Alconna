@@ -76,7 +76,7 @@ def test_alconna_multi_match():
     assert res1.query("num.count") == 222
     assert res1.query("test.u.username") == "AAA"
     res2 = alc1.parse(["/core1 127.0.0.1 -u", 321])
-    assert res2.IP == "127.0.0.1"
+    assert res2["IP"] == "127.0.0.1"
     res3 = alc1.parse("/core1 aa")
     assert res3.matched is False
     assert res3.head_matched is True
@@ -169,7 +169,7 @@ def test_alconna_chain_option():
     ).add(Subcommand("foo").add(Option("bar")))
 
     res = alc5.parse("点歌 歌名：Freejia")
-    assert res.song_name == "Freejia"
+    assert res["song_name"] == "Freejia"
 
 
 def test_alconna_multi_header():
@@ -310,8 +310,8 @@ def test_alconna_synthesise():
     )
     res = alc10.parse("来点涩图 3张到6张 从女仆和能天使与德克萨斯和拉普兰德与莫斯提马")
     assert res.matched is True
-    assert res.min == 3
-    assert res.tags == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
+    assert res["min"] == 3
+    assert res["tags"] == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
 
     alc10_1 = Alconna("cpp", Args.match(int, multiple=True).lines(AllParam, seps="\n"))
     print("")
@@ -330,7 +330,7 @@ def test_simple_override():
 
 def test_wildcard():
     alc13 = Alconna("core13", Args.foo(AllParam))
-    assert alc13.parse(["core13 abc def gh", 123, 5.0, "dsdf"]).foo == [
+    assert alc13.parse(["core13 abc def gh", 123, 5.0, "dsdf"])["foo"] == [
         "abc def gh",
         123,
         5.0,
@@ -343,7 +343,7 @@ import foo
 
 def test():
     print("Hello, World!")"""
-        ).foo
+        )["foo"]
         == [
             """\
 import foo
@@ -354,13 +354,13 @@ def test():
     )
 
     alc13_1 = Alconna("core13_1", Args.foo(AllParam(str)))
-    assert alc13_1.parse(["core13_1 abc def gh", 123, 5.0, "dsdf"]).foo == [
+    assert alc13_1.parse(["core13_1 abc def gh", 123, 5.0, "dsdf"])["foo"] == [
         "abc def gh",
         "dsdf",
     ]
     alc13_2 = Alconna("core13_2", Args.foo(AllParam(str, ignore=False)))
     assert not alc13_2.parse(["core13_2 abc def gh", 123, 5.0, "dsdf"]).matched
-    assert alc13_2.parse(["core13_2 abc def gh", "123", "5.0", "dsdf"]).foo == [
+    assert alc13_2.parse(["core13_2 abc def gh", "123", "5.0", "dsdf"])["foo"] == [
         "abc def gh",
         "123",
         "5.0",
@@ -417,20 +417,20 @@ def test_shortcut():
         res = alc16.parse("TEST123aa")
         assert res.header_match.origin == "TEST123aa"
         assert res.matched is True
-        assert res.foo == 123
-        assert res.baz == "aa"
+        assert res["foo"] == 123
+        assert res["baz"] == "aa"
         # 指令缩写传入， TEST1 -> core16 321
         alc16.parse("core16 --shortcut TEST1 'core16 321'")
         res1 = alc16.parse("TEST1")
-        assert res1.foo == 321
+        assert res1["foo"] == 321
         # 指令缩写传入的允许后随参数
         alc16.parse("core16 --shortcut TEST2 core16")
         res2 = alc16.parse("TEST2 442")
-        assert res2.foo == 442
+        assert res2["foo"] == 442
         # 指令缩写也支持正则
         alc16.parse(r"core16 --shortcut TESTa4(\d+) 'core16 {0}'")
         res3 = alc16.parse("TESTa4257")
-        assert res3.foo == 257
+        assert res3["foo"] == 257
         alc16.shortcut("tTest", {})
         assert alc16.parse("tTest123").matched
 
@@ -439,23 +439,23 @@ def test_shortcut():
         alc16_1.shortcut("echo1", command="exec \"print('{*\n}')\"")
         res5 = alc16_1.parse("echo 123")
         assert res5.header_match.origin == "echo"
-        assert res5.content == "print(123)"
+        assert res5["content"] == "print(123)"
         assert not alc16_1.parse("echo 123 456").matched
         res6 = alc16_1.parse("echo1 123 456 789")
         assert res6.header_match.origin == "echo1"
-        assert res6.content == "print('123 456 789')"
+        assert res6["content"]  == "print('123 456 789')"
         res7 = alc16_1.parse([123])
         assert not res7.matched
         res8 = alc16_1.parse("echo '123'")
-        assert res8.content == "print('123')"
+        assert res8["content"]  == "print('123')"
         assert not alc16_1.parse("echo").matched
-        assert alc16_1.parse("echo1").content == "print('')"
+        assert alc16_1.parse("echo1")["content"]  == "print('')"
 
         alc16_2 = Alconna(["/", "."], "core16_2", Args.foo(bool))
         alc16_2.shortcut("test", {"command": "/core16_2 True"})
         assert alc16_2.parse("/core16_2 True").matched
         res9 = alc16_2.parse("test")
-        assert res9.foo is True
+        assert res9["foo"] is True
         assert not alc16_2.parse(".test").matched
 
         alc16.parse("core16 --shortcut list")
@@ -463,7 +463,7 @@ def test_shortcut():
         alc16_3 = Alconna(["/", "!"], "core16_3", Args.foo(bool))
         print(alc16_3.shortcut("test", {"prefix": True, "args": ["False"]}))
         assert not alc16_3.parse("test").matched
-        assert alc16_3.parse("/test").foo is False
+        assert alc16_3.parse("/test")["foo"] is False
 
         alc16_4 = Alconna("core16_4")
         alc16_4.shortcut("test", {"fuzzy": False})
@@ -477,7 +477,7 @@ def test_shortcut():
         alc16_5 = Alconna(["*", "+"], "core16_5", Args.foo(bool))
         alc16_5.shortcut("test", {"prefix": True, "args": ["True"]})
         assert alc16_5.parse("*core16_5 False").matched
-        assert alc16_5.parse("+test").foo is True
+        assert alc16_5.parse("+test")["foo"] is True
 
         def wrapper(slot, content):
             if content == "help":
@@ -486,7 +486,7 @@ def test_shortcut():
 
         alc16_6 = Alconna("core16_6", Args.bar(str))
         alc16_6.shortcut("test(?P<bar>.+)?", fuzzy=False, wrapper=wrapper, arguments=["{bar}"])
-        assert alc16_6.parse("testabc").bar == "abc"
+        assert alc16_6.parse("testabc")["bar"] == "abc"
         assert (
             alc16_6.parse("testhelp").output
             == """\
@@ -499,26 +499,26 @@ Unknown
 
         alc16_7 = Alconna("core16_7", Args.bar(str))
         alc16_7.shortcut("test 123", {"args": ["abc"]})
-        assert alc16_7.parse("test 123").bar == "abc"
+        assert alc16_7.parse("test 123")["bar"] == "abc"
 
         alc16_8 = Alconna("core16_8", Args.bar(str))
         res11 = alc16_8.parse("core16_8 1234")
-        assert res11.bar == "1234"
+        assert res11["bar"] == "1234"
 
         alc16_9 = Alconna("core16_9", Args.bar(str))
         alc16_9.shortcut("test(.+)?", command="core16_9 {0}")
-        assert alc16_9.parse("test123").bar == "123"
+        assert alc16_9.parse("test123")["bar"] == "123"
         assert not alc16_9.parse("test").matched
 
         alc16_10 = Alconna("core16_10", Args.bar(str).baz(int))
         alc16_10.shortcut("/qux", {"command": "core16_10"})
 
-        assert alc16_10.parse(['/qux "abc def.zip"', 123]).bar == "abc def.zip"
+        assert alc16_10.parse(['/qux "abc def.zip"', 123])["bar"] == "abc def.zip"
 
         alc16_11 = Alconna("core16_11", Args.bar(str))
         pat = re.compile("test", re.I)
         alc16_11.shortcut(pat, {"command": "core16_11"})
-        assert alc16_11.parse("TeSt 123").bar == "123"
+        assert alc16_11.parse("TeSt 123")["bar"] == "123"
 
         def wrapper1(slot, content, context):
             if slot == 0:
@@ -530,10 +530,10 @@ Unknown
 
         alc16_12 = Alconna("core16_12", Args.bar(int))
         alc16_12.shortcut("(.+)test", fuzzy=False, wrapper=wrapper1, arguments=["{0}"])
-        assert alc16_12.parse("Atest").bar == 100
-        assert alc16_12.parse("Atest", {"user": "456"}).bar == 100456
-        assert alc16_12.parse("Btest").bar == 0
-        assert alc16_12.parse("Btest", {"user": "456"}).bar == 456
+        assert alc16_12.parse("Atest")["bar"] == 100
+        assert alc16_12.parse("Atest", {"user": "456"})["bar"] == 100456
+        assert alc16_12.parse("Btest")["bar"] == 0
+        assert alc16_12.parse("Btest", {"user": "456"})["bar"] == 456
 
         alc16_13 = Alconna("core16_13", Option("rank", Args.rank(str)))
 
@@ -547,8 +547,8 @@ Unknown
         )
 
         assert alc16_13.parse("iorank x").matched
-        assert alc16_13.parse("iorankx").rank == "x"
-        assert alc16_13.parse("iorank").rank == "--all"
+        assert alc16_13.parse("iorankx")["rank"] == "x"
+        assert alc16_13.parse("iorank")["rank"] == "--all"
 
     alc16_14 = Alconna("core16_14", Args.r(int).e(int))
     alc16_14.shortcut(r"RD(?P<r>\d+)==(?P<e>\d+)", {"command": "core16_14 {r} {e}"})
@@ -813,12 +813,12 @@ def test_action():
     alc24 = Alconna("core24", Option("--yes|-y", action=store_true), Args.module(AllParam))
     res = alc24.parse("core24 -y abc def")
     assert res.query[bool]("yes.value") is True
-    assert res.module == ["abc def"]
+    assert res["module"] == ["abc def"]
 
-    alc24_1 = Alconna("core24", Args.yes({"--yes": True, "-y": True}, False).module(AllParam))
-    assert alc24_1.parse("core24 -y abc def").yes
-    assert not alc24_1.parse("core24 abc def").yes
-    assert alc24_1.parse("core24 abc def").module == ["abc def"]
+    alc24_1 = Alconna("core24_1", Args.yes({"--yes": True, "-y": True}, False).module(AllParam))
+    assert alc24_1.parse("core24_1 -y abc def")["yes"] is True
+    assert alc24_1.parse("core24_1 abc def")["yes"] is False
+    assert alc24_1.parse("core24_1 abc def")["module"] == ["abc def"]
 
     alc24_2 = Alconna(
         "core24_2",

@@ -10,7 +10,7 @@ from ..base import Config
 from ..config import Namespace, global_config
 from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
-from ..typing import TDC
+from ..utils import TDC
 
 
 @dataclass(repr=True)
@@ -45,8 +45,7 @@ class Argv(Generic[TDC]):
 
     current_index: int = field(init=False)
     """当前数据的索引"""
-    soft_kws: dict[tuple[str, ...], dict[str, bool]] = field(init=False, default_factory=dict)
-    error: Exception | None = field(init=False)
+
     ndata: int = field(init=False)
     """原始数据的长度"""
     bak_data: list[str | Any] = field(init=False)
@@ -86,7 +85,6 @@ class Argv(Generic[TDC]):
         self.ndata = 0
         self.bak_data = []
         self.raw_data = []
-        self.error = None
         self.token = 0
         self.origin = "None"  # type: ignore
         self._sep = None

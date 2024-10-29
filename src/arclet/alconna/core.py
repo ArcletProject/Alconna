@@ -14,7 +14,7 @@ from nepattern import TPattern
 from tarina import init_spec, lang, Empty
 
 from .ingedia._analyser import Analyser
-from .ingedia._handlers import handle_head_fuzzy, analyse_header
+from .ingedia._handlers import analyse_header
 from .ingedia._argv import Argv, __argv_type__
 from .args import Arg, ArgsBuilder, ArgsBase, Args, ArgsMeta, handle_args
 from .arparma import Arparma, ArparmaBehavior, requirement_handler
@@ -33,7 +33,7 @@ from .shortcut import wrap_shortcut, InnerShortcutArgs, ShortcutRegWrapper
 from .completion import prompt, comp_ctx
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
-from .typing import TDC
+from .utils import TDC
 
 T = TypeVar("T")
 
@@ -107,7 +107,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
                 command,
                 argv.release(recover=True),
                 list(arp.main_args.keys()),
-                [*arp.options.keys(), *arp.subcommands.keys()],
+                [*arp.value_result.keys()],
                 trigger
             ):
                 if comp_ctx.get(None):
@@ -458,7 +458,7 @@ class Alconna(Subcommand):
                     if not (exc := analyser.process(argv)):
                         return analyser.export(argv)
                 except ValueError:
-                    if argv.fuzzy_match and (res := handle_head_fuzzy(self._header, trigger, argv.fuzzy_threshold)):
+                    if argv.fuzzy_match and (res := self._header.check_fuzzy(trigger, argv.fuzzy_threshold)):
                         exc = FuzzyMatchSuccess(res)
                 except AlconnaException as e:
                     exc = e

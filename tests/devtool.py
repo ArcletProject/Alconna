@@ -13,7 +13,7 @@ from arclet.alconna.args import ARGS_PARAM, handle_args
 from arclet.alconna.ingedia._argv import Argv
 from arclet.alconna.base import Option, Subcommand, Header, Config, OptionResult, SubcommandResult
 from arclet.alconna.config import Namespace
-from arclet.alconna.typing import DataCollection
+from arclet.alconna.utils import DataCollection
 
 
 class AnalyseError(Exception):
@@ -42,6 +42,7 @@ class _DummyAnalyser(Analyser):
         cls.default_main_only = {}
         cls.need_main_args = {}
         cls.args_result = {}
+        cls._unvisited = {}
         return super().__new__(cls)
 
 
@@ -54,12 +55,12 @@ def analyse_args(
 ):
     conf = Config(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
     argv: Argv[DataCollection] = Argv(conf, dev_space)
+    _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     try:
         argv.enter(kwargs)
         argv.build(["test"] + command)
         argv.next()
-        argv.soft_kws[()] = {}
-        return ala(argv, handle_args(args))
+        return ala(_analyser, argv, handle_args(args))
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -104,7 +105,6 @@ def analyse_option(
     _analyser.need_main_args[(option.dest,)] = False
     _analyser.default_main_only[(option.dest,)] = False
     _analyser.command.options.append(option)
-    argv.soft_kws[()] = {al: option.soft_keyword for al in option.aliases}
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
@@ -132,11 +132,11 @@ def analyse_subcommand(
     _analyser.need_main_args[(subcommand.dest,)] = False
     _analyser.default_main_only[(subcommand.dest,)] = False
     _analyser.command.options.append(subcommand)
-    argv.soft_kws[()] = {al: subcommand.soft_keyword for al in subcommand.aliases}
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
         argv.build(command)
+        _analyser.update(subcommand, ())
         als(_analyser, subcommand, argv, (subcommand.dest,), False)
         res = SubcommandResult(..., _analyser.args_result.get((subcommand.dest,)))
         for k, v in _analyser.value_result.items():

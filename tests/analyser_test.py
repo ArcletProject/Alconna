@@ -55,7 +55,7 @@ def test_preprocessor():
     argv_config(preprocessors={list: len})
     ana1 = Alconna("ana1", Args.bar(int))
     assert ana1.parse(["ana1", [1, 2, 3]]).matched is True
-    assert ana1.parse(["ana1", [1, 2, 3]]).bar == 3
+    assert ana1.parse(["ana1", [1, 2, 3]])["bar"] == 3
     reset_argv_config()
     ana1_1 = Alconna("ana1", Args.bar(int))
     assert ana1_1.parse(["ana1", [1, 2, 3]]).matched is False
@@ -67,7 +67,7 @@ def test_with_set_unit():
     ana2 = Alconna("ana2", Args.foo(At).bar(Face))
     res = ana2.parse([Segment.text("ana2"), Segment.at(123456), Segment.face(103)])
     assert res.matched is True
-    assert res.foo.data["qq"] == "123456"
+    assert res["foo"].data["qq"] == "123456"
     assert not ana2.parse([Segment.text("ana2"), Segment.face(103), Segment.at(123456)]).matched
     reset_argv_config()
 
@@ -76,14 +76,14 @@ def test_unhashable_unit():
     argv_config(preprocessors={Segment: lambda x: str(x) if x.type == "text" else None})
 
     ana3 = Alconna("ana3", Args.foo(At))
-    print(ana3.parse(["ana3", Segment.at(123)]))
-    print(ana3.parse(["ana3", Segment.face(123)]))
+    assert ana3.parse(["ana3", Segment.at(123)]).matched
+    assert ana3.parse(["ana3", Segment.face(123)]).matched is False
 
     ana3_1 = Alconna("ana3_1", Option("--foo", Args.bar(int)))
-    print(ana3_1.parse(["ana3_1 --foo 123"]))
-    print(ana3_1.parse(["ana3_1", Segment.face(123)]))
-    print(ana3_1.parse(["ana3_1", "--foo", "--comp", Segment.at(123)]))
-    print(ana3_1.parse(["ana3_1", "--comp", Segment.at(123)]))
+    assert ana3_1.parse(["ana3_1 --foo 123"]).matched
+    assert ana3_1.parse(["ana3_1", Segment.face(123)]).matched is False
+    assert ana3_1.parse(["ana3_1", "--foo", "--comp", Segment.at(123)]).output
+    assert ana3_1.parse(["ana3_1", "--comp", Segment.at(123)]).output
 
     reset_argv_config()
 

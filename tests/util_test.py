@@ -1,4 +1,4 @@
-from arclet.alconna.typing import DataCollection
+from arclet.alconna.utils import DataCollection
 
 
 def test_collection():

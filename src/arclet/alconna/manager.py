@@ -19,7 +19,7 @@ from .arparma import Arparma
 from .base import Header, Metadata
 from .config import Namespace, global_config
 from .exceptions import ExceedMaxCount
-from .typing import TDC, DataCollection
+from .utils import TDC, DataCollection
 from .shortcut import InnerShortcutArgs, ShortcutArgs, find_shortcut as _find_shortcut
 
 if TYPE_CHECKING:

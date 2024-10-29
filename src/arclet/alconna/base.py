@@ -13,7 +13,7 @@ from tarina import Empty, lang
 from .action import Action, store
 from .args import ARGS_PARAM, Arg, ArgsBase, ArgsBuilder, _Args, handle_args
 from .exceptions import InvalidArgs
-from .typing import Unset, UNSET
+from .utils import Unset, UNSET, levenshtein
 
 _repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__]) + ")"
 
@@ -146,6 +146,23 @@ class Header:
         prf = "|".join(re.escape(h) for h in prefixes)
         compp = re.compile(f"^(?:{prf}){command}")
         return cls((command, prefixes), {f"{h}{command}" for h in prefixes}, compact, compp)
+
+    def check_fuzzy(self, source: str, threshold: float):
+        command = self.origin[0]
+        if not self.origin[1]:
+            headers_text = [str(command)]
+        else:
+            headers_text = []
+            for prefix in self.origin[1]:
+                if isinstance(prefix, tuple):
+                    headers_text.append(f"{prefix[0]} {prefix[1]}{command}")
+                elif isinstance(prefix, str):
+                    headers_text.append(f"{prefix}{command}")
+                else:
+                    headers_text.append(f"{prefix} {command}")
+        for ht in headers_text:
+            if levenshtein(source, ht) >= threshold:
+                return lang.require("fuzzy", "matched").format(target=source, source=ht)
 
 
 def _handle_default(node: CommandNode):

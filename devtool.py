@@ -12,7 +12,7 @@ from arclet.alconna.args import ARGS_PARAM, handle_args
 from arclet.alconna.ingedia._argv import Argv
 from arclet.alconna.base import Option, Subcommand, Header, Config
 from arclet.alconna.config import Namespace
-from arclet.alconna.typing import DataCollection
+from arclet.alconna.utils import DataCollection
 
 
 class AnalyseError(Exception):

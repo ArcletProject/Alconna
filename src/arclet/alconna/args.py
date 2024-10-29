@@ -13,7 +13,7 @@ from tarina import Empty, lang
 
 from ._dcls import safe_dcls_kw, safe_field_kw
 from .exceptions import InvalidArgs
-from .typing import TAValue, parent_frame_namespace, merge_cls_and_parent_ns
+from .utils import TAValue, parent_frame_namespace, merge_cls_and_parent_ns
 
 _T = TypeVar("_T")
 
