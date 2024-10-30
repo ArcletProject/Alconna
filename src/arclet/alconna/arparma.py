@@ -395,7 +395,7 @@ class Arparma(Generic[TDC]):
             attrs = {
                 "matched": self.matched,
                 "header_match": self.header_match,
-                "value_result": {k: v for k, v in sorted(self.value_result.items(), key=lambda x: x[0])},
+                "value_result": dict(sorted(self.value_result.items(), key=lambda x: x[0])),
                 "main_args": self.main_args,
                 "other_args": self.other_args,
             }

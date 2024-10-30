@@ -6,9 +6,8 @@ from typing import TYPE_CHECKING, Any, Iterable, Literal
 from nepattern import ANY, STRING, AnyString, Pattern
 from tarina import Empty, lang, safe_eval, split_once
 
-from .. import Subcommand
 from ..args import Arg, _Args
-from ..base import Option, Header, HeadResult
+from ..base import Option, Subcommand, Header, HeadResult
 from ..config import global_config
 from ..exceptions import (
     AnalyseException,
@@ -61,10 +60,10 @@ def _validate(argv: Argv, target: Arg[Any], value: Pattern[Any], result: dict[st
     if value is AnyString:
         result[target.name] = str(_arg)
         return
-    default_val = target.field.default
     res = value.execute(_arg)
     if res._value is Empty:
         argv.rollback(arg)
+        default_val = target.field.get_default()
         if default_val is not Empty:
             result[target.name] = default_val
             return
@@ -79,7 +78,6 @@ def step_varpos(ana: Analyser, argv: Argv, args: _Args, slot: tuple[int | Litera
     value = arg.type_
     key = arg.name
     length = int(flag) if flag.__class__ is int else -1
-    default_val = arg.field.default
     _result = []
     kwonly_seps = "".join([arg.field.kw_sep for arg in args.keyword_only.values()])
     count = 0
@@ -104,6 +102,7 @@ def step_varpos(ana: Analyser, argv: Argv, args: _Args, slot: tuple[int | Litera
         if 0 < length <= count:
             break
     if not _result:
+        default_val = arg.field.get_default()
         if default_val is not Empty:
             _result = default_val if isinstance(default_val, Iterable) else ()
         elif flag == "*":
@@ -123,16 +122,15 @@ def step_varkey(ana: Analyser, argv: Argv, slot: tuple[int | Literal["+", "*", "
     length = int(flag) if flag.__class__ is int else -1
     value = arg.type_
     name = arg.name
-    default_val = arg.field.default
     kw_sep = arg.field.kw_sep
     _result = {}
     count = 0
     while argv.current_index != argv.ndata:
         may_arg, _str = argv.next(arg.field.seps)
-        if not may_arg or (_str and may_arg in ana._unvisited and ((_slot := ana._unvisited[may_arg])[1] not in ana.value_result and not _slot[0].soft_keyword)) or not _str:
+        if not _str or not may_arg or (_str and may_arg in ana._unvisited and ((_slot := ana._unvisited[may_arg])[1] not in ana.value_result and not _slot[0].soft_keyword)):
             argv.rollback(may_arg)
             break
-        if _str and may_arg in global_config.remainders:
+        if may_arg in global_config.remainders:
             break
         if not (_kwarg := re.match(rf"^(-*[^{kw_sep}]+){kw_sep}(.*?)$", may_arg)):
             argv.rollback(may_arg)
@@ -148,6 +146,7 @@ def step_varkey(ana: Analyser, argv: Argv, slot: tuple[int | Literal["+", "*", "
         if 0 < length <= count:
             break
     if not _result:
+        default_val = arg.field.get_default()
         if default_val is not Empty:
             _result = default_val if isinstance(default_val, dict) else {}
         elif flag == "*":
@@ -204,8 +203,8 @@ def step_keyword(ana: Analyser, argv: Argv, args: _Args, result: dict[str, Any])
         for key, arg in args.keyword_only.items():
             if key in result:
                 continue
-            if arg.field.default is not Empty:
-                result[key] = arg.field.default
+            if (default_val := arg.field.get_default()) is not Empty:
+                result[key] = default_val
             elif not arg.field.optional:
                 raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)), arg)
 
@@ -233,13 +232,9 @@ def analyse_args(analyser: Analyser, argv: Argv, args: _Args) -> dict[str, Any]:
         may_arg, _str = argv.next(field.seps)
         if _str and may_arg in analyser._unvisited and ((slot := analyser._unvisited[may_arg])[1] not in analyser.value_result and not slot[0].soft_keyword):
             argv.rollback(may_arg)
-            if (de := arg.field.default) is not Empty:
-                result[arg.name] = de
-            elif not field.optional:
-                raise ArgumentMissing(field.get_missing_tips(lang.require("args", "missing").format(key=arg.name)), arg)
-            continue
+            may_arg = None
         if may_arg is None or (_str and not may_arg):
-            if (de := arg.field.default) is not Empty:
+            if (de := arg.field.get_default()) is not Empty:
                 result[arg.name] = de
             elif not field.optional:
                 raise ArgumentMissing(field.get_missing_tips(lang.require("args", "missing").format(key=arg.name)), arg)
@@ -313,7 +308,7 @@ def handle_option(analyser: Analyser, argv: Argv, opt: Option, name_validated: b
     return _cnt or opt.action.value, {}
 
 
-def analyse_option(analyser: Analyser, opt: Option, argv: Argv, prefixes: tuple[str, ...], name_validated: bool):
+def analyse_option(analyser: Analyser, opt: Option, argv: Argv, path: tuple[str, ...], name_validated: bool):
     """
     分析 `Option` 部分
 
@@ -321,11 +316,10 @@ def analyse_option(analyser: Analyser, opt: Option, argv: Argv, prefixes: tuple[
         analyser (SubAnalyser): 当前解析器
         opt (Option): 目标 `Option`
         argv (Argv): 命令行参数
-        prefixes (tuple[str, ...]): 前缀
+        path (tuple[str, ...]): 路径
         name_validated (bool): 是否已经验证过名称
     """
     value, args = handle_option(analyser, argv, opt, name_validated)
-    path = prefixes + (opt.dest,)
     if path not in analyser.value_result:
         if opt.action.type == 1:
             if args:
@@ -355,6 +349,34 @@ def analyse_option(analyser: Analyser, opt: Option, argv: Argv, prefixes: tuple[
                 analyser.args_result[path][key] = [value]
 
 
+def analyse_subcommand(analyser: Analyser, sub: Subcommand, argv: Argv, path: tuple[str, ...], name_validated: bool = True):
+    if not name_validated:
+        name, _ = argv.next(sub.separators)
+        if name not in sub.aliases:
+            argv.rollback(name)
+            if not argv.fuzzy_match:
+                raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
+            for al in sub.aliases:
+                if levenshtein(name, al) >= argv.fuzzy_threshold:
+                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name), sub)
+            raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
+    analyser.value_result[path] = ...
+    analyser.update(sub, path)
+    while analyse_param(analyser, sub, argv, path, sub.separators) and argv.current_index != argv.ndata:
+        pass
+    if path not in analyser.args_optional or path in analyser.args_result:
+        return
+    if not analyser.args_optional[path]:
+        raise ArgumentMissing(
+            sub.args.data[0].field.get_missing_tips(
+                lang.require("subcommand", "args_missing").format(name=".".join(path))
+            ),
+            sub
+        )
+    analyser.args_result[path] = analyse_args(analyser, argv, sub.args)
+    return
+
+
 def analyse_compact_params(analyser: Analyser, argv: Argv, prefixes: tuple[str, ...]):
     """分析紧凑参数
 
@@ -367,31 +389,19 @@ def analyse_compact_params(analyser: Analyser, argv: Argv, prefixes: tuple[str, 
     for param in analyser.compact_params[prefixes]:
         _data, _index = argv.data_set()
         try:
+            path = prefixes + (param.dest,)
             if param.__class__ is Option or param.__class__.__base__ is Option:
                 oparam: Option = param  # type: ignore
-                analyse_option(analyser, oparam, argv, prefixes, False)
+                analyse_option(analyser, oparam, argv, path, False)
             else:
-                path = prefixes + (param.dest,)
                 sparam: SubAnalyser = param  # type: ignore
-                try:
-                    analyse_subcommand(analyser, sparam, argv, path, False)
-                except (FuzzyMatchSuccess, PauseTriggered):
-                    raise
-                except InvalidParam as e:
-                    if e.context_node is not sparam:
-                        analyser.value_result[path] = ...
-                    if not analyser._error:
-                        analyser._error = e
-                except AnalyseException as e1:
-                    analyser.value_result[path] = ...
-                    if not analyser._error:
-                        analyser._error = e1
-                else:
-                    analyser.value_result[path] = ...
+                analyse_subcommand(analyser, sparam, argv, path, False)
             _data.clear()
             return True
-        except InvalidParam as e:
-            if e.context_node is not param:
+        except (FuzzyMatchSuccess, PauseTriggered):
+            raise
+        except AnalyseException as e:
+            if isinstance(e, InvalidParam) and e.context_node is not param:
                 exc = e
             else:
                 argv.data_reset(_data, _index)
@@ -399,32 +409,6 @@ def analyse_compact_params(analyser: Analyser, argv: Argv, prefixes: tuple[str, 
         if exc and not analyser._error:
             analyser._error = exc
         return False
-
-
-def analyse_subcommand(analyser: Analyser, sub: Subcommand, argv: Argv, path: tuple[str, ...], name_validated: bool = True):
-    if not name_validated:
-        name, _ = argv.next(sub.separators)
-        if name not in sub.aliases:
-            argv.rollback(name)
-            if not argv.fuzzy_match:
-                raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
-            for al in sub.aliases:
-                if levenshtein(name, al) >= argv.fuzzy_threshold:
-                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name), sub)
-            raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
-    analyser.update(sub, path)
-    while analyse_param(analyser, sub, argv, path, sub.separators) and argv.current_index != argv.ndata:
-        pass
-    if analyser.default_main_only[path] and not analyser.args_result.get(path):
-        analyser.args_result[path] = analyse_args(analyser, argv, sub.args)
-    if path not in analyser.args_result and analyser.need_main_args[path]:
-        raise ArgumentMissing(
-            sub.args.data[0].field.get_missing_tips(
-                lang.require("subcommand", "args_missing").format(name=".".join(path))
-            ),
-            sub
-        )
-    return
 
 
 def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes: tuple[str, ...], seps: str | None = None):
@@ -441,35 +425,26 @@ def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes:
     _text, _str = argv.next(seps)
     # analyser.compile_params 有命中，说明在当前子命令内有对应的选项/子命令
     if _str and _text and (_param := current._lookup_map.get(_text)):
-        # Help 之类的选项是 Option 子类, 得加上 __base__ 判断
-        if _param.__class__ is Option or _param.__class__.__base__ is Option:
-            oparam: Option = _param  # type: ignore
+        path = prefixes + (_param.dest,)
+        if _param.__class__ is Subcommand:
+            # 禁止子命令重复解析
+            if path not in analyser.value_result:
+                try:
+                    analyse_subcommand(analyser, _param, argv, path, True)  # type: ignore
+                except (FuzzyMatchSuccess, PauseTriggered):
+                    raise
+                except AnalyseException as e:
+                    if not analyser._error:
+                        analyser._error = e
+                return True
+        else:
             try:
-                # 因为 _text 已经被确定为选项名，所以 name_validated 为 True
-                analyse_option(analyser, oparam, argv, prefixes, True)
+                analyse_option(analyser, _param, argv, path, True)  # type: ignore
+            except (FuzzyMatchSuccess, PauseTriggered):
+                raise
             except AnalyseException as e:
                 if not analyser._error:
                     analyser._error = e
-            return True
-        path = prefixes + (_param.dest,)
-        sparam: Subcommand = _param  # type: ignore
-        # 禁止子命令重复解析
-        if path not in analyser.value_result:
-            try:
-                analyse_subcommand(analyser, sparam, argv, path, True)
-            except (FuzzyMatchSuccess, PauseTriggered):
-                raise
-            except InvalidParam as e:
-                if e.context_node is not sparam:
-                    analyser.value_result[path] = ...
-                if not analyser._error:
-                    analyser._error = e
-            except AnalyseException as e1:
-                analyser.value_result[path] = ...
-                if not analyser._error:
-                    analyser._error = e1
-            else:
-                analyser.value_result[path] = ...
             return True
     # 如果没有命中，则说明当前参数可能存在自定义分隔符，或者属于子命令的主参数，那么需要重新解析
     argv.rollback(_text)
@@ -478,8 +453,7 @@ def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes:
         return True
     # 主参数同样只允许解析一次
     if current.nargs and prefixes not in analyser.args_result:
-        res = analyse_args(analyser, argv, current.args)
-        if res:
+        if res := analyse_args(analyser, argv, current.args):
             analyser.args_result[prefixes] = res
             return True
     # 若参数属于该子命令的同级/上级选项或子命令，则终止解析

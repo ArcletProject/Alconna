@@ -219,7 +219,7 @@ class Alconna(Subcommand):
 
     def __init__(
         self,
-        *args: Option | Subcommand | str | list[str] | ArgsBuilder | type[ArgsBase] | Arg | Metadata | Config | ArparmaBehavior,
+        *args: Option | Subcommand | str | list[str] | ArgsBuilder | type[ArgsBase] | Arg[Any] | Metadata | Config | ArparmaBehavior,
         namespace: str | Namespace | None = None,
         separators: str | set[str] | Sequence[str] | None = None,
         behaviors: list[ArparmaBehavior] | None = None,

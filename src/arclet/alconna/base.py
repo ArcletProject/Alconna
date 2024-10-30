@@ -322,7 +322,7 @@ class Option(CommandNode):
         args: ARGS_PARAM | None = None,
         alias: Iterable[str] | None = None,
         dest: str | None = None,
-        default: Any = Empty,
+        default: Any = Empty,  # type: ignore
         action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
@@ -346,14 +346,15 @@ class Option(CommandNode):
 
         self.compact = compact
         if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
-            default = OptionResult(default)
-        super().__init__(name, args, alias, dest, default, action, separators, help_text, soft_keyword)
-        if self.args.data:
-            if default is not Empty and not self.default.args:
-                self.default.args = {self.args.data[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
-                self.default.value = ...
-            if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.data if arg.field.default is not Empty}):
-                self.default = OptionResult(args=defaults)
+            default: OptionResult = OptionResult(default)
+        _args = handle_args(args)
+        if _args:
+            if isinstance(default, OptionResult) and not default.args:
+                default.args = {_args.data[0].name: default.value} if not isinstance(default.value, dict) else default.value
+                default.value = ...
+            if default is Empty and (defaults := {arg.name: arg.field.get_default() for arg in _args.data if not arg.field.no_default}):
+                default = OptionResult(args=defaults)
+        super().__init__(name, _args, alias, dest, default, action, separators, help_text, soft_keyword)
         if not self.separators:
             self.compact = True
             self.separators = " "
@@ -459,16 +460,18 @@ class Subcommand(CommandNode):
                     _args.append(i)
                 elif isinstance(i, ArgsBuilder):
                     _args.extend(i)
+        _args = handle_args(_args)
+        if _args:
+            if isinstance(default, SubcommandResult) and not default.args:
+                default.args = {_args.data[0].name: default.value} if not isinstance(default.value, dict) else default.value
+                default.value = ...
+            if default is Empty and (defaults := {arg.name: arg.field.get_default() for arg in _args.data if not arg.field.no_default}):
+                default = SubcommandResult(args=defaults)
         super().__init__(
             name,
             _args,
             alias, dest, default, None, separators, help_text, soft_keyword
         )
-        if self.args.data and default is not Empty and not self.default.args:
-            self.default.args = {self.args.data[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
-            self.default.value = ...
-        if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.data if arg.field.default is not Empty}):
-            self.default = SubcommandResult(args=defaults)
         self._hash = self._calc_hash()
         self._lookup_map = {al: opt for opt in self.options for al in opt.aliases}
 

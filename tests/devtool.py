@@ -39,8 +39,7 @@ class _DummyAnalyser(Analyser):
         cls.command = cls._DummyALC()  # type: ignore
         cls.compact_params = []
         cls.default_value_result = {}
-        cls.default_main_only = {}
-        cls.need_main_args = {}
+        cls.args_optional = {}
         cls.args_result = {}
         cls._unvisited = {}
         return super().__new__(cls)
@@ -102,14 +101,13 @@ def analyse_option(
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = " "
-    _analyser.need_main_args[(option.dest,)] = False
-    _analyser.default_main_only[(option.dest,)] = False
+    _analyser.args_optional[()] = False
     _analyser.command.options.append(option)
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
         argv.build(command)
-        alo(_analyser, option, argv, (), False)
+        alo(_analyser, option, argv, (option.dest,), False)
         return OptionResult(_analyser.value_result[(option.dest,)], _analyser.args_result[(option.dest,)])
     except Exception as e:
         if raise_exception:
@@ -129,8 +127,8 @@ def analyse_subcommand(
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = " "
-    _analyser.need_main_args[(subcommand.dest,)] = False
-    _analyser.default_main_only[(subcommand.dest,)] = False
+    if subcommand.nargs:
+        _analyser.args_optional[(subcommand.dest,)] = subcommand.args.optional_count == len(subcommand.args)
     _analyser.command.options.append(subcommand)
     _analyser.command.options.clear()
     try:

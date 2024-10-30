@@ -6,7 +6,7 @@ from tarina import Empty, lang
 
 from ..action import Action
 from ..arparma import Arparma
-from ..base import Option, Subcommand, HeadResult, SubcommandResult
+from ..base import Option, Subcommand, HeadResult
 from ..completion import comp_ctx, prompt
 from ..exceptions import (
     ArgumentMissing,
@@ -31,9 +31,8 @@ if TYPE_CHECKING:
 
 
 def _compile(ana: Analyser, sub: Subcommand, path: tuple[str, ...]):
-    ana.need_main_args[path] = sub.nargs > 0 and sub.nargs > sub.args.optional_count
-    _de_count = sum(arg.field.default is not Empty for arg in sub.args.data)
-    ana.default_main_only[path] = bool(_de_count) and _de_count == sub.nargs
+    if sub.args:
+        ana.args_optional[path] = sub.args.optional_count == len(sub.args.data)
     for opt in sub.options:
         if isinstance(opt, Option):
             if opt.compact or opt.action.type == 2 or not set(sub.separators).issuperset(opt.separators):
@@ -73,8 +72,7 @@ class Analyser:
         self.command = alconna
         self.argv = argv
         self.extra_allow = not self.command.config.strict
-        self.default_main_only: dict[tuple[str, ...], bool] = {(alconna.dest,): False}
-        self.need_main_args: dict[tuple[str, ...], bool] = {(alconna.dest,): False}
+        self.args_optional: dict[tuple[str, ...], bool] = {}
         self.compact_params: dict[tuple[str, ...], list[Option | Subcommand]] = {}
         self.default_value_result: dict[tuple[str, ...], tuple[Any, Action]] = {}
         self.default_arg_result: dict[tuple[str, ...], tuple[dict[str, Any], Action]] = {}
@@ -106,8 +104,15 @@ class Analyser:
         return f"<{self.__class__.__name__} of {self.command.path}>"
 
     def update(self, current: Subcommand, path: tuple[str, ...]):
-        self._unvisited = {k: v for k, v in self._unvisited.items() if v[1] not in self.value_result}
-        self._unvisited |= {al: (opt, path + (opt.dest,)) for opt in current.options for al in opt.aliases}
+        self._unvisited = {
+            k: v
+            for k, v in self._unvisited.items()
+            if v[1] not in self.value_result
+        } | {
+            al: (opt, path + (opt.dest,))
+            for opt in current.options
+            for al in opt.aliases
+        }
 
     def process(self, argv: Argv, name_validated: bool = True) -> Exception | None:
         """主体解析函数, 应针对各种情况进行解析
@@ -141,33 +146,31 @@ class Analyser:
                 )
             return e1
 
-        if self.default_main_only[()] and () not in self.args_result:
-            try:
-                self.args_result[()] = analyse_args(self, argv, self.command.args)
-            except FuzzyMatchSuccess as e1:
-                return e1
-            except AnalyseException as e2:
-                e2.context_node = None
-                if not self._error:
-                    self._error = e2
-
-        if argv.current_index == argv.ndata and (not self.need_main_args[()] or () in self.args_result):
-            return
-
-        rest = argv.release()
-        if len(rest) > 0:
-            exc = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next()[0]))
-        else:
+        if argv.current_index == argv.ndata:
+            if not () in self.args_optional or () in self.args_result:
+                return
+            if self.args_optional[()]:
+                try:
+                    self.args_result[()] = analyse_args(self, argv, self.command.args)
+                except FuzzyMatchSuccess as e1:
+                    return e1
+                except AnalyseException as e2:
+                    e2.context_node = None
+                    if not self._error:
+                        self._error = e2
+                return
             exc = ArgumentMissing(
                 self.command.args.data[0].field.get_missing_tips(lang.require("analyser", "param_missing"))
             )
             if comp_ctx.get(None):
                 return PauseTriggered(
-                    prompt(self.command, argv.release(recover=True), [*self.args_result.get((), {}).keys()], [*self.value_result.keys()]),
+                    prompt(self.command, argv.release(recover=True), [*self.args_result.get((), {}).keys()],
+                           [*self.value_result.keys()]),
                     exc,
                     argv
                 )
-        return exc
+            return exc
+        return ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next()[0]))
 
     def export(
         self,
@@ -190,7 +193,7 @@ class Analyser:
             if self.command.config.raise_exception and not isinstance(exception, FuzzyMatchSuccess):
                 raise exception
             result.error_info = exception
-            result.error_data = argv.release()
+            result.error_data = argv.release(no_split=True)
             if isinstance(exception, FuzzyMatchSuccess):
                 result.output = str(exception)
         if self.default_value_result:
