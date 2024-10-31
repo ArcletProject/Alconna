@@ -52,7 +52,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
     if "help" not in conf.disable_builtin_options:
         options.append(hlp := Help("|".join(conf.builtin_option_name["help"]), dest="$help", help_text=lang.require("builtin", "option_help"), soft_keyword=False))  # noqa: E501
 
-        @router.route(hlp.name)
+        @router.route(f"*.{hlp.name}")
         @router.route("$help")
         def _(command: Alconna, arp: Arparma):
             _help_param = [str(i) for i in arp.buffer if str(i) not in conf.builtin_option_name["help"]]
@@ -72,7 +72,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
             )
         )
 
-        @router.route(sct.name)
+        @router.route(f"*.{sct.name}")
         @router.route("$shortcut")
         def _(command: Alconna, arp: Arparma):
             res = arp.query[OptionResult]("$shortcut", force_return=True)
@@ -94,7 +94,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
     if "completion" not in conf.disable_builtin_options:
         options.append(comp := Completion("|".join(conf.builtin_option_name["completion"]), dest="$completion", help_text=lang.require("builtin", "option_completion"), soft_keyword=False))  # noqa: E501
 
-        @router.route(comp.name)
+        @router.route(f"*.{comp.name}")
         @router.route("$completion")
         def _(command: Alconna, arp: Arparma):
             rest = arp.buffer

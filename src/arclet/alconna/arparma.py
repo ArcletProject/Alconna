@@ -302,6 +302,11 @@ class Arparma(Generic[TDC]):
         """如果能够返回, 除开基本信息, 一定返回该path所在的dict"""
         bak = parts.copy()
         if len(bak) > 1:
+            if parts[0] == "*":
+                for _path in self.value_result:
+                    if parts[1] in _path:
+                        parts = list(_path)
+                        break
             if parts[-1] == "value":
                 parts.pop()
                 if tuple(parts) in self.value_result:
