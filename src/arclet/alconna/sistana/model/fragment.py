@@ -15,7 +15,7 @@ class _Fragment:
     name: str
     variadic: bool = False
     default: Some[Any] = None
-    export: bool = False
+    # export: bool = False
 
     separators: str | None = None
     hybrid_separators: bool = True

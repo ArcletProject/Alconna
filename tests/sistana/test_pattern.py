@@ -12,7 +12,7 @@ from .asserts import analyze
 def test_aliases():
     pat = SubcommandPattern.build("test").option(
         "name",
-        Fragment("name", export=True),
+        Fragment("name"),
         aliases=["--name"],
     )
 

@@ -1,164 +1,111 @@
 from __future__ import annotations
 
-from collections import deque
-from typing import Any, Iterable, Sequence, overload
+from typing import Sequence, Any, overload
 
-import tarina
+from arclet.alconna.base import Subcommand, Option, HeadResult
+from arclet.alconna.exceptions import InvalidArgs, InvalidParam, ParamsUnmatched, UnexpectedElement, ArgumentMissing, \
+    NullMessage
+from arclet.alconna.core import Alconna
+from arclet.alconna.args import _Args
+from arclet.alconna.arparma import Arparma
+
+from arclet.alconna.sistana import Analyzer, LoopflowExitReason
+from arclet.alconna.sistana.some import Value
+from arclet.alconna.sistana.fragment import Fragment
+from arclet.alconna.sistana.model.snapshot import AnalyzeSnapshot
+from arclet.alconna.sistana.model.receiver import ConstRx, AccumRx, CountRx
+from arclet.alconna.sistana.model.pattern import SubcommandPattern, OptionPattern
+
 from elaina_segment import Buffer
-from elaina_triehard import TrieHard
-
-from arclet.alconna import Alconna, Arg, Args, Arparma, HeadResult, Option, OptionResult, Subcommand, SubcommandResult
-from arclet.alconna.exceptions import (
-    ArgumentMissing,
-    InvalidArgs,
-    InvalidParam,
-    NullMessage,
-    ParamsUnmatched,
-    UnexpectedElement,
-)
-from arclet.alconna.sistana import (
-    Analyzer,
-    AnalyzeSnapshot,
-    Fragment,
-    LoopflowExitReason,
-    OptionPattern,
-    Preset,
-    SubcommandPattern,
-    Track,
-    Value,
-)
-from arclet.alconna.sistana.err import ParsePanic, Rejected
-from arclet.alconna.sistana.model.fragment import _Fragment
-from arclet.alconna.sistana.model.pointer import PointerRole
-from arclet.alconna.sistana.model.snapshot import SubcommandTraverse
 
 from .flywheel import build_runes
 
 
-def _alc_args_to_fragments(args: Args) -> deque[_Fragment]:
-    alc_argument = args.argument
-    fragments = deque()
-
-    for ag in alc_argument:
-        if ag.field.default is tarina.const.Empty:
+def _alc_args_to_fragments(args: _Args) -> list[Fragment]:
+    fragments = []
+    for ag in args.data:
+        if ag.field.no_default:
             default = None
         else:
-            default = Value(ag.field.default)
+            default = Value(ag.field.get_default())
 
         frag = Fragment(
             name=ag.name,
+            variadic=bool(ag.field.multiple),
             default=default,
+            separators=ag.separators,
         )
-        frag.apply_nepattern(ag.value)
+        frag.apply_nepattern(ag.type_)
         fragments.append(frag)
 
     return fragments
 
 
-@overload
-def into_sistana(alconna: Alconna) -> SubcommandPattern: ...
-
-
-@overload
-def into_sistana(alconna: Subcommand) -> SubcommandPattern: ...
-
-
-@overload
-def into_sistana(alconna: Option) -> OptionPattern: ...
-
-
-def into_sistana(alconna: Alconna | Subcommand | Option):
-    if isinstance(alconna, Alconna):
-        alconna.compile()
-
-        subcommands = {}
-        options = {}
-
-        for subcommand in alconna.options:
-            if isinstance(subcommand, Subcommand):
-                pattern = into_sistana(subcommand)
-                subcommands[subcommand.name] = pattern
-                for alias in subcommand.aliases:
-                    subcommands[alias] = pattern
-            elif isinstance(subcommand, Option):
-                pattern = into_sistana(subcommand)
-                options[subcommand.name] = pattern
-                for alias in subcommand.aliases:
-                    options[alias] = pattern
-
-        return SubcommandPattern(
-            header=alconna.command,
-            preset=Preset(
-                {
-                    alconna.name: Track(deque(_alc_args_to_fragments(alconna.args))),
-                    **{
-                        option.name: Track(deque(_alc_args_to_fragments(option.args)))
-                        for option in alconna.options
-                        if isinstance(option, Option)
-                    },
-                }
-            ),
-            options=options,
-            subcommands=subcommands,
-            prefixes=TrieHard(alconna.prefixes) if alconna.prefixes else None,
-            soft_keyword=alconna.soft_keyword,
+def step(node: Subcommand | Option, upper: SubcommandPattern):
+    if isinstance(node, Subcommand):
+        pat = upper.subcommand(
+            node.name,
+            *_alc_args_to_fragments(node.args),
+            aliases=node.aliases,
+            soft_keyword=node.soft_keyword,
+            separators=node.separators,
         )
-    elif isinstance(alconna, Subcommand):
-        subcommands = {}
-        options = {}
-
-        for subcommand in alconna.options:
-            if not isinstance(subcommand, Subcommand):
-                continue
-
-            pattern = into_sistana(subcommand)
-            subcommands[subcommand.name] = pattern
-            for alias in subcommand.aliases:
-                subcommands[alias] = pattern
-
-        for option in alconna.options:
-            if not isinstance(option, Option):
-                continue
-
-            pattern = into_sistana(option)
-            options[option.name] = pattern
-            for alias in option.aliases:
-                options[alias] = pattern
-
-        return SubcommandPattern(
-            header=alconna.name,
-            preset=Preset(
-                {
-                    alconna.name: Track(deque(_alc_args_to_fragments(alconna.args))),
-                    **{
-                        option.name: Track(deque(_alc_args_to_fragments(option.args)))
-                        for option in alconna.options
-                        if isinstance(option, Option)
-                    },
-                }
-            ),
-            options=options,
-            subcommands=subcommands,
-            soft_keyword=alconna.soft_keyword,
-        )
+        for option in node.options:
+            step(option, pat)
+        return pat
     else:
-        return OptionPattern(
-            keyword=alconna.name,
-            soft_keyword=alconna.soft_keyword,
+        header_fragment = None
+        if node.action.type == 0 and node.action.value is not ...:
+            header_fragment = Fragment(
+                name=node.name,
+                receiver=ConstRx(node.action.value),
+            )
+        elif node.action.type == 1:
+            header_fragment = Fragment(
+                name=node.name,
+                receiver=AccumRx(),
+            )
+        elif node.action.type == 2:
+            header_fragment = Fragment(
+                name=node.name,
+                receiver=CountRx(),
+            )
+        return upper.option(
+            node.name,
+            *_alc_args_to_fragments(node.args),
+            aliases=node.aliases,
+            soft_keyword=node.soft_keyword,
+            separators=node.separators,
+            allow_duplicate=node.action.type != 0,
+            compact_header=node.compact,
+            header_fragment=header_fragment,
         )
 
 
-def _reason_raise_alc_exception(reason: LoopflowExitReason) -> None:
+def into_sistana(cmd: Alconna):
+    pat = SubcommandPattern.build(
+        cmd.command,
+        *_alc_args_to_fragments(cmd.args),
+        prefixes=cmd.prefixes,
+        compact_header=bool(cmd.config.compact),
+        separators=cmd.separators,
+    )
+    for option in cmd.options:
+        step(option, pat)
+    return pat
+
+
+def _reason_raise_alc_exception(reason: LoopflowExitReason):
     if reason == LoopflowExitReason.completed:
         return
 
     if reason in {
         LoopflowExitReason.unsatisfied,
         LoopflowExitReason.previous_unsatisfied,
-        LoopflowExitReason.switch_unsatisfied_option,
+        LoopflowExitReason.unsatisfied_switch_option,
         LoopflowExitReason.unsatisfied_switch_subcommand,
     }:
-        raise ParamsUnmatched(f"LoopflowDescription: {reason.value}")
+        return ParamsUnmatched(f"LoopflowDescription: {reason.value}")
 
     if reason in {
         LoopflowExitReason.out_of_data_subcommand,
@@ -185,85 +132,80 @@ def _reason_raise_alc_exception(reason: LoopflowExitReason) -> None:
         raise NullMessage(f"LoopflowDescription: {reason.value}")
 
 
-def _sistana_to_alc_result(traverses: list[SubcommandTraverse]) -> tuple[str, SubcommandResult] | None:
-    if not traverses:
-        return
-
-    first_traverse = traverses[0]
-    mix = first_traverse.mix
-
-    def extract_values_and_args(name: str):
-        track = mix.get_track(name)
-        value = ... if track.header is None else track.assignes[track.header.name]
-        args = {k: v for k, v in track.assignes.items() if track.header is None or k != track.header.name}
-        return value, args
-
-    value, args = extract_values_and_args(first_traverse.subcommand.header)
-    options = (
-        {opt: OptionResult(*extract_values_and_args(opt)) for opt in first_traverse.option_traverses._by_keyword}
-        if first_traverse.option_traverses.traverses
-        else None
-    )
-    subcommand_result = _sistana_to_alc_result(traverses[1:])
-
-    subcommands = None
-    if subcommand_result is not None:
-        subcommand_name, subcommands = subcommand_result
-        subcommands = {subcommand_name: subcommands}
-
-    return first_traverse.ref.last_value, SubcommandResult(value, args, options, subcommands)
-
-
-def dump_arparma(snapshot: AnalyzeSnapshot, message: Sequence[Any], matched: bool = True, head_matched: bool = True) -> Arparma:
-    subcommands = None
-    main_args = None
-    subcmds = None
-    options = None
-    result = _sistana_to_alc_result(snapshot.traverses)
-    if result is not None:
-        subcommands = result[1]
-        main_args = subcommands.args
-        subcmds = subcommands.subcommands
-        options = subcommands.options
-
-    return Arparma(
-        _id=-1,
+def dump_arparma(
+    alc: Alconna,
+    snapshot: AnalyzeSnapshot,
+    buffer: Buffer,
+    message: Sequence[Any],
+    matched: bool = True,
+    head_matched: bool = True
+) -> Arparma:
+    args_result = {}
+    value_result = {}
+    for path, track in snapshot.mix.command_tracks.items():
+        path = path[1:]
+        if track.header and track.header.name in snapshot.mix.assignes:
+            value_result[path] = snapshot.mix.assignes[track.header.name]
+        elif track.emitted:
+            value_result[path] = ...
+        args_result[path] = {frg.name: snapshot.mix.assignes[frg.name] for frg in track.fragments if frg.name in snapshot.mix.assignes}
+    for (prefixes, dest), track in snapshot.mix.option_tracks.items():
+        path = prefixes + (dest,)
+        path = path[1:]
+        if track.header and track.header.name in snapshot.mix.assignes:
+            value_result[path] = snapshot.mix.assignes[track.header.name]
+        elif track.emitted:
+            value_result[path] = ...
+        args_result[path] = {frg.name: snapshot.mix.assignes[frg.name] for frg in track.fragments if frg.name in snapshot.mix.assignes}
+    arp = Arparma(
+        _id=alc._hash,
         origin=message,
         matched=matched,
         header_match=HeadResult(head_matched),
-        main_args=main_args,
-        subcommands=subcmds,
-        options=options,
+        args_result=args_result,
+        value_result=value_result,
     )
+    arp.buffer = buffer  # type: ignore
+    return arp
 
 
-def process_adapt(pattern: SubcommandPattern, message: Sequence[Any]):
+def _parse(self: Alconna, message: Sequence[Any], _) -> Arparma:
+    if hasattr(self, "_sistana_pattern"):
+        pattern = self._sistana_pattern  # type: ignore
+    else:
+        pattern = into_sistana(self)
+        self._sistana_pattern = pattern  # type: ignore
+    if isinstance(message, str):
+        message = [message]
+
     analyzer = Analyzer()
     buffer = Buffer(build_runes(message), runes=False)
     snapshot = pattern.prefix_entrypoint
 
-    matched = False
-    head_matched = False
+    reason = analyzer.loopflow(snapshot, buffer)
+    head_matched = reason not in {LoopflowExitReason.prefix_mismatch, LoopflowExitReason.header_mismatch}
+    _reason_raise_alc_exception(reason)
+    return dump_arparma(self, snapshot, buffer, message, True, head_matched)
 
-    try:
-        reason = analyzer.loopflow(snapshot, buffer)
-    except Exception:
-        matched = False
+
+_OLD_PARSE = Alconna._parse
+
+
+def patch_alconna(alc: Alconna | None = None):
+    if alc is None:
+        Alconna._parse = _parse  # type: ignore
+
+        def dispose():
+            Alconna._parse = _OLD_PARSE
+
+        return dispose
     else:
-        if reason not in {LoopflowExitReason.prefix_mismatch, LoopflowExitReason.header_mismatch}:
-            head_matched = True
+        alc._parse = _parse.__get__(alc)  # type: ignore
 
-        if reason == LoopflowExitReason.completed:
-            matched = True
+        def dispose():
+            alc._parse = _OLD_PARSE.__get__(alc)
 
-    return dump_arparma(snapshot, message, matched, head_matched)
-
-
-def patch_alconna(alconna: Alconna):
-    pattern = into_sistana(alconna)
-
-    alconna._sistana_pattern = pattern  # type: ignore
-    alconna._parse = lambda message, _: process_adapt(pattern, message)  # type: ignore
+        return dispose
 
 
 def _sistana_debug(alc: Alconna, message):
@@ -276,9 +218,11 @@ def _sistana_debug(alc: Alconna, message):
     res = analyzer.loopflow(snapshot, buffer)
     print(
         res,
-        snapshot._export(),
+        snapshot.mix,
         dump_arparma(
+            alc,
             snapshot,
+            buffer,
             message,
             res == LoopflowExitReason.completed,
             res in {LoopflowExitReason.prefix_mismatch, LoopflowExitReason.header_mismatch},
@@ -287,17 +231,6 @@ def _sistana_debug(alc: Alconna, message):
 
 
 def patch_global(debug: bool = False):
-    def cached_parse(self: Alconna, message, _):
-        if hasattr(self, "_sistana_pattern"):
-            pattern = self._sistana_pattern  # type: ignore
-        else:
-            pattern = into_sistana(self)
-            self._sistana_pattern = pattern  # type: ignore
-            # self._sistana_debug = lambda s, message: _sistana_debug(pattern, message)  # type: ignore
-
-        return process_adapt(pattern, message)
-
-    Alconna._parse = cached_parse  # type: ignore
-
     if debug:
         Alconna._sistana_debug = _sistana_debug  # type: ignore
+    return patch_alconna()
