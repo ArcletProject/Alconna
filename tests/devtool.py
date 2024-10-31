@@ -8,11 +8,12 @@ from arclet.alconna.ingedia._analyser import Analyser
 from arclet.alconna.ingedia._handlers import analyse_header as alh
 from arclet.alconna.ingedia._handlers import analyse_args as ala
 from arclet.alconna.ingedia._handlers import analyse_option as alo
+from arclet.alconna.ingedia._handlers import analyse_subcommand as als
 from arclet.alconna.args import ARGS_PARAM, handle_args
 from arclet.alconna.ingedia._argv import Argv
-from arclet.alconna.base import Option, Subcommand, Header, Config
+from arclet.alconna.base import Option, Subcommand, Header, Config, OptionResult, SubcommandResult
 from arclet.alconna.config import Namespace
-from arclet.alconna.typing import DataCollection
+from arclet.alconna.utils import DataCollection
 
 
 class AnalyseError(Exception):
@@ -30,11 +31,17 @@ class _DummyAnalyser(Analyser):
         config = namedtuple("Config", ["keep_crlf", "fuzzy_match", "raise_exception"])(False, False, True)
         namespace_config = dev_space
 
+        @property
+        def _lookup_map(self):
+            return {al: opt for opt in self.options for al in opt.aliases}
+
     def __new__(cls, *args, **kwargs):
         cls.command = cls._DummyALC()  # type: ignore
-        cls.compile_params = {}
         cls.compact_params = []
-        cls.default_opt_result = {}
+        cls.default_value_result = {}
+        cls.args_optional = {}
+        cls.args_result = {}
+        cls._unvisited = {}
         return super().__new__(cls)
 
 
@@ -47,11 +54,12 @@ def analyse_args(
 ):
     conf = Config(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
     argv: Argv[DataCollection] = Argv(conf, dev_space)
+    _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     try:
         argv.enter(kwargs)
         argv.build(["test"] + command)
         argv.next()
-        return ala(argv, handle_args(args))
+        return ala(_analyser, argv, handle_args(args))
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -93,16 +101,14 @@ def analyse_option(
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = " "
-    _analyser.need_main_args = False
+    _analyser.args_optional[()] = False
     _analyser.command.options.append(option)
-    _analyser.compile()
-    argv.stack_params.base = _analyser.compile_params
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
         argv.build(command)
-        alo(_analyser, argv, option, False)
-        return _analyser.options_result[option.dest]
+        alo(_analyser, option, argv, (option.dest,), False)
+        return OptionResult(_analyser.value_result[(option.dest,)], _analyser.args_result[(option.dest,)])
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)
@@ -121,15 +127,20 @@ def analyse_subcommand(
     _analyser = _DummyAnalyser.__new__(_DummyAnalyser)
     _analyser.reset()
     _analyser.command.separators = " "
-    _analyser.need_main_args = False
+    if subcommand.nargs:
+        _analyser.args_optional[(subcommand.dest,)] = subcommand.args.optional_count == len(subcommand.args)
     _analyser.command.options.append(subcommand)
-    _analyser.compile()
-    argv.stack_params.base = _analyser.compile_params
     _analyser.command.options.clear()
     try:
         argv.enter(kwargs)
         argv.build(command)
-        return _analyser.compile_params[subcommand.name].process(argv, False).result()  # type: ignore
+        _analyser.update(subcommand, ())
+        als(_analyser, subcommand, argv, (subcommand.dest,), False)
+        res = SubcommandResult(..., _analyser.args_result.get((subcommand.dest,)))
+        for k, v in _analyser.value_result.items():
+            if len(k) > 1 and k[0] == subcommand.dest:
+                res.subcommands[k[1]] = SubcommandResult(v, _analyser.args_result.get(k))
+        return res
     except Exception as e:
         if raise_exception:
             traceback.print_exception(AnalyseError, e, e.__traceback__)

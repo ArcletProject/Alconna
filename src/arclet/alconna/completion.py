@@ -225,7 +225,7 @@ class CompSession:
 comp_ctx: ContextModel[CompSession] = ContextModel("comp_ctx")
 
 
-def _prompt_none(command: Alconna, args_got: list[str], opts_got: list[str]):
+def _prompt_none(command: Alconna, args_got: list[str], opts_got: list[tuple[str, ...]]):
     res: list[Prompt] = []
     if unit := next((arg for arg in command.args if arg.name not in args_got), None):
         if not (comp := unit.field.get_completion()):
@@ -237,12 +237,12 @@ def _prompt_none(command: Alconna, args_got: list[str], opts_got: list[str]):
     for opt in command.options:
         if isinstance(opt, SPECIAL_OPTIONS):
             continue
-        if opt.dest not in opts_got:
+        if (command.dest, opt.dest) not in opts_got:
             res.extend([Prompt(al) for al in opt.aliases] if isinstance(opt, Option) else [Prompt(opt.name)])
     return res
 
 
-def prompt(command: Alconna, buffer: list, args_got: list[str], opts_got: list[str], trigger: str | Arg | Subcommand | None = None):
+def prompt(command: Alconna, buffer: list, args_got: list[str], opts_got: list[tuple[str, ...]], trigger: str | Arg | Subcommand | None = None):
     """获取补全列表"""
     target = str(buffer[-1])
     if isinstance(buffer[-1], str) and buffer[-1] in command.config.builtin_option_name["completion"]:
@@ -255,10 +255,10 @@ def prompt(command: Alconna, buffer: list, args_got: list[str], opts_got: list[s
         o = list(filter(lambda x: target in x, comp)) or comp
         return [Prompt(f"{trigger.name}: {i}", False, target) for i in o]
     elif isinstance(trigger, Subcommand):
-        return [Prompt(i, True) for opt in trigger.options for i in opt.aliases if target in i]
+        return [Prompt(i, True) for i in trigger._lookup_map if target in i]
     if isinstance(trigger, str):
         target = trigger
-    if _res := [x for opt in command.options for x in opt.aliases if target in x]:
-        out = [i for i in _res if i not in opts_got]
+    if _res := [x for x in command._lookup_map if target in x]:
+        out = [i for i in _res if (command.dest, i) not in opts_got]
         return [Prompt(i, True, target) for i in (out or _res)]
     return _prompt_none(command, args_got, opts_got)

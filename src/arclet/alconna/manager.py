@@ -19,7 +19,7 @@ from .arparma import Arparma
 from .base import Header, Metadata
 from .config import Namespace, global_config
 from .exceptions import ExceedMaxCount
-from .typing import TDC, DataCollection
+from .utils import TDC, DataCollection
 from .shortcut import InnerShortcutArgs, ShortcutArgs, find_shortcut as _find_shortcut
 
 if TYPE_CHECKING:
@@ -164,6 +164,7 @@ class CommandManager:
         command.dest = command.name = name
         command.aliases = frozenset(command._header.content)
         cmd_hash = command._hash = command._calc_hash()
+        command._lookup_map = {al: opt for opt in command.options for al in opt.aliases}
         self.__analysers[cmd_hash] = command.compile()
         command.formatter.add(command)
 

@@ -1,58 +1,50 @@
 from __future__ import annotations
 
 from dataclasses import InitVar, dataclass, field, fields
-from typing import Any, Callable, ClassVar, Generic, Iterable, Literal, TYPE_CHECKING
+from typing import Any, Callable, ClassVar, Generic, Iterable, Literal
 from typing_extensions import Self
 from contextvars import ContextVar
 from tarina import lang, split, split_once
 
-from ..base import Option, Config
+from ..base import Config
 from ..config import Namespace, global_config
 from ..constraint import ARGV_OVERRIDES
 from ..exceptions import NullMessage
-from ..typing import TDC
-from ._util import ChainMap
-
-if TYPE_CHECKING:
-    from ._analyser import SubAnalyser
+from ..utils import TDC
 
 
 @dataclass(repr=True)
 class Argv(Generic[TDC]):
     """命令行参数"""
-
+    # basic
     conf: InitVar[Config]
     namespace: Namespace = field(default=global_config.default_namespace)
     """命名空间"""
     separators: str = field(default=" ")
     """命令分隔符"""
-
+    # input
     preprocessors: dict[type, Callable[..., Any]] = field(default_factory=dict)
     """命令元素的预处理器"""
-    filter_out: list[type] = field(default_factory=list)
-    """需要过滤掉的命令元素"""
     checker: Callable[[Any], bool] | None = field(default=None)
     """检查传入命令"""
-
-    fuzzy_match: bool = field(init=False)
-    """当前命令是否模糊匹配"""
-    fuzzy_threshold: float = field(init=False)
-    """模糊匹配阈值"""
     to_text: Callable[[Any], str | None] = field(default=lambda x: x if isinstance(x, str) else None)
     """将命令元素转换为文本, 或者返回None以跳过该元素"""
     converter: Callable[[str | list], TDC] = field(default=lambda x: x)
     """将字符串或列表转为目标命令类型"""
+    # control
+    fuzzy_match: bool = field(init=False)
+    """当前命令是否模糊匹配"""
+    fuzzy_threshold: float = field(init=False)
+    """模糊匹配阈值"""
     filter_crlf: bool = field(init=False)
     """是否过滤掉换行符"""
     message_cache: bool = field(init=False)
     """是否缓存消息"""
     context_style: Literal["bracket", "parentheses"] | None = field(init=False)
     "命令上下文插值的风格，None 为关闭，bracket 为 {...}，parentheses 为 $(...)"
-
+    # data
     current_index: int = field(init=False)
     """当前数据的索引"""
-    stack_params: ChainMap[SubAnalyser | Option] = field(init=False, default_factory=lambda: ChainMap())
-    error: Exception | None = field(init=False)
     ndata: int = field(init=False)
     """原始数据的长度"""
     bak_data: list[str | Any] = field(init=False)
@@ -73,7 +65,6 @@ class Argv(Generic[TDC]):
         self.compile(conf)
         if __cache := self.__class__._cache.get(self.__class__, {}):
             self.preprocessors.update(__cache.get("preprocessors") or {})
-            self.filter_out.extend(__cache.get("filter_out") or [])
             self.to_text = __cache.get("to_text") or self.to_text
             self.checker = __cache.get("checker") or self.checker
             self.converter = __cache.get("converter") or self.converter
@@ -93,8 +84,6 @@ class Argv(Generic[TDC]):
         self.ndata = 0
         self.bak_data = []
         self.raw_data = []
-        self.error = None
-        self.stack_params.stack = []
         self.token = 0
         self.origin = "None"  # type: ignore
         self._sep = None
@@ -125,9 +114,7 @@ class Argv(Generic[TDC]):
         i = 0
         raw_data = self.raw_data
         for unit in data:
-            if (utype := unit.__class__) in self.filter_out:
-                continue
-            if (proc := self.preprocessors.get(utype)) and (res := proc(unit)):
+            if (proc := self.preprocessors.get(unit.__class__)) and (res := proc(unit)):
                 unit = res
             if (text := self.to_text(unit)) is None:
                 raw_data.append(unit)
@@ -296,7 +283,6 @@ def argv_config(
     target: type[Argv] | None = None,
     preprocessors: dict[type, Callable[..., Any]] | None = None,
     to_text: Callable[[Any], str | None] | None = None,
-    filter_out: list[type] | None = None,
     checker: Callable[[Any], bool] | None = None,
     converter: Callable[[str | list], TDC] | None = None,
 ):
@@ -306,7 +292,6 @@ def argv_config(
         target (type[Argv] | None, optional): 目标命令类型.
         preprocessors (dict[type, Callable[..., Any]] | None, optional): 命令元素的预处理器.
         to_text (Callable[[Any], str | None] | None, optional): 将命令元素转换为文本, 或者返回None以跳过该元素.
-        filter_out (list[type] | None, optional): 需要过滤掉的命令元素.
         checker (Callable[[Any], bool] | None, optional): 检查传入命令.
         converter (Callable[[str | list], TDC] | None, optional): 将字符串或列表转为目标命令类型.
     """

@@ -10,7 +10,7 @@ from nepattern import ANY, Pattern
 
 from arclet.alconna.args import _Args
 from arclet.alconna.base import Option, Subcommand, OptionResult, SubcommandResult
-from arclet.alconna.typing import AllParam
+from arclet.alconna.utils import AllParam
 
 T = TypeVar("T")
 T_Origin = TypeVar("T_Origin")

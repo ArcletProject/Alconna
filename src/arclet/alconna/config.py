@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, ContextManager, Literal, TypedD
 
 from .i18n import lang as lang
 from .base import Config
-from .typing import DataCollection
+from .utils import DataCollection
 
 if TYPE_CHECKING:
     from .formatter import TextFormatter

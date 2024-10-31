@@ -21,20 +21,20 @@ def test_option_aliases():
 
 def test_separator():
     opt2 = Option("foo", Args.bar(int), separators="|")
-    assert analyse_option(opt2, ["foo|123"]) == OptionResult(None, {"bar": 123})
+    assert analyse_option(opt2, ["foo|123"]) == OptionResult(..., {"bar": 123})
     opt2_1 = Option("foo", Args.bar(int)).separate("|")
     assert opt2 == opt2_1
 
 
 def test_subcommand():
-    sub = Subcommand("test", Option("foo"), Option("bar"))
+    sub = Subcommand("sub", Option("foo"), Option("bar"))
     assert len(sub.options) == 2
-    assert analyse_subcommand(sub, ["test foo"]) == SubcommandResult(None, {}, {"foo": OptionResult()})
+    assert analyse_subcommand(sub, ["sub foo"]) == SubcommandResult(..., {}, {}, {"foo": SubcommandResult()})
 
 
 def test_compact():
     opt3 = Option("-Foo", Args.bar(int), compact=True)
-    assert analyse_option(opt3, ["-Foo123"]) == OptionResult(None, {"bar": 123})
+    assert analyse_option(opt3, ["-Foo123"]) == OptionResult(..., {"bar": 123})
 
 
 def test_add():

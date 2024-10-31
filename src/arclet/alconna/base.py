@@ -11,9 +11,9 @@ from typing_extensions import Self
 from tarina import Empty, lang
 
 from .action import Action, store
-from .args import ARGS_PARAM, Arg, ArgsBase, ArgsMeta, ArgsBuilder, _Args, handle_args
+from .args import ARGS_PARAM, Arg, ArgsBase, ArgsBuilder, _Args, handle_args
 from .exceptions import InvalidArgs
-from .typing import Unset, UNSET
+from .utils import Unset, UNSET, levenshtein
 
 _repr_ = lambda self: "(" + " ".join([f"{k}={getattr(self, k, ...)!r}" for k in self.__slots__]) + ")"
 
@@ -146,6 +146,23 @@ class Header:
         prf = "|".join(re.escape(h) for h in prefixes)
         compp = re.compile(f"^(?:{prf}){command}")
         return cls((command, prefixes), {f"{h}{command}" for h in prefixes}, compact, compp)
+
+    def check_fuzzy(self, source: str, threshold: float):
+        command = self.origin[0]
+        if not self.origin[1]:
+            headers_text = [str(command)]
+        else:
+            headers_text = []
+            for prefix in self.origin[1]:
+                if isinstance(prefix, tuple):
+                    headers_text.append(f"{prefix[0]} {prefix[1]}{command}")
+                elif isinstance(prefix, str):
+                    headers_text.append(f"{prefix}{command}")
+                else:
+                    headers_text.append(f"{prefix} {command}")
+        for ht in headers_text:
+            if levenshtein(source, ht) >= threshold:
+                return lang.require("fuzzy", "matched").format(target=source, source=ht)
 
 
 def _handle_default(node: CommandNode):
@@ -305,7 +322,7 @@ class Option(CommandNode):
         args: ARGS_PARAM | None = None,
         alias: Iterable[str] | None = None,
         dest: str | None = None,
-        default: Any = Empty,
+        default: Any = Empty,  # type: ignore
         action: Action | None = None,
         separators: str | Sequence[str] | set[str] | None = None,
         help_text: str | None = None,
@@ -329,14 +346,15 @@ class Option(CommandNode):
 
         self.compact = compact
         if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
-            default = OptionResult(default)
-        super().__init__(name, args, alias, dest, default, action, separators, help_text, soft_keyword)
-        if self.args.data:
-            if default is not Empty and not self.default.args:
-                self.default.args = {self.args.data[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
-                self.default.value = ...
-            if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.data if arg.field.default is not Empty}):
-                self.default = OptionResult(args=defaults)
+            default: OptionResult = OptionResult(default)
+        _args = handle_args(args)
+        if _args:
+            if isinstance(default, OptionResult) and not default.args:
+                default.args = {_args.data[0].name: default.value} if not isinstance(default.value, dict) else default.value
+                default.value = ...
+            if default is Empty and (defaults := {arg.name: arg.field.get_default() for arg in _args.data if not arg.field.no_default}):
+                default = OptionResult(args=defaults)
+        super().__init__(name, _args, alias, dest, default, action, separators, help_text, soft_keyword)
         if not self.separators:
             self.compact = True
             self.separators = " "
@@ -402,6 +420,8 @@ class Subcommand(CommandNode):
     """子命令默认值"""
     options: list[Option | Subcommand]
     """子命令包含的选项与子命令"""
+    _lookup_map: dict[str, Option | Subcommand]
+    """子命令选项与子命令的查找表"""
 
     def __init__(
         self,
@@ -440,17 +460,20 @@ class Subcommand(CommandNode):
                     _args.append(i)
                 elif isinstance(i, ArgsBuilder):
                     _args.extend(i)
+        _args = handle_args(_args)
+        if _args:
+            if isinstance(default, SubcommandResult) and not default.args:
+                default.args = {_args.data[0].name: default.value} if not isinstance(default.value, dict) else default.value
+                default.value = ...
+            if default is Empty and (defaults := {arg.name: arg.field.get_default() for arg in _args.data if not arg.field.no_default}):
+                default = SubcommandResult(args=defaults)
         super().__init__(
             name,
             _args,
             alias, dest, default, None, separators, help_text, soft_keyword
         )
-        if self.args.data and default is not Empty and not self.default.args:
-            self.default.args = {self.args.data[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
-            self.default.value = ...
-        if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.data if arg.field.default is not Empty}):
-            self.default = SubcommandResult(args=defaults)
         self._hash = self._calc_hash()
+        self._lookup_map = {al: opt for opt in self.options for al in opt.aliases}
 
     def __add__(self, other: Option | ARGS_PARAM | str) -> Self:
         """连接子命令与命令选项或命令节点

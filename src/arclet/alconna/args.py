@@ -13,7 +13,7 @@ from tarina import Empty, lang
 
 from ._dcls import safe_dcls_kw, safe_field_kw
 from .exceptions import InvalidArgs
-from .typing import TAValue, parent_frame_namespace, merge_cls_and_parent_ns
+from .utils import TAValue, parent_frame_namespace, merge_cls_and_parent_ns
 
 _T = TypeVar("_T")
 
@@ -48,6 +48,10 @@ class Field(Generic[_T]):
     def display(self):
         """返回参数单元的显示值"""
         return self.alias or self.get_default()
+
+    @property
+    def no_default(self):
+        return self.default is Empty and self.default_factory is Empty
 
     def get_default(self):
         """返回参数单元的默认值"""
@@ -243,7 +247,7 @@ class _Args:
                 self.normal.append(arg)
             if arg.field.optional:
                 self.optional_count += 1
-            elif arg.field.default is not Empty:
+            elif not arg.field.no_default:
                 self.optional_count += 1
         self.data.clear()
         self.data.extend(_tmp)
@@ -252,6 +256,9 @@ class _Args:
 
     def __iter__(self):
         return iter(self.data)
+
+    def __bool__(self):
+        return bool(self.data)
 
     def __str__(self):
         return f"Args({', '.join([f'{arg}' for arg in self.data])})" if self.data else "Empty"
@@ -403,7 +410,7 @@ class ArgsBase(metaclass=ArgsMeta):
         return cls(**data)
 
 
-def handle_args(arg: Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | _Args | None) -> _Args:
+def handle_args(arg: Arg[Any] | list[Arg[Any]] | ArgsBuilder | type[ArgsBase] | _Args | None) -> _Args:
     if arg is None:
         return _Args([])
     if isinstance(arg, _Args):
