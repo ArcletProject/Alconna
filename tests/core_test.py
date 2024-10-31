@@ -725,7 +725,7 @@ def test_completion_interface():
 def test_call():
     from dataclasses import dataclass
     from arclet.alconna import ArgsBase
-    from arclet.alconna.completion import comp_ctx
+    from arclet.alconna.ingedia._completion import comp_ctx
 
     comp_ctx.set(None)  # type: ignore
 

@@ -23,7 +23,7 @@ from arclet.alconna.base import OptionResult as OptionResult  # noqa: F401
 from arclet.alconna.base import SubcommandResult as SubcommandResult  # noqa: F401
 from arclet.alconna.builtin import conflict as conflict  # noqa: F401
 from arclet.alconna.builtin import set_default as set_default  # noqa: F401
-from arclet.alconna.completion import CompSession as CompSession  # noqa: F401
+from arclet.alconna.ingedia._completion import CompSession as CompSession  # noqa: F401
 from arclet.alconna.config import global_config as config  # noqa: F401
 from arclet.alconna.core import Alconna as Alconna  # noqa: F401
 from arclet.alconna.exceptions import AlconnaException as AlconnaException  # noqa: F401

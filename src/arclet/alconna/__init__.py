@@ -25,7 +25,7 @@ from .base import OptionResult as OptionResult
 from .base import SubcommandResult as SubcommandResult
 from .builtin import conflict as conflict
 from .builtin import set_default as set_default
-from .completion import CompSession as CompSession
+from .ingedia._completion import CompSession as CompSession  # FIXME
 from .config import Namespace as Namespace
 from .config import global_config as global_config
 from .config import namespace as namespace

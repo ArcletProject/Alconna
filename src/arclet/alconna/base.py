@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import replace, dataclass, field, asdict, fields
-from typing import Any, Iterable, Sequence, overload, Literal, TypedDict
+from typing import Any, Iterable, Sequence, overload, Literal, TypedDict, TYPE_CHECKING
 
 from nepattern import TPattern
 from typing_extensions import Self
@@ -175,7 +175,7 @@ def _handle_default(node: CommandNode):
         act = node.action = replace(act, value=1)
     if isinstance(node.default, (OptionResult, SubcommandResult)):
         if act.type == 0 and act.value is ...:
-            node.action = Action(act.type, node.default.value)
+            node.action = Action(act.type, node.default.value or ...)
         if act.type == 1:
             if not isinstance(node.default.value, list):
                 node.default.value = [node.default.value]
@@ -345,15 +345,17 @@ class Option(CommandNode):
         """
 
         self.compact = compact
-        if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
-            default: OptionResult = OptionResult(default)
         _args = handle_args(args)
-        if _args:
-            if isinstance(default, OptionResult) and not default.args:
-                default.args = {_args.data[0].name: default.value} if not isinstance(default.value, dict) else default.value
-                default.value = ...
-            if default is Empty and (defaults := {arg.name: arg.field.get_default() for arg in _args.data if not arg.field.no_default}):
-                default = OptionResult(args=defaults)
+        if default is not Empty:
+            if not isinstance(default, (OptionResult, SubcommandResult)):
+                default = OptionResult(..., args=default) if isinstance(default, dict) else OptionResult(value=default)
+            if not _args:
+                if default.args:
+                    default.value = None
+            elif not default.args:
+                default.args = {_args.data[0].name: default.value}
+        elif _args and (defaults := {arg.name: arg.field.get_default() for arg in _args.data if not arg.field.no_default}):
+            default = OptionResult(args=defaults)
         super().__init__(name, _args, alias, dest, default, action, separators, help_text, soft_keyword)
         if not self.separators:
             self.compact = True
@@ -450,8 +452,6 @@ class Subcommand(CommandNode):
         for li in args:
             if isinstance(li, list) :
                 self.options.extend(li)
-        if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
-            default = SubcommandResult(default)
         _args = next((i for i in args if isinstance(i, type) and issubclass(i, ArgsBase)), None)
         if _args is None:
             _args = []
@@ -461,12 +461,16 @@ class Subcommand(CommandNode):
                 elif isinstance(i, ArgsBuilder):
                     _args.extend(i)
         _args = handle_args(_args)
-        if _args:
-            if isinstance(default, SubcommandResult) and not default.args:
-                default.args = {_args.data[0].name: default.value} if not isinstance(default.value, dict) else default.value
-                default.value = ...
-            if default is Empty and (defaults := {arg.name: arg.field.get_default() for arg in _args.data if not arg.field.no_default}):
-                default = SubcommandResult(args=defaults)
+        if default is not Empty:
+            if not isinstance(default, (OptionResult, SubcommandResult)):
+                default = SubcommandResult(None, args=default) if isinstance(default, dict) else SubcommandResult(value=default)
+            if not _args:
+                if default.args:
+                    default.value = None
+            elif not default.args:
+                default.args = {_args.data[0].name: default.value}
+        elif _args and (defaults := {arg.name: arg.field.get_default() for arg in _args.data if not arg.field.no_default}):
+            default = SubcommandResult(args=defaults)
         super().__init__(
             name,
             _args,

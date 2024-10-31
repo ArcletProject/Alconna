@@ -129,6 +129,7 @@ class Arparma(Generic[TDC]):
         self.args_result = args_result or {}
         self.context = ctx or {}
         self.output = None
+        self.buffer = []
 
     _additional: ClassVar[dict[str, Callable[[], Any]]] = {}
     query = _Query[Any]()

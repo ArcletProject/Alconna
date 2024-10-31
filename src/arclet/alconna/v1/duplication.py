@@ -29,7 +29,7 @@ class Duplication:
                 elif value is SubcommandStub:
                     for subcommand in source.options:
                         if isinstance(subcommand, Subcommand) and subcommand.dest == key:
-                            setattr(self, key, SubcommandStub(subcommand).set_result(target.subcommands.get(key, None)))
+                            setattr(self, key, SubcommandStub(subcommand).set_result(target.options.get(key, None)))
                 elif value is OptionStub:
                     for option in source.options:
                         if isinstance(option, Option) and option.dest == key:

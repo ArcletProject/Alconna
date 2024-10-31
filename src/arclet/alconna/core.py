@@ -30,7 +30,7 @@ from .exceptions import (
     PauseTriggered,
 )
 from .shortcut import wrap_shortcut, InnerShortcutArgs, ShortcutRegWrapper
-from .completion import prompt, comp_ctx
+from .prompt import prompt
 from .formatter import TextFormatter
 from .manager import ShortcutArgs, command_manager
 from .utils import TDC
@@ -54,8 +54,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
 
         @router.route("$help")
         def _(command: Alconna, arp: Arparma):
-            argv = command_manager.require(command).argv
-            _help_param = [str(i) for i in argv.release(recover=True) if str(i) not in conf.builtin_option_name["help"]]
+            _help_param = [str(i) for i in arp.buffer if str(i) not in conf.builtin_option_name["help"]]
             arp.output = command.formatter.format_node(_help_param)
             return True
     else:
@@ -95,23 +94,19 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
 
         @router.route("$completion")
         def _(command: Alconna, arp: Arparma):
-            argv = command_manager.require(command).argv
-            rest = argv.release()
+            rest = arp.buffer
             trigger = None
             if rest and isinstance(rest[-1], str) and rest[-1] in conf.builtin_option_name["completion"]:
-                argv.bak_data[-1] = argv.bak_data[-1][: -len(rest[-1])].rstrip()
                 trigger = rest[-2]
             elif isinstance(arp.error_info, AnalyseException):
                 trigger = arp.error_info.context_node
             if res := prompt(
                 command,
-                argv.release(recover=True),
+                rest,
                 list(arp.main_args.keys()),
                 [*arp.value_result.keys()],
                 trigger
             ):
-                if comp_ctx.get(None):
-                    raise PauseTriggered(res, trigger, argv)
                 prompt_other = lang.require("completion", "prompt_other")
                 node = lang.require('completion', 'node')
                 node = f"{node}\n" if node else ""

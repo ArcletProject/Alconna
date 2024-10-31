@@ -7,7 +7,7 @@ from tarina import Empty, lang
 from ..action import Action
 from ..arparma import Arparma
 from ..base import Option, Subcommand, HeadResult
-from ..completion import comp_ctx, prompt
+from ..prompt import prompt
 from ..exceptions import (
     ArgumentMissing,
     AnalyseException,
@@ -24,6 +24,7 @@ from ._handlers import (
     analyse_args,
     analyse_param,
 )
+from ._completion import comp_ctx
 
 if TYPE_CHECKING:
     from ..core import Alconna
@@ -38,17 +39,21 @@ def _compile(ana: Analyser, sub: Subcommand, path: tuple[str, ...]):
             if opt.compact or opt.action.type == 2 or not set(sub.separators).issuperset(opt.separators):
                 ana.compact_params.setdefault(path, []).append(opt)
             if opt.default is not Empty:
-                ana.default_value_result[path + (opt.dest,)] = (opt.default.value, opt.action)
+                if opt.default.value is not None:
+                    ana.default_value_result[path + (opt.dest,)] = (opt.default.value, opt.action)
                 if opt.default.args:
                     ana.default_arg_result[path + (opt.dest,)] = (opt.default.args, opt.action)
         else:
             if not set(sub.separators).issuperset(opt.separators):
                 ana.compact_params.setdefault(path, []).append(opt)
             if opt.default is not Empty:
+                if opt.default.value is not None:
+                    ana.default_value_result[path + (opt.dest,)] = (opt.default.value, opt.action)
                 if opt.default.args:
                     ana.default_arg_result[path + (opt.dest,)] = (opt.default.args, opt.action)
                 for key, result in opt.default.options.items():
-                    ana.default_value_result[path + (opt.dest, key)] = (result.value, opt.action)
+                    if result.value is not None:
+                        ana.default_value_result[path + (opt.dest, key)] = (result.value, opt.action)
                     if result.args:
                         ana.default_arg_result[path + (opt.dest, key)] = (result.args, opt.action)
             _compile(ana, opt, path + (opt.dest,))
@@ -202,6 +207,8 @@ class Analyser:
                     self.value_result[path] = v[0]
         if self.default_arg_result:
             for path, v in self.default_arg_result.items():
+                if path not in self.default_value_result and path not in self.value_result:
+                    continue
                 if path not in self.args_result or not self.args_result[path]:
                     if v[1].value == 1:
                         self.args_result[path] = {k: [v] for k, v in v[0].items()}
@@ -209,6 +216,7 @@ class Analyser:
                         self.args_result[path] = v[0]
         result.args_result = self.args_result
         result.value_result = self.value_result
+        result.buffer = argv.release(recover=True)
         if not fail and argv.message_cache:
             command_manager.record(argv.token, result)
         self.reset()
