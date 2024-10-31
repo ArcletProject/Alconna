@@ -116,7 +116,7 @@ class Analyzer(Generic[T]):
                             else:
                                 current_track.complete(mix)
 
-                        if not enter_forward and snapshot.stage_satisfied or not subcommand.enter_instantly:
+                        if not enter_forward and snapshot.stage_satisfied or subcommand.enter_instantly:
                             token.apply()
                             mix.complete()
 

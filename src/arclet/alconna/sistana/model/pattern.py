@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import ChainMap
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import TYPE_CHECKING, Iterable, MutableMapping
@@ -27,15 +28,15 @@ class SubcommandPattern:
 
     prefixes: Trie[str] | None = field(default=None)
     compact_header: bool = False
-    enter_instantly: bool = True
+    enter_instantly: bool = False
     header_fragment: _Fragment | None = None
 
     _options: list[OptionPattern] = field(default_factory=list)
     _compact_keywords: Trie[str] | None = field(default=None)
     _exit_options: list[str] = field(default_factory=list)
 
-    _options_bind: MutableMapping[str, OptionPattern] = field(default_factory=dict)
-    _subcommands_bind: MutableMapping[str, SubcommandPattern] = field(default_factory=dict)
+    _options_bind: ChainMap[str, OptionPattern] = field(default_factory=lambda: ChainMap())
+    _subcommands_bind: ChainMap[str, SubcommandPattern] = field(default_factory=lambda: ChainMap())
 
     @classmethod
     def build(
@@ -100,7 +101,7 @@ class SubcommandPattern:
         separators: str = SEPARATORS,
         compact_header: bool = False,
         compact_aliases: bool = False,
-        enter_instantly: bool = True,
+        enter_instantly: bool = False,
         header_fragment: _Fragment | None = None,
     ):
         preset = Preset(Track(fragments, header=header_fragment), {})

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Sequence, Any, overload
+from typing import Sequence, Any
 
-from arclet.alconna.base import Subcommand, Option, HeadResult
+from arclet.alconna.base import Subcommand, Option, HeadResult, SPECIAL_OPTIONS
 from arclet.alconna.exceptions import InvalidArgs, InvalidParam, ParamsUnmatched, UnexpectedElement, ArgumentMissing, \
     NullMessage
 from arclet.alconna.core import Alconna
@@ -41,7 +41,7 @@ def _alc_args_to_fragments(args: _Args) -> list[Fragment]:
     return fragments
 
 
-def step(node: Subcommand | Option, upper: SubcommandPattern):
+def step(node: Subcommand | Option, upper: SubcommandPattern, _global_bind: tuple[dict, dict]):
     if isinstance(node, Subcommand):
         pat = upper.subcommand(
             node.name,
@@ -50,8 +50,10 @@ def step(node: Subcommand | Option, upper: SubcommandPattern):
             soft_keyword=node.soft_keyword,
             separators=node.separators,
         )
+        pat._options_bind.maps.append(_global_bind[0])
+        pat._subcommands_bind.maps.append(_global_bind[1])
         for option in node.options:
-            step(option, pat)
+            step(option, pat, _global_bind)
         return pat
     else:
         header_fragment = None
@@ -91,7 +93,17 @@ def into_sistana(cmd: Alconna):
         separators=cmd.separators,
     )
     for option in cmd.options:
-        step(option, pat)
+        if isinstance(option, SPECIAL_OPTIONS):
+            pat.subcommand(
+                option.name,
+                *_alc_args_to_fragments(option.args),
+                aliases=option.aliases,
+                soft_keyword=False,
+                separators=option.separators,
+                enter_instantly=True,
+            )
+        else:
+            step(option, pat, (pat._options_bind.maps[0], pat._subcommands_bind.maps[0]))  # type: ignore
     return pat
 
 
@@ -100,12 +112,12 @@ def _reason_raise_alc_exception(reason: LoopflowExitReason):
         return
 
     if reason in {
-        LoopflowExitReason.unsatisfied,
-        LoopflowExitReason.previous_unsatisfied,
+        # LoopflowExitReason.unsatisfied,
+        # LoopflowExitReason.previous_unsatisfied,
         LoopflowExitReason.unsatisfied_switch_option,
         LoopflowExitReason.unsatisfied_switch_subcommand,
     }:
-        return ParamsUnmatched(f"LoopflowDescription: {reason.value}")
+        raise ParamsUnmatched(f"LoopflowDescription: {reason.value}")
 
     if reason in {
         LoopflowExitReason.out_of_data_subcommand,
@@ -135,7 +147,6 @@ def _reason_raise_alc_exception(reason: LoopflowExitReason):
 def dump_arparma(
     alc: Alconna,
     snapshot: AnalyzeSnapshot,
-    buffer: Buffer,
     message: Sequence[Any],
     matched: bool = True,
     head_matched: bool = True
@@ -165,7 +176,7 @@ def dump_arparma(
         args_result=args_result,
         value_result=value_result,
     )
-    arp.buffer = buffer  # type: ignore
+    arp.buffer = snapshot.command  # type: ignore
     return arp
 
 
@@ -185,7 +196,7 @@ def _parse(self: Alconna, message: Sequence[Any], _) -> Arparma:
     reason = analyzer.loopflow(snapshot, buffer)
     head_matched = reason not in {LoopflowExitReason.prefix_mismatch, LoopflowExitReason.header_mismatch}
     _reason_raise_alc_exception(reason)
-    return dump_arparma(self, snapshot, buffer, message, True, head_matched)
+    return dump_arparma(self, snapshot, message, True, head_matched)
 
 
 _OLD_PARSE = Alconna._parse
@@ -222,7 +233,6 @@ def _sistana_debug(alc: Alconna, message):
         dump_arparma(
             alc,
             snapshot,
-            buffer,
             message,
             res == LoopflowExitReason.completed,
             res in {LoopflowExitReason.prefix_mismatch, LoopflowExitReason.header_mismatch},

@@ -31,13 +31,13 @@ class LoopflowTest:
     exit_reason: LoopflowExitReason
 
     def expect(self, *expected: LoopflowExitReason):
-        assert self.exit_reason in expected
+        assert self.exit_reason in expected, f"Expected {expected}, got {self.exit_reason}"
 
     def expect_completed(self):
         self.expect(LoopflowExitReason.completed)
 
     def expect_uncompleted(self):
-        assert self.exit_reason != LoopflowExitReason.completed
+        assert self.exit_reason != LoopflowExitReason.completed, f"Expected uncompleted, got {self.exit_reason}"
 
 
 @dataclass
@@ -49,13 +49,13 @@ class SnapshotTest:
         return MixTest(self.snapshot.mix)
 
     def expect_determined(self, expected: bool = True):
-        assert self.snapshot.determined == expected
+        assert self.snapshot.determined == expected, f"Expected determined {expected}, got {self.snapshot.determined}"
 
     def expect_state(self, *states: ProcessingState):
-        assert self.snapshot.state in (states or (ProcessingState.COMMAND,))
+        assert self.snapshot.state in (states or (ProcessingState.COMMAND,)), f"Expected {states}, got {self.snapshot.state}"
 
     def expect_endpoint(self, *expected: str):
-        assert self.snapshot.endpoint == expected
+        assert self.snapshot.endpoint == expected, f"Expected {expected}, got {self.snapshot.endpoint}"
 
 
 @dataclass
