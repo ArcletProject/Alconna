@@ -205,7 +205,7 @@ class SubAnalyser(Generic[TDC]):
                 if levenshtein(name, al) >= argv.fuzzy_threshold:
                     raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name))
             raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name))
-
+        argv.visited_param_ids.update(sub.aliases)
         self.value_result = sub.action.value
         return self.analyse(argv)
 

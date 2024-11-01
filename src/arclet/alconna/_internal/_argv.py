@@ -32,6 +32,8 @@ class Argv(Generic[TDC]):
     """检查传入命令"""
     param_ids: set[str] = field(default_factory=set)
     """节点名集合"""
+    visited_param_ids: set[str] = field(default_factory=set)
+    """已访问的节点名集合"""
 
     fuzzy_match: bool = field(init=False)
     """当前命令是否模糊匹配"""
@@ -105,6 +107,7 @@ class Argv(Generic[TDC]):
         self.origin = "None"  # type: ignore
         self._sep = None
         self.current_node = None
+        self.visited_param_ids = set()
 
     @staticmethod
     def generate_token(data: list) -> int:
@@ -275,11 +278,12 @@ class Argv(Generic[TDC]):
         return _result
 
     def data_set(self):
-        return self.raw_data.copy(), self.current_index
+        return self.raw_data.copy(), self.current_index, self.visited_param_ids.copy()
 
-    def data_reset(self, data: list[str | Any], index: int):
+    def data_reset(self, data: list[str | Any], index: int, visited_param_ids: set[str]):
         self.raw_data = data
         self.current_index = index
+        self.visited_param_ids = visited_param_ids
 
     def enter(self, ctx: dict[str, Any] | None = None) -> Self:
         """进入上下文"""
