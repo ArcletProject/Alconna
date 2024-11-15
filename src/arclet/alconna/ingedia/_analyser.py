@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from tarina import Empty, lang
+from tarina import Empty
 
+from ..i18n import i18n
 from ..action import Action
 from ..arparma import Arparma
 from ..base import Option, Subcommand, HeadResult
@@ -132,7 +133,7 @@ class Analyser:
             except InvalidHeader as e:
                 return e
             except RuntimeError:
-                exc = InvalidParam(lang.require("header", "error").format(target=argv.release(recover=True)[0]))
+                exc = InvalidParam(i18n.require("header.error").format(target=argv.release(recover=True)[0]))
                 return exc
 
         try:
@@ -165,7 +166,7 @@ class Analyser:
                         self._error = e2
                 return
             exc = ArgumentMissing(
-                self.command.args.data[0].field.get_missing_tips(lang.require("analyser", "param_missing"))
+                self.command.args.data[0].field.get_missing_tips(i18n.require("analyser.param_missing"))
             )
             if comp_ctx.get(None):
                 return PauseTriggered(
@@ -175,7 +176,7 @@ class Analyser:
                     argv
                 )
             return exc
-        return ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=argv.next()[0]))
+        return ParamsUnmatched(i18n.require("analyser.param_unmatched").format(target=argv.next()[0]))
 
     def export(
         self,

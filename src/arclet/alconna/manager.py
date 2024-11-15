@@ -13,8 +13,9 @@ from typing import TYPE_CHECKING, Any, Match
 from weakref import WeakValueDictionary
 
 from nepattern import TPattern
-from tarina import LRU, lang
+from tarina import LRU
 
+from .i18n import i18n
 from .arparma import Arparma
 from .base import Header, Metadata
 from .config import Namespace, global_config
@@ -136,7 +137,7 @@ class CommandManager:
             return self.__analysers[cmd_hash]  # type: ignore
         except KeyError as e:
             namespace, name = self._command_part(command.path)
-            raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}")) from e
+            raise ValueError(i18n.require("manager.undefined_command").format(target=f"{namespace}.{name}")) from e
 
     def delete(self, command: Alconna) -> None:
         """删除命令"""
@@ -153,7 +154,7 @@ class CommandManager:
         """同步命令更改"""
         cmd_hash = command._hash
         if cmd_hash not in self.__analysers:
-            raise ValueError(lang.require("manager", "undefined_command").format(target=command.path))
+            raise ValueError(i18n.require("manager.undefined_command").format(target=command.path))
         self.clear_result(command)
         command.formatter.remove(command)
         del self.__analysers[cmd_hash]
@@ -207,7 +208,7 @@ class CommandManager:
                     flags=_flags,
                 )
                 out.append(
-                    lang.require("shortcut", "add_success").format(shortcut=f"{prefix}{_key}", target=target.path)
+                    i18n.require("shortcut.add_success").format(shortcut=f"{prefix}{_key}", target=target.path)
                 )
             _shortcut[0][humanize or _key] = InnerShortcutArgs(
                 **{**source, "command": argv.converter(source.get("command", str(target.command))), "prefixes": target.prefixes},
@@ -220,7 +221,7 @@ class CommandManager:
             flags=_flags,
         )
         target.formatter.update_shortcut(target)
-        return lang.require("shortcut", "add_success").format(shortcut=_key, target=target.path)
+        return i18n.require("shortcut.add_success").format(shortcut=_key, target=target.path)
 
     def get_shortcut(self, target: Alconna) -> dict[str, InnerShortcutArgs]:
         """列出快捷命令
@@ -234,7 +235,7 @@ class CommandManager:
         namespace, name = self._command_part(target.path)
         cmd_hash = target._hash
         if cmd_hash not in self.__analysers:
-            raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
+            raise ValueError(i18n.require("manager.undefined_command").format(target=f"{namespace}.{name}"))
         shortcuts = self._shortcuts.get(f"{namespace}::{name}", {})
         if not shortcuts:
             return {}
@@ -254,31 +255,31 @@ class CommandManager:
         """
         namespace, name = self._command_part(target.path)
         if not (_shortcut := self._shortcuts.get(f"{namespace}::{name}")):
-            raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
+            raise ValueError(i18n.require("manager.undefined_command").format(target=f"{namespace}.{name}"))
         if res := _find_shortcut(_shortcut[1], data.copy(), target.separators):
             return res
         raise ValueError(
-            lang.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=data)
+            i18n.require("manager.shortcut_parse_error").format(target=f"{namespace}.{name}", query=data)
         )
 
     def delete_shortcut(self, target: Alconna, key: str | TPattern | None = None):
         """删除快捷命令"""
         namespace, name = self._command_part(target.path)
         if not (_shortcut := self._shortcuts.get(f"{namespace}::{name}")):
-            raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
+            raise ValueError(i18n.require("manager.undefined_command").format(target=f"{namespace}.{name}"))
         if key:
             _key = key if isinstance(key, str) else key.pattern
             try:
                 _shortcut[0].pop(_key, None)
                 del _shortcut[1][_key]
-                return lang.require("shortcut", "delete_success").format(shortcut=_key, target=target.path)
+                return i18n.require("shortcut.delete_success").format(shortcut=_key, target=target.path)
             except KeyError as e:
                 raise ValueError(
-                    lang.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=_key)
+                    i18n.require("manager.shortcut_parse_error").format(target=f"{namespace}.{name}", query=_key)
                 ) from e
         else:
             self._shortcuts.pop(f"{namespace}.{name}")
-            return lang.require("shortcut", "delete_success").format(shortcut="all", target=target.path)
+            return i18n.require("shortcut.delete_success").format(shortcut="all", target=target.path)
 
     def get_command(self, command: str) -> Alconna:
         """获取命令"""
@@ -286,7 +287,7 @@ class CommandManager:
             namespace, name = self._command_part(command)
             if ana.command.namespace == namespace and (ana.command.command == name or ana.command.name == name):
                 return ana.command
-        raise ValueError(lang.require("manager", "undefined_command").format(target=command))
+        raise ValueError(i18n.require("manager.undefined_command").format(target=command))
 
     def get_commands(self, namespace: str | Namespace = "") -> list[Alconna]:
         """获取命令列表"""
@@ -332,10 +333,10 @@ class CommandManager:
             max_length (int, optional): 单个页面展示的最大长度. Defaults to -1.
             page (int, optional): 当前页码. Defaults to 1.
         """
-        pages = pages or lang.require("manager", "help_pages")
+        pages = pages or i18n.require("manager.help_pages")
         cmds = [cmd for cmd in self.get_commands(namespace or "") if not cmd.config.hide]
         slots = [(cmd.header_display, cmd.meta.description) for cmd in cmds]
-        header = header or lang.require("manager", "help_header")
+        header = header or i18n.require("manager.help_header")
         if max_length < 1:
             command_string = (
                 "\n".join(f" {str(index).rjust(len(str(len(cmds))), '0')} {slot[0]} : {slot[1]}" for index, slot in enumerate(slots))  # noqa: E501
@@ -358,7 +359,7 @@ class CommandManager:
         help_names = set()
         for i in cmds:
             help_names.update(i.config.builtin_option_name["help"])
-        footer = footer or lang.require("manager", "help_footer").format(help="|".join(help_names))
+        footer = footer or i18n.require("manager.help_footer").format(help="|".join(help_names))
         return f"{header}\n{command_string}\n{footer}"
 
     def all_command_raw_help(self, namespace: str | Namespace | None = None) -> dict[str, Metadata]:

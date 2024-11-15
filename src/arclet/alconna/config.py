@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, ContextManager, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, ContextManager, TypedDict
 
-from .i18n import lang as lang
+from .i18n import i18n as i18n
 from .base import Config
 from .utils import DataCollection
 
@@ -123,4 +123,4 @@ class _AlconnaConfig:
 
 global_config = _AlconnaConfig()
 
-__all__ = ["global_config", "Namespace", "namespace", "lang"]
+__all__ = ["global_config", "Namespace", "namespace", "i18n"]

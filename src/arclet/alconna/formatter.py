@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from nepattern import ANY, AnyString
-from tarina import Empty, lang
+from tarina import Empty
 
+from .i18n import i18n
 from .args import Arg, _Args
 from .base import Option, Subcommand
 from .utils import AllParam
@@ -179,7 +180,7 @@ class TextFormatter:
             res += self.param(arg) + sep
         notice = [(arg.name, arg.field.notice) for arg in args.data if arg.field.notice]
         return (
-            (f"{res}\n## {lang.require('format', 'notice')}\n  " + "\n  ".join([f"{v[0]}: {v[1]}" for v in notice]))
+            (f"{res}\n## {i18n.require('format', 'notice')}\n  " + "\n  ".join([f"{v[0]}: {v[1]}" for v in notice]))
             if notice
             else res
         )
@@ -191,8 +192,8 @@ class TextFormatter:
             root (TraceHead): 头部节点数据
         """
         help_string = f"{desc}" if (desc := root["description"]) else ""
-        usage = f"{lang.require('format', 'usage')}:\n{usage}" if (usage := root.get("usage")) else ""
-        example = f"{lang.require('format', 'example')}:\n{example}" if (example := root.get("example")) else ""
+        usage = f"{i18n.require('format', 'usage')}:\n{usage}" if (usage := root.get("usage")) else ""
+        example = f"{i18n.require('format', 'example')}:\n{example}" if (example := root.get("example")) else ""
         return root["name"], help_string, usage, example
 
     def opt(self, node: Option) -> str:
@@ -212,8 +213,8 @@ class TextFormatter:
                 for sub in filter(lambda x: isinstance(x, Subcommand), node.options)
             ]
         )
-        opt_help = f"  {lang.require('format', 'subcommands.opts')}:\n  " if opt_string else ""
-        sub_help = f"  {lang.require('format', 'subcommands.subs')}:\n  " if sub_string else ""
+        opt_help = f"  {i18n.require('format', 'subcommands.opts')}:\n  " if opt_string else ""
+        sub_help = f"  {i18n.require('format', 'subcommands.subs')}:\n  " if sub_string else ""
         return (
             f"* {node.help_text}\n"
             f"  {alias_text}{node.separators[0]}{self.parameters(node.args)}\n"
@@ -227,8 +228,8 @@ class TextFormatter:
             [self.opt(opt) for opt in parts if isinstance(opt, Option) and opt.name not in self.ignore_names]
         )
         subcommand_string = "".join([self.sub(sub) for sub in parts if isinstance(sub, Subcommand)])
-        option_help = f"{lang.require('format', 'options')}:\n" if option_string else ""
-        subcommand_help = f"{lang.require('format', 'subcommands')}:\n" if subcommand_string else ""
+        option_help = f"{i18n.require('format', 'options')}:\n" if option_string else ""
+        subcommand_help = f"{i18n.require('format', 'subcommands')}:\n" if subcommand_string else ""
         return f"{subcommand_help}{subcommand_string}{option_help}{option_string}"
 
     def shortcut(self, shortcuts: dict[str, Any]) -> str:
@@ -243,7 +244,7 @@ class TextFormatter:
                 result.append(f"'{prefixes}{_key}' => {prefixes}{short.command} {' '.join(map(str, short.args))}")
             else:
                 result.append(f"'{key}' => {short.origin!r}")
-        return f"{lang.require('format', 'shortcuts')}:\n" + "\n".join(result)
+        return f"{i18n.require('format', 'shortcuts')}:\n" + "\n".join(result)
 
 
 __all__ = ["TextFormatter", "Trace", "TraceHead"]

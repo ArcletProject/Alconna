@@ -4,8 +4,9 @@ import re
 from typing import TYPE_CHECKING, Any, Iterable, Literal
 
 from nepattern import ANY, STRING, AnyString, Pattern
-from tarina import Empty, lang, safe_eval, split_once
+from tarina import Empty, safe_eval, split_once, lang
 
+from ..i18n import i18n
 from ..args import Arg, _Args
 from ..base import Option, Subcommand, Header, HeadResult
 from ..config import global_config
@@ -42,10 +43,10 @@ def _context(argv: Argv, target: Arg[Any], _arg: str):
     try:
         return safe_eval(name, ctx)
     except NameError:
-        raise ArgumentMissing(target.field.get_missing_tips(lang.require("args", "missing").format(key=target.name)), target)
+        raise ArgumentMissing(target.field.get_missing_tips(i18n.require("args.missing").format(key=target.name)), target)
     except Exception as e:
         raise InvalidParam(
-            target.field.get_unmatch_tips(_arg, lang.require("nepattern", "context_error").format(target=target.name, expected=name)),
+            target.field.get_unmatch_tips(_arg, lang.require("nepattern", "error.content").format(target=target.name, expected=name)),
             target
         )
 
@@ -110,7 +111,7 @@ def step_varpos(ana: Analyser, argv: Argv, args: _Args, slot: tuple[int | Litera
         elif arg.field.optional:
             return
         else:
-            raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)), arg)
+            raise ArgumentMissing(arg.field.get_missing_tips(i18n.require("args.missing").format(key=key)), arg)
     if flag == "str":
         result[key] = arg.field.seps[0].join(_result)
     else:
@@ -154,7 +155,7 @@ def step_varkey(ana: Analyser, argv: Argv, slot: tuple[int | Literal["+", "*", "
         elif arg.field.optional:
             return
         else:
-            raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=name)), arg)
+            raise ArgumentMissing(arg.field.get_missing_tips(i18n.require("args.missing").format(key=name)), arg)
     result[name] = _result
 
 
@@ -184,11 +185,11 @@ def step_keyword(ana: Analyser, argv: Argv, args: _Args, result: dict[str, Any])
                 break
             for arg in args.keyword_only.values():
                 if arg.type_.execute(may_arg).success:
-                    raise InvalidParam(lang.require("args", "key_missing").format(target=may_arg, key=arg.name), arg)
+                    raise InvalidParam(i18n.require("args.key_missing").format(target=may_arg, key=arg.name), arg)
             for name in args.keyword_only:
                 if levenshtein(_key, name) >= argv.fuzzy_threshold:
-                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=name, target=_key))
-            raise InvalidParam(lang.require("args", "key_not_found").format(name=_key), args)
+                    raise FuzzyMatchSuccess(i18n.require("fuzzy.matched").format(source=name, target=_key))
+            raise InvalidParam(i18n.require("args.key_not_found").format(name=_key), args)
         arg = args.keyword_only[_key]
         value = arg.type_
         if not _m_arg:
@@ -206,7 +207,7 @@ def step_keyword(ana: Analyser, argv: Argv, args: _Args, result: dict[str, Any])
             if (default_val := arg.field.get_default()) is not Empty:
                 result[key] = default_val
             elif not arg.field.optional:
-                raise ArgumentMissing(arg.field.get_missing_tips(lang.require("args", "missing").format(key=key)), arg)
+                raise ArgumentMissing(arg.field.get_missing_tips(i18n.require("args.missing").format(key=key)), arg)
 
 
 def _raise(target: Arg, arg: Any, res: Any):
@@ -237,7 +238,7 @@ def analyse_args(analyser: Analyser, argv: Argv, args: _Args) -> dict[str, Any]:
             if (de := arg.field.get_default()) is not Empty:
                 result[arg.name] = de
             elif not field.optional:
-                raise ArgumentMissing(field.get_missing_tips(lang.require("args", "missing").format(key=arg.name)), arg)
+                raise ArgumentMissing(field.get_missing_tips(i18n.require("args.missing").format(key=arg.name)), arg)
             continue
         if value.alias == "*":
             if TYPE_CHECKING:
@@ -299,11 +300,11 @@ def analyse_option(analyser: Analyser, opt: Option, argv: Argv, path: tuple[str,
         if error:
             argv.rollback(name)
             if not argv.fuzzy_match:
-                raise InvalidParam(lang.require("option", "name_error").format(source=opt.dest, target=name), opt)
+                raise InvalidParam(i18n.require("option.name_error").format(source=opt.dest, target=name), opt)
             for al in opt.aliases:
                 if levenshtein(name, al) >= argv.fuzzy_threshold:
-                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name))
-            raise InvalidParam(lang.require("option", "name_error").format(source=opt.dest, target=name), opt)
+                    raise FuzzyMatchSuccess(i18n.require("fuzzy.matched").format(source=al, target=name))
+            raise InvalidParam(i18n.require("option.name_error").format(source=opt.dest, target=name), opt)
     args = analyse_args(analyser, argv, opt.args) if opt.nargs else {}
     if path not in analyser.value_result:
         analyser.args_result[path] = args
@@ -339,11 +340,11 @@ def analyse_subcommand(analyser: Analyser, sub: Subcommand, argv: Argv, path: tu
         if name not in sub.aliases:
             argv.rollback(name)
             if not argv.fuzzy_match:
-                raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
+                raise InvalidParam(i18n.require("subcommand.name_error").format(source=sub.dest, target=name), sub)
             for al in sub.aliases:
                 if levenshtein(name, al) >= argv.fuzzy_threshold:
-                    raise FuzzyMatchSuccess(lang.require("fuzzy", "matched").format(source=al, target=name), sub)
-            raise InvalidParam(lang.require("subcommand", "name_error").format(source=sub.dest, target=name), sub)
+                    raise FuzzyMatchSuccess(i18n.require("fuzzy.matched").format(source=al, target=name), sub)
+            raise InvalidParam(i18n.require("subcommand.name_error").format(source=sub.dest, target=name), sub)
     analyser.value_result[path] = ...
     analyser.update(sub, path)
     while analyse_param(analyser, sub, argv, path, sub.separators) and argv.current_index != argv.ndata:
@@ -353,7 +354,7 @@ def analyse_subcommand(analyser: Analyser, sub: Subcommand, argv: Argv, path: tu
     if not analyser.args_optional[path]:
         raise ArgumentMissing(
             sub.args.data[0].field.get_missing_tips(
-                lang.require("subcommand", "args_missing").format(name=".".join(path))
+                i18n.require("subcommand.args_missing").format(name=".".join(path))
             ),
             sub
         )
@@ -443,7 +444,7 @@ def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes:
     # 给 Completion 打的洞，若此时 analyser 属于主命令, 则让其先解析完主命令
     elif _str and _text and not prefixes:
         if not analyser._error:
-            analyser._error = ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=_text))
+            analyser._error = ParamsUnmatched(i18n.require("analyser.param_unmatched").format(target=_text))
         argv.next()
         return True
     return False
@@ -468,9 +469,9 @@ def analyse_header(header: "Header", argv: Argv):
     # _after_analyse_header
     if _str:
         argv.rollback(may_cmd)
-        raise InvalidHeader(lang.require("header", "error").format(target=head_text), head_text)
+        raise InvalidHeader(i18n.require("header.error").format(target=head_text), head_text)
     if _m_str and may_cmd:
         cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
-        raise InvalidHeader(lang.require("header", "error").format(target=cmd), cmd)
+        raise InvalidHeader(i18n.require("header.error").format(target=cmd), cmd)
     argv.rollback(may_cmd)
-    raise InvalidHeader(lang.require("header", "error").format(target=head_text), None)
+    raise InvalidHeader(i18n.require("header.error").format(target=head_text), None)

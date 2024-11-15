@@ -5,8 +5,8 @@ from typing import Any, Callable, overload
 
 from tarina import Empty
 
+from .i18n import i18n
 from .arparma import Arparma, ArparmaBehavior
-from .config import lang
 from .exceptions import BehaveCancelled
 from .base import OptionResult, SubcommandResult
 
@@ -22,10 +22,10 @@ class ConflictWith(ArparmaBehavior):
 
     def get_type(self, res):
         if isinstance(res, OptionResult):
-            return lang.require("builtin", "conflict.option")
+            return i18n.require("builtin.conflict.option")
         if isinstance(res, SubcommandResult):
-            return lang.require("builtin", "conflict.subcommand")
-        return lang.require("builtin", "conflict.arg")
+            return i18n.require("builtin.conflict.subcommand")
+        return i18n.require("builtin.conflict.arg")
 
     def operate(self, interface: Arparma):
         if (s_r := interface.query(self.source, Empty)) is not Empty and (t_r := interface.query(self.target, Empty)) is not Empty:
@@ -35,7 +35,7 @@ class ConflictWith(ArparmaBehavior):
                 return
             if self.target_limiter and not self.target_limiter(t_r):
                 return
-            interface.behave_fail(lang.require("builtin", "conflict.msg").format(
+            interface.behave_fail(i18n.require("builtin.conflict.msg").format(
                 source_type=source_type,
                 target_type=target_type,
                 source=self.source,

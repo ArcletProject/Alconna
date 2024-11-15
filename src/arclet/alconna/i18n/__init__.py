@@ -7,3 +7,5 @@ from pathlib import Path
 from tarina.lang import lang
 
 lang.load(Path(__file__).parent)
+
+i18n = lang.dispatch("alconna")

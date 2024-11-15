@@ -8,8 +8,9 @@ from typing import Any, Iterable, Sequence, overload, Literal, TypedDict, TYPE_C
 from nepattern import TPattern
 from typing_extensions import Self
 
-from tarina import Empty, lang
+from tarina import Empty
 
+from .i18n import i18n
 from .action import Action, store
 from .args import ARGS_PARAM, Arg, ArgsBase, ArgsBuilder, _Args, handle_args
 from .exceptions import InvalidArgs
@@ -162,7 +163,7 @@ class Header:
                     headers_text.append(f"{prefix} {command}")
         for ht in headers_text:
             if levenshtein(source, ht) >= threshold:
-                return lang.require("fuzzy", "matched").format(target=source, source=ht)
+                return i18n.require("fuzzy.matched").format(target=source, source=ht)
 
 
 def _handle_default(node: CommandNode):
@@ -251,7 +252,7 @@ class CommandNode:
             name = _aliases[0]
             aliases.extend(_aliases[1:])
         if not name:
-            raise InvalidArgs(lang.require("common", "name_empty"))
+            raise InvalidArgs(i18n.require("common.name_empty"))
         aliases.insert(0, name)
         self.name = name
         self.aliases = frozenset(aliases)

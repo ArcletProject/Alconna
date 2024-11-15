@@ -4,8 +4,9 @@ from dataclasses import InitVar, dataclass, field, fields
 from typing import Any, Callable, ClassVar, Generic, Iterable, Literal
 from typing_extensions import Self
 from contextvars import ContextVar
-from tarina import lang, split, split_once
+from tarina import split, split_once
 
+from ..i18n import i18n
 from ..base import Config
 from ..config import Namespace, global_config
 from ..constraint import ARGV_OVERRIDES
@@ -124,7 +125,7 @@ class Argv(Generic[TDC]):
                 raw_data.append(res)
             i += 1
         if i < 1:
-            raise NullMessage(lang.require("argv", "null_message").format(target=data))
+            raise NullMessage(i18n.require("argv.null_message").format(target=data))
         self.ndata = i
         self.bak_data = raw_data.copy()
         if self.message_cache:

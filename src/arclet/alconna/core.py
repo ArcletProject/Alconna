@@ -11,8 +11,9 @@ from typing_extensions import Self
 from weakref import WeakSet
 
 from nepattern import TPattern
-from tarina import init_spec, lang, Empty
+from tarina import init_spec, Empty
 
+from .i18n import i18n
 from .ingedia._analyser import Analyser
 from .ingedia._handlers import analyse_header
 from .ingedia._argv import Argv, __argv_type__
@@ -50,7 +51,7 @@ def handle_argv():
 
 def add_builtin_options(options: list[Option | Subcommand], router: Router, conf: Config) -> None:
     if "help" not in conf.disable_builtin_options:
-        options.append(hlp := Help("|".join(conf.builtin_option_name["help"]), dest="$help", help_text=lang.require("builtin", "option_help"), soft_keyword=False))  # noqa: E501
+        options.append(hlp := Help("|".join(conf.builtin_option_name["help"]), dest="$help", help_text=i18n.require("builtin.option_help"), soft_keyword=False))  # noqa: E501
 
         @router.route(f"*.{hlp.name}")
         @router.route("$help")
@@ -67,7 +68,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
                 "|".join(conf.builtin_option_name["shortcut"]),
                 Args.action("delete|list", optional=True).name(str, optional=True).command(str, optional=True),
                 dest="$shortcut",
-                help_text=lang.require("builtin", "option_shortcut"),
+                help_text=i18n.require("builtin.option_shortcut"),
                 soft_keyword=False,
             )
         )
@@ -81,7 +82,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
                 arp.output = "\n".join(data)
                 return True
             if not res.args.get("name"):
-                raise ValueError(lang.require("shortcut", "name_require"))
+                raise ValueError(i18n.require("shortcut.name_require"))
             if res.args.get("action") == "delete":
                 msg = command.shortcut(res.args["name"], delete=True)
             else:
@@ -92,7 +93,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
         router._routes.pop("$shortcut", None)
 
     if "completion" not in conf.disable_builtin_options:
-        options.append(comp := Completion("|".join(conf.builtin_option_name["completion"]), dest="$completion", help_text=lang.require("builtin", "option_completion"), soft_keyword=False))  # noqa: E501
+        options.append(comp := Completion("|".join(conf.builtin_option_name["completion"]), dest="$completion", help_text=i18n.require("builtin.option_completion"), soft_keyword=False))  # noqa: E501
 
         @router.route(f"*.{comp.name}")
         @router.route("$completion")
@@ -110,8 +111,8 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
                 [*arp.value_result.keys()],
                 trigger
             ):
-                prompt_other = lang.require("completion", "prompt_other")
-                node = lang.require('completion', 'node')
+                prompt_other = i18n.require("completion.prompt_other")
+                node = i18n.require('completion', 'node')
                 node = f"{node}\n" if node else ""
                 arp.output = f"{node}{prompt_other}" + f"\n{prompt_other}".join([i.text for i in res])
                 return True

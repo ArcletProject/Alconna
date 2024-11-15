@@ -3,10 +3,9 @@ from __future__ import annotations
 import inspect
 import re
 from typing import Any, TypedDict, Protocol, cast
-
-from tarina import lang
 from typing_extensions import NotRequired, TypeAlias
 
+from .i18n import i18n
 from .exceptions import ArgumentMissing, ParamsUnmatched
 
 
@@ -252,13 +251,13 @@ def wrap_shortcut(
     """
     result = [short.command]
     if not short.fuzzy and data:
-        raise ParamsUnmatched(lang.require("analyser", "param_unmatched").format(target=data[0]))
+        raise ParamsUnmatched(i18n.require("analyser.param_unmatched").format(target=data[0]))
     result.extend(short.args)
     data = _handle_shortcut_data(result, data)
     if not data and result and any(
         isinstance(i, str) and bool(re.search(r"\{%(\d+)|\*(.*?)\}", i)) for i in result
     ):
-        raise ArgumentMissing(lang.require("analyser", "param_missing"))
+        raise ArgumentMissing(i18n.require("analyser.param_missing"))
     result.extend(data)
     if reg:
         data = _handle_shortcut_reg(result, reg.groups(), reg.groupdict(), short.wrapper, ctx or {})

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from tarina import ContextModel, lang
+from tarina import ContextModel
 
+from ..i18n import i18n
 from ..exceptions import InvalidParam, ParamsUnmatched, PauseTriggered
 from ..manager import command_manager
 from ..prompt import Prompt, EnterResult
@@ -63,7 +64,7 @@ class CompSession:
     def current(self):
         """获取当前选中的补全选项的文本。"""
         if not self.prompts:
-            raise ValueError(lang.require("completion", "prompt_empty"))
+            raise ValueError(i18n.require("completion.prompt_empty"))
         return self.prompts[self.index].text
 
     def tab(self, offset: int = 1):
@@ -79,7 +80,7 @@ class CompSession:
             ValueError: 当前没有可用的补全选项。
         """
         if not self.prompts:
-            raise ValueError(lang.require("completion", "prompt_empty"))
+            raise ValueError(i18n.require("completion.prompt_empty"))
         self.index += offset
         self.index %= len(self.prompts)
         return self.prompts[self.index].text
@@ -104,10 +105,10 @@ class CompSession:
             input_ = content
         else:
             if not self.prompts:
-                return EnterResult(exception=ValueError(lang.require("completion", "prompt_empty")))
+                return EnterResult(exception=ValueError(i18n.require("completion.prompt_empty")))
             prompt = self.prompts[self.index]
             if not prompt.can_use:
-                return EnterResult(exception=ValueError(lang.require("completion", "prompt_unavailable")))
+                return EnterResult(exception=ValueError(i18n.require("completion.prompt_unavailable")))
             if prompt.removal_prefix:
                 argv.bak_data[-1] = argv.bak_data[-1][: -len(prompt.removal_prefix)]
                 argv.next()
@@ -172,12 +173,12 @@ class CompSession:
 
     def lines(self):
         """获取补全选项的文本列表。"""
-        select = lang.require("completion", "prompt_select")
-        other = lang.require("completion", "prompt_other")
+        select = i18n.require("completion.prompt_select")
+        other = i18n.require("completion.prompt_other")
         return [f"{select if self.index == index else other}{sug.text}" for index, sug in enumerate(self.prompts)]
 
     def __repr__(self):
-        node = lang.require('completion', 'node')
+        node = i18n.require('completion', 'node')
         node = f"{node}\n" if node else ""
         return node + "\n".join(self.lines())
 

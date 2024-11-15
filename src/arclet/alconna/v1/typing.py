@@ -11,7 +11,7 @@ from typing_extensions import deprecated
 from nepattern import Pattern, parser
 
 from arclet.alconna.utils import TAValue
-from arclet.alconna.utils import KWBool as KWBool
+from arclet.alconna.utils import KWBool as KWBool  # type: ignore[misc]
 
 T = TypeVar("T")
 

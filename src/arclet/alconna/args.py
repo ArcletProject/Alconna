@@ -9,8 +9,9 @@ from typing import Any, Callable, Generic, Literal, TypeVar, ClassVar, ForwardRe
 from typing_extensions import dataclass_transform, ParamSpec, Concatenate, TypeAlias
 
 from nepattern import NONE, Pattern, RawStr, UnionPattern, parser
-from tarina import Empty, lang
+from tarina import Empty
 
+from .i18n import i18n
 from ._dcls import safe_dcls_kw, safe_field_kw
 from .exceptions import InvalidArgs
 from .utils import TAValue, parent_frame_namespace, merge_cls_and_parent_ns
@@ -122,16 +123,16 @@ class Arg(Generic[_T]):
         **kwargs,
     ):
         if not isinstance(name, str) or name.startswith("$"):
-            raise InvalidArgs(lang.require("args", "name_error"))
+            raise InvalidArgs(i18n.require("args.name_error"))
         if not name.strip():
-            raise InvalidArgs(lang.require("args", "name_empty"))
+            raise InvalidArgs(i18n.require("args.name_empty"))
         self.name = name
         _value = parser(type_ or RawStr(name))
         default = field if isinstance(field, Field) else Field(field)
         if isinstance(_value, UnionPattern) and _value.optional:
             default.default = None if default.default is Empty else default.default  # type: ignore
         if _value == NONE:
-            raise InvalidArgs(lang.require("args", "value_error").format(target=name))
+            raise InvalidArgs(i18n.require("args.value_error").format(target=name))
         self.type_ = _value  # type: ignore
         self.field = default
 
@@ -236,12 +237,12 @@ class _Args:
                             raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
                     self.vars_keyword.append((flag, arg))
                 elif self.keyword_only:
-                    raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
+                    raise InvalidArgs(i18n.require("args.exclude_mutable_args"))
                 else:
                     self.vars_positional.append((flag, arg))
             elif arg.field.kw_only:
                 if self.vars_keyword:
-                    raise InvalidArgs(lang.require("args", "exclude_mutable_args"))
+                    raise InvalidArgs(i18n.require("args.exclude_mutable_args"))
                 self.keyword_only[arg.name] = arg
             else:
                 self.normal.append(arg)

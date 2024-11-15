@@ -81,7 +81,7 @@ class _AllParamPattern(Pattern[T]):
         if generic_isinstance(input_, self.types):  # type: ignore
             return input_
         raise MatchFailed(
-            lang.require("nepattern", "type_error").format(
+            lang.require("nepattern", "error.type").format(
                 type=input_.__class__.__name__, target=input_, expected=" | ".join(map(lambda t: t.__name__, self.types))
             )
         )
