@@ -4,7 +4,7 @@ from dataclasses import InitVar, dataclass, field, fields
 from typing import Any, Callable, ClassVar, Generic, Iterable, Literal
 from typing_extensions import Self
 from contextvars import ContextVar
-from tarina import split, split_once
+from tarina import split, String, Empty
 
 from ..i18n import i18n
 from ..base import Config
@@ -48,9 +48,7 @@ class Argv(Generic[TDC]):
     """当前数据的索引"""
     ndata: int = field(init=False)
     """原始数据的长度"""
-    bak_data: list[str | Any] = field(init=False)
-    """备份的原始数据"""
-    raw_data: list[str | Any] = field(init=False)
+    raw_data: list[String | Any] = field(init=False)
     """原始数据"""
     token: int = field(init=False)
     """命令的token"""
@@ -83,7 +81,6 @@ class Argv(Generic[TDC]):
         """重置命令行参数"""
         self.current_index = 0
         self.ndata = 0
-        self.bak_data = []
         self.raw_data = []
         self.token = 0
         self.origin = "None"  # type: ignore
@@ -122,22 +119,20 @@ class Argv(Generic[TDC]):
             elif not (res := text.strip()):
                 continue
             else:
-                raw_data.append(res)
+                raw_data.append(String(res))
             i += 1
         if i < 1:
             raise NullMessage(i18n.require("argv.null_message").format(target=data))
         self.ndata = i
-        self.bak_data = raw_data.copy()
         if self.message_cache:
             self.token = self.generate_token(raw_data)
         return self
 
-    def addon(self, data: Iterable[str | Any], merge_str: bool = True) -> Self:
+    def addon(self, data: Iterable[str | Any]) -> Self:
         """添加命令元素
 
         Args:
             data (Iterable[str | Any]): 命令元素
-            merge_str (bool, optional): 是否合并前后字符串
 
         Returns:
             Self: 自身
@@ -149,12 +144,8 @@ class Argv(Generic[TDC]):
                 d = res
             if isinstance(d, str) and not (d := d.strip()):
                 continue
-            if merge_str and isinstance(d, str) and i > 0 and isinstance(self.raw_data[-1], str):
-                self.raw_data[-1] += f"{self.separators[0]}{d}"
-            else:
-                self.raw_data.append(d)
-                self.ndata += 1
-        self.bak_data = self.raw_data.copy()
+            self.raw_data.append(String(d) if isinstance(d, str) else d)
+            self.ndata += 1
         if self.message_cache:
             self.token = self.generate_token(self.raw_data)
         return self
@@ -168,63 +159,64 @@ class Argv(Generic[TDC]):
         Returns:
             tuple[str | Any, bool]: 下个数据, 是否是字符串.
         """
-        if self._sep:
-            self._sep = None
         if self.current_index == self.ndata:
             return None, False
         separate = separate or self.separators
         _current_data = self.raw_data[self.current_index]
-        if _current_data.__class__ is str:
-            _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)  # type: ignore
-            if _rest_text:
-                self._sep = separate
-                self.raw_data[self.current_index] = _rest_text
-            else:
-                self.current_index += 1
-            return _text, True
-        self.current_index += 1
+        if _current_data.__class__ is String:
+            _current_data.step(separate, self.filter_crlf)
+            return _current_data.val(), True
         return _current_data, False
 
-    def rollback(self, data: str | Any, replace: bool = False):
-        """把获取的数据放回 (实际只是`指针`移动)
-
-        Args:
-            data (str | Any): 数据.
-            replace (bool, optional): 是否替换.
-        """
-        if data == "" or data is None:
-            return
-        if self._sep:
-            _current_data = self.raw_data[self.current_index]
-            if not _current_data:
-                self.raw_data[self.current_index] = data
-            else:
-                if self._sep[0] in data and data[0] not in ("'", '"'):
-                    data = f"\'{data}\'"
-                self.raw_data[self.current_index] = f"{data}{self._sep[0]}{_current_data}"
-            return
-        if self.current_index >= 1:
-            self.current_index -= 1
-        if replace:
-            self.raw_data[self.current_index] = data
-
-    def free(self, separate: str | None = None):
-        """将当前位置的数据释放"""
-        separate = separate or self.separators
-        if self.current_index == self.ndata:
-            return
+    def apply(self):
         _current_data = self.raw_data[self.current_index]
-        if _current_data.__class__ is str:
-            _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)
-            if _rest_text:
-                self.bak_data.insert(self.current_index + 1, _rest_text)
-                self.raw_data.insert(self.current_index + 1, _rest_text)
-                self.ndata += 1
-            self.bak_data[self.current_index] = self.bak_data[self.current_index][: -len(_current_data)].rstrip(separate)
-            self.raw_data[self.current_index] = ""
+        if _current_data.__class__ is String:
+            _current_data.apply()
+            if _current_data.complete:
+                self.current_index += 1
         else:
-            self.bak_data.pop(self.current_index)
-            self.raw_data.pop(self.current_index)
+            self.current_index += 1
+
+    # def rollback(self, data: str | Any, replace: bool = False):
+    #     """把获取的数据放回 (实际只是`指针`移动)
+    #
+    #     Args:
+    #         data (str | Any): 数据.
+    #         replace (bool, optional): 是否替换.
+    #     """
+    #     if data == "" or data is None:
+    #         return
+    #     if self._sep:
+    #         _current_data = self.raw_data[self.current_index]
+    #         if not _current_data:
+    #             self.raw_data[self.current_index] = data
+    #         else:
+    #             if self._sep[0] in data and data[0] not in ("'", '"'):
+    #                 data = f"\'{data}\'"
+    #             self.raw_data[self.current_index] = f"{data}{self._sep[0]}{_current_data}"
+    #         return
+    #     if self.current_index >= 1:
+    #         self.current_index -= 1
+    #     if replace:
+    #         self.raw_data[self.current_index] = data
+
+    # def free(self, separate: str | None = None):
+    #     """将当前位置的数据释放"""
+    #     separate = separate or self.separators
+    #     if self.current_index == self.ndata:
+    #         return
+    #     _current_data = self.raw_data[self.current_index]
+    #     if _current_data.__class__ is str:
+    #         _text, _rest_text = split_once(_current_data, separate, self.filter_crlf)
+    #         if _rest_text:
+    #             self.bak_data.insert(self.current_index + 1, _rest_text)
+    #             self.raw_data.insert(self.current_index + 1, _rest_text)
+    #             self.ndata += 1
+    #         self.bak_data[self.current_index] = self.bak_data[self.current_index][: -len(_current_data)].rstrip(separate)
+    #         self.raw_data[self.current_index] = ""
+    #     else:
+    #         self.bak_data.pop(self.current_index)
+    #         self.raw_data.pop(self.current_index)
 
     def release(self, separate: str | None = None, recover: bool = False, no_split: bool = False) -> list[str | Any]:
         """获取剩余的数据
@@ -238,22 +230,26 @@ class Argv(Generic[TDC]):
             list[str | Any]: 剩余的数据.
         """
         _result = []
-        data = self.bak_data if recover else self.raw_data[self.current_index:]
+        data = self.raw_data if recover else self.raw_data[self.current_index:]
         for _data in data:
-            if _data.__class__ is str and not _data:
-                continue
-            if _data.__class__ is str and not no_split:
-                _result.extend(split(_data, separate or self.separators, self.filter_crlf))
+            if _data is String:
+                text = _data.text
+                if not text:
+                    continue
+                if no_split:
+                    _result.append(text)
+                else:
+                    _result.extend(split(text, separate or self.separators, self.filter_crlf))
             else:
                 _result.append(_data)
         return _result
 
-    def data_set(self):
-        return self.raw_data.copy(), self.current_index
-
-    def data_reset(self, data: list[str | Any], index: int):
-        self.raw_data = data
-        self.current_index = index
+    # def data_set(self):
+    #     return self.raw_data.copy(), self.current_index
+    #
+    # def data_reset(self, data: list[str | Any], index: int):
+    #     self.raw_data = data
+    #     self.current_index = index
 
     def enter(self, ctx: dict[str, Any] | None = None) -> Self:
         """进入上下文"""

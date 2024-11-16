@@ -385,6 +385,7 @@ def analyse_header(header: "Header", argv: Argv):
     head_text, _str = argv.next()
     if _str:
         if head_text in header.content:
+            argv.apply()
             return HeadResult(head_text, head_text, True)
         if header.compact and (mat := header.compact_pattern.match(head_text)):
             argv.rollback(head_text[len(mat[0]):], replace=True)
@@ -393,6 +394,7 @@ def analyse_header(header: "Header", argv: Argv):
     if _m_str:
         cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
         if cmd in header.content:
+            argv.apply()
             return HeadResult(cmd, cmd, True)
         if header.compact and (mat := header.compact_pattern.match(cmd)):
             argv.rollback(cmd[len(mat[0]):], replace=True)
