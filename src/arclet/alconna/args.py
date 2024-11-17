@@ -197,63 +197,40 @@ class Arg(Generic[_T]):
 
 
 class _Args:
-    __slots__ = ("unpack", "vars_positional", "vars_keyword", "keyword_only", "normal", "data", "_visit", "optional_count", "origin")
+    __slots__ = ("optional_count", "origin", "data", "count")
 
     def __init__(self, args: list[Arg[Any]], origin: type[ArgsBase] | None = None):
         self.origin = origin
-        self.data = args
-        self.normal: list[Arg[Any]] = []
-        self.keyword_only: dict[str, Arg[Any]] = {}
-        self.vars_positional: list[tuple[int | Literal["+", "*", "str"], Arg[Any]]] = []
-        self.vars_keyword: list[tuple[int | Literal["+", "*", "str"], Arg[Any]]] = []
-        self._visit = set()
         self.optional_count = 0
-        self.__check_vars__()
-
-    def __check_vars__(self):
-        """检查当前所有参数单元
-
-        Raises:
-            InvalidParam: 当检查到参数单元不符合要求时
-        """
-        _tmp = []
-        _visit = set()
-        for arg in self.data:
-            if arg.name in _visit:
-                continue
-            _tmp.append(arg)
-            _visit.add(arg.name)
-            if arg.name in self._visit:
-                continue
-            self._visit.add(arg.name)
+        normal = []
+        keyword = []
+        vars_positional: list[Arg[Any]] = []
+        vars_keyword: list[Arg[Any]] = []
+        for arg in args:
             if arg.field.multiple is not False:
-                flag = arg.field.multiple
-                if flag is True:
-                    flag = "+"
                 if arg.field.kw_only:
-                    for slot in self.vars_positional:
-                        _, a = slot
+                    for a in vars_positional:
                         if arg.field.kw_sep in a.field.seps:
                             raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
-                    self.vars_keyword.append((flag, arg))
-                elif self.keyword_only:
-                    raise InvalidArgs(i18n.require("args.exclude_mutable_args"))
+                    vars_keyword.append(arg)
+                # elif self.keyword_only:
+                #     raise InvalidArgs(i18n.require("args.exclude_mutable_args"))
                 else:
-                    self.vars_positional.append((flag, arg))
+                    vars_positional.append(arg)
             elif arg.field.kw_only:
-                if self.vars_keyword:
-                    raise InvalidArgs(i18n.require("args.exclude_mutable_args"))
-                self.keyword_only[arg.name] = arg
+                # if self.vars_keyword:
+                #     raise InvalidArgs(i18n.require("args.exclude_mutable_args"))
+                keyword.append(arg)
             else:
-                self.normal.append(arg)
+                normal.append(arg)
             if arg.field.optional:
                 self.optional_count += 1
             elif not arg.field.no_default:
                 self.optional_count += 1
-        self.data.clear()
-        self.data.extend(_tmp)
-        del _tmp
-        del _visit
+        normal.extend(vars_positional)
+        keyword.extend(vars_keyword)
+        self.data: list[Arg[Any]] = normal + keyword
+        self.count = len(self.data)
 
     def __iter__(self):
         return iter(self.data)
@@ -265,7 +242,7 @@ class _Args:
         return f"Args({', '.join([f'{arg}' for arg in self.data])})" if self.data else "Empty"
 
     def __len__(self):
-        return len(self.data)
+        return self.count
 
     def __eq__(self, other):
         return self.data == other.data

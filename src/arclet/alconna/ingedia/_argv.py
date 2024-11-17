@@ -171,7 +171,7 @@ class Argv(Generic[TDC]):
         if self._sep:
             self._sep = None
         if self.current_index == self.ndata:
-            return "", True
+            return None, False
         separate = separate or self.separators
         _current_data = self.raw_data[self.current_index]
         if _current_data.__class__ is str:
