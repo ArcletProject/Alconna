@@ -19,7 +19,7 @@ from ..exceptions import (
     PauseTriggered,
     ParamsUnmatched,
 )
-from ..utils import _AllParamPattern, levenshtein
+from ..utils import levenshtein
 
 if TYPE_CHECKING:
     from ._analyser import Analyser
@@ -51,10 +51,6 @@ def _context(argv: Argv, target: Arg[Any], _arg: str):
         ) from e
 
 
-def _raise(target: Arg, arg: Any, res: Any):
-    raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]), arg)
-
-
 def _handle_arg(argv: Argv, target: Arg[Any], arg: Any, _str: bool):
     value = target.type_
     _arg = arg
@@ -74,38 +70,6 @@ def _handle_arg(argv: Argv, target: Arg[Any], arg: Any, _str: bool):
             return Empty
         raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]), target)  # type: ignore
     return res._value  # noqa
-
-
-def step(argv: Argv, ana: Analyser, arg: Arg[Any], result: dict[str, Any]):
-    field = arg.field
-    may_arg, _str = argv.next(field.seps)
-    if _str and may_arg in ana._unvisited and ((slot := ana._unvisited[may_arg])[1] not in ana.value_result and not slot[0].soft_keyword):
-        argv.rollback(may_arg)
-        may_arg = None
-    if may_arg is None or (_str and not may_arg):
-        if (de := arg.field.get_default()) is not Empty:
-            result[arg.name] = de
-        elif not field.optional:
-            raise ArgumentMissing(field.get_missing_tips(i18n.require("args.missing").format(key=arg.name)), arg)
-        return True
-    if field.kw_only:
-        if not _str:
-            raise InvalidParam(i18n.require("args.key_missing").format(target=may_arg, key=arg.name), arg)
-        key, _m_arg = split_once(may_arg, field.kw_sep, argv.filter_crlf)
-        key: str = pat.fullmatch(key)["name"]  # type: ignore
-        if key != arg.name:
-            if levenshtein(key, arg.name) >= argv.fuzzy_threshold:
-                raise FuzzyMatchSuccess(i18n.require("fuzzy.matched").format(source=arg.name, target=key))
-            raise InvalidParam(i18n.require("args.key_not_found").format(name=key), arg)
-        if _m_arg:
-            may_arg = _m_arg
-        else:
-            may_arg, _str = argv.next(field.seps)
-    ans = _handle_arg(argv, arg, may_arg, _str)
-    if ans is Empty:
-        return True
-    result[arg.name] = ans
-    return True
 
 
 def step_multiple(argv: Argv, ana: Analyser, arg: Arg[Any], result: dict[str, Any]):
@@ -154,6 +118,21 @@ def step_multiple(argv: Argv, ana: Analyser, arg: Arg[Any], result: dict[str, An
     return False
 
 
+def _handle_arg_wild(target: Arg[Any], arg: Any):
+    value = target.type_
+    _str = isinstance(arg, str)
+    if value is ANY or (value is STRING and _str):
+        return arg
+    if value is AnyString:
+        return str(arg)
+    res = value.execute(arg)
+    if res._value is Empty:
+        if target.field.optional:
+            return Empty
+        raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]), target)  # type: ignore
+    return res._value  # noqa
+
+
 def analyse_args(analyser: Analyser, argv: Argv, args: _Args) -> dict[str, Any]:
     """
     分析 `_Args` 部分
@@ -170,18 +149,43 @@ def analyse_args(analyser: Analyser, argv: Argv, args: _Args) -> dict[str, Any]:
     index = 0
     while index < args.count:
         arg = args.data[index]
-        if arg.type_.alias == "*":
-            if TYPE_CHECKING:
-                assert isinstance(arg.type_, _AllParamPattern)
-            if not arg.type_.types:
-                result[arg.name] = argv.converter(argv.release(no_split=True))
-            else:
-                data = [d for d in argv.release(no_split=True) if (res := arg.type_.execute(d)).success or (not arg.type_.ignore and _raise(arg, d, res))]
-                result[arg.name] = argv.converter(data)
+        field = arg.field
+        if field.wildcard:
+            data = [_handle_arg_wild(arg, d) for d in argv.release(no_split=True)]
+            data = [d for d in data if d is not Empty]
+            result[arg.name] = argv.converter(data)
             argv.current_index = argv.ndata
             return result
-        if arg.field.multiple is False:
-            index += step(argv, analyser, arg, result)
+        if field.multiple is False:
+            may_arg, _str = argv.next(field.seps)
+            if _str and may_arg in analyser._unvisited and ((slot := analyser._unvisited[may_arg])[1] not in analyser.value_result and not slot[0].soft_keyword):
+                argv.rollback(may_arg)
+                may_arg = None
+            if may_arg is None or (_str and not may_arg):
+                if (de := arg.field.get_default()) is not Empty:
+                    result[arg.name] = de
+                elif not field.optional:
+                    raise ArgumentMissing(field.get_missing_tips(i18n.require("args.missing").format(key=arg.name)), arg)
+                index += 1
+                continue
+            if field.kw_only:
+                if not _str:
+                    raise InvalidParam(i18n.require("args.key_missing").format(target=may_arg, key=arg.name), arg)
+                key, _m_arg = split_once(may_arg, field.kw_sep, argv.filter_crlf)
+                key: str = pat.fullmatch(key)["name"]  # type: ignore
+                if key != arg.name:
+                    if levenshtein(key, arg.name) >= argv.fuzzy_threshold:
+                        raise FuzzyMatchSuccess(i18n.require("fuzzy.matched").format(source=arg.name, target=key))
+                    raise InvalidParam(i18n.require("args.key_not_found").format(name=key), arg)
+                if _m_arg:
+                    may_arg = _m_arg
+                else:
+                    may_arg, _str = argv.next(field.seps)
+            ans = _handle_arg(argv, arg, may_arg, _str)
+            if ans is not Empty:
+                result[arg.name] = ans
+            index += 1
+            continue
         elif step_multiple(argv, analyser, arg, result):
             if arg.field.kw_only:
                 result[arg.name] = dict(result[arg.name])

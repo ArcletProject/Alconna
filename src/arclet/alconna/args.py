@@ -44,6 +44,7 @@ class Field(Generic[_T]):
     kw_only: bool = dc.field(default=False, compare=False, hash=False)
     multiple: bool | int | Literal["+", "*", "str"] = dc.field(default=False, compare=False, hash=False)
     kw_sep: str = dc.field(default="=", compare=False, hash=False)
+    wildcard: bool = dc.field(default=False, compare=False, hash=False)
 
     @property
     def display(self):
@@ -100,8 +101,9 @@ def arg_field(
     kw_sep: str = "=",
     optional: bool = False,
     hidden: bool = False,
+    wildcard: bool = False,
 ) -> "Any":
-    return Field(default, default_factory, alias, completion, unmatch_tips, missing_tips, notice, seps, optional, hidden, kw_only, multiple, kw_sep)
+    return Field(default, default_factory, alias, completion, unmatch_tips, missing_tips, notice, seps, optional, hidden, kw_only, multiple, kw_sep, wildcard)
 
 
 @dc.dataclass(**safe_dcls_kw(init=False, eq=True, unsafe_hash=True, slots=True))
@@ -153,7 +155,10 @@ class Arg(Generic[_T]):
                     setattr(self.field, k, v)
 
     def __str__(self):
-        n, v = f"'{self.name_display}'", self.type_display
+        if self.field.wildcard:
+            v = n = f"...{self.name}"
+        else:
+            n, v = f"'{self.name_display}'", self.type_display
         return (n if n == v else f"{n}: {v}") + (f" = '{self.field.display}'" if self.field.display is not Empty else "")
 
     def __add__(self, other) -> "ArgsBuilder":

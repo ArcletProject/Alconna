@@ -38,6 +38,5 @@ from .exceptions import ParamsUnmatched as ParamsUnmatched
 from .formatter import TextFormatter as TextFormatter
 from .shortcut import ShortcutArgs as ShortcutArgs
 from .manager import command_manager as command_manager
-from .utils import AllParam as AllParam
 
 __version__ = "1.8.31"

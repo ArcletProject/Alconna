@@ -34,7 +34,6 @@ from arclet.alconna.exceptions import ParamsUnmatched as ParamsUnmatched  # noqa
 from arclet.alconna.formatter import TextFormatter as TextFormatter  # noqa: F401
 from arclet.alconna.manager import ShortcutArgs as ShortcutArgs  # noqa: F401
 from arclet.alconna.manager import command_manager as command_manager  # noqa: F401
-from arclet.alconna.utils import AllParam as AllParam  # noqa: F401
 
 from .args import ArgFlag as ArgFlag
 from .args import Args as Args
@@ -49,6 +48,7 @@ from .stub import ArgsStub as ArgsStub
 from .stub import OptionStub as OptionStub
 from .stub import SubcommandStub as SubcommandStub
 
+from .typing import AllParam as AllParam
 from .typing import KeyWordVar as KeyWordVar
 from .typing import Kw as Kw
 from .typing import MultiVar as MultiVar

@@ -68,40 +68,6 @@ T1 = TypeVar("T1")
 TAValue: TypeAlias = Union[Pattern[T], Type[T], T, Callable[..., T], Dict[Any, T], List[T]]
 
 
-@final
-class _AllParamPattern(Pattern[T]):
-    def __init__(self, types: tuple[type[T1], ...] = (), ignore: bool = True):
-        self.types = types
-        self.ignore = ignore
-        super().__init__(alias="*")
-
-    def match(self, input_: Any) -> Any:  # pragma: no cover
-        if not self.types:
-            return input_
-        if generic_isinstance(input_, self.types):  # type: ignore
-            return input_
-        raise MatchFailed(
-            lang.require("nepattern", "error.type").format(
-                type=input_.__class__.__name__, target=input_, expected=" | ".join(map(lambda t: t.__name__, self.types))
-            )
-        )
-
-    @overload
-    def __call__(self, *, ignore: bool = True) -> _AllParamPattern[Any]: ...
-
-    @overload
-    def __call__(self, *types: type[T1], ignore: bool = True) -> _AllParamPattern[T1]: ...
-
-    def __call__(self, *types: type[T1], ignore: bool = True) -> _AllParamPattern[T1]:
-        return _AllParamPattern(types, ignore)
-
-    def __eq__(self, other):  # pragma: no cover
-        return other.__class__ is _AllParamPattern
-
-
-AllParam: _AllParamPattern[Any] = _AllParamPattern()
-
-
 class KWBool(Pattern):
     """对布尔参数的包装"""
 

@@ -4,16 +4,54 @@ from dataclasses import is_dataclass, fields
 from typing import (
     Any,
     Literal,
-    TypeVar,
+    TypeVar, overload, final,
 )
+
+from tarina import lang
 from typing_extensions import deprecated
 
-from nepattern import Pattern, parser
+from nepattern import Pattern, parser, MatchFailed
 
 from arclet.alconna.utils import TAValue
 from arclet.alconna.utils import KWBool as KWBool  # type: ignore[misc]
 
 T = TypeVar("T")
+T1 = TypeVar("T1")
+
+
+@final
+@deprecated("AllParam is deprecated, use `Field(wildcard=True)` instead", category=DeprecationWarning, stacklevel=1)
+class _AllParamPattern(Pattern[T]):
+    def __init__(self, types: tuple[type[T1], ...] = (), ignore: bool = True):
+        self.types = types
+        self.ignore = ignore
+        super().__init__(alias="*")
+
+    def match(self, input_: Any) -> Any:  # pragma: no cover
+        if not self.types:
+            return input_
+        if generic_isinstance(input_, self.types):  # type: ignore
+            return input_
+        raise MatchFailed(
+            lang.require("nepattern", "error.type").format(
+                type=input_.__class__.__name__, target=input_, expected=" | ".join(map(lambda t: t.__name__, self.types))
+            )
+        )
+
+    @overload
+    def __call__(self, *, ignore: bool = True) -> _AllParamPattern[Any]: ...
+
+    @overload
+    def __call__(self, *types: type[T1], ignore: bool = True) -> _AllParamPattern[T1]: ...
+
+    def __call__(self, *types: type[T1], ignore: bool = True) -> _AllParamPattern[T1]:
+        return _AllParamPattern(types, ignore)
+
+    def __eq__(self, other):  # pragma: no cover
+        return other.__class__ is _AllParamPattern
+
+
+AllParam: _AllParamPattern[Any] = _AllParamPattern()
 
 
 @deprecated("KeyWordVar is deprecated, use `Field(kw_only=True)` instead", category=DeprecationWarning, stacklevel=1)

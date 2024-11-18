@@ -1,11 +1,10 @@
 import re
 
 import pytest
-from nepattern import IP, URL
+from nepattern import IP, URL, ANY
 
 from arclet.alconna import (
     Alconna,
-    AllParam,
     Arg,
     Args,
     Config,
@@ -313,7 +312,7 @@ def test_alconna_synthesise():
     assert res["min"] == 3
     assert res["tags"] == ("女仆", "能天使", "德克萨斯", "拉普兰德", "莫斯提马")
 
-    alc10_1 = Alconna("cpp", Args.match(int, multiple=True).lines(AllParam, seps="\n"))
+    alc10_1 = Alconna("cpp", Args.match(int, multiple=True).lines(ANY, wildcard=True, seps="\n"))
     print("")
     print(msg := "cpp 1 2\n" "#include <iostream>\n" "int main() {...}")
     print((res := alc10_1.parse(msg)))
@@ -329,7 +328,7 @@ def test_simple_override():
 
 
 def test_wildcard():
-    alc13 = Alconna("core13", Args.foo(AllParam))
+    alc13 = Alconna("core13", Args.foo(ANY, wildcard=True))
     assert alc13.parse(["core13 abc def gh", 123, 5.0, "dsdf"])["foo"] == [
         "abc def gh",
         123,
@@ -353,17 +352,17 @@ def test():
         ]
     )
 
-    alc13_1 = Alconna("core13_1", Args.foo(AllParam(str)))
-    assert alc13_1.parse(["core13_1 abc def gh", 123, 5.0, "dsdf"])["foo"] == [
-        "abc def gh",
-        "dsdf",
-    ]
-    alc13_2 = Alconna("core13_2", Args.foo(AllParam(str, ignore=False)))
-    assert not alc13_2.parse(["core13_2 abc def gh", 123, 5.0, "dsdf"]).matched
-    assert alc13_2.parse(["core13_2 abc def gh", "123", "5.0", "dsdf"])["foo"] == [
+    alc13_1 = Alconna("core13_2", Args.foo(str, wildcard=True))
+    assert not alc13_1.parse(["core13_2 abc def gh", 123, 5.0, "dsdf"]).matched
+    assert alc13_1.parse(["core13_2 abc def gh", "123", "5.0", "dsdf"])["foo"] == [
         "abc def gh",
         "123",
         "5.0",
+        "dsdf",
+    ]
+    alc13_2 = Alconna("core13_1", Args.foo(str, wildcard=True, optional=True))
+    assert alc13_2.parse(["core13_1 abc def gh", 123, 5.0, "dsdf"])["foo"] == [
+        "abc def gh",
         "dsdf",
     ]
 
@@ -810,12 +809,12 @@ def test_action():
 
     from arclet.alconna import append, append_value, count, store_true
 
-    alc24 = Alconna("core24", Option("--yes|-y", action=store_true), Args.module(AllParam))
+    alc24 = Alconna("core24", Option("--yes|-y", action=store_true), Args.module(ANY, wildcard=True))
     res = alc24.parse("core24 -y abc def")
     assert res.query[bool]("yes.value") is True
     assert res["module"] == ["abc def"]
 
-    alc24_1 = Alconna("core24_1", Args.yes({"--yes": True, "-y": True}, False).module(AllParam))
+    alc24_1 = Alconna("core24_1", Args.yes({"--yes": True, "-y": True}, False).module(ANY, wildcard=True))
     assert alc24_1.parse("core24_1 -y abc def")["yes"] is True
     assert alc24_1.parse("core24_1 abc def")["yes"] is False
     assert alc24_1.parse("core24_1 abc def")["module"] == ["abc def"]

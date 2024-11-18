@@ -9,7 +9,6 @@ from tarina import Empty
 from .i18n import i18n
 from .args import Arg, _Args
 from .base import Option, Subcommand
-from .utils import AllParam
 from .shortcut import InnerShortcutArgs
 
 if TYPE_CHECKING:
@@ -154,7 +153,7 @@ class TextFormatter:
             return f"[{name}]" if parameter.field.optional else name
         if parameter.field.hidden:
             return f"[{name}]" if parameter.field.optional else f"<{name}>"
-        if parameter.type_ is AllParam:
+        if parameter.field.wildcard:
             return f"<...{name}>"
         arg = f"[{name}" if parameter.field.optional else f"<{name}"
         if parameter.type_ not in (ANY, AnyString):

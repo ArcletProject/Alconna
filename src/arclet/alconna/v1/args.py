@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import warnings
 from enum import Enum
 from typing import Any, Final, Iterable
 
-from nepattern import Pattern
+from nepattern import Pattern, ANY, UnionPattern
 from tarina import Empty
 from typing_extensions import Self, deprecated
 
 from arclet.alconna.args import ArgsBuilder, Arg
 from arclet.alconna.utils import TAValue
 
-from .typing import KeyWordVar, MultiVar, _StrMulti, UnpackVar
+from .typing import KeyWordVar, MultiVar, _StrMulti, UnpackVar, _AllParamPattern
 
 
 class ArgFlag(str, Enum):
@@ -52,6 +51,9 @@ class _CompatArgsBuilder(ArgsBuilder):
                 arg.type_ = value.base
             elif isinstance(value, UnpackVar):
                 arg.type_ = Pattern(value.origin)
+            elif isinstance(value, _AllParamPattern):
+                arg.type_ = UnionPattern.of(value.types) if value.types else ANY  # type: ignore
+                arg.field.wildcard = True
         return super().build()
 
     def __truediv__(self, other) -> Self:
