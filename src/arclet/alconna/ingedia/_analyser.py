@@ -144,7 +144,7 @@ class Analyser:
         except (InvalidParam, ArgumentMissing) as e1:
             if comp_ctx.get(None):
                 if isinstance(e1, InvalidParam):
-                    argv.free(e1.context_node.separators if e1.context_node else None)
+                    argv.free()
                 return PauseTriggered(
                     prompt(self.command, argv.release(recover=True), [*self.args_result.get((), {}).keys()], [*self.value_result.keys()], e1.context_node),
                     e1,

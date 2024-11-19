@@ -51,34 +51,25 @@ def _context(argv: Argv, target: Arg[Any], _arg: str):
         ) from e
 
 
-def _handle_arg(argv: Argv, target: Arg[Any], arg: Any, _str: bool):
+def _handle_arg(target: Arg[Any], arg: Any, _str: bool):
     value = target.type_
-    _arg = arg
-    if _str and argv.context_style:
-        _arg = _context(argv, target, _arg)
     if (value is STRING and _str) or value is ANY:
-        return _arg
+        return arg
     if value is AnyString:
-        return str(_arg)
-    res = value.execute(_arg)
+        return str(arg)
+    res = value.execute(arg)
     if res._value is Empty:
-        argv.rollback(arg)
-        default_val = target.field.get_default()
-        if default_val is not Empty:
-            return default_val
-        if target.field.optional:
-            return Empty
-        raise InvalidParam(target.field.get_unmatch_tips(arg, res.error().args[0]), target)  # type: ignore
+        raise InvalidParam(target.field.get_unmatch_tips(arg, res._error.args[0]), target)  # type: ignore
     return res._value  # noqa
 
 
 def step_multiple(argv: Argv, ana: Analyser, arg: Arg[Any], result: dict[str, Any]):
     field = arg.field
-    may_arg, _str = argv.next(field.seps)
+    may_arg, _str, apply = argv.next(field.seps)
     if _str and may_arg in global_config.remainders:
+        apply()
         may_arg = None
     elif _str and may_arg in ana._unvisited and ((slot := ana._unvisited[may_arg])[1] not in ana.value_result and not slot[0].soft_keyword):
-        argv.rollback(may_arg)
         may_arg = None
     if may_arg is None or (_str and not may_arg):
         if arg.name not in result and field.multiple != "*":
@@ -94,10 +85,15 @@ def step_multiple(argv: Argv, ana: Analyser, arg: Arg[Any], result: dict[str, An
         if _m_arg:
             may_arg = _m_arg
         else:
-            may_arg, _str = argv.next(field.seps)
-        ans = _handle_arg(argv, arg, may_arg, _str)
-        if ans is Empty:
+            apply()
+            may_arg, _str, apply = argv.next(field.seps)
+        try:
+            ans = _handle_arg(arg, may_arg, _str)
+        except InvalidParam:
+            if arg.name not in result and field.multiple != "*":
+                raise ArgumentMissing(field.get_missing_tips(i18n.require("args.missing").format(key=arg.name)), arg)
             return True
+        apply()
         if arg.name not in result:
             result[arg.name] = []
         result[arg.name].append((key, ans))
@@ -105,11 +101,12 @@ def step_multiple(argv: Argv, ana: Analyser, arg: Arg[Any], result: dict[str, An
             return len(result[arg.name]) >= field.multiple
         return False
     try:
-        ans = _handle_arg(argv, arg, may_arg, _str)
+        ans = _handle_arg(arg, may_arg, _str)
     except InvalidParam:
+        if arg.name not in result and field.multiple != "*":
+            raise ArgumentMissing(field.get_missing_tips(i18n.require("args.missing").format(key=arg.name)), arg)
         return True
-    if ans is Empty:
-        return True
+    apply()
     if arg.name not in result:
         result[arg.name] = []
     result[arg.name].append(ans)
@@ -157,9 +154,8 @@ def analyse_args(analyser: Analyser, argv: Argv, args: _Args) -> dict[str, Any]:
             argv.current_index = argv.ndata
             return result
         if field.multiple is False:
-            may_arg, _str = argv.next(field.seps)
+            may_arg, _str, apply = argv.next(field.seps)
             if _str and may_arg in analyser._unvisited and ((slot := analyser._unvisited[may_arg])[1] not in analyser.value_result and not slot[0].soft_keyword):
-                argv.rollback(may_arg)
                 may_arg = None
             if may_arg is None or (_str and not may_arg):
                 if (de := arg.field.get_default()) is not Empty:
@@ -180,9 +176,19 @@ def analyse_args(analyser: Analyser, argv: Argv, args: _Args) -> dict[str, Any]:
                 if _m_arg:
                     may_arg = _m_arg
                 else:
-                    may_arg, _str = argv.next(field.seps)
-            ans = _handle_arg(argv, arg, may_arg, _str)
-            if ans is not Empty:
+                    apply()
+                    may_arg, _str, apply = argv.next(field.seps)
+            if argv.context_style and _str:
+                may_arg = _context(argv, arg, may_arg)
+            try:
+                ans = _handle_arg(arg, may_arg, _str)
+            except InvalidParam:
+                if (default_val := field.get_default()) is not Empty:
+                    result[arg.name] = default_val
+                elif not field.optional:
+                    raise
+            else:
+                apply()
                 result[arg.name] = ans
             index += 1
             continue
@@ -214,22 +220,23 @@ def analyse_option(analyser: Analyser, opt: Option, argv: Argv, path: tuple[str,
     _cnt = 0
     error = True
     if not name_validated:
-        name, _ = argv.next(opt.separators)
+        name, _, apply = argv.next(opt.separators)
         if opt.compact:
-            mat = next(filter(None, (re.fullmatch(f"{al}(?P<rest>.*?)", name) for al in opt.aliases)), None)
+            mat = next(filter(None, (re.fullmatch(f"({al}).*?", name) for al in opt.aliases)), None)
             if mat:
-                argv.rollback(mat["rest"], replace=True)
+                apply(len(mat[1]))
                 error = False
         elif opt.action.type == 2:
             for al in opt.aliases:
                 if name.startswith(al) and (cnt := (len(name.lstrip("-")) / len(al.lstrip("-")))).is_integer():
                     _cnt = int(cnt)
                     error = False
+                    apply()
                     break
         elif name in opt.aliases:
+            apply()
             error = False
         if error:
-            argv.rollback(name)
             if not argv.fuzzy_match:
                 raise InvalidParam(i18n.require("option.name_error").format(source=opt.dest, target=name), opt)
             for al in opt.aliases:
@@ -267,15 +274,15 @@ def analyse_subcommand(analyser: Analyser, sub: Subcommand, argv: Argv, path: tu
     if path in analyser.value_result:
         return False
     if not name_validated:
-        name, _ = argv.next(sub.separators)
+        name, _, apply = argv.next(sub.separators)
         if name not in sub.aliases:
-            argv.rollback(name)
             if not argv.fuzzy_match:
                 raise InvalidParam(i18n.require("subcommand.name_error").format(source=sub.dest, target=name), sub)
             for al in sub.aliases:
                 if levenshtein(name, al) >= argv.fuzzy_threshold:
                     raise FuzzyMatchSuccess(i18n.require("fuzzy.matched").format(source=al, target=name), sub)
             raise InvalidParam(i18n.require("subcommand.name_error").format(source=sub.dest, target=name), sub)
+        apply()
     analyser.value_result[path] = ...
     analyser.update(sub, path)
     while analyse_param(analyser, sub, argv, path, sub.separators) and argv.current_index != argv.ndata:
@@ -303,7 +310,7 @@ def analyse_compact_params(analyser: Analyser, argv: Argv, prefixes: tuple[str, 
     """
     exc = None
     for param in analyser.compact_params[prefixes]:
-        _data, _index = argv.data_set()
+        # _data, _index = argv.data_set()
         try:
             path = prefixes + (param.dest,)
             if param.__class__ is Option or param.__class__.__base__ is Option:
@@ -312,15 +319,15 @@ def analyse_compact_params(analyser: Analyser, argv: Argv, prefixes: tuple[str, 
             else:
                 sparam: SubAnalyser = param  # type: ignore
                 analyse_subcommand(analyser, sparam, argv, path, False)
-            _data.clear()
+            # _data.clear()
             return True
         except (FuzzyMatchSuccess, PauseTriggered):
             raise
         except AnalyseException as e:
             if isinstance(e, InvalidParam) and e.context_node is not param:
                 exc = e
-            else:
-                argv.data_reset(_data, _index)
+            # else:
+            #     argv.data_reset(_data, _index)
     else:
         if exc and not analyser._error:
             analyser._error = exc
@@ -338,28 +345,28 @@ def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes:
         seps (str, optional): 指定的分隔符.
     """
     # 每次调用都会尝试解析一个参数
-    _text, _str = argv.next(seps)
+    _text, _str, apply = argv.next(seps)
     # analyser.compile_params 有命中，说明在当前子命令内有对应的选项/子命令
-    if _str and _text and (_param := current._lookup_map.get(_text)):
-        path = prefixes + (_param.dest,)
-        apply = True
-        try:
-            if _param.__class__ is Subcommand:
-                apply = analyse_subcommand(analyser, _param, argv, path, True)  # type: ignore
-            else:
-                apply = analyse_option(analyser, _param, argv, path, True)  # type: ignore
-        except (FuzzyMatchSuccess, PauseTriggered):
-            raise
-        except AnalyseException as e:
-            if not analyser._error:
-                analyser._error = e
-        if apply:
+    if _str:
+        if _text and (_param := current._lookup_map.get(_text)):
+            apply()
+            path = prefixes + (_param.dest,)
+            apply = True
+            try:
+                if _param.__class__ is Subcommand:
+                    apply = analyse_subcommand(analyser, _param, argv, path, True)  # type: ignore
+                else:
+                    apply = analyse_option(analyser, _param, argv, path, True)  # type: ignore
+            except (FuzzyMatchSuccess, PauseTriggered):
+                raise
+            except AnalyseException as e:
+                if not analyser._error:
+                    analyser._error = e
+            return apply
+        # 尝试以紧凑参数解析
+        if _text and analyser.compact_params and prefixes in analyser.compact_params and analyse_compact_params(analyser, argv, prefixes):
             return True
-    # 如果没有命中，则说明当前参数可能存在自定义分隔符，或者属于子命令的主参数，那么需要重新解析
-    argv.rollback(_text)
-    # 尝试以紧凑参数解析
-    if _str and _text and analyser.compact_params and prefixes in analyser.compact_params and analyse_compact_params(analyser, argv, prefixes):
-        return True
+    # 如果没有命中，则说明当前参数属于 Args, 那么需要重新解析
     # 主参数同样只允许解析一次
     if current.nargs and prefixes not in analyser.args_result:
         if res := analyse_args(analyser, argv, current.args):
@@ -370,41 +377,38 @@ def analyse_param(analyser: Analyser, current: Subcommand, argv: Argv, prefixes:
         return False
     if analyser.extra_allow:
         analyser.args_result.setdefault(prefixes, {}).setdefault("$extra", []).append(_text)
-        argv.next()
+        apply()
         return True
     # 给 Completion 打的洞，若此时 analyser 属于主命令, 则让其先解析完主命令
-    elif _str and _text and not prefixes:
+    if _str and _text and not prefixes:
         if not analyser._error:
             analyser._error = ParamsUnmatched(i18n.require("analyser.param_unmatched").format(target=_text))
-        argv.next()
+        apply()
         return True
     return False
 
 
 def analyse_header(header: "Header", argv: Argv):
-    head_text, _str = argv.next()
-    if _str:
-        if head_text in header.content:
-            argv.apply()
-            return HeadResult(head_text, head_text, True)
-        if header.compact and (mat := header.compact_pattern.match(head_text)):
-            argv.rollback(head_text[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True)
-    may_cmd, _m_str = argv.next()
-    if _m_str:
-        cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
-        if cmd in header.content:
-            argv.apply()
-            return HeadResult(cmd, cmd, True)
-        if header.compact and (mat := header.compact_pattern.match(cmd)):
-            argv.rollback(cmd[len(mat[0]):], replace=True)
-            return HeadResult(mat[0], mat[0], True)
-    # _after_analyse_header
-    if _str:
-        argv.rollback(may_cmd)
+    head_text, _str, apply = argv.next()
+    if not _str:
+        raise InvalidHeader(i18n.require("header.error").format(target=head_text), None)
+    if head_text in header.content:
+        apply()
+        return HeadResult(head_text, head_text, True)
+    if header.compact and (mat := header.compact_pattern.match(head_text)):
+        apply(len(mat[0]))
+        return HeadResult(mat[0], mat[0], True)
+    if head_text not in header.separable_prefixes:
         raise InvalidHeader(i18n.require("header.error").format(target=head_text), head_text)
-    if _m_str and may_cmd:
-        cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
-        raise InvalidHeader(i18n.require("header.error").format(target=cmd), cmd)
-    argv.rollback(may_cmd)
-    raise InvalidHeader(i18n.require("header.error").format(target=head_text), None)
+    apply()
+    may_cmd, _m_str, apply = argv.next()
+    if not _m_str:
+        raise InvalidHeader(i18n.require("header.error").format(target=may_cmd), None)
+    cmd = f"{head_text}{argv.separators[0]}{may_cmd}"
+    if cmd in header.content:
+        apply()
+        return HeadResult(cmd, cmd, True)
+    if header.compact and (mat := header.compact_pattern.match(cmd)):
+        apply(len(mat[0]))
+        return HeadResult(mat[0], mat[0], True)
+    raise InvalidHeader(i18n.require("header.error").format(target=cmd), cmd)

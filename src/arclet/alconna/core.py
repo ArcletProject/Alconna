@@ -86,7 +86,10 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
             if res.args.get("action") == "delete":
                 msg = command.shortcut(res.args["name"], delete=True)
             else:
-                msg = command.shortcut(res.args["name"], fuzzy=True, command=res.args.get("command"))
+                cmd = res.args.get("command")
+                if cmd:
+                    cmd = cmd.strip("'\"")
+                msg = command.shortcut(res.args["name"], fuzzy=True, command=cmd)
             arp.output = msg
             return True
     else:
@@ -256,7 +259,7 @@ class Alconna(Subcommand):
         if self.meta.example:
             self.meta.example = self.meta.example.replace("$", self.prefixes[0] if self.prefixes else "")
         self.config = Config.merge(next((i for i in args if isinstance(i, Config)), Config()), ns_config.config)
-        self._header = Header.generate(self.command, self.prefixes, bool(self.config.compact))
+        self._header = Header.generate(self.command, self.prefixes, bool(self.config.compact), " " if separators is None else "".join(separators))
         options = [i for i in args if isinstance(i, (Option, Subcommand))]
         add_builtin_options(options, self.router, self.config)
         name = next(iter(self._header.content), self.command or self.prefixes[0])
@@ -443,6 +446,7 @@ class Alconna(Subcommand):
             trigger = exc.context_node
             if trigger.__class__ is str and trigger:
                 try:
+                    argv._apply()
                     key, rest, short, mat = command_manager.find_shortcut(self, [trigger] + argv.release(no_split=True))
                     argv.context[SHORTCUT_TRIGGER] = key
                     argv.context[SHORTCUT_ARGS] = short
@@ -451,7 +455,7 @@ class Alconna(Subcommand):
                     _origin = argv.origin
                     argv.reset()
                     argv.origin = _origin
-                    argv.addon(wrap_shortcut(rest, short, mat, argv.context), merge_str=False)
+                    argv.addon(wrap_shortcut(rest, short, mat, argv.context))
                     analyser.header_result = analyse_header(self._header, argv)
                     analyser.header_result.origin = key
                     if not (exc := analyser.process(argv)):

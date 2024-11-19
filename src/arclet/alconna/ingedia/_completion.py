@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from tarina import ContextModel
+from tarina import ContextModel, String
 
 from ..i18n import i18n
 from ..exceptions import InvalidParam, ParamsUnmatched, PauseTriggered
@@ -53,7 +53,6 @@ class CompSession:
         self._token = None
 
         self.raw_data = []
-        self.bak_data = []
         self.current_index = 0
 
     @property
@@ -99,7 +98,6 @@ class CompSession:
         """
         argv = command_manager.require(self.source.command).argv
         argv.raw_data = self.raw_data.copy()
-        argv.bak_data = self.bak_data.copy()
         argv.current_index = self.current_index
         if content:
             input_ = content
@@ -110,19 +108,19 @@ class CompSession:
             if not prompt.can_use:
                 return EnterResult(exception=ValueError(i18n.require("completion.prompt_unavailable")))
             if prompt.removal_prefix:
-                argv.bak_data[-1] = argv.bak_data[-1][: -len(prompt.removal_prefix)]
+                argv.raw_data[-1] = argv.raw_data[-1].text[: -len(prompt.removal_prefix)]
                 argv.next()
             input_ = [prompt.text]
         if isinstance(self.trigger, InvalidParam):
-            argv.raw_data = argv.bak_data[: max(self.current_index, 1)]
+            argv.raw_data = argv.raw_data[: max(self.current_index, 1)]
             argv.addon(input_)
             argv.raw_data.extend(self.raw_data[max(self.current_index, 1):])
         else:
-            argv.raw_data = argv.bak_data.copy()
             argv.addon(input_)
-        argv.raw_data = [i for i in argv.raw_data if i != ""]
-        argv.bak_data = argv.raw_data.copy()
-        argv.ndata = len(argv.bak_data)
+        for unit in argv.raw_data:
+            if unit.__class__ is String:
+                unit.align_to(0)
+        argv.ndata = len(argv.raw_data)
         argv.current_index = 0
         argv.origin = argv.converter(argv.raw_data)
         if argv.message_cache:
@@ -159,7 +157,6 @@ class CompSession:
         self.prompts.clear()
         self.source.reset()
         self.raw_data = []
-        self.bak_data = []
         self.current_index = 0
         return self
 
@@ -202,7 +199,6 @@ class CompSession:
         self.trigger = exc.context_node
         argv = exc.argv
         self.raw_data = argv.raw_data
-        self.bak_data = argv.bak_data
         self.current_index = argv.current_index
         return True
 

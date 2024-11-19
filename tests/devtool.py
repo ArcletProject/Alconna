@@ -59,6 +59,7 @@ def analyse_args(
         argv.enter(kwargs)
         argv.build(["test"] + command)
         argv.next()
+        argv._apply()
         return ala(_analyser, argv, handle_args(args))
     except Exception as e:
         if raise_exception:
@@ -78,7 +79,7 @@ def analyse_header(
 ):
     conf = Config(keep_crlf=False, fuzzy_match=False, raise_exception=raise_exception, context_style=context_style)
     argv: Argv[DataCollection] = Argv(conf, dev_space, separators=sep)
-    command_header = Header.generate(command_name, headers, compact=compact)
+    command_header = Header.generate(command_name, headers, compact=compact, separator=sep)
     try:
         argv.enter(kwargs)
         argv.build(command)

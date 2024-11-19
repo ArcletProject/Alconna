@@ -159,7 +159,7 @@ class CommandManager:
         command.formatter.remove(command)
         del self.__analysers[cmd_hash]
         yield
-        command._header = Header.generate(command.command, command.prefixes, bool(command.config.compact))
+        command._header = Header.generate(command.command, command.prefixes, bool(command.config.compact), command.separators)
         name = next(iter(command._header.content), command.command or command.prefixes[0])
         command.path = f"{command.namespace}::{name}"
         command.dest = command.name = name

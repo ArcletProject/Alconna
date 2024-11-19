@@ -102,7 +102,7 @@ class HeadResult:
 class Header:
     """命令头部的匹配表达式"""
 
-    __slots__ = ("origin", "content", "mapping", "compact", "compact_pattern")
+    __slots__ = ("origin", "content", "separable_prefixes", "compact", "compact_pattern")
 
     def __init__(
         self,
@@ -110,11 +110,16 @@ class Header:
         content: set[str],
         compact: bool,
         compact_pattern: TPattern,
+        separator: str = " ",
     ):
         self.origin = origin  # type: ignore
         self.content = content  # type: ignore
         self.compact = compact
         self.compact_pattern = compact_pattern  # type: ignore
+        self.separable_prefixes = set()
+        for prefix in self.origin[1]:
+            if any(prefix.endswith(sep) for sep in separator):
+                self.separable_prefixes.add(prefix.rstrip(separator))
 
     def __repr__(self):
         if not self.origin[1]:
@@ -141,12 +146,13 @@ class Header:
         command: str,
         prefixes: list[str],
         compact: bool,
+        separator: str = " ",
     ):
         if not prefixes:
-            return cls((command, prefixes), {command}, compact, re.compile(f"^{command}"))
+            return cls((command, prefixes), {command}, compact, re.compile(f"^{command}"), separator)
         prf = "|".join(re.escape(h) for h in prefixes)
         compp = re.compile(f"^(?:{prf}){command}")
-        return cls((command, prefixes), {f"{h}{command}" for h in prefixes}, compact, compp)
+        return cls((command, prefixes), {f"{h}{command}" for h in prefixes}, compact, compp, separator)
 
     def check_fuzzy(self, source: str, threshold: float):
         command = self.origin[0]
