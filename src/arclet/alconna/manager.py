@@ -143,7 +143,7 @@ class CommandManager:
             raise ExceedMaxCount
         cmd_hash = command._hash
         self.__argv.pop(cmd_hash, None)
-        argv = self.__argv[cmd_hash] = __argv_type__.get()(command.meta, command.namespace_config, command.separators)  # type: ignore
+        argv = self.__argv[cmd_hash] = __argv_type__.get(command.namespace, __argv_type__["_"])(command.meta, command.namespace_config, command.separators)  # type: ignore
         self.__analysers.pop(cmd_hash, None)
         self.__analysers[cmd_hash] = command.compile(param_ids=argv.param_ids)
         namespace = self.__commands.setdefault(command.namespace, WeakValueDictionary())

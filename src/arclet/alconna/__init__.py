@@ -16,6 +16,7 @@ from .args import Field as Field
 from .argv import Argv as Argv
 from .argv import argv_config as argv_config
 from .argv import set_default_argv_type as set_default_argv_type
+from .argv import set_namespace_argv_type as set_namespace_argv_type
 from .arparma import Arparma as Arparma
 from .arparma import ArparmaBehavior as ArparmaBehavior
 from .base import Option as Option
@@ -53,7 +54,7 @@ from .typing import UnpackVar as UnpackVar
 from .typing import Up as Up
 from .typing import StrMulti as StrMulti
 
-__version__ = "1.8.33"
+__version__ = "1.8.34"
 
 # backward compatibility
 AnyOne = ANY

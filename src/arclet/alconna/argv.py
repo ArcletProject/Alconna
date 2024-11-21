@@ -1,17 +1,21 @@
 from __future__ import annotations
 
-from contextvars import ContextVar
 from typing import Any, Callable
 
 from ._internal._argv import Argv as Argv
 from .typing import TDC
 
-__argv_type__: ContextVar[type[Argv]] = ContextVar("argv_type", default=Argv)
+__argv_type__: dict[str, type[Argv]] = {"_": Argv}
 
 
 def set_default_argv_type(argv_type: type[Argv]):
     """设置默认的命令行参数类型"""
-    __argv_type__.set(argv_type)
+    __argv_type__["_"] = argv_type
+
+
+def set_namespace_argv_type(namespace: str, argv_type: type[Argv]):
+    """设置命名空间的命令行参数类型"""
+    __argv_type__[namespace] = argv_type
 
 
 def argv_config(
@@ -32,6 +36,6 @@ def argv_config(
         checker (Callable[[Any], bool] | None, optional): 检查传入命令.
         converter (Callable[[str | list], TDC] | None, optional): 将字符串或列表转为目标命令类型.
     """
-    Argv._cache.setdefault(target or __argv_type__.get(), {}).update(
+    Argv._cache.setdefault(target or __argv_type__["_"], {}).update(
         {k: v for k, v in locals().items() if v is not None}
     )
