@@ -556,7 +556,7 @@ Unknown
     assert res.query("r") == 100
     assert res.query("e") == 36
 
-    alc16_15 = Alconna(["/"], "core16_15", Args["bar", str])
+    alc16_15 = Alconna(["/"], "core16_15", Args.bar(str))
     with pytest.warns(UserWarning):
         alc16_15.shortcut("^test", {"args": ["abc"]})
         assert alc16_15.parse("test").bar == "abc"
