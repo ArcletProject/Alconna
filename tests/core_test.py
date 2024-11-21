@@ -492,12 +492,12 @@ def test_shortcut():
         assert res5.header_match.origin == "echo"
         assert res5.content == "print(123)"
         assert not alc16_1.parse("echo 123 456").matched
-        res6 = alc16_1.parse(["echo1", "123", "456 789"])
+        res6 = alc16_1.parse(["echo1", "123 456 789"])
         assert res6.header_match.origin == "echo1"
-        assert res6.content == "print('123\n456\n789')"
+        assert res6.content == "print('123 456 789')"
         res7 = alc16_1.parse([123])
         assert not res7.matched
-        res8 = alc16_1.parse("echo \\'123\\'")
+        res8 = alc16_1.parse("echo '123'")
         assert res8.content == "print('123')"
         assert not alc16_1.parse("echo").matched
         assert alc16_1.parse("echo1").content == "print('')"
@@ -608,6 +608,11 @@ Unknown
         assert alc16_13.parse("iorank x").matched
         assert alc16_13.parse("iorankx").rank == "x"
         assert alc16_13.parse("iorank").rank == "--all"
+
+        alc16_14 = Alconna(["/"], "core16_14", Args["bar", str])
+        with pytest.warns(UserWarning):
+            alc16_14.shortcut("^test", {"args": ["abc"]})
+            assert alc16_14.parse("test").bar == "abc"
 
 
 def test_help():

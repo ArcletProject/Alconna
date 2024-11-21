@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import re
 import shelve
+import warnings
 import weakref
 from copy import copy
 from datetime import datetime
@@ -257,6 +258,17 @@ class CommandManager:
             _flags = key.flags
         if isinstance(source, dict):
             humanize = source.pop("humanized", None)
+            command = source.pop("command", str(target.command))
+            if _key.startswith("^"):
+                warnings.warn(
+                    "Shortcut Key should not start with '^', otherwise it will ignore the prefix automatically.",
+                    UserWarning,
+                    stacklevel=3
+                )
+                _key = _key[1:]
+                if target.prefixes and (_pf := next(filter(lambda x: isinstance(x, str), target.prefixes), None)):
+                    command = f"{_pf}{command}"
+                source["prefix"] = False
             if source.get("prefix", False) and target.prefixes:
                 prefixes = []
                 out = []
@@ -265,20 +277,20 @@ class CommandManager:
                         continue
                     prefixes.append(prefix)
                     _shortcut[1][f"{re.escape(prefix)}{_key}"] = InnerShortcutArgs(
-                        **{**source, "command": argv.converter(prefix + source.get("command", str(target.command)))},
+                        **{**source, "command": argv.converter(prefix + command)},
                         flags=_flags,
                     )
                     out.append(
                         lang.require("shortcut", "add_success").format(shortcut=f"{prefix}{_key}", target=target.path)
                     )
                 _shortcut[0][humanize or _key] = InnerShortcutArgs(
-                    **{**source, "command": argv.converter(source.get("command", str(target.command))), "prefixes": prefixes},
+                    **{**source, "command": argv.converter(command), "prefixes": prefixes},
                     flags=_flags,
                 )
                 target.formatter.update_shortcut(target)
                 return "\n".join(out)
             _shortcut[0][humanize or _key] = _shortcut[1][_key] = InnerShortcutArgs(
-                **{**source, "command": argv.converter(source.get("command", str(target.command)))},
+                **{**source, "command": argv.converter(command)},
                 flags=_flags,
             )
             target.formatter.update_shortcut(target)

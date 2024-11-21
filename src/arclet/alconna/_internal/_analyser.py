@@ -357,7 +357,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
                 return self.export(argv, True, e)
             argv.context[SHORTCUT_TRIGGER] = _next
             try:
-                rest, short, mat = command_manager.find_shortcut(self.command, [_next] + argv.release())
+                rest, short, mat = command_manager.find_shortcut(self.command, [_next] + argv.release(no_split=True))
             except ValueError as exc:
                 if argv.fuzzy_match and (res := handle_head_fuzzy(self.command_header, _next, argv.fuzzy_threshold)):
                     output_manager.send(self.command.name, lambda: res)

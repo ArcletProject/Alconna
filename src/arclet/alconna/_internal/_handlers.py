@@ -725,12 +725,7 @@ def _handle_shortcut_data(argv: Argv, data: list):
             data.clear()
             break
 
-    def recover_quote(_unit):
-        if isinstance(_unit, str) and any(_unit.count(sep) for sep in argv.separators) and not (_unit[0] in ('"', "'") and _unit[0] == _unit[-1]):
-            return f'"{_unit}"'
-        return _unit
-
-    return [recover_quote(unit) for i, unit in enumerate(data) if i not in record]
+    return [unit for i, unit in enumerate(data) if i not in record]
 
 
 INDEX_REG_SLOT = re.compile(r"\{(\d+)\}")
