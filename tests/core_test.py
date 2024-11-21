@@ -442,13 +442,13 @@ def test_shortcut():
         assert not alc16_1.parse("echo 123 456").matched
         res6 = alc16_1.parse("echo1 123 456 789")
         assert res6.header_match.origin == "echo1"
-        assert res6["content"]  == "print('123 456 789')"
+        assert res6["content"] == "print('123 456 789')"
         res7 = alc16_1.parse([123])
         assert not res7.matched
         res8 = alc16_1.parse("echo '123'")
-        assert res8["content"]  == "print('123')"
+        assert res8["content"] == "print('123')"
         assert not alc16_1.parse("echo").matched
-        assert alc16_1.parse("echo1")["content"]  == "print('')"
+        assert alc16_1.parse("echo1")["content"] == "print('')"
 
         alc16_2 = Alconna(["/", "."], "core16_2", Args.foo(bool))
         alc16_2.shortcut("test", {"command": "/core16_2 True"})
@@ -555,6 +555,11 @@ Unknown
     assert res.matched is True
     assert res.query("r") == 100
     assert res.query("e") == 36
+
+    alc16_15 = Alconna(["/"], "core16_15", Args["bar", str])
+    with pytest.warns(UserWarning):
+        alc16_15.shortcut("^test", {"args": ["abc"]})
+        assert alc16_15.parse("test").bar == "abc"
 
 
 def test_help():
