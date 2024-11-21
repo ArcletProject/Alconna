@@ -212,7 +212,7 @@ class Alconna(Subcommand):
         if TYPE_CHECKING:
             argv_type = Argv
         else:
-            argv_type: type[Argv] = __argv_type__.get()
+            argv_type: type[Argv] = __argv_type__.get(self.namespace, __argv_type__["_"])
         argv = argv_type(self.config, self.namespace_config, self.separators)
         return Analyser(self, argv)
 

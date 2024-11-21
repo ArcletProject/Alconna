@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - dev
-      - v2dev
+      - v1.8
       - main
   pull_request:
 
