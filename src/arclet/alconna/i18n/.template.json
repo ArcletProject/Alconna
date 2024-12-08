@@ -16,6 +16,7 @@
           "subtype": "completion",
           "types": [
             "node",
+            "prompt_arg",
             "prompt_select",
             "prompt_other",
             "prompt_empty",

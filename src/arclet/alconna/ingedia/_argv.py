@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import InitVar, dataclass, field, fields
 from typing import Any, Callable, ClassVar, Generic, Iterable, Literal
 from typing_extensions import Self
-from contextvars import ContextVar
 from tarina import split, split_once
 
 from ..i18n import i18n

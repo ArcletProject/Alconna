@@ -1,9 +1,13 @@
 {
   "default": "zh-CN",
-  "frozen": [
-    "alconna.builtin"
-  ],
-  "require": [
-    "alconna.builtin"
-  ]
+  "frozen": {
+    "alconna": [
+      "builtin"
+    ]
+  },
+  "require": {
+    "alconna": [
+      "builtin"
+    ]
+  }
 }

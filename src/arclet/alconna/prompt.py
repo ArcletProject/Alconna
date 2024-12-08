@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from .arparma import Arparma
 from .base import Subcommand, SPECIAL_OPTIONS, Option
 from .args import Arg
+from .i18n import i18n
 
 if TYPE_CHECKING:
     from .core import Alconna
@@ -27,12 +28,13 @@ class EnterResult:
 def _prompt_none(command: Alconna, args_got: list[str], opts_got: list[tuple[str, ...]]):
     res: list[Prompt] = []
     if unit := next((arg for arg in command.args if arg.name not in args_got), None):
+        template = i18n.require("completion.prompt_arg")
         if not (comp := unit.field.get_completion()):
             res.append(Prompt(command.formatter.param(unit), False))
         elif isinstance(comp, str):
-            res.append(Prompt(f"{unit.name}: {comp}", False))
+            res.append(Prompt(template.format(name=unit.name, prompt=comp), False))
         else:
-            res.extend(Prompt(f"{unit.name}: {i}", False) for i in comp)
+            res.extend(Prompt(template.format(name=unit.name, prompt=i), False) for i in comp)
     for opt in command.options:
         if isinstance(opt, SPECIAL_OPTIONS):
             continue
@@ -47,12 +49,13 @@ def prompt(command: Alconna, buffer: list, args_got: list[str], opts_got: list[t
     if isinstance(buffer[-1], str) and buffer[-1] in command.config.builtin_option_name["completion"]:
         target = str(buffer[-2])
     if isinstance(trigger, Arg):
+        template = i18n.require("completion.prompt_arg")
         if not (comp := trigger.field.get_completion()):
             return [Prompt(command.formatter.param(trigger), False)]
         if isinstance(comp, str):
-            return [Prompt(f"{trigger.name}: {comp}", False)]
+            return [Prompt(template.format(name=trigger.name, prompt=comp), False)]
         o = list(filter(lambda x: target in x, comp)) or comp
-        return [Prompt(f"{trigger.name}: {i}", False, target) for i in o]
+        return [Prompt(template.format(name=trigger.name, prompt=i), False, target) for i in o]
     elif isinstance(trigger, Subcommand):
         return [Prompt(i, True) for i in trigger._lookup_map if target in i]
     if isinstance(trigger, str):

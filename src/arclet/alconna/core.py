@@ -112,7 +112,7 @@ def add_builtin_options(options: list[Option | Subcommand], router: Router, conf
                 trigger
             ):
                 prompt_other = i18n.require("completion.prompt_other")
-                node = i18n.require('completion', 'node')
+                node = i18n.require("completion.node")
                 node = f"{node}\n" if node else ""
                 arp.output = f"{node}{prompt_other}" + f"\n{prompt_other}".join([i.text for i in res])
                 return True
