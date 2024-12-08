@@ -32,6 +32,11 @@
           "description": "value of lang item type 'node'",
           "type": "string"
         },
+        "prompt_arg": {
+          "title": "prompt_arg",
+          "description": "value of lang item type 'prompt_arg'",
+          "type": "string"
+        },
         "prompt_select": {
           "title": "prompt_select",
           "description": "value of lang item type 'prompt_select'",

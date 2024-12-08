@@ -773,14 +773,15 @@ def _handle_shortcut_reg(argv: Argv, groups: tuple[str, ...], gdict: dict[str, s
 
 
 def _prompt_unit(analyser: Analyser, argv: Argv, trig: Arg):
+    template = lang.require("completion", "prompt_arg")
     if not (comp := trig.field.get_completion()):
         return [Prompt(analyser.command.formatter.param(trig), False)]
     if isinstance(comp, str):
-        return [Prompt(f"{trig.name}: {comp}", False)]
+        return [Prompt(template.format(name=trig.name, prompt=comp), False)]
     releases = argv.release(recover=True)
     target = str(releases[-1]) or str(releases[-2])
     o = list(filter(lambda x: target in x, comp)) or comp
-    return [Prompt(f"{trig.name}: {i}", False, target) for i in o]
+    return [Prompt(template.format(name=trig.name, prompt=i), False, target) for i in o]
 
 
 def _prompt_sentence(analyser: Analyser):
@@ -801,12 +802,13 @@ def _prompt_none(analyser: Analyser, argv: Argv, got: list[str]):
     res: list[Prompt] = []
     if not analyser.args_result and analyser.self_args.argument:
         unit = analyser.self_args.argument[0]
+        template = lang.require("completion", "prompt_arg")
         if not (comp := unit.field.get_completion()):
             res.append(Prompt(analyser.command.formatter.param(unit), False))
         elif isinstance(comp, str):
-            res.append(Prompt(f"{unit.name}: {comp}", False))
+            res.append(Prompt(template.format(name=unit.name, prompt=comp), False))
         else:
-            res.extend(Prompt(f"{unit.name}: {i}", False) for i in comp)
+            res.extend(Prompt(template.format(name=unit.name, prompt=i), False) for i in comp)
     for opt in filter(
         lambda x: x.name not in (argv.special if len(analyser.command.options) > 3 else argv.completion_names),
         analyser.command.options,
@@ -846,7 +848,7 @@ def handle_completion(analyser: Analyser, argv: Argv, trigger: str | None = None
         if comp_ctx.get(None):
             raise PauseTriggered(res, trigger, argv)
         prompt_other = lang.require("completion", "prompt_other")
-        node = lang.require('completion', 'node')
+        node = lang.require("completion", "node")
         node = f"{node}\n" if node else ""
         output_manager.send(
             analyser.command.name,

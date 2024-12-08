@@ -1,15 +1,16 @@
 from tarina import lang
 
-from arclet.alconna import Alconna, Arg, Args, CommandMeta, CompSession, Option, OptionResult
+from arclet.alconna import Alconna, Arg, Args, Field, CommandMeta, CompSession, Option, OptionResult
 
 lang.set("completion", "node", "")
+lang.set("completion", "prompt_arg", "{name} - {prompt}")
 lang.set("completion", "prompt_select", "")
 
 
 api_list = ["saucenao", "ascii2d", "ehentai", "iqdb", "tracemoe"]
 alc = Alconna(
     "setu",
-    Args['content', str],
+    Args['content', str, Field(completion=lambda: "Image url or file path")],
     Option("use", Args['api', api_list], help_text="选择搜图使用的 API"),
     Option("count", Args(Arg("num", int)), help_text="设置每次搜图展示的最多数量"),
     Option("--similarity|-s", Args["val", float], help_text="设置相似度过滤的值", default=OptionResult(args={"val": 0.5})),
@@ -28,7 +29,7 @@ while interface.available:
     print("---------------------------------------------------")
     print(interface)
     print("---------------------------------------------------")
-    print(".enter to confirm, .tab to switch, ctrl+c to cancel")
+    print(".enter to confirm, .tab to switch, .exit/.q to cancel")
     print("---------------------------------------------------")
     while True:
         cmd = input(">>> ")

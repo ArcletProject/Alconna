@@ -6,6 +6,7 @@
   },
   "completion": {
     "node": "suggest input follows:",
+    "prompt_arg": "{name}: {prompt}",
     "prompt_select": ">> ",
     "prompt_other": "* ",
     "prompt_empty": "No prompt available.",
