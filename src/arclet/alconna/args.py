@@ -41,9 +41,9 @@ class Field(Generic[_T]):
     """参数单元使用的分隔符"""
     optional: bool = dc.field(default=False, compare=False, hash=False)
     hidden: bool = dc.field(default=False, compare=False, hash=False)
-    kw_only: bool = dc.field(default=False, compare=False, hash=False)
+    # kw_only: bool = dc.field(default=False, compare=False, hash=False)
     multiple: bool | int | Literal["+", "*", "str"] = dc.field(default=False, compare=False, hash=False)
-    kw_sep: str = dc.field(default="=", compare=False, hash=False)
+    # kw_sep: str = dc.field(default="=", compare=False, hash=False)
     wildcard: bool = dc.field(default=False, compare=False, hash=False)
 
     @property
@@ -79,10 +79,10 @@ class Field(Generic[_T]):
     
     def to_dc_field(self):
         if self.default_factory is not Empty:
-            return dc.field(default_factory=self.default_factory, **safe_field_kw(kw_only=self.kw_only))
+            return dc.field(default_factory=self.default_factory)
         if self.default is not Empty:
-            return dc.field(default=self.default, **safe_field_kw(kw_only=self.kw_only))
-        return dc.field(**safe_field_kw(kw_only=self.kw_only))
+            return dc.field(default=self.default)
+        return dc.field()
 
 
 def arg_field(
@@ -97,13 +97,11 @@ def arg_field(
     notice: str | None = None,
     seps: str = " ",
     multiple: bool | int | Literal["+", "*", "str"] = False,
-    kw_only: bool = False,
-    kw_sep: str = "=",
     optional: bool = False,
     hidden: bool = False,
     wildcard: bool = False,
 ) -> "Any":
-    return Field(default, default_factory, alias, completion, unmatch_tips, missing_tips, notice, seps, optional, hidden, kw_only, multiple, kw_sep, wildcard)
+    return Field(default, default_factory, alias, completion, unmatch_tips, missing_tips, notice, seps, optional, hidden, multiple, wildcard)
 
 
 @dc.dataclass(**safe_dcls_kw(init=False, eq=True, unsafe_hash=True, slots=True))
@@ -187,8 +185,8 @@ class Arg(Generic[_T]):
         if self.field.hidden:
             return "***"
         v = str(self.type_)
-        if self.field.kw_only:
-            v = f"{self.field.kw_sep}{v}"
+        # if self.field.kw_only:
+        #     v = f"{self.field.kw_sep}{v}"
         if self.field.multiple is not False:
             if self.field.multiple is True:
                 v = f"({v}+)"
@@ -208,24 +206,21 @@ class _Args:
         self.origin = origin
         self.optional_count = 0
         normal = []
-        keyword = []
         vars_positional: list[Arg[Any]] = []
-        vars_keyword: list[Arg[Any]] = []
         for arg in args:
             if arg.field.multiple is not False:
-                if arg.field.kw_only:
-                    for a in vars_positional:
-                        if arg.field.kw_sep in a.field.seps:
-                            raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
-                    vars_keyword.append(arg)
+                # if arg.field.kw_only:
+                #     for a in vars_positional:
+                #         if arg.field.kw_sep in a.field.seps:
+                #             raise InvalidArgs("varkey cannot use the same sep as varpos's Arg")
+                #     vars_keyword.append(arg)
                 # elif self.keyword_only:
                 #     raise InvalidArgs(i18n.require("args.exclude_mutable_args"))
-                else:
-                    vars_positional.append(arg)
-            elif arg.field.kw_only:
-                # if self.vars_keyword:
-                #     raise InvalidArgs(i18n.require("args.exclude_mutable_args"))
-                keyword.append(arg)
+                vars_positional.append(arg)
+            # elif arg.field.kw_only:
+            #     # if self.vars_keyword:
+            #     #     raise InvalidArgs(i18n.require("args.exclude_mutable_args"))
+            #     keyword.append(arg)
             else:
                 normal.append(arg)
             if arg.field.optional:
@@ -233,8 +228,7 @@ class _Args:
             elif not arg.field.no_default:
                 self.optional_count += 1
         normal.extend(vars_positional)
-        keyword.extend(vars_keyword)
-        self.data: list[Arg[Any]] = normal + keyword
+        self.data: list[Arg[Any]] = normal
         self.count = len(self.data)
 
     def __iter__(self):
@@ -309,7 +303,7 @@ def _is_classvar(a_type):
                 and a_type.__origin__ is typing.ClassVar))
 
 
-@dataclass_transform(field_specifiers=(arg_field,))
+@dataclass_transform(field_specifiers=(arg_field,), kw_only_default=True)
 class ArgsMeta(type):
     def __new__(
         mcs,
@@ -317,7 +311,6 @@ class ArgsMeta(type):
         bases: tuple[type, ...],
         namespace: dict[str, Any],
         *,
-        kw_only: bool | None = None,
         seps: str | None = None,
         **kwargs,
     ):
@@ -345,26 +338,32 @@ class ArgsMeta(type):
                 if field.default is Empty and field.default_factory is Empty:
                     delattr(cls, name)
             if field.multiple is not False:
-                if not field.kw_only:
-                    if get_origin(typ) is tuple:
-                        typ = get_args(typ)[0]
-                    elif field.multiple != "str" or typ is not str:
-                        raise TypeError(f"{name!r} is a varpos but does not have a tuple type annotation")
-                elif get_origin(typ) is not dict:
-                    raise TypeError(f"{name!r} is a varkey but does not have a dict type annotation")
+                # if not field.kw_only:
+                if get_origin(typ) is tuple:
+                    typ = get_args(typ)[0]
+                elif field.multiple != "str" or typ is not str:
+                    raise TypeError(f"{name!r} is a varpos but does not have a tuple type annotation")
+                # elif get_origin(typ) is not dict:
+                #     raise TypeError(f"{name!r} is a varkey but does not have a dict type annotation")
             cls_args.append(Arg(name, typ, field))
         for name, value in cls.__dict__.items():
             if isinstance(value, Field) and name not in cls_annotations:
                 raise TypeError(f"{name!r} is a Field but has no type annotation")
         all_args = data_args + cls_args
         for arg in all_args:
-            if kw_only is not None:
-                arg.field.kw_only = kw_only
+            # if kw_only is not None:
+            #     arg.field.kw_only = kw_only
             if seps is not None:
                 arg.field.seps = seps
         cls.__args_data__ = _Args(all_args, cls)
         try:
-            dcls = dc.make_dataclass(cls.__name__, [(arg.name, arg.type_, arg.field.to_dc_field()) for arg in cls.__args_data__.data], namespace=types_namespace, repr=True)
+            dcls = dc.make_dataclass(
+                cls.__name__,
+                [(arg.name, arg.type_, arg.field.to_dc_field()) for arg in cls.__args_data__.data],
+                namespace=types_namespace,
+                repr=True,
+                **safe_dcls_kw(kw_only=True)  # type: ignore
+            )
         except TypeError as e:
             raise TypeError(f"cannot create Args Model: {e}") from None
         cls.__init__ = dcls.__init__  # type: ignore
@@ -377,7 +376,7 @@ class ArgsBase(metaclass=ArgsMeta):
     __args_data__: ClassVar[_Args]
 
     if not TYPE_CHECKING:
-        def __init__(self, *args, **kwargs):  # for pycharm type check
+        def __init__(self, **kwargs):  # for pycharm type check
             pass
 
     def dump(self):

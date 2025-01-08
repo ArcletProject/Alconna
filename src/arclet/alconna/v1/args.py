@@ -41,14 +41,14 @@ class _CompatArgsBuilder(ArgsBuilder):
                 else:
                     arg.field.multiple = value.flag if value.length < 1 else value.length
                 arg.type_ = value.base
-                if isinstance(value.base, KeyWordVar):
-                    arg.type_ = value.base.base
-                    arg.field.kw_only = True
-                    arg.field.kw_sep = value.base.sep
-            elif isinstance(value, KeyWordVar):
-                arg.field.kw_only = True
-                arg.field.kw_sep = value.sep
-                arg.type_ = value.base
+                # if isinstance(value.base, KeyWordVar):
+                #     arg.type_ = value.base.base
+                #     arg.field.kw_only = True
+                #     arg.field.kw_sep = value.base.sep
+            # elif isinstance(value, KeyWordVar):
+            #     arg.field.kw_only = True
+            #     arg.field.kw_sep = value.sep
+            #     arg.type_ = value.base
             elif isinstance(value, UnpackVar):
                 arg.type_ = Pattern(value.origin)
             elif isinstance(value, _AllParamPattern):

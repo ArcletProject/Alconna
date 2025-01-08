@@ -60,8 +60,8 @@ def test_multi():
     arg8 = Args.multi(str, multiple=True)
     assert analyse_args(arg8, ["a b c d"]).get("multi") == ("a", "b", "c", "d")
     assert analyse_args(arg8, [], raise_exception=False) != {"multi": ()}
-    arg8_1 = Args.kwargs(str, multiple=True, kw_only=True)
-    assert analyse_args(arg8_1, ["a=b c=d"]).get("kwargs") == {"a": "b", "c": "d"}
+    # arg8_1 = Args.kwargs(str, multiple=True, kw_only=True)
+    # assert analyse_args(arg8_1, ["a=b c=d"]).get("kwargs") == {"a": "b", "c": "d"}
     arg8_2 = Args.multi(int, multiple="*")
     assert analyse_args(arg8_2, ["1 2 3 4"]).get("multi") == (1, 2, 3, 4)
     assert analyse_args(arg8_2, []).get("multi") == ()
@@ -111,33 +111,33 @@ def test_optional():
     assert analyse_args(arg13_2, ["abc"]) == {"foo": "abc"}
 
 
-def test_kwonly():
-    arg14 = Args.foo(str).bar(int, kw_only=True)
-    assert analyse_args(arg14, ["abc bar=123"]) == {
-        "foo": "abc",
-        "bar": 123,
-    }
-    assert analyse_args(arg14, ["abc 123"], raise_exception=False) != {
-        "foo": "abc",
-        "bar": 123,
-    }
-    arg14_1 = Args.width(int, 1280, optional=True, kw_only=True).height(int, 960, optional=True, kw_only=True)
-    assert analyse_args(arg14_1, ["--width=960 --height=960"]) == {
-        "width": 960,
-        "height": 960,
-    }
-    arg14_2 = Args.foo(str).bar(int, kw_only=True, kw_sep=" ").baz(bool, kw_only=True, kw_sep=":")
-    assert analyse_args(arg14_2, ["abc -bar 123 baz:false"]) == {
-        "bar": 123,
-        "baz": False,
-        "foo": "abc",
-    }
-    arg14_3 = Args.foo(str).bar(int, kw_only=True).baz(bool, kw_only=True)
-    assert analyse_args(arg14_3, ["abc bar=456 baz=false"]) == {
-        "bar": 456,
-        "baz": False,
-        "foo": "abc",
-    }
+# def test_kwonly():
+#     arg14 = Args.foo(str).bar(int, kw_only=True)
+#     assert analyse_args(arg14, ["abc bar=123"]) == {
+#         "foo": "abc",
+#         "bar": 123,
+#     }
+#     assert analyse_args(arg14, ["abc 123"], raise_exception=False) != {
+#         "foo": "abc",
+#         "bar": 123,
+#     }
+#     arg14_1 = Args.width(int, 1280, optional=True, kw_only=True).height(int, 960, optional=True, kw_only=True)
+#     assert analyse_args(arg14_1, ["--width=960 --height=960"]) == {
+#         "width": 960,
+#         "height": 960,
+#     }
+#     arg14_2 = Args.foo(str).bar(int, kw_only=True, kw_sep=" ").baz(bool, kw_only=True, kw_sep=":")
+#     assert analyse_args(arg14_2, ["abc -bar 123 baz:false"]) == {
+#         "bar": 123,
+#         "baz": False,
+#         "foo": "abc",
+#     }
+#     arg14_3 = Args.foo(str).bar(int, kw_only=True).baz(bool, kw_only=True)
+#     assert analyse_args(arg14_3, ["abc bar=456 baz=false"]) == {
+#         "bar": 456,
+#         "baz": False,
+#         "foo": "abc",
+#     }
 
 
 def test_pattern():

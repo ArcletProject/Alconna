@@ -86,24 +86,6 @@ def step_multiple(argv: Argv, ana: Analyser, arg: Arg[Any], result: dict[str, An
         if arg.name not in result:
             result[arg.name] = ()
         return True
-    if field.kw_only:
-        if not _str:
-            raise InvalidParam(i18n.require("args.key_missing").format(target=may_arg, key=arg.name), arg)
-        key, _m_arg = split_once(may_arg, field.kw_sep, argv.filter_crlf)
-        key: str = pat.fullmatch(key)["name"]  # type: ignore
-        if _m_arg:
-            may_arg = _m_arg
-        else:
-            may_arg, _str = argv.next(field.seps)
-        ans = _handle_arg(argv, arg, may_arg, _str)
-        if ans is Empty:
-            return True
-        if arg.name not in result:
-            result[arg.name] = []
-        result[arg.name].append((key, ans))
-        if field.multiple is not True and isinstance(field.multiple, int):
-            return len(result[arg.name]) >= field.multiple
-        return False
     try:
         ans = _handle_arg(argv, arg, may_arg, _str)
     except InvalidParam:
@@ -168,28 +150,13 @@ def analyse_args(analyser: Analyser, argv: Argv, args: _Args) -> dict[str, Any]:
                     raise ArgumentMissing(field.get_missing_tips(i18n.require("args.missing").format(key=arg.name)), arg)
                 index += 1
                 continue
-            if field.kw_only:
-                if not _str:
-                    raise InvalidParam(i18n.require("args.key_missing").format(target=may_arg, key=arg.name), arg)
-                key, _m_arg = split_once(may_arg, field.kw_sep, argv.filter_crlf)
-                key: str = pat.fullmatch(key)["name"]  # type: ignore
-                if key != arg.name:
-                    if levenshtein(key, arg.name) >= argv.fuzzy_threshold:
-                        raise FuzzyMatchSuccess(i18n.require("fuzzy.matched").format(source=arg.name, target=key))
-                    raise InvalidParam(i18n.require("args.key_not_found").format(name=key), arg)
-                if _m_arg:
-                    may_arg = _m_arg
-                else:
-                    may_arg, _str = argv.next(field.seps)
             ans = _handle_arg(argv, arg, may_arg, _str)
             if ans is not Empty:
                 result[arg.name] = ans
             index += 1
             continue
         elif step_multiple(argv, analyser, arg, result):
-            if arg.field.kw_only:
-                result[arg.name] = dict(result[arg.name])
-            elif arg.field.multiple == "str":
+            if arg.field.multiple == "str":
                 result[arg.name] = arg.field.seps[0].join(result[arg.name])
             else:
                 result[arg.name] = tuple(result[arg.name])

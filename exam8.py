@@ -4,7 +4,7 @@ from arclet.alconna import Alconna
 
 class Foo(ArgsBase):
     foo: str
-    bar: int = arg_field(42, kw_only=True)
+    bar: int = arg_field(42)
 
 
 alc = Alconna("test", Foo)
@@ -15,7 +15,7 @@ def cb(args: Foo):
     print(args.foo, args.bar)
 
 
-print(alc.parse("test abc bar=123"))
+print(alc.parse("test abc 123"))
 
 
 class Bar(ArgsBase):

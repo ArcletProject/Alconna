@@ -622,7 +622,7 @@ def test_hide_annotation():
 
 
 def test_args_notice():
-    alc19 = Alconna("core19", Args.foo(int, optional=True, notice="A TEST")) + Option("bar", Args.baz(str, notice="ANOTHER TEST", kw_only=True))
+    alc19 = Alconna("core19", Args.foo(int, optional=True, notice="A TEST")) + Option("bar", Args.baz(str, notice="ANOTHER TEST"))
     print("")
     print(alc19.get_help())
 
