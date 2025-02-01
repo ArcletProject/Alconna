@@ -11,14 +11,90 @@ from typing_extensions import Self
 
 from tarina import Empty, generic_isinstance, safe_eval
 
+from .base import ArgsMeta, ArgsBase
 from .exceptions import BehaveCancelled, OutBoundsBehave
-from .base import HeadResult, OptionResult, SubcommandResult
 from .utils import TDC
-from .args import ArgsMeta, ArgsBase
 
 T = TypeVar("T")
 T1 = TypeVar("T1")
 D = TypeVar("D")
+
+
+@dataclass(init=False, eq=True, repr=True)
+class OptionResult:
+    """选项解析结果
+
+    Attributes:
+        value (Any): 选项值
+        args (dict[str, Any]): 选项参数解析结果
+    """
+
+    __slots__ = ("value", "args")
+
+    value: Any
+    args: dict[str, Any]
+
+    def __init__(self, value: Any = Ellipsis, args: dict[str, Any] | None = None) -> None:
+        self.value = value
+        self.args = args or {}
+
+
+@dataclass(init=False, eq=True, repr=True)
+class SubcommandResult:
+    """子命令解析结果
+
+    Attributes:
+        value (Any): 子命令值
+        args (dict[str, Any]): 子命令参数解析结果
+        options (dict[str, OptionResult]): 子命令的子选项解析结果
+        subcommands (dict[str, SubcommandResult]): 子命令的子子命令解析结果
+    """
+
+    __slots__ = ("value", "args", "options", "subcommands")
+
+    value: Any
+    args: dict[str, Any]
+    options: dict[str, OptionResult]
+    subcommands: dict[str, SubcommandResult]
+
+    def __init__(
+        self,
+        value: Any = Ellipsis,
+        args: dict[str, Any] | None = None,
+        options: dict[str, OptionResult] | None = None,
+        subcommands: dict[str, SubcommandResult] | None = None
+    ) -> None:
+        self.value = value
+        self.args = args or {}
+        self.options = options or {}
+        self.subcommands = subcommands or {}
+
+
+@dataclass(init=False, eq=True, repr=True)
+class HeadResult:
+    """命令头解析结果
+
+    Attributes:
+        origin (Any): 命令头原始值
+        result (Any): 命令头解析结果
+        matched (bool): 命令头是否匹配
+    """
+
+    __slots__ = ("origin", "result", "matched")
+
+    origin: Any
+    result: Any
+    matched: bool
+
+    def __init__(
+        self,
+        origin: Any = None,
+        result: Any = None,
+        matched: bool = False,
+    ) -> None:
+        self.origin = origin
+        self.result = result
+        self.matched = matched
 
 
 class _Query(Generic[T]):
