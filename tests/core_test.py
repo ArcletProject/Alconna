@@ -614,6 +614,15 @@ Unknown
             alc16_14.shortcut("^test", {"args": ["abc"]})
             assert alc16_14.parse("test").bar == "abc"
 
+        alc16_15 = Alconna(["", "/", "#"], "core16_15", Args["bar", str])
+        alc16_15.shortcut("test", arguments=["abc"], prefix=True)
+        assert alc16_15.parse("test").bar == "abc"
+        assert alc16_15.parse("/test").bar == "abc"
+        print(alc16_15.shortcut("test", delete=True))
+        assert not alc16_15.parse("test").matched
+        assert not alc16_15.parse("/test").matched
+        assert not alc16_15.parse("#test").matched
+
 
 def test_help():
     from arclet.alconna import output_manager

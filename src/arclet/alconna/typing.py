@@ -71,10 +71,11 @@ class InnerShortcutArgs:
     wrapper: _ShortcutRegWrapper
     flags: int | re.RegexFlag
 
-    __slots__ = ("command", "args", "fuzzy", "prefix", "prefixes", "wrapper", "flags")
+    __slots__ = ("origin_key", "command", "args", "fuzzy", "prefix", "prefixes", "wrapper", "flags")
 
     def __init__(
         self,
+        origin_key: str,
         command: DataCollection[Any],
         args: list[Any] | None = None,
         fuzzy: bool = True,
@@ -83,6 +84,7 @@ class InnerShortcutArgs:
         wrapper: ShortcutRegWrapper | None = None,
         flags: int | re.RegexFlag = 0,
     ):
+        self.origin_key = origin_key
         self.command = command
         self.args = args or []
         self.fuzzy = fuzzy
@@ -117,6 +119,7 @@ class InnerShortcutArgs:
     @classmethod
     def load(cls, data: dict[str, Any]) -> InnerShortcutArgs:
         return cls(
+            data["origin_key"],
             data["command"],
             data.get("args"),
             data.get("fuzzy", True),
