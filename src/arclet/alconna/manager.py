@@ -368,10 +368,10 @@ class CommandManager:
                 args = _shortcut[0].pop(_key)
                 if isinstance(args, InnerShortcutArgs) and args.prefixes:
                     for prefix in args.prefixes:
-                        _shortcut[1].pop(f"{re.escape(prefix)}{_key}")
+                        _shortcut[1].pop(f"{re.escape(prefix)}{args.origin_key}")
                 else:
-                    _shortcut[1].pop(_key)
-                return lang.require("shortcut", "delete_success").format(shortcut=f"[*]{_key}", target=target.path)
+                    _shortcut[1].pop(args.origin_key, None)
+                return lang.require("shortcut", "delete_success").format(shortcut=f"[*]{args.origin_key}", target=target.path)
             for key, args in _shortcut[1].items():
                 if re.fullmatch(key, _key, getattr(args, "flags", 0)):
                     args = _shortcut[1][key]
@@ -383,7 +383,11 @@ class CommandManager:
             if isinstance(args, InnerShortcutArgs):
                 for prefix in args.prefixes:
                     _shortcut[1].pop(f"{re.escape(prefix)}{args.origin_key}")
-                _shortcut[0].pop(args.origin_key)
+                if not _shortcut[0].pop(args.origin_key, None):
+                    for key, short in _shortcut[0].items():
+                        if short.origin_key == args.origin_key:
+                            _shortcut[0].pop(key)
+                            break
             else:
                 _shortcut[1].pop(_key, None)
                 _shortcut[0].pop(_key, None)
