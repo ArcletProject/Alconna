@@ -561,6 +561,15 @@ Unknown
         alc16_15.shortcut("^test", {"args": ["abc"]})
         assert alc16_15.parse("test").bar == "abc"
 
+    alc16_16 = Alconna(["", "/", "#"], "core16_16", Args["bar", str])
+    alc16_16.shortcut("test", arguments=["abc"], prefix=True)
+    assert alc16_16.parse("test").bar == "abc"
+    assert alc16_16.parse("/test").bar == "abc"
+    print(alc16_16.shortcut("test", delete=True))
+    assert not alc16_16.parse("test").matched
+    assert not alc16_16.parse("/test").matched
+    assert not alc16_16.parse("#test").matched
+
 
 def test_help():
     alc17 = Alconna(

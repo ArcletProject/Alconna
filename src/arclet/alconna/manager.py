@@ -213,24 +213,23 @@ class CommandManager:
                 command = f"{_pf}{command}"
             source["prefix"] = False
         if source.get("prefix", False) and target.prefixes:
-            out = []
             for prefix in target.prefixes:
                 _shortcut[1][f"{re.escape(prefix)}{_key}"] = InnerShortcutArgs(
-                    **{**source, "command": argv.converter(prefix + command)},
+                    **{**source, "command": argv.converter(prefix + command), "prefixes": target.prefixes},
                     flags=_flags,
-                )
-                out.append(
-                    i18n.require("shortcut.add_success").format(shortcut=f"{prefix}{_key}", target=target.path)
+                    origin_key=_key,
                 )
             _shortcut[0][humanize or _key] = InnerShortcutArgs(
                 **{**source, "command": argv.converter(command), "prefixes": target.prefixes},
                 flags=_flags,
+                origin_key=_key,
             )
             target.formatter.update_shortcut(target)
-            return "\n".join(out)
+            return i18n.require("shortcut.add_success").format(shortcut=f"[*]{_key}", target=target.path)
         _shortcut[0][humanize or _key] = _shortcut[1][_key] = InnerShortcutArgs(
             **{**source, "command": argv.converter(command)},
             flags=_flags,
+            origin_key=_key,
         )
         target.formatter.update_shortcut(target)
         return i18n.require("shortcut.add_success").format(shortcut=_key, target=target.path)
@@ -281,17 +280,31 @@ class CommandManager:
             raise ValueError(i18n.require("manager.undefined_command").format(target=f"{namespace}.{name}"))
         if key:
             _key = key if isinstance(key, str) else key.pattern
-            try:
-                _shortcut[0].pop(_key, None)
-                del _shortcut[1][_key]
-                return i18n.require("shortcut.delete_success").format(shortcut=_key, target=target.path)
-            except KeyError as e:
+            if _key in _shortcut[0]:
+                args = _shortcut[0].pop(_key)
+                for prefix in args.prefixes:
+                    _shortcut[1].pop(f"{re.escape(prefix)}{args.origin_key}")
+                _shortcut[1].pop(args.origin_key, None)
+                return i18n.require("shortcut", "delete_success").format(shortcut=f"[*]{args.origin_key}", target=target.path)
+            for key, args in _shortcut[1].items():
+                if re.fullmatch(key, _key, args.flags):
+                    args = _shortcut[1][key]
+                    break
+            else:
                 raise ValueError(
-                    i18n.require("manager.shortcut_parse_error").format(target=f"{namespace}.{name}", query=_key)
-                ) from e
+                    i18n.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=_key)
+                )
+            for prefix in args.prefixes:
+                _shortcut[1].pop(f"{re.escape(prefix)}{args.origin_key}")
+            if not _shortcut[0].pop(args.origin_key, None):
+                for key, args in _shortcut[0].items():
+                    if args.origin_key == _key:
+                        _shortcut[0].pop(key)
+                        break
+            return i18n.require("shortcut", "delete_success").format(shortcut=f"[*]{args.origin_key}", target=target.path)
         else:
             self._shortcuts.pop(f"{namespace}.{name}")
-            return i18n.require("shortcut.delete_success").format(shortcut="all", target=target.path)
+            return i18n.require("shortcut", "delete_success").format(shortcut="[all]", target=target.path)
 
     def get_command(self, command: str) -> Alconna:
         """获取命令"""
