@@ -297,8 +297,8 @@ class CommandManager:
             for prefix in args.prefixes:
                 _shortcut[1].pop(f"{re.escape(prefix)}{args.origin_key}")
             if not _shortcut[0].pop(args.origin_key, None):
-                for key, args in _shortcut[0].items():
-                    if args.origin_key == _key:
+                for key, short in _shortcut[0].items():
+                    if short.origin_key == args.origin_key:
                         _shortcut[0].pop(key)
                         break
             return i18n.require("shortcut", "delete_success").format(shortcut=f"[*]{args.origin_key}", target=target.path)
