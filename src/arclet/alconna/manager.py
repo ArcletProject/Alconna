@@ -234,9 +234,9 @@ class CommandManager:
         """设置命令是否被禁用"""
         if isinstance(command, str):
             command = self.get_command(command)
-        if enabled and command in self.__abandons:
+        if enabled and command._hash in self.__abandons:
             self.__abandons.remove(command._hash)
-        if not enabled and command not in self.__abandons:
+        if not enabled and command._hash not in self.__abandons:
             self.__abandons.append(command._hash)
 
     def add_shortcut(self, target: Alconna, key: str | TPattern, source: Arparma | ShortcutArgs):
