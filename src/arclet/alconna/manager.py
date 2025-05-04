@@ -408,7 +408,7 @@ class CommandManager:
         if not namespace:
             return [ana.command for ana in self.__analysers.values()]
         if isinstance(namespace, Namespace):
-            namespace = Namespace.name
+            namespace = namespace.name
         if namespace not in self.__commands:
             return []
         return list(self.__commands[namespace].values())
