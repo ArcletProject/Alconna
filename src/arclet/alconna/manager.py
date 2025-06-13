@@ -366,11 +366,12 @@ class CommandManager:
             _key = key if isinstance(key, str) else key.pattern
             if _key in _shortcut[0]:
                 args = _shortcut[0].pop(_key)
-                if isinstance(args, InnerShortcutArgs) and args.prefixes:
-                    for prefix in args.prefixes:
-                        _shortcut[1].pop(f"{re.escape(prefix)}{args.origin_key}")
-                else:
-                    _shortcut[1].pop(args.origin_key, None)
+                if isinstance(args, InnerShortcutArgs):
+                    if args.prefixes:
+                        for prefix in args.prefixes:
+                            _shortcut[1].pop(f"{re.escape(prefix)}{args.origin_key}")
+                    else:
+                        _shortcut[1].pop(args.origin_key, None)
                 return lang.require("shortcut", "delete_success").format(shortcut=f"[*]{args.origin_key}", target=target.path)
             for key, args in _shortcut[1].items():
                 if re.fullmatch(key, _key, getattr(args, "flags", 0)):

@@ -1,5 +1,12 @@
 # 更新日志
 
+## 1.8.38
+
+### 修复
+
+- 修复 `command_manager.get_commands` 无法使用 `Namespace` 对象
+- 修复 `ShortcutArgs` 的导出问题
+
 ## 1.8.37
 
 ### 修复

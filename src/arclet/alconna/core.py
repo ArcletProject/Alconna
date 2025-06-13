@@ -113,7 +113,7 @@ class Alconna(Subcommand, Generic[TDC]):
     behaviors: list[ArparmaBehavior]
     """命令行为器"""
 
-    def compile(self, compiler: TCompile | None = None, param_ids: set[str] | None = None) -> Analyser[TDC]:
+    def compile(self, compiler: TCompile | None = None, param_ids: set[str] | None = None):
         """编译 `Alconna` 为对应的解析器"""
         return Analyser(self, compiler).compile(set() if param_ids is None else param_ids)
 
