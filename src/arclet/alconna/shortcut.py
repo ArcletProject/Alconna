@@ -86,6 +86,7 @@ class InnerShortcutArgs:
 
     def dump(self):
         return {
+            "origin_key": self.origin_key,
             "command": self.command,
             "args": self.args,
             "fuzzy": self.fuzzy,

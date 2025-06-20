@@ -239,7 +239,7 @@ class TextFormatter:
         for key, short in shortcuts.items():
             if isinstance(short, InnerShortcutArgs):
                 _key = key + (" ...args" if short.fuzzy else "")
-                prefixes = f"[{'│'.join(short.prefixes)}]" if short.prefixes else ""
+                prefixes = f"[{'│'.join(short.prefixes)}]" if any(short.prefixes) else ""
                 result.append(f"'{prefixes}{_key}' => {prefixes}{short.command} {' '.join(map(str, short.args))}")
             else:
                 result.append(f"'{key}' => {short.origin!r}")

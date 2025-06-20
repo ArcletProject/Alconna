@@ -180,7 +180,7 @@ class CommandManager:
             command = self.get_command(command)
         if enabled and command._hash in self.__abandons:
             self.__abandons.remove(command._hash)
-        if not enabled and command not in self.__abandons:
+        if not enabled and command._hash not in self.__abandons:
             self.__abandons.append(command._hash)
 
     def add_shortcut(self, target: Alconna, key: str | TPattern, source: ShortcutArgs):
@@ -285,14 +285,14 @@ class CommandManager:
                 for prefix in args.prefixes:
                     _shortcut[1].pop(f"{re.escape(prefix)}{args.origin_key}")
                 _shortcut[1].pop(args.origin_key, None)
-                return i18n.require("shortcut", "delete_success").format(shortcut=f"[*]{args.origin_key}", target=target.path)
+                return i18n.require("shortcut.delete_success").format(shortcut=f"[*]{args.origin_key}", target=target.path)
             for key, args in _shortcut[1].items():
                 if re.fullmatch(key, _key, args.flags):
                     args = _shortcut[1][key]
                     break
             else:
                 raise ValueError(
-                    i18n.require("manager", "shortcut_parse_error").format(target=f"{namespace}.{name}", query=_key)
+                    i18n.require("manager.shortcut_parse_error").format(target=f"{namespace}.{name}", query=_key)
                 )
             for prefix in args.prefixes:
                 _shortcut[1].pop(f"{re.escape(prefix)}{args.origin_key}")
@@ -301,10 +301,10 @@ class CommandManager:
                     if short.origin_key == args.origin_key:
                         _shortcut[0].pop(key)
                         break
-            return i18n.require("shortcut", "delete_success").format(shortcut=f"[*]{args.origin_key}", target=target.path)
+            return i18n.require("shortcut.delete_success").format(shortcut=f"[*]{args.origin_key}", target=target.path)
         else:
             self._shortcuts.pop(f"{namespace}.{name}")
-            return i18n.require("shortcut", "delete_success").format(shortcut="[all]", target=target.path)
+            return i18n.require("shortcut.delete_success").format(shortcut="[all]", target=target.path)
 
     def get_command(self, command: str) -> Alconna:
         """获取命令"""

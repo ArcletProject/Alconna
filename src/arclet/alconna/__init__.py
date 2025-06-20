@@ -39,4 +39,4 @@ from .formatter import TextFormatter as TextFormatter
 from .shortcut import ShortcutArgs as ShortcutArgs
 from .manager import command_manager as command_manager
 
-__version__ = "1.8.36"
+__version__ = "1.8.38"
