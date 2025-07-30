@@ -924,13 +924,15 @@ def test_default():
 
     alc25_1 = Alconna(
         "core25_1",
+        Option("bar2", Args["baz2;?", int]["qux2", float, 1.0], default=OptionResult()),
         Option("bar1", Args["baz1;?", int]["qux1", float, 1.0], default={"baz1": 123, "qux1": 2.0}),
-        Option("bar", Args["baz;?", int]["qux", float, 1.0], default=321),
+        Option("bar", Args["baz;?", int]["qux", float, 1.0]),
     )
     res1_1 = alc25_1.parse("core25_1")
+    assert res1_1.query("qux2") == 1.0
     assert res1_1.query("baz1") == 123
     assert res1_1.query("qux1") == 2.0
-    assert res1_1.query("baz") == 321
+    assert res1_1.query("baz") is None
 
     alc25_2 = Alconna(
         "core25_2",
@@ -953,14 +955,15 @@ def test_default():
     alc25_3 = Alconna(
         "core25_3",
         Option("bar", Args["baz;?", int, 321]["qux", float, 1.0]),
-        Option("bar1", Args["baz1;?", int]["qux1", float]),
+        Option("bar1", Args["baz;?", int, 321]["qux", float, 1.0], default=OptionResult()),
+
     )
     res8 = alc25_3.parse("core25_3")
-    assert res8.query("bar.baz") == 321
-    assert res8.query("bar.qux") == 1.0
+    assert not res8.query("bar.baz")
+    assert not res8.query("bar.qux")
 
-    assert not res8.query("bar1")
-    assert not res8.query("bar1.baz")
+    assert res8.query("bar1.baz") == 321
+    assert res8.query("bar1.qux") == 1.0
 
 
 def test_conflict():

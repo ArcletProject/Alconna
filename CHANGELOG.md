@@ -1,5 +1,12 @@
 # 更新日志
 
+## 1.8.39
+
+- 修改 v1.8.27 中关于 `Option` 与 `Subcommand` 的默认值的改动：
+  - 若 `Option` 或 `Subcommand` 设置有 `default`, 且没有设置 `Result.args`, 
+    则 `Result.args` 才会被设置为 `Args` 上所有参数的默认值(如果有的话)
+  - 当 `default` 为字典时, 则会将字典的值作为 `Result.args` 的值
+
 ## 1.8.38
 
 ### 修复

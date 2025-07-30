@@ -201,12 +201,12 @@ class Option(CommandNode):
         if default is not Empty and not isinstance(default, (OptionResult, SubcommandResult)):
             default = OptionResult(default)
         super().__init__(name, args, alias, dest, default, action, separators, help_text, requires)
-        if not self.args.empty:
-            if default is not Empty and not self.default.args:
-                self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
+        if not self.args.empty and self.default is not Empty and not self.default.args:
+            if isinstance(self.default.value, dict):
+                self.default.args = self.default.value
                 self.default.value = ...
-            if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}):
-                self.default = OptionResult(args=defaults)
+            else:
+                self.default.args = {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}
         if not self.separators:
             self.compact = True
             self.separators = " "
@@ -305,11 +305,12 @@ class Subcommand(CommandNode):
             reduce(lambda x, y: x + y, [Args()] + [i for i in args if isinstance(i, (Arg, Args))]),  # type: ignore
             alias, dest, default, None, separators, help_text, requires,
         )
-        if not self.args.empty and default is not Empty and not self.default.args:
-            self.default.args = {self.args.argument[0].name: self.default.value} if not isinstance(self.default.value, dict) else self.default.value
-            self.default.value = ...
-        if self.default is Empty and (defaults := {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}):
-            self.default = SubcommandResult(args=defaults)
+        if not self.args.empty and self.default is not Empty and not self.default.args:
+            if isinstance(self.default.value, dict):
+                self.default.args = self.default.value
+                self.default.value = ...
+            else:
+                self.default.args = {arg.name: arg.field.default for arg in self.args.argument if arg.field.default is not Empty}
         self._hash = self._calc_hash()
 
     def __add__(self, other: Option | Args | Arg | str) -> Self:
