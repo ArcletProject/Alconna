@@ -7,7 +7,7 @@ import warnings
 import dataclasses as dc
 import typing
 from typing import Any, Callable, Generic, Literal, TypeVar, ClassVar, ForwardRef, Final, TYPE_CHECKING, get_origin, get_args, Iterable, Sequence, TypedDict
-from typing_extensions import dataclass_transform, ParamSpec, Concatenate, TypeAlias
+from typing_extensions import dataclass_transform, ParamSpec, Concatenate, TypeAlias, TypeVarTuple, Unpack
 
 from nepattern import TPattern, NONE, Pattern, RawStr, UnionPattern, parser
 from typing_extensions import Self
@@ -19,9 +19,39 @@ from .utils import Unset, UNSET, levenshtein
 
 from ._dcls import safe_dcls_kw, safe_field_kw
 from .exceptions import InvalidArgs
+from .receiver import Rx
 from .utils import TAValue, parent_frame_namespace, merge_cls_and_parent_ns
 
 _T = TypeVar("_T")
+_T1 = TypeVar("_T1")
+
+
+@dc.dataclass
+class Trigger:
+    """触发器, 用于标识参数单元的触发方式"""
+
+    name: str
+    """触发器名称"""
+    alias: dc.InitVar[str | Iterable[str] | None] = dc.field(default=None)
+    """触发器别名, 可以是字符串或字符串列表"""
+    aliases: frozenset[str] = dc.field(init=False)
+    """触发器别名"""
+    seps: str = " "
+    """触发器分隔符, 默认为空格"""
+    integrate: bool = False
+    """是否为集成触发器, 默认为 False
+    
+    若为 True, 则触发器的解析结果即为参数单元的输入。
+    """
+
+    def __post_init__(self, alias: str | Iterable[str] | None = None):
+        aliases = list(alias or [])
+        if "|" in self.name:
+            _aliases = self.name.split("|")
+            _aliases.sort(key=len, reverse=True)
+            self.name = _aliases[0]
+            aliases.extend(_aliases[1:])
+        self.aliases = frozenset([self.name, *aliases])
 
 
 @dc.dataclass(**safe_dcls_kw(slots=True))
@@ -32,7 +62,9 @@ class Field(Generic[_T]):
     """参数单元的默认值"""
     default_factory: Callable[[], _T] | type[Empty] = dc.field(default=Empty)
     """参数单元的默认值工厂"""
-    alias: str | None = dc.field(default=None)
+    trigger: Trigger | None = None
+    """参数单元的触发器。若参数单元设置了触发器，则该参数单元需要先满足触发器"""
+    show: str | None = dc.field(default=None)
     """参数单元默认值的别名"""
     completion: Callable[[], str | list[str] | None] | None = dc.field(default=None, repr=False)
     """参数单元的补全"""
@@ -40,19 +72,25 @@ class Field(Generic[_T]):
     """参数单元的错误提示"""
     missing_tips: Callable[[], str] | None = dc.field(default=None, repr=False)
     """参数单元的缺失提示"""
-    notice: str | None = dc.field(default=None, compare=False, hash=False)
+    help_text: str | None = dc.field(default=None, compare=False, hash=False)
     """参数单元的注释"""
     seps: str = dc.field(default=" ", compare=False, hash=False)
     """参数单元使用的分隔符"""
     optional: bool = dc.field(default=False, compare=False, hash=False)
+    """参数单元是否可选"""
     hidden: bool = dc.field(default=False, compare=False, hash=False)
+    """参数单元是否隐藏类型"""
     multiple: bool | int | Literal["+", "*", "str"] = dc.field(default=False, compare=False, hash=False)
+    """参数单元是否为多值参数, 可以是布尔值, 整数, 或者标识符"""
     wildcard: bool = dc.field(default=False, compare=False, hash=False)
+    """参数单元是否为通配符参数, 通常用于匹配任意值"""
+    action: Rx[_T] | None = dc.field(default=None, compare=False, hash=False)
+    """参数单元的动作, 用于处理参数值"""
 
     @property
     def display(self):
         """返回参数单元的显示值"""
-        return self.alias or self.get_default()
+        return self.show or self.get_default()
 
     @property
     def no_default(self):
@@ -93,18 +131,20 @@ def arg_field(
     *,
     default_factory: Any | type[Empty] = Empty,
     init: bool = True,
-    alias: str | None = None,
+    trigger: Trigger | None = None,
+    show: str | None = None,
     completion: Callable[[], str | list[str] | None] | None = None,
     unmatch_tips: Callable[[Any], str] | None = None,
     missing_tips: Callable[[], str] | None = None,
-    notice: str | None = None,
+    help_text: str | None = None,
     seps: str = " ",
+    action: Rx[Any] | None = None,
     multiple: bool | int | Literal["+", "*", "str"] = False,
     optional: bool = False,
     hidden: bool = False,
     wildcard: bool = False,
 ) -> "Any":
-    return Field(default, default_factory, alias, completion, unmatch_tips, missing_tips, notice, seps, optional, hidden, multiple, wildcard)
+    return Field(default, default_factory, trigger, show, completion, unmatch_tips, missing_tips, help_text, seps, optional, hidden, multiple, wildcard, action)
 
 
 @dc.dataclass(**safe_dcls_kw(init=False, eq=True, unsafe_hash=True, slots=True))
@@ -119,11 +159,11 @@ class Arg(Generic[_T]):
     """参数单元的字段"""
 
     def __init__(
-            self,
-            name: str,
-            type_: TAValue[_T] | None = None,
-            field: Field[_T] | _T | type[Empty] = Empty,
-            **kwargs,
+        self,
+        name: str,
+        type_: TAValue[_T] | None = None,
+        field: Field[_T] | _T | type[Empty] = Empty,
+        **kwargs,
     ):
         if not isinstance(name, str) or name.startswith("$"):
             raise InvalidArgs(i18n.require("args.name_error"))
@@ -140,7 +180,7 @@ class Arg(Generic[_T]):
         self.field = _field
 
         if res := re.match(r"^(?P<name>.+?)#(?P<notice>[^;?/#]+)", name):
-            self.field.notice = res["notice"]
+            self.field.help_text = res["notice"]
             self.name = res["name"]
         if res := re.match(r"^(?P<name>.+?)(;)?(?P<flag>[?/]+)", self.name):
             if "?" in res["flag"]:
@@ -156,6 +196,8 @@ class Arg(Generic[_T]):
                                   stacklevel=2)
                     setattr(self.field, k, v)
 
+        self.__fullname__ = self.name
+
     def __str__(self):
         if self.field.wildcard:
             v = n = f"...{self.name}"
@@ -164,9 +206,9 @@ class Arg(Generic[_T]):
         return (n if n == v else f"{n}: {v}") + (
             f" = '{self.field.display}'" if self.field.display is not Empty else "")
 
-    def __add__(self, other) -> "ArgsBuilder":
+    def __add__(self, other: Arg[_T1]) -> "_Args[_T, _T1]":
         if isinstance(other, Arg):
-            return ArgsBuilder() << self << other
+            return _Args[()]([]) << self << other
         raise TypeError(f"unsupported operand type(s) for +: 'Arg' and '{other.__class__.__name__}'")
 
     def __iter__(self):
@@ -181,8 +223,8 @@ class Arg(Generic[_T]):
         n = self.name
         if self.field.optional:
             n = f"{n}?"
-        if self.field.notice:
-            n = f"{n}#{self.field.notice}"
+        if self.field.help_text:
+            n = f"{n}#{self.field.help_text}"
         return n
 
     @property
@@ -202,30 +244,50 @@ class Arg(Generic[_T]):
         return v
 
 
-class Trigger:
-    def __init__(
-        self,
-        name: str,
-        alias: Iterable[str] | None = None,
-        dest: str | None = None,
-    ):
-        aliases = list(alias or [])
-        if "|" in name:
-            _aliases = name.split("|")
-            _aliases.sort(key=len, reverse=True)
-            name = _aliases[0]
-            aliases.extend(_aliases[1:])
-        self.aliases = frozenset([name, *aliases])
-        self.dest = dest or name.lstrip("-")
+_P = ParamSpec("_P")
+T = TypeVar("T")
+Ts = TypeVarTuple("Ts")
+Ts1 = TypeVarTuple("Ts1")
 
 
-class _Args:
-    __slots__ = ("optional_count", "origin", "trigger", "data", "count")
+def _arg_init_wrapper(func: Callable[_P, Field[_T]]):
+    def _wrapper(builder: "_Args[Unpack[Ts1]]", name: str) -> Callable[Concatenate[TAValue[_T], _P], "_Args[Unpack[Ts1], _T]"]:
+        """Wrapper for creating Args with a specific name and type."""
+        return lambda type_, *args, **kwargs: builder.__lshift__(Arg(name, type_, func(*args, **kwargs)))
+    return _wrapper
 
-    def __init__(self, args: list[Arg[Any]], trigger: Trigger | None = None, origin: type[ArgsBase] | None = None):
-        self.origin = origin
-        self.trigger = trigger
-        self.optional_count = 0
+
+wrapper = _arg_init_wrapper(Field)
+
+
+def _arg_init_wrapper1(func: Callable[_P, Field[_T]]):
+    def _wrapper(name: str) -> Callable[Concatenate[TAValue[_T], _P], "_Args[_T]"]:
+        return lambda type_, *args, **kwargs: _Args([Arg(name, type_, func(*args, **kwargs))])
+    return _wrapper
+
+
+wrapper1 = _arg_init_wrapper1(Field)
+
+
+class __ArgsBuilder:
+    __slots__ = ()
+
+    def __getattr__(self, item: str):
+        return wrapper1(item)
+
+    def __lshift__(self, other: Arg[_T]):
+        return _Args[_T]([other])  # type: ignore
+
+
+Args: Final = __ArgsBuilder()
+
+
+class _Args(Generic[Unpack[Ts]]):
+    __slots__ = ("_optional_count", "_origin", "_data", "_count")
+
+    def __init__(self, args: list[Arg[Any]], origin: type[ArgsBase] | None = None):
+        self._origin = origin
+        self._optional_count = 0
         normal = []
         vars_positional: list[Arg[Any]] = []
         for arg in args:
@@ -234,95 +296,43 @@ class _Args:
             else:
                 normal.append(arg)
             if arg.field.optional:
-                self.optional_count += 1
+                self._optional_count += 1
             elif not arg.field.no_default:
-                self.optional_count += 1
+                self._optional_count += 1
         normal.extend(vars_positional)
-        self.data: list[Arg[Any]] = normal
-        self.count = len(self.data)
-
-    @property
-    def aliases(self):
-        if self.trigger:
-            return self.trigger.aliases
-        return frozenset()
+        self._data: list[Arg[Any]] = normal
+        self._count = len(self._data)
 
     def __iter__(self):
-        return iter(self.data)
+        return iter(self._data)
 
     def __bool__(self):
-        return bool(self.data)
+        return bool(self._data)
 
     def __str__(self):
-        return f"Args({', '.join([f'{arg}' for arg in self.data])})" if self.data else "Empty"
+        return f"Args({', '.join([f'{arg}' for arg in self._data])})" if self.data else "Empty"
 
     def __len__(self):
-        return self.count
+        return self._count
 
     def __eq__(self, other):
-        return self.data == other.data
+        return self._data == other._data
 
     def __repr__(self):
-        return repr(self.data)
+        return repr(self._data)
 
-
-_P = ParamSpec("_P")
-_T1 = TypeVar("_T1", bound="ArgsBuilder")
-
-
-def _arg_init_wrapper(func: Callable[_P, Field[_T]]) -> Callable[
-    [_T1, str], Callable[Concatenate[TAValue[_T], _P], _T1]]:
-    return lambda builder, name: lambda type_, *args, **kwargs: builder.__lshift__(
-        Arg(name, type_, func(*args, **kwargs)))
-
-
-wrapper = _arg_init_wrapper(Field)
-
-
-class ArgsBuilder:
-    def __init__(self, *origin: Arg, trigger: Trigger | None = None):
-        self.trigger = trigger
-        self._args = list(origin)
-
-    def __lshift__(self, arg: Arg):
-        self._args.append(arg)
-        return self
+    def __lshift__(self: _Args[Unpack[Ts1]], arg: Arg[T]) -> "_Args[Unpack[Ts1], T]":
+        self._data.append(arg)
+        return self  # type: ignore
 
     def __getattr__(self, item: str):
         return wrapper(self, item)
-
-    def build(self):
-        return _Args(self._args, self.trigger)
-
-    def __iter__(self):
-        return iter(self._args)
-
-    def __len__(self):
-        return len(self._args)
-
-
-class __ArgsBuilderInstance:
-    __slots__ = ()
-
-    def __getattr__(self, item: str):
-        return ArgsBuilder().__getattr__(item)
-
-    def __lshift__(self, other):
-        return ArgsBuilder() << other
-
-    def __call__(self, name: str, *alias: str, dest: str | None = None):
-        return ArgsBuilder(trigger=Trigger(name, alias, dest))
-
-
-Args: Final = __ArgsBuilderInstance()
 
 
 def _is_classvar(a_type):
     # This test uses a typing internal class, but it's the best way to
     # test if this is a ClassVar.
-    return (a_type is typing.ClassVar
-            or (type(a_type) is typing._GenericAlias  # type: ignore
-                and a_type.__origin__ is typing.ClassVar))
+    return a_type is typing.ClassVar or (type(a_type) is typing._GenericAlias and a_type.__origin__ is typing.ClassVar)  # type: ignore
 
 
 @dataclass_transform(field_specifiers=(arg_field,), kw_only_default=True)
@@ -341,7 +351,7 @@ class ArgsMeta(type):
         for b in cls.__mro__[-1:0:-1]:
             base_args: _Args | None = b.__dict__.get("__args_data__")
             if base_args is not None:
-                data_args.extend(base_args.data)
+                data_args.extend(base_args._data)
         data_args = deepcopy(data_args)
         types_namespace = merge_cls_and_parent_ns(cls, parent_frame_namespace())
         cls_annotations = cls.__dict__.get("__annotations__", {})
@@ -377,14 +387,11 @@ class ArgsMeta(type):
             #     arg.field.kw_only = kw_only
             if seps is not None:
                 arg.field.seps = seps
-        trig = None
-        if "name" in kwargs:
-            trig = Trigger(kwargs["name"], kwargs.get("alias"), kwargs.get("dest"))
-        cls.__args_data__ = _Args(all_args, trig, cls)
+        cls.__args_data__ = _Args(all_args, cls)
         try:
             dcls = dc.make_dataclass(
                 cls.__name__,
-                [(arg.name, arg.type_, arg.field.to_dc_field()) for arg in cls.__args_data__.data],
+                [(arg.name, arg.type_, arg.field.to_dc_field()) for arg in cls.__args_data__._data],
                 namespace=types_namespace,
                 repr=True,
                 **safe_dcls_kw(kw_only=True)  # type: ignore
@@ -405,11 +412,11 @@ class ArgsBase(metaclass=ArgsMeta):
             pass
 
     def dump(self):
-        return {arg.name: getattr(self, arg.name) for arg in self.__args_data__.data}
+        return {arg.name: getattr(self, arg.name) for arg in self.__args_data__._data}
 
     @classmethod
     def load(cls, data: dict):
-        for arg in cls.__args_data__.data:
+        for arg in cls.__args_data__._data:
             if arg.name not in data:
                 if not arg.field.optional:
                     raise InvalidArgs(f"missing required argument: {arg.name}")
@@ -417,23 +424,21 @@ class ArgsBase(metaclass=ArgsMeta):
         return cls(**data)
 
 
-def handle_args(arg: Arg[Any] | list[Arg[Any]] | ArgsBuilder | type[ArgsBase] | _Args | None) -> _Args:
+def handle_args(arg: Arg[Any] | list[Arg[Any]] | type[ArgsBase] | _Args | None) -> _Args:
     if arg is None:
         return _Args([])
     if isinstance(arg, _Args):
         return arg
     if isinstance(arg, Arg):
-        arg = [arg]
+        return _Args([arg])
     if isinstance(arg, list):
-        arg = ArgsBuilder(*arg)
-    if isinstance(arg, ArgsBuilder):
-        return arg.build()
+        return _Args(arg)
     if issubclass(arg, ArgsBase):
         return arg.__args_data__
     raise TypeError(f"unsupported operand type(s) for +: 'Arg' and '{arg.__class__.__name__}'")
 
 
-ARGS_PARAM: TypeAlias = "Arg | list[Arg] | ArgsBuilder | type[ArgsBase] | _Args"
+ARGS_PARAM: TypeAlias = "Arg | list[Arg] | type[ArgsBase] | _Args"
 
 
 class Header:
@@ -503,35 +508,6 @@ class Header:
                 return i18n.require("fuzzy.matched").format(target=source, source=ht)
 
 
-# def _handle_default(node: CommandNode):
-#     if node.default is Empty:
-#         return
-#     act = node.action
-#     if act.type == 1 and not isinstance(act.value, list):
-#         act = node.action = dc.replace(act, value=[act.value])
-#     elif act.type == 2 and not isinstance(act.value, int):
-#         act = node.action = dc.replace(act, value=1)
-#     if isinstance(node.default, (OptionResult, SubcommandResult)):
-#         if act.type == 0 and act.value is ...:
-#             node.action = Action(act.type, node.default.value or ...)
-#         if act.type == 1:
-#             if not isinstance(node.default.value, list):
-#                 node.default.value = [node.default.value]
-#             if act.value[0] is ...:  # type: ignore
-#                 node.action = Action(act.type, node.default.value[:])
-#         if act.type == 2 and not isinstance(node.default.value, int):
-#             node.default.value = 1
-#     else:
-#         if act.type == 0 and act.value is ...:
-#            node.action = Action(act.type, node.default)
-#         if act.type == 1:
-#             if not isinstance(node.default, list):
-#                 node.default = [node.default]
-#             if act.value[0] is ...:  # type: ignore
-#                 node.action = Action(act.type, node.default[:])
-#         if act.type == 2 and not isinstance(node.default, int):
-#             node.default = 1
-
 
 class Subcommand:
     """子命令, 次于主命令
@@ -555,9 +531,9 @@ class Subcommand:
     """命令节点帮助信息"""
     soft_keyword: bool
     "是否为软关键字"
-    forks: list[_Args | Subcommand]
+    forks: list[Subcommand]
     """子命令包含的选项与子命令"""
-    _lookup_map: dict[str, _Args | Subcommand]
+    _lookup_map: dict[str, Subcommand]
     """子命令选项与子命令的查找表"""
 
     nargs: int
@@ -566,7 +542,7 @@ class Subcommand:
     def __init__(
         self,
         name: str,
-        *args: Arg | ArgsBuilder | type[ArgsBase] | Subcommand | list[_Args | Subcommand],
+        *args: Arg | _Args | type[ArgsBase] | Subcommand | list[Subcommand],
         alias: Iterable[str] | None = None,
         dest: str | None = None,
         default: Any = Empty,
@@ -578,7 +554,7 @@ class Subcommand:
 
         Args:
             name (str): 子命令名称
-            *args (Arg | ArgsBuilder | type[ArgsBase] | Option | Subcommand | list[_Args | Subcommand]): 参数, 选项或子命令
+            *args (Arg | _Args | type[ArgsBase] | Option | Subcommand | list[Subcommand]): 参数, 选项或子命令
             dest (str | None, optional): 子命令选项目标名称
             default (Any, optional): 子命令默认值
             action (Action | None, optional): 子命令选项响应动作
@@ -587,21 +563,22 @@ class Subcommand:
             soft_keyword (bool, optional): 是否为软关键字
         """
         self.forks = [i for i in args if isinstance(i, Subcommand)]
-        self.forks = sum([li for li in args if isinstance(li, list)], self.forks)
+        self.forks.extend(sub for subs in args if isinstance(subs, list) for sub in subs)
+        _args = []
+        _args_inst = None
         for arg in args:
-            if isinstance(arg, ArgsBuilder) and arg.trigger:
-                self.forks.append(arg.build())
-            elif isinstance(arg, type) and issubclass(arg, ArgsBase) and arg.__args_data__.trigger:
-                self.forks.append(arg.__args_data__)
-        _args = next((i for i in args if isinstance(i, type) and issubclass(i, ArgsBase) and not i.__args_data__.trigger), None)
-        if _args is None:
-            _args = []
-            for i in args:
-                if isinstance(i, Arg):
-                    _args.append(i)
-                elif isinstance(i, ArgsBuilder) and not i.trigger:
-                    _args.extend(i)
-        _args = handle_args(_args)
+            if isinstance(arg, (Subcommand, list)):
+                continue
+            if isinstance(arg, Arg):
+                _args.append(arg)
+                continue
+            data = arg if isinstance(arg, _Args) else arg.__args_data__
+            if _args_inst is None:
+                _args_inst = data
+                _args.extend(data._data)
+            else:
+                raise TypeError(f"multiple Args parameters found in {name!r}")
+
         self.separators = " " if separators is None else "".join(separators)
         aliases = list(alias or [])
         name = re.sub(f"[{self.separators}]", "", name)
@@ -614,11 +591,11 @@ class Subcommand:
             raise InvalidArgs(i18n.require("common.name_empty"))
         self.name = name
         self.aliases = frozenset([name, *aliases])
-        self.args = _args
+        self.args = _Args(_args, origin=_args_inst._origin if _args_inst else None)
         self.default = default
         # _handle_default(self)
 
-        self.nargs = len(self.args.data)
+        self.nargs = len(self.args._data)
         self.dest = dest or self.name
         self.dest = self.dest.lstrip("-") or self.dest
         self.help_text = help_text or self.dest
@@ -638,13 +615,13 @@ class Subcommand:
         Raises:
             TypeError: 如果other不是命令选项或命令节点, 则抛出此异常
         """
-        if isinstance(other, Subcommand) or (isinstance(other, _Args) and other.trigger):
+        if isinstance(other, Subcommand) or (isinstance(other, _Args) and other.slot):
             self.forks.append(other)
             self._hash = self._calc_hash()
             return self
         try:
             _args = handle_args(other)
-            if _args.trigger:
+            if _args.slot:
                 self.forks.append(_args)
             else:
                 self.args = _Args([*self.args.data, *_args.data])

@@ -7,7 +7,7 @@ from nepattern import ANY, STRING, AnyString
 from tarina import Empty, safe_eval, lang, split_once
 
 from ..i18n import i18n
-from ..args import Arg, _Args
+from ..base import Arg, _Args
 from ..base import Option, Subcommand, Header, HeadResult
 from ..config import global_config
 from ..exceptions import (

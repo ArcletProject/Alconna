@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional, overload
 from typing_extensions import Self
 
-from arclet.alconna.args import ARGS_PARAM, Args, _Args, handle_args
+from arclet.alconna.base import ARGS_PARAM, Args, _Args, handle_args
 from arclet.alconna.action import Action, store, store_true
 
 

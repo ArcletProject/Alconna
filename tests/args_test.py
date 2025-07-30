@@ -204,7 +204,7 @@ def test_args_model():
         name: str
         age: int = arg_field(default=16)
 
-    assert analyse_args(People, ["abc"]) == {"name": "abc", "age": 16}
+    assert analyse_args(People, ["abc"]) == People(name="abc", age=16)
 
     class Foo(ArgsBase):
         foo: str
@@ -215,7 +215,7 @@ def test_args_model():
     class Baz(Bar, Foo):
         baz: bool = arg_field(True)
 
-    assert analyse_args(Baz, ["abc 123"]) == {"foo": "abc", "bar": 123, "baz": True}
+    assert analyse_args(Baz, ["abc 123"]) == Baz(foo="abc", bar=123, baz=True)
 
     with pytest.raises(TypeError, match="cannot create Args Model: non-default argument 'foo' follows default argument"):
         class Baz1(Foo, Bar):

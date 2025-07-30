@@ -9,7 +9,7 @@ from arclet.alconna.ingedia._handlers import analyse_header as alh
 from arclet.alconna.ingedia._handlers import analyse_args as ala
 from arclet.alconna.ingedia._handlers import analyse_option as alo
 from arclet.alconna.ingedia._handlers import analyse_subcommand as als
-from arclet.alconna.args import ARGS_PARAM, handle_args
+from arclet.alconna.base import ARGS_PARAM, handle_args
 from arclet.alconna.ingedia._argv import Argv
 from arclet.alconna.base import Option, Subcommand, Header, Config, OptionResult, SubcommandResult
 from arclet.alconna.config import Namespace

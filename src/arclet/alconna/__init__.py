@@ -3,26 +3,23 @@
 from nepattern import ANY as ANY  # noqa
 from tarina import Empty as Empty  # noqa
 
-from .action import append as append
-from .action import append_value as append_value
-from .action import count as count
-from .action import store_false as store_false
-from .action import store_true as store_true
-from .action import store_value as store_value
+from .receiver import append as append
+from .receiver import append_value as append_value
+from .receiver import count as count
+from .receiver import store_false as store_false
+from .receiver import store_true as store_true
+from .receiver import store_value as store_value
 from .base import Arg as Arg
 from .base import ArgsBase as ArgsBase
 from .base import Args as Args
 from .base import arg_field as arg_field
 from .base import Field as Field
+from .base import Slot as Slot
 from .arparma import Arparma as Arparma
 from .arparma import ArparmaBehavior as ArparmaBehavior
-from .base import Option as Option
 from .base import Subcommand as Subcommand
 from .base import Metadata as Metadata
 from .base import Config as Config
-from .base import HeadResult as HeadResult
-from .base import OptionResult as OptionResult
-from .base import SubcommandResult as SubcommandResult
 from .builtin import conflict as conflict
 from .builtin import set_default as set_default
 from .ingedia._completion import CompSession as CompSession  # FIXME

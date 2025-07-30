@@ -7,6 +7,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generic,
     Iterator,
     List,
     Literal,
@@ -18,6 +19,8 @@ from typing import (
     overload,
     runtime_checkable,
 )
+
+from dataclasses import dataclass
 from typing_extensions import TypeAlias
 
 from nepattern import Pattern, MatchFailed
@@ -152,3 +155,14 @@ def levenshtein(source: str, target: str) -> float:
             matrix[i][j] = min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, sub_distance)
 
     return 1 - float(matrix[l_s][l_t]) / max(l_s, l_t)
+
+
+E = TypeVar("E", bound=BaseException)
+
+
+@dataclass
+class Value(Generic[T]):
+    value: T
+
+
+Some = Union[Value[T], None]

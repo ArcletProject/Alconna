@@ -177,7 +177,7 @@ class TextFormatter:
             else:
                 sep = f"[{'|'.join(arg.separators)!r}]"
             res += self.param(arg) + sep
-        notice = [(arg.name, arg.field.notice) for arg in args.data if arg.field.notice]
+        notice = [(arg.name, arg.field.help_text) for arg in args.data if arg.field.help_text]
         return (
             (f"{res}\n## {i18n.require('format', 'notice')}\n  " + "\n  ".join([f"{v[0]}: {v[1]}" for v in notice]))
             if notice
