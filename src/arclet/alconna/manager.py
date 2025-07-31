@@ -259,6 +259,7 @@ class CommandManager:
         if isinstance(source, dict):
             humanize = source.pop("humanized", None)
             command = source.pop("command", str(target.command))
+            compact = source.pop("compact", True)
             if _key.startswith("^"):
                 warnings.warn(
                     "Shortcut Key should not start with '^', otherwise it will ignore the prefix automatically.",
@@ -269,6 +270,17 @@ class CommandManager:
                 if target.prefixes and (_pf := next(filter(lambda x: isinstance(x, str), target.prefixes), None)):
                     command = f"{_pf}{command}"
                 source["prefix"] = False
+            if _key.endswith("$"):
+                warnings.warn(
+                    "Shortcut Key should not end with '$', otherwise it will use `compact=False` automatically.",
+                    UserWarning,
+                    stacklevel=3
+                )
+                _key = _key[:-1]
+                compact = False
+            humanize = humanize or _key
+            if not compact:
+                _key += "$"
             if source.get("prefix", False) and target.prefixes:
                 prefixes = []
                 for prefix in target.prefixes:
@@ -281,14 +293,14 @@ class CommandManager:
                         flags=_flags,
                         origin_key=_key,
                     )
-                _shortcut[0][humanize or _key] = InnerShortcutArgs(
+                _shortcut[0][humanize] = InnerShortcutArgs(
                     **{**source, "command": argv.converter(command), "prefixes": prefixes},
                     flags=_flags,
                     origin_key=_key,
                 )
                 target.formatter.update_shortcut(target)
                 return lang.require("shortcut", "add_success").format(shortcut=f"[*]{_key}", target=target.path)
-            _shortcut[0][humanize or _key] = _shortcut[1][_key] = InnerShortcutArgs(
+            _shortcut[0][humanize] = _shortcut[1][_key] = InnerShortcutArgs(
                 **{**source, "command": argv.converter(command)},
                 flags=_flags,
                 origin_key=_key,
@@ -337,8 +349,6 @@ class CommandManager:
             raise ValueError(lang.require("manager", "undefined_command").format(target=f"{namespace}.{name}"))
         query: str = data.pop(0)
         while True:
-            if query in _shortcut[1]:
-                return data, _shortcut[1][query], None
             for key, args in _shortcut[1].items():
                 if isinstance(args, InnerShortcutArgs) and args.fuzzy and (mat := re.match(f"^{key}", query, args.flags)):
                     if len(query) > mat.span()[1]:

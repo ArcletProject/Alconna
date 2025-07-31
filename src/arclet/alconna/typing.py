@@ -53,6 +53,8 @@ class ShortcutArgs(TypedDict):
     """是否允许命令后随参数"""
     prefix: NotRequired[bool]
     """是否调用时保留指令前缀"""
+    compact: NotRequired[bool | None]
+    """是否允许快捷指令与后随参数之间不包含分隔符"""
     wrapper: NotRequired[ShortcutRegWrapper]
     """快捷指令的正则匹配结果的额外处理函数"""
     humanized: NotRequired[str]

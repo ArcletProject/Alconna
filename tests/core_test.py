@@ -17,6 +17,7 @@ from arclet.alconna import (
     Subcommand,
     namespace,
 )
+from arclet.alconna.constraint import SHORTCUT_REGEX_MATCH
 
 
 def test_alconna_create():
@@ -486,8 +487,8 @@ def test_shortcut():
         assert alc16.parse("tTest123").matched
 
         alc16_1 = Alconna("exec", Args["content", str])
-        alc16_1.shortcut("echo", command="exec print({%0})")
-        alc16_1.shortcut("echo1", command="exec \"print('{*\n}')\"")
+        alc16_1.shortcut("echo", command="exec print({%0})", compact=False)
+        alc16_1.shortcut("echo1", command="exec \"print('{*\n}')\"", compact=True)
         res5 = alc16_1.parse("echo 123")
         assert res5.header_match.origin == "echo"
         assert res5.content == "print(123)"
@@ -495,6 +496,9 @@ def test_shortcut():
         res6 = alc16_1.parse(["echo1", "123 456 789"])
         assert res6.header_match.origin == "echo1"
         assert res6.content == "print('123 456 789')"
+        res6_1 = alc16_1.parse("echo1123")
+        assert res6_1.context[SHORTCUT_REGEX_MATCH].group(0) == "echo1"
+        assert res6_1.content == "print('123')"
         res7 = alc16_1.parse([123])
         assert not res7.matched
         res8 = alc16_1.parse("echo '123'")
