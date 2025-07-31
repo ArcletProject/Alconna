@@ -1,5 +1,11 @@
 # 更新日志
 
+## 1.8.40
+
+- `Alconna.shortcut` 新增参数 `compact: bool | None`
+  - `compact=True` 表示允许快捷方式与后续参数之间无分隔符，反之亦然
+  - `compact=None` 表示将遵从 `CommandMeta` 的 `compact` 设置
+
 ## 1.8.39
 
 - 修改 v1.8.27 中关于 `Option` 与 `Subcommand` 的默认值的改动：
