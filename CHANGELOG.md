@@ -1,5 +1,9 @@
 # 更新日志
 
+## 1.8.41
+
+- `tarina` 依赖升级至 0.7.0
+
 ## 1.8.40
 
 - `Alconna.shortcut` 新增参数 `compact: bool | None`
