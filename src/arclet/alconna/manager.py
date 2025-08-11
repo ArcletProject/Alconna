@@ -501,12 +501,12 @@ class CommandManager:
 
     def record(self, token: int, result: Arparma):
         """记录某个命令的 `token`"""
-        self.__record[token] = result
+        self.__record[token ^ result._id] = result
 
-    def get_record(self, token: int) -> Arparma | None:
+    def get_record(self, token: int, command: Alconna) -> Arparma | None:
         """获取某个 `token` 对应的 `Arparma` 对象"""
-        if token in self.__record:
-            return self.__record[token]
+        if (key := token ^ command._hash) in self.__record:
+            return self.__record[key]
 
     def get_token(self, result: Arparma) -> int:
         """获取某个命令的 `token`"""

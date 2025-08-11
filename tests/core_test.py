@@ -334,6 +334,14 @@ def test_alconna_synthesise():
     print((res := alc10_1.parse(msg)))
     print("\n".join(res.query[List[str]]("lines", [])))
 
+    alc10_2 = Alconna("core101", Args["foo", AllParam])
+    alc10_3 = Alconna("core10", Args["foo", AllParam], meta=CommandMeta(compact=True))
+
+    assert alc10_2.parse("core101 23").query("foo") == ["23"]
+    assert alc10_3.parse("core101 23").query("foo") == ["1 23"]
+
+    assert alc10_2.parse("core101 23").query("foo") == ["23"]
+    assert alc10_3.parse("core101 23").query("foo") == ["1 23"]
 
 def test_simple_override():
     alc11 = Alconna("core11") + Option("foo", Args["bar", str]) + Option("foo")

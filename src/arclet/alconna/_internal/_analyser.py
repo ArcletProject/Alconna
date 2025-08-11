@@ -345,7 +345,7 @@ class Analyser(SubAnalyser[TDC], Generic[TDC]):
             InvalidParam: 参数不匹配
             ArgumentMissing: 参数缺失
         """
-        if argv.message_cache and argv.token in self.used_tokens and (res := command_manager.get_record(argv.token)):
+        if argv.message_cache and argv.token in self.used_tokens and (res := command_manager.get_record(argv.token, self.command)):
             return res
         try:
             self.header_result = self.header_handler(self.command_header, argv)
