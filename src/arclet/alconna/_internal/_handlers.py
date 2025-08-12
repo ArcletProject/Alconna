@@ -289,7 +289,7 @@ def handle_option(argv: Argv, opt: Option) -> tuple[str, OptionResult]:
     error = True
     name, _ = argv.next(opt.separators)
     if opt.compact:
-        mat = next(filter(None, (re.fullmatch(f"{al}(?P<rest>.*?)", name) for al in opt.aliases)), None)
+        mat = next(filter(None, (re.fullmatch(f"{re.escape(al)}(?P<rest>.*?)", name) for al in opt.aliases)), None)
         if mat:
             argv.rollback(mat["rest"], replace=True)
             error = False
