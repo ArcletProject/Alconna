@@ -58,6 +58,7 @@ class CommandManager:
         self.__abandons = []
         self.__shortcuts = {}
         self.__record = LRU(128)
+        self.__shortcuts_caches: dict[str, dict[str, tuple[dict, dict]]] = {}
 
         def _del():
             self.__commands.clear()
@@ -69,16 +70,28 @@ class CommandManager:
                 arp._clr()
             self.__record.clear()
             self.__shortcuts.clear()
+            self.__shortcuts_caches.clear()
 
         weakref.finalize(self, _del)
 
-    def load_shortcuts(self, file: str | Path | None = None) -> None:
-        """加载缓存"""
+    def load_shortcuts(self, file: str | Path | None = None, command: Alconna | str | None = None) -> None:
+        """加载快捷指令"""
         path = Path(file or (Path.cwd() / "shortcut.db"))
+        if isinstance(command, str):
+            command = self.get_command(command)
         with contextlib.suppress(FileNotFoundError, KeyError):
-            with shelve.open(path.resolve().as_posix()) as db:
-                data: dict[str, tuple[dict, dict]] = dict(db["shortcuts"])  # type: ignore
+            p = path.resolve().as_posix()
+            if p in self.__shortcuts_caches:
+                data = self.__shortcuts_caches[p]
+            else:
+                with shelve.open(p) as db:
+                    data: dict[str, tuple[dict, dict]] = dict(db["shortcuts"])  # type: ignore
+                    self.__shortcuts_caches[p] = data
             for cmd, shorts in data.items():
+                if command is not None:
+                    namespace, name = self._command_part(command.path)
+                    if f"{namespace}.{name}" != cmd:
+                        continue
                 _data = self.__shortcuts.setdefault(cmd, ({}, {}))
                 for key, short in shorts[0].items():
                     if isinstance(short, dict):
@@ -93,10 +106,16 @@ class CommandManager:
 
     load_cache = load_shortcuts
 
-    def dump_shortcuts(self, file: str | Path | None = None) -> None:
-        """保存缓存"""
+    def dump_shortcuts(self, file: str | Path | None = None, command: Alconna | str | None = None) -> None:
+        """保存快捷指令"""
         data = {}
+        if isinstance(command, str):
+            command = self.get_command(command)
         for cmd, shorts in self.__shortcuts.items():
+            if command is not None:
+                namespace, name = self._command_part(command.path)
+                if f"{namespace}.{name}" != cmd:
+                    continue
             _data = data.setdefault(cmd, ({}, {}))
             for key, short in shorts[0].items():
                 if isinstance(short, InnerShortcutArgs):
@@ -109,8 +128,14 @@ class CommandManager:
                 else:
                     _data[1][key] = short
         path = Path(file or (Path.cwd() / "shortcut.db"))
-        with shelve.open(path.resolve().as_posix()) as db:
-            db["shortcuts"] = data
+        p = path.resolve().as_posix()
+        if p in self.__shortcuts_caches:
+            self.__shortcuts_caches[p].update(data)
+        with shelve.open(p) as db:
+            if "shortcuts" not in db:
+                db["shortcuts"] = data
+            else:
+                db["shortcuts"].update(data)
         data.clear()
 
     dump_cache = dump_shortcuts
